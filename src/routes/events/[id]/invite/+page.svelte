@@ -1,4 +1,4 @@
-<!-- src/routes/events/[id]/invite/+page.svelte-->
+<!-- src/routes/events/[id]/invite/+page.svelte -->
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
@@ -72,28 +72,39 @@
 <div class="mx-auto max-w-3xl">
 	<a
 		href={resolve(`/events/${eventId}`)}
-		class="inline-flex rounded-full bg-blue-50 px-5 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-100"
+		class="inline-flex rounded-full bg-blue-50 px-5 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
 	>
 		← Back to event
 	</a>
 
-	<div class="mt-6 rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/70">
-		<p class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600">Rally</p>
-		<h1 class="mt-2 text-3xl font-black text-slate-950">Invite people</h1>
+	<div
+		class="mt-6 rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+	>
+		<p class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
+			Rally
+		</p>
 
-		<p class="mt-3 text-slate-500">
+		<h1 class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">
+			Invite people
+		</h1>
+
+		<p class="mt-3 text-slate-500 dark:text-slate-400">
 			For now, invite a user by their Firebase user ID. Later, we will replace this with a
 			search by name or email.
 		</p>
 
 		{#if error}
-			<div class="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
+			<div
+				class="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
+			>
 				{error}
 			</div>
 		{/if}
 
 		{#if success}
-			<div class="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm font-medium text-blue-700">
+			<div
+				class="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm font-medium text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300"
+			>
 				{success}
 			</div>
 		{/if}
@@ -106,7 +117,7 @@
 			}}
 		>
 			<div>
-				<label for="userId" class="text-sm font-bold text-slate-700">
+				<label for="userId" class="text-sm font-bold text-slate-700 dark:text-slate-300">
 					User ID
 				</label>
 
@@ -114,14 +125,14 @@
 					id="userId"
 					bind:value={userIdToInvite}
 					placeholder="Paste user ID here"
-					class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
+					class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
 				/>
 			</div>
 
 			<button
 				type="submit"
 				disabled={loading}
-				class="w-full rounded-2xl bg-blue-600 px-5 py-4 font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+				class="w-full rounded-2xl bg-blue-600 px-5 py-4 font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:shadow-blue-950/40"
 			>
 				{loading ? 'Sending...' : 'Send invite'}
 			</button>

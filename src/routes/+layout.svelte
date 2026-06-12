@@ -1,9 +1,12 @@
+<!-- C:\Users\henri\Fct3Ano\ADC\Rally\src\routes\+layout.svelte -->
 <script lang="ts">
 	import { authState } from '$lib/auth.svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import './layout.css';
+	import '../app.css';
+	import 'mapbox-gl/dist/mapbox-gl.css';
 	import AppShell from '$lib/components/AppShell.svelte';
 
 	let { children } = $props();
@@ -26,7 +29,7 @@
 </script>
 
 {#if authState.loading}
-	<div class="flex h-screen items-center justify-center bg-slate-100 text-slate-600">
+	<div class="flex min-h-screen items-center justify-center bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
 		A carregar...
 	</div>
 {:else}

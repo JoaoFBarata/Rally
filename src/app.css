@@ -1,0 +1,126 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+.rally-event-popup .mapboxgl-popup-content {
+	padding: 0;
+	border-radius: 18px;
+	overflow: hidden;
+	box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
+	border: 1px solid #dbeafe;
+	min-width: 220px;
+}
+
+.rally-event-popup .mapboxgl-popup-close-button {
+	color: white;
+	font-size: 18px;
+	padding: 6px 9px;
+}
+
+.rally-popup {
+	background: white;
+	color: #0f172a;
+	font-family: inherit;
+}
+
+.rally-popup-header {
+	background: #2563eb;
+	color: white;
+	font-weight: 800;
+	font-size: 15px;
+	line-height: 1.25;
+	padding: 12px 34px 12px 14px;
+}
+
+.rally-popup-body {
+	padding: 14px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.rally-popup-row {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.rally-popup-label {
+	font-size: 11px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: #94a3b8;
+}
+
+.rally-popup-value {
+	font-size: 14px;
+	font-weight: 700;
+	color: #0f172a;
+}
+
+.rally-popup-players {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	border-radius: 14px;
+	background: #eff6ff;
+	padding: 10px 12px;
+}
+
+.rally-popup-players-number {
+	font-size: 18px;
+	font-weight: 900;
+	color: #2563eb;
+}
+
+.rally-popup-players-label {
+	font-size: 12px;
+	font-weight: 700;
+	color: #64748b;
+}
+
+.rally-popup-link {
+	display: block;
+	margin-top: 2px;
+	border-radius: 14px;
+	background: #2563eb;
+	padding: 10px 12px;
+	text-align: center;
+	font-size: 14px;
+	font-weight: 800;
+	color: white;
+	text-decoration: none;
+}
+
+.rally-popup-link:hover {
+	background: #1d4ed8;
+}
+/* Mapbox controls - dark mode */
+.dark .mapboxgl-ctrl-group {
+	background: #0f172a !important;
+	border: 1px solid #334155 !important;
+	box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35) !important;
+}
+
+.dark .mapboxgl-ctrl-group button {
+	background-color: #0f172a !important;
+	border-color: #334155 !important;
+}
+
+.dark .mapboxgl-ctrl-group button:hover {
+	background-color: #1e293b !important;
+}
+
+.dark .mapboxgl-ctrl-group button + button {
+	border-top: 1px solid #334155 !important;
+}
+
+.dark .mapboxgl-ctrl-icon {
+	filter: invert(1) brightness(1.6);
+}
+
+.dark .mapboxgl-ctrl-compass .mapboxgl-ctrl-icon {
+	filter: invert(1) brightness(1.6);
+}

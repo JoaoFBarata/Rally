@@ -56,6 +56,7 @@
 		"vitest-browser-svelte": "^2.1.1"
 	},
 	"dependencies": {
-		"firebase": "^12.14.0"
+		"firebase": "^12.14.0",
+		"mapbox-gl": "^3.24.1"
 	}
 }

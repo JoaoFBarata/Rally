@@ -54,29 +54,37 @@
 
 {#if loading}
 	<div class="flex min-h-[70vh] items-center justify-center">
-		<p class="text-slate-500">Loading Rally...</p>
+		<p class="text-slate-500 dark:text-slate-400">Loading Rally...</p>
 	</div>
 {:else}
-	<section class="mx-auto max-w-6xl px-6 py-8">
-		<header class="mb-8 flex items-center justify-between">
+	<section class="mx-auto max-w-6xl px-5 py-6">
+		<header class="mb-6 flex items-start justify-between gap-4">
 			<div>
-				<p class="text-sm font-bold uppercase tracking-[0.3em] text-blue-600">Rally</p>
-				<h1 class="mt-2 text-4xl font-black tracking-tight text-slate-950">Dashboard</h1>
-				<p class="mt-1 text-slate-500">
+				<p class="text-sm font-semibold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
+					Rally
+				</p>
+
+				<h1 class="mt-2 text-3xl font-bold text-slate-950 dark:text-slate-50">
+					Dashboard
+				</h1>
+
+				<p class="mt-1 text-slate-500 dark:text-slate-400">
 					Welcome, {user?.displayName ?? user?.email}
 				</p>
 			</div>
 
 			<button
 				onclick={handleLogout}
-				class="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-blue-600"
+				class="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-blue-400"
 			>
 				Logout
 			</button>
 		</header>
 
 		{#if error}
-			<div class="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
+			<div
+				class="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
+			>
 				{error}
 			</div>
 		{/if}
@@ -84,7 +92,7 @@
 		<section class="grid gap-6 md:grid-cols-3">
 			<a
 				href={resolve('/events/create')}
-				class="rounded-[2rem] bg-blue-600 p-6 text-white shadow-xl shadow-blue-600/25 transition hover:scale-[1.02] hover:bg-blue-700"
+				class="rounded-[2rem] bg-blue-600 p-6 text-white shadow-xl shadow-blue-600/25 transition hover:scale-[1.02] hover:bg-blue-700 dark:shadow-blue-950/40"
 			>
 				<p class="text-sm font-bold uppercase tracking-wide text-blue-100">Create</p>
 				<h2 class="mt-2 text-2xl font-black">New sports event</h2>
@@ -93,37 +101,59 @@
 				</p>
 			</a>
 
-			<div class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70">
-				<p class="text-sm font-medium text-slate-500">Your events</p>
-				<p class="mt-2 text-4xl font-black text-slate-950">{events.length}</p>
-				<p class="mt-2 text-sm text-slate-500">Events created by you</p>
+			<div
+				class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+			>
+				<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Your events</p>
+				<p class="mt-2 text-4xl font-black text-slate-950 dark:text-slate-50">
+					{events.length}
+				</p>
+				<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
+					Events created by you
+				</p>
 			</div>
 
-			<div class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70">
-				<p class="text-sm font-medium text-slate-500">Invitations</p>
-				<p class="mt-2 text-4xl font-black text-slate-950">{invites.length}</p>
-				<p class="mt-2 text-sm text-slate-500">Pending or received invites</p>
+			<div
+				class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+			>
+				<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Invitations</p>
+				<p class="mt-2 text-4xl font-black text-slate-950 dark:text-slate-50">
+					{invites.length}
+				</p>
+				<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
+					Pending or received invites
+				</p>
 			</div>
 		</section>
 
 		<section class="mt-10 grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
-			<div class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70">
+			<div
+				class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+			>
 				<div class="mb-5 flex items-center justify-between">
-					<h2 class="text-xl font-black text-slate-950">My events</h2>
+					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">
+						My events
+					</h2>
+
 					<a
 						href={resolve('/events/create')}
-						class="text-sm font-bold text-blue-600 hover:text-blue-700"
+						class="text-sm font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
 					>
 						Create event
 					</a>
 				</div>
 
 				{#if events.length === 0}
-					<div class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-						<p class="text-slate-500">You have not created any events yet.</p>
+					<div
+						class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center dark:border-slate-700 dark:bg-slate-800"
+					>
+						<p class="text-slate-500 dark:text-slate-400">
+							You have not created any events yet.
+						</p>
+
 						<a
 							href={resolve('/events/create')}
-							class="mt-4 inline-flex rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700"
+							class="mt-4 inline-flex rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 dark:shadow-blue-950/40"
 						>
 							Create your first event
 						</a>
@@ -137,14 +167,24 @@
 				{/if}
 			</div>
 
-			<div class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70">
-				<h2 class="text-xl font-black text-slate-950">Nearby activity</h2>
+			<div
+				class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+			>
+				<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">
+					Nearby activity
+				</h2>
 
-				<div class="mt-5 flex h-72 items-center justify-center rounded-3xl bg-slate-50">
+				<div
+					class="mt-5 flex h-72 items-center justify-center rounded-3xl bg-slate-50 dark:bg-slate-800"
+				>
 					<div class="text-center">
 						<p class="text-5xl">🗺️</p>
-						<p class="mt-3 font-bold text-slate-950">Map coming soon</p>
-						<p class="mt-1 text-sm text-slate-500">
+
+						<p class="mt-3 font-bold text-slate-950 dark:text-slate-50">
+							Map coming soon
+						</p>
+
+						<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
 							Here users will discover events and people nearby.
 						</p>
 					</div>

@@ -1,4 +1,8 @@
+<!-- src/lib/components/RallyLogo.svelte -->
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { initTheme, themeState } from '$lib/theme.svelte';
+
 	type LogoSize = 'sm' | 'md' | 'lg';
 
 	let { size = 'md', href = '/' }: { size?: LogoSize; href?: string } = $props();
@@ -10,11 +14,19 @@
 	};
 
 	const currentSize = $derived(sizes[size]);
+
+	onMount(() => {
+		initTheme();
+	});
+
+	const logoSrc = $derived(
+		themeState.isDark ? '/rally-logo-white.png' : '/rally-logo-black.png'
+	);
 </script>
 
 <a href={href} class="inline-flex items-center">
 	<img
-		src="/rally-logo.png"
+		src={logoSrc}
 		alt="Rally"
 		class={`${currentSize} w-auto object-contain`}
 	/>
