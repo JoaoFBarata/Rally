@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { auth } from '$lib/firebase';
-	import LocationPickerMap from '$lib/components/LocationPickerMap.svelte';
+	import LocationPickerMap from '$lib/components/maps/LocationPickerMap.svelte';
 	import { createSportEvent } from '$lib/services/event.service';
 	import type { Sport, EventVisibility } from '$lib/schema';
 
@@ -37,6 +37,16 @@
 			return;
 		}
 
+		if (lat === null || lng === null) {
+			error = 'Please click on the map to select the event location.';
+			return;
+		}
+
+		if (!address) {
+			error = 'Please wait for the address to be filled after clicking on the map.';
+			return;
+		}
+
 		loading = true;
 
 		try {
@@ -46,8 +56,8 @@
 				sport,
 				creatorId: currentUser.uid,
 				locationName,
-				lat: Number(lat),
-				lng: Number(lng),
+				lat,
+				lng,
 				address,
 				startAt: new Date(startAt),
 				maxParticipants,
@@ -79,7 +89,7 @@
 	</a>
 
 	<div
-		class="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+		class="rounded-4xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 	>
 		<div class="mb-8">
 			<p class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">

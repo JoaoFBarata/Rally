@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import mapboxgl from 'mapbox-gl';
-	import { resolve } from '$app/paths';
 	import { PUBLIC_MAPBOX_ACCESS_TOKEN } from '$env/static/public';
 	import type { SportEvent } from '$lib/schema';
 
@@ -124,8 +123,8 @@
 	});
 </script>
 
-<section class="relative overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-	<div bind:this={mapContainer} class="h-[520px] w-full"></div>
+<section class="relative overflow-hidden rounded-4x1 border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+	<div bind:this={mapContainer} class="h-130 w-full"></div>
 	
 	<div class="absolute left-0 bottom-0 z-10 rounded-2xl bg-white dark:bg-slate-900 p-4 shadow-lg">
 
@@ -202,7 +201,7 @@
 				{/if}
 
 				<a
-					href={resolve(`/events/${selectedEvent.id}`)}
+					href={`/events/${selectedEvent.id}`}
 					class="block rounded-2xl bg-blue-600 px-5 py-3 text-center font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700"
 				>
 					View event

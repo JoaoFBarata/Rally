@@ -168,7 +168,7 @@
 
 	{#if loading}
 		<div
-			class="rounded-[2rem] border border-slate-200 bg-white p-8 text-slate-950 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-50"
+			class="rounded-4xl border border-slate-200 bg-white p-8 text-slate-950 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-50"
 		>
 			Loading profile...
 		</div>
@@ -191,7 +191,7 @@
 
 		<div class="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
 			<section
-				class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+				class="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
 			>
 				<div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
 					<div class="flex items-center gap-4">
@@ -271,7 +271,7 @@
 						<p class="text-sm font-bold text-slate-700 dark:text-slate-300">Sports</p>
 
 						<div class="mt-3 flex flex-wrap gap-2">
-							{#each availableSports as sport}
+							{#each availableSports as sport (sport)}
 								<button
 									type="button"
 									onclick={() => toggleSport(sport)}
@@ -299,7 +299,7 @@
 
 			<aside class="space-y-6">
 				<section
-					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+					class="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
 				>
 					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Add friend</h2>
 					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -345,7 +345,7 @@
 						</div>
 					{:else}
 						<div class="mt-5 space-y-3">
-							{#each friends as friend}
+							{#each friends as friend (friend.id)}
 								<div class="flex items-center justify-between rounded-3xl bg-slate-50 p-4 dark:bg-slate-800">
 									<div class="flex items-center gap-3">
 										<div

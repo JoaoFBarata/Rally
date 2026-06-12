@@ -5,12 +5,16 @@
 	import { resolve } from '$app/paths';
 	import { auth } from '$lib/firebase';
 	import { getEventById, joinEvent } from '$lib/services/event.service';
+	import type { UserProfile } from '$lib/schema';
+	import { getUserProfilesByIds } from '$lib/services/user.service';
+	import EventMap from '$lib/components/maps/EventMap.svelte';
 	import type { SportEvent } from '$lib/schema';
 
 	let event = $state<SportEvent | null>(null);
 	let loading = $state(true);
 	let actionLoading = $state(false);
 	let error = $state('');
+	let participants = $state<UserProfile[]>([]);
 
 	function formatDate(dateValue: unknown) {
 		try {
@@ -51,8 +55,10 @@
 			}
 
 			event = await getEventById(eventId);
-
-			if (!event) {
+			if (event) {
+				participants = await getUserProfilesByIds(event.participantIds ?? []);
+			}
+			else {
 				error = 'Event not found.';
 			}
 		} catch (err) {
@@ -102,20 +108,20 @@
 
 {#if loading}
 	<div
-		class="mt-8 rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+		class="mt-8 rounded-4xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 	>
 		<p class="text-slate-500 dark:text-slate-400">Loading event...</p>
 	</div>
 {:else if error && !event}
 	<div
-		class="mt-8 rounded-[2rem] border border-red-200 bg-red-50 p-8 text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
+		class="mt-8 rounded-4xl border border-red-200 bg-red-50 p-8 text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
 	>
 		{error}
 	</div>
 {:else if event}
 	<div class="mt-8 grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
 		<section
-			class="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+			class="rounded-4xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 		>
 			<p class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
 				{event.sport}
@@ -156,7 +162,6 @@
 						{event.participantIds.length}/{event.maxParticipants}
 					</p>
 				</div>
-
 				<div class="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800">
 					<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Price</p>
 
@@ -171,7 +176,73 @@
 					{/if}
 				</div>
 			</div>
+			<div
+				class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+			>
+				<div class="flex items-center justify-between gap-4">
+					<div>
+						<p class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
+							Players
+						</p>
 
+						<h2 class="mt-2 text-2xl font-black text-slate-950 dark:text-slate-50">
+							People in this event
+						</h2>
+					</div>
+
+					<div class="rounded-2xl bg-blue-50 px-4 py-2 text-center dark:bg-blue-950">
+						<p class="text-lg font-black text-blue-600 dark:text-blue-300">
+							{participants.length}/{event.maxParticipants}
+						</p>
+						<p class="text-xs font-medium text-slate-500 dark:text-slate-400">
+							players
+						</p>
+					</div>
+				</div>
+
+				{#if participants.length > 0}
+					<div class="mt-5 space-y-3">
+						{#each participants as participant (participant.id)}
+							<div
+								class="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800"
+							>
+								<div class="flex items-center gap-3">
+									<div
+										class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-black text-blue-600 dark:bg-blue-950 dark:text-blue-300"
+									>
+										{participant.displayName?.slice(0, 1).toUpperCase() ?? '?'}
+									</div>
+
+									<div>
+										<p class="font-bold text-slate-950 dark:text-slate-50">
+											{participant.displayName}
+										</p>
+
+										{#if participant.rallyTag}
+											<p class="text-sm text-slate-500 dark:text-slate-400">
+												@{participant.rallyTag}
+											</p>
+										{/if}
+									</div>
+								</div>
+								{#if participant.level}
+									<span
+										class="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300"
+									>
+										{participant.level}
+									</span>
+								{/if}
+							</div>
+						{/each}
+					</div>
+				{:else}
+					<div class="mt-5 rounded-2xl bg-slate-50 p-5 text-center dark:bg-slate-800">
+						<p class="text-sm font-semibold text-slate-500 dark:text-slate-400">
+							No players yet.
+						</p>
+					</div>
+				{/if}
+			</div>
 			{#if error}
 				<div
 					class="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
@@ -183,7 +254,7 @@
 
 		<aside class="space-y-6">
 			<div
-				class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+				class="rounded-4xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 			>
 				<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Team status</h2>
 
@@ -212,20 +283,12 @@
 				</a>
 			</div>
 
-			<div
-				class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
-			>
-				<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Map</h2>
-
-				<div class="mt-5 flex h-56 items-center justify-center rounded-3xl bg-slate-50 dark:bg-slate-800">
-					<div class="text-center">
-						<p class="text-5xl">🗺️</p>
-						<p class="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
-							Map placeholder
-						</p>
-					</div>
-				</div>
-			</div>
+			<EventMap
+				lat={event.location.lat}
+				lng={event.location.lng}
+				name={event.location.name}
+				address={event.location.address}
+			/>
 		</aside>
 	</div>
 {/if}

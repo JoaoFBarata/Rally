@@ -9,6 +9,7 @@
 	import { getInvitesForUser } from '$lib/services/invite.service';
 	import type { SportEvent, EventInvite } from '$lib/schema';
 	import EventCard from '$lib/components/EventCard.svelte';
+	import UserMiniMap from '$lib/components/maps/UserMiniMap.svelte';
 
 	let user = $state<User | null>(null);
 	let loading = $state(true);
@@ -92,7 +93,7 @@
 		<section class="grid gap-6 md:grid-cols-3">
 			<a
 				href={resolve('/events/create')}
-				class="rounded-[2rem] bg-blue-600 p-6 text-white shadow-xl shadow-blue-600/25 transition hover:scale-[1.02] hover:bg-blue-700 dark:shadow-blue-950/40"
+				class="rounded-4xl bg-blue-600 p-6 text-white shadow-xl shadow-blue-600/25 transition hover:scale-[1.02] hover:bg-blue-700 dark:shadow-blue-950/40"
 			>
 				<p class="text-sm font-bold uppercase tracking-wide text-blue-100">Create</p>
 				<h2 class="mt-2 text-2xl font-black">New sports event</h2>
@@ -102,7 +103,7 @@
 			</a>
 
 			<div
-				class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+				class="rounded-4xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 			>
 				<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Your events</p>
 				<p class="mt-2 text-4xl font-black text-slate-950 dark:text-slate-50">
@@ -114,7 +115,7 @@
 			</div>
 
 			<div
-				class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+				class="rounded-4xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 			>
 				<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Invitations</p>
 				<p class="mt-2 text-4xl font-black text-slate-950 dark:text-slate-50">
@@ -128,7 +129,7 @@
 
 		<section class="mt-10 grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
 			<div
-				class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+				class="rounded-4xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 			>
 				<div class="mb-5 flex items-center justify-between">
 					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">
@@ -168,26 +169,14 @@
 			</div>
 
 			<div
-				class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+				class="rounded-4xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 			>
 				<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">
 					Nearby activity
 				</h2>
 
-				<div
-					class="mt-5 flex h-72 items-center justify-center rounded-3xl bg-slate-50 dark:bg-slate-800"
-				>
-					<div class="text-center">
-						<p class="text-5xl">🗺️</p>
-
-						<p class="mt-3 font-bold text-slate-950 dark:text-slate-50">
-							Map coming soon
-						</p>
-
-						<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-							Here users will discover events and people nearby.
-						</p>
-					</div>
+				<div class="mt-5">
+					<UserMiniMap />
 				</div>
 			</div>
 		</section>

@@ -51,8 +51,8 @@ export interface SportEvent {
 	location: {
 		name: string;
 		address?: string;
-		lat?: number;
-		lng?: number;
+		lat?: number | null;
+		lng?: number | null;
 	};
 
 	startAt: Timestamp;

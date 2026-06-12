@@ -75,31 +75,45 @@ export async function ensureUserProfile(user: User) {
 		});
 
 		const newSnap = await getDoc(userRef);
-		return newSnap.data() as UserProfile;
+
+		return {
+			...newSnap.data(),
+			id: newSnap.id
+		} as UserProfile;
 	}
 
-	const data = snap.data() as UserProfile;
+	const data = {
+		...snap.data(),
+		id: snap.id
+	} as UserProfile;
 
-	if (!data.rallyTag) {
-		const rallyTag = generateRallyTag(data.displayName ?? displayName, data.email ?? email, user.uid);
+	const needsUpdate =
+		!data.rallyTag ||
+		data.bio === undefined ||
+		data.city === undefined ||
+		data.level === undefined ||
+		data.sports === undefined;
 
-		await updateDoc(userRef, {
+	if (needsUpdate) {
+		const rallyTag =
+			data.rallyTag ?? generateRallyTag(data.displayName ?? displayName, data.email ?? email, user.uid);
+
+		const normalizedProfile = {
 			rallyTag,
 			bio: data.bio ?? '',
 			city: data.city ?? '',
 			level: data.level ?? 'casual',
 			sports: data.sports ?? [],
 			updatedAt: serverTimestamp()
-		});
+		};
+
+		await updateDoc(userRef, normalizedProfile);
 
 		return {
 			...data,
-			rallyTag,
-			bio: data.bio ?? '',
-			city: data.city ?? '',
-			level: data.level ?? 'casual',
-			sports: data.sports ?? []
-		};
+			...normalizedProfile,
+			updatedAt: data.updatedAt
+		} as UserProfile;
 	}
 
 	return data;
@@ -112,8 +126,8 @@ export async function getUserProfile(userId: string) {
 	if (!snap.exists()) return null;
 
 	return {
-		id: snap.id,
-		...snap.data()
+		...snap.data(),
+		id: snap.id
 	} as UserProfile;
 }
 
@@ -124,8 +138,8 @@ export async function searchUsersByRallyTag(rallyTag: string) {
 	const snap = await getDocs(q);
 
 	return snap.docs.map((docSnap) => ({
-		id: docSnap.id,
-		...docSnap.data()
+		...docSnap.data(),
+		id: docSnap.id
 	})) as UserProfile[];
 }
 
@@ -136,6 +150,16 @@ export async function updateUserSports(userId: string, sports: Sport[]) {
 		sports,
 		updatedAt: serverTimestamp()
 	});
+}
+
+export async function getUserProfilesByIds(userIds: string[]) {
+	const uniqueIds = [...new Set(userIds)].filter(Boolean);
+
+	const profiles = await Promise.all(
+		uniqueIds.map((userId) => getUserProfile(userId))
+	);
+
+	return profiles.filter((profile): profile is UserProfile => profile !== null);
 }
 
 export async function updateUserProfileDetails(

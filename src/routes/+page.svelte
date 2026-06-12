@@ -87,7 +87,7 @@
 				<div class="absolute -right-8 bottom-10 h-28 w-28 rounded-full bg-blue-400 blur-3xl"></div>
 
 				<div class="relative mx-auto max-w-sm rounded-[2.5rem] border border-slate-200 bg-white p-4 shadow-2xl">
-					<div class="rounded-[2rem] bg-slate-50 p-5">
+					<div class="rounded-4xl bg-slate-50 p-5">
 						<div class="flex items-center justify-between">
 							<RallyLogo size="sm" />
 							<div class="h-9 w-9 rounded-full bg-slate-200"></div>

@@ -61,7 +61,7 @@
         </div>
 
 				<nav class="mt-10 space-y-2">
-					{#each navItems as item}
+					{#each navItems as item (item.href)}
 						<a
 							href={item.href}
 							class={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition ${
@@ -88,7 +88,7 @@
 		<!-- Mobile bottom navigation -->
 		<nav class="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 px-3 py-2 shadow-2xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 md:hidden">
 			<div class="mx-auto grid max-w-md grid-cols-5 items-end gap-1">
-				{#each navItems as item}
+				{#each navItems as item (item.href)}
 					<a href={item.href} class="flex flex-col items-center justify-end gap-1">
 						<span
 							class={`flex items-center justify-center ${

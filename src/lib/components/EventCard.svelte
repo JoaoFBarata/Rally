@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
 	import type { SportEvent } from '$lib/schema';
 
 	let { event } = $props<{
@@ -27,8 +26,8 @@
 </script>
 
 <a
-	href={resolve(`/events/${event.id}`)}
-	class="block rounded-[2rem] border border-slate-200 bg-white p-5 shadow-lg shadow-slate-200/70 transition hover:border-blue-300 hover:bg-blue-50/40 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none dark:hover:border-blue-500 dark:hover:bg-slate-800"
+	href={`/events/${event.id}`}
+	class="block rounded-4xl border border-slate-200 bg-white p-5 shadow-lg shadow-slate-200/70 transition hover:border-blue-300 hover:bg-blue-50/40 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none dark:hover:border-blue-500 dark:hover:bg-slate-800"
 >
 	<div class="flex items-start justify-between gap-4">
 		<div>

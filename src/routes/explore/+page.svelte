@@ -5,7 +5,7 @@
 	import { auth } from '$lib/firebase';
 	import { getVisibleEventsForUser } from '$lib/services/explore.service';
 	import type { SportEvent } from '$lib/schema';
-	import ExploreMap from '$lib/components/ExploreMap.svelte';
+	import ExploreMap from '$lib/components/maps/ExploreMap.svelte';
 
 	let events = $state<SportEvent[]>([]);
 	let loading = $state(true);
@@ -47,11 +47,11 @@
 	</header>
 
 	{#if loading}
-		<section class="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+		<section class="rounded-4xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-700 dark:bg-slate-800">
 			<p class="text-slate-500">Loading events...</p>
 		</section>
 	{:else if error}
-		<section class="rounded-[2rem] border border-red-200 bg-red-50 p-8 text-red-700">
+		<section class="rounded-4xl border border-red-200 bg-red-50 p-8 text-red-700">
 			{error}
 		</section>
 	{:else}
