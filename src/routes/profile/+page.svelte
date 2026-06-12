@@ -4,6 +4,7 @@
 	import { auth } from '$lib/firebase';
 	import { signOut } from 'firebase/auth';
 	import type { Sport, SportLevel, UserProfile } from '$lib/schema';
+	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import {
 		ensureUserProfile,
 		updateUserProfileDetails
@@ -195,11 +196,12 @@
 			>
 				<div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
 					<div class="flex items-center gap-4">
-						<div
-							class="flex h-20 w-20 items-center justify-center rounded-full bg-blue-600 text-3xl font-black uppercase text-white"
-						>
-							{profile.displayName?.[0] ?? profile.email?.[0] ?? 'R'}
-						</div>
+						<UserAvatar
+							photoURL={profile.photoURL ?? auth.currentUser?.photoURL ?? null}
+							displayName={profile.displayName}
+							email={profile.email}
+							size="xl"
+						/>
 
 						<div>
 							<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">
@@ -348,11 +350,12 @@
 							{#each friends as friend (friend.id)}
 								<div class="flex items-center justify-between rounded-3xl bg-slate-50 p-4 dark:bg-slate-800">
 									<div class="flex items-center gap-3">
-										<div
-											class="flex h-11 w-11 items-center justify-center rounded-full bg-blue-600 font-bold uppercase text-white"
-										>
-											{friend.displayName?.[0] ?? 'R'}
-										</div>
+										<UserAvatar
+											photoURL={friend.photoURL}
+											displayName={friend.displayName}
+											email={friend.email}
+											size="md"
+										/>
 
 										<div>
 											<p class="font-bold text-slate-950 dark:text-slate-50">

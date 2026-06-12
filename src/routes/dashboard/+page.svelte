@@ -4,12 +4,13 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { auth } from '$lib/firebase';
-	import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
+	import { onAuthStateChanged, type User } from 'firebase/auth';
 	import { getEventsCreatedByUser } from '$lib/services/event.service';
 	import { getInvitesForUser } from '$lib/services/invite.service';
 	import type { SportEvent, EventInvite } from '$lib/schema';
 	import EventCard from '$lib/components/EventCard.svelte';
 	import UserMiniMap from '$lib/components/maps/UserMiniMap.svelte';
+	import UserAvatar from '$lib/components/UserAvatar.svelte';
 
 	let user = $state<User | null>(null);
 	let loading = $state(true);
@@ -47,10 +48,6 @@
 		return unsubscribe;
 	});
 
-	async function handleLogout() {
-		await signOut(auth);
-		await goto(resolve('/'));
-	}
 </script>
 
 {#if loading}
@@ -73,13 +70,12 @@
 					Welcome, {user?.displayName ?? user?.email}
 				</p>
 			</div>
-
-			<button
-				onclick={handleLogout}
-				class="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-blue-400"
-			>
-				Logout
-			</button>
+			<UserAvatar
+				photoURL={user?.photoURL}
+				displayName={user?.displayName}
+				email={user?.email}
+				size="lg"
+			/>
 		</header>
 
 		{#if error}

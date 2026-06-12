@@ -7,7 +7,7 @@ import {
 	signOut,
 	updateProfile
 } from 'firebase/auth';
-import { createUserProfile } from '$lib/services/user.service';
+import { createUserProfile, ensureUserProfile } from '$lib/services/user.service';
 
 export const authService = {
 	async register(email: string, password: string, displayName: string) {
@@ -24,15 +24,17 @@ export const authService = {
 			photoURL: credential.user.photoURL
 		});
 
-		return credential;
+		return credential.user;
 	},
 
-	login: (email: string, password: string) => {
-		return signInWithEmailAndPassword(auth, email, password);
+	async login(email: string, password: string) {
+		const credential = await signInWithEmailAndPassword(auth, email, password);
+
+		await ensureUserProfile(credential.user);
+
+		return credential.user;
 	},
-	logout: () => {
-		return signOut(auth);
-	},
+
 	async signInWithGoogle() {
 		const provider = new GoogleAuthProvider();
 
@@ -45,5 +47,9 @@ export const authService = {
 		await ensureUserProfile(result.user);
 
 		return result.user;
+	},
+
+	async logout() {
+		await signOut(auth);
 	}
 };
