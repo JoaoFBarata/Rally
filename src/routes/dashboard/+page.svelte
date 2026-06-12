@@ -130,7 +130,7 @@
 					</div>
 				{:else}
 					<div class="space-y-4">
-						{#each events as event}
+						{#each events as event (event.id)}
 							<EventCard {event} />
 						{/each}
 					</div>
