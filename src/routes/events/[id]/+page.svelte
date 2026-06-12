@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { auth } from '$lib/firebase';
 	import { getEventById, joinEvent } from '$lib/services/event.service';
 	import type { SportEvent } from '$lib/schema';
@@ -36,20 +37,20 @@
 		const currentUser = auth.currentUser;
 
 		if (!currentUser) {
-			await goto('/login');
+			await goto(resolve('/login'));
 			return;
 		}
 
 		try {
 			const eventId = page.params.id;
 
-            if (!eventId) {
-                error = 'Event ID not found.';
-                loading = false;
-                return;
-            }
+			if (!eventId) {
+				error = 'Event ID not found.';
+				loading = false;
+				return;
+			}
 
-            event = await getEventById(eventId);
+			event = await getEventById(eventId);
 
 			if (!event) {
 				error = 'Event not found.';
@@ -92,112 +93,115 @@
 	}
 </script>
 
-<main class="min-h-screen bg-slate-950 text-white">
-	<section class="mx-auto max-w-5xl px-6 py-10">
-		<a href="/dashboard" class="text-sm text-emerald-400 hover:text-emerald-300">
-			← Back to dashboard
-		</a>
+<a
+	href={resolve('/dashboard')}
+	class="inline-flex rounded-full bg-blue-50 px-5 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-100"
+>
+	← Back to dashboard
+</a>
 
-		{#if loading}
-			<div class="mt-10 rounded-3xl border border-slate-800 bg-slate-900 p-8">
-				<p class="text-slate-300">Loading event...</p>
-			</div>
-		{:else if error && !event}
-			<div class="mt-10 rounded-3xl border border-red-500/40 bg-red-500/10 p-8 text-red-200">
-				{error}
-			</div>
-		{:else if event}
-			<div class="mt-8 grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
-				<section class="rounded-3xl border border-slate-800 bg-slate-900 p-8">
-					<p class="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-400">
-						{event.sport}
-					</p>
+{#if loading}
+	<div class="mt-8 rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/70">
+		<p class="text-slate-500">Loading event...</p>
+	</div>
+{:else if error && !event}
+	<div class="mt-8 rounded-[2rem] border border-red-200 bg-red-50 p-8 text-red-700">
+		{error}
+	</div>
+{:else if event}
+	<div class="mt-8 grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
+		<section class="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/70">
+			<p class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600">
+				{event.sport}
+			</p>
 
-					<h1 class="mt-3 text-4xl font-bold">
-						{event.title}
-					</h1>
+			<h1 class="mt-3 text-4xl font-black tracking-tight text-slate-950">
+				{event.title}
+			</h1>
 
-					<p class="mt-4 text-slate-300">
-						{event.description || 'No description provided.'}
-					</p>
+			<p class="mt-4 text-slate-600">
+				{event.description || 'No description provided.'}
+			</p>
 
-					<div class="mt-8 grid gap-4 md:grid-cols-2">
-						<div class="rounded-2xl bg-slate-950 p-5">
-							<p class="text-sm text-slate-400">Date and time</p>
-							<p class="mt-2 font-semibold">{formatDate(event.startAt)}</p>
-						</div>
+			<div class="mt-8 grid gap-4 md:grid-cols-2">
+				<div class="rounded-2xl bg-slate-50 p-5">
+					<p class="text-sm font-medium text-slate-500">Date and time</p>
+					<p class="mt-2 font-bold text-slate-950">{formatDate(event.startAt)}</p>
+				</div>
 
-						<div class="rounded-2xl bg-slate-950 p-5">
-							<p class="text-sm text-slate-400">Location</p>
-							<p class="mt-2 font-semibold">{event.location.name}</p>
-							{#if event.location.address}
-								<p class="mt-1 text-sm text-slate-400">{event.location.address}</p>
-							{/if}
-						</div>
+				<div class="rounded-2xl bg-slate-50 p-5">
+					<p class="text-sm font-medium text-slate-500">Location</p>
+					<p class="mt-2 font-bold text-slate-950">{event.location.name}</p>
 
-						<div class="rounded-2xl bg-slate-950 p-5">
-							<p class="text-sm text-slate-400">Participants</p>
-							<p class="mt-2 font-semibold">
-								{event.participantIds.length}/{event.maxParticipants}
-							</p>
-						</div>
-
-						<div class="rounded-2xl bg-slate-950 p-5">
-							<p class="text-sm text-slate-400">Price</p>
-							{#if event.pricePerPerson}
-								<p class="mt-2 font-semibold">€{event.pricePerPerson.toFixed(2)} per person</p>
-							{:else}
-								<p class="mt-2 font-semibold">Free / not defined</p>
-							{/if}
-						</div>
-					</div>
-
-					{#if error}
-						<div class="mt-6 rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-red-200">
-							{error}
-						</div>
+					{#if event.location.address}
+						<p class="mt-1 text-sm text-slate-500">{event.location.address}</p>
 					{/if}
-				</section>
+				</div>
 
-				<aside class="space-y-6">
-					<div class="rounded-3xl border border-slate-800 bg-slate-900 p-6">
-						<h2 class="text-xl font-bold">Team status</h2>
+				<div class="rounded-2xl bg-slate-50 p-5">
+					<p class="text-sm font-medium text-slate-500">Participants</p>
+					<p class="mt-2 font-bold text-slate-950">
+						{event.participantIds.length}/{event.maxParticipants}
+					</p>
+				</div>
 
-						<div class="mt-5 rounded-2xl bg-slate-950 p-5">
-							<p class="text-4xl font-bold">
-								{event.participantIds.length}/{event.maxParticipants}
-							</p>
-							<p class="mt-1 text-sm text-slate-400">confirmed players</p>
-						</div>
+				<div class="rounded-2xl bg-slate-50 p-5">
+					<p class="text-sm font-medium text-slate-500">Price</p>
 
-						<button
-							onclick={handleJoinEvent}
-							disabled={actionLoading || event.status === 'full'}
-							class="mt-5 w-full rounded-xl bg-emerald-500 px-5 py-3 font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:opacity-60"
-						>
-							{actionLoading ? 'Joining...' : event.status === 'full' ? 'Event full' : 'Join event'}
-						</button>
-
-						<a
-							href={`/events/${event.id}/invite`}
-							class="mt-3 block rounded-xl border border-slate-700 px-5 py-3 text-center font-semibold text-slate-200 transition hover:bg-slate-800"
-						>
-							Invite people
-						</a>
-					</div>
-
-					<div class="rounded-3xl border border-slate-800 bg-slate-900 p-6">
-						<h2 class="text-xl font-bold">Map</h2>
-
-						<div class="mt-5 flex h-56 items-center justify-center rounded-3xl bg-slate-950">
-							<div class="text-center">
-								<p class="text-5xl">🗺️</p>
-								<p class="mt-2 text-sm text-slate-400">Map placeholder</p>
-							</div>
-						</div>
-					</div>
-				</aside>
+					{#if event.pricePerPerson}
+						<p class="mt-2 font-bold text-slate-950">
+							€{event.pricePerPerson.toFixed(2)} per person
+						</p>
+					{:else}
+						<p class="mt-2 font-bold text-slate-950">Free / not defined</p>
+					{/if}
+				</div>
 			</div>
-		{/if}
-	</section>
-</main>
+
+			{#if error}
+				<div class="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
+					{error}
+				</div>
+			{/if}
+		</section>
+
+		<aside class="space-y-6">
+			<div class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70">
+				<h2 class="text-xl font-black text-slate-950">Team status</h2>
+
+				<div class="mt-5 rounded-2xl bg-blue-50 p-5">
+					<p class="text-4xl font-black text-blue-600">
+						{event.participantIds.length}/{event.maxParticipants}
+					</p>
+					<p class="mt-1 text-sm font-medium text-slate-500">confirmed players</p>
+				</div>
+
+				<button
+					onclick={handleJoinEvent}
+					disabled={actionLoading || event.status === 'full'}
+					class="mt-5 w-full rounded-2xl bg-blue-600 px-5 py-4 font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+				>
+					{actionLoading ? 'Joining...' : event.status === 'full' ? 'Event full' : 'Join event'}
+				</button>
+
+				<a
+					href={resolve(`/events/${event.id}/invite`)}
+					class="mt-3 block rounded-2xl border border-slate-200 bg-white px-5 py-4 text-center font-bold text-blue-600 transition hover:bg-blue-50"
+				>
+					Invite people
+				</a>
+			</div>
+
+			<div class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70">
+				<h2 class="text-xl font-black text-slate-950">Map</h2>
+
+				<div class="mt-5 flex h-56 items-center justify-center rounded-3xl bg-slate-50">
+					<div class="text-center">
+						<p class="text-5xl">🗺️</p>
+						<p class="mt-2 text-sm font-medium text-slate-500">Map placeholder</p>
+					</div>
+				</div>
+			</div>
+		</aside>
+	</div>
+{/if}

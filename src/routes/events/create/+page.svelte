@@ -1,6 +1,7 @@
 <!-- src/routes/events/create/+page.svelte -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { auth } from '$lib/firebase';
 	import { createSportEvent } from '$lib/services/event.service';
 	import type { Sport, EventVisibility } from '$lib/schema';
@@ -24,7 +25,7 @@
 		const currentUser = auth.currentUser;
 
 		if (!currentUser) {
-			await goto('/login');
+			await goto(resolve('/login'));
 			return;
 		}
 
@@ -49,163 +50,169 @@
 				priceTotal: priceTotal ?? undefined
 			});
 
-			await goto('/dashboard');
+			await goto(resolve('/dashboard'));
 		} catch (err) {
-            console.error('Create event error:', err);
+			console.error('Create event error:', err);
 
-            if (err instanceof Error) {
-                error = err.message;
-            } else {
-                error = 'Could not create event.';
-            }
-        } finally {
-            loading = false;
-        }
+			if (err instanceof Error) {
+				error = err.message;
+			} else {
+				error = 'Could not create event.';
+			}
+		} finally {
+			loading = false;
+		}
 	}
 </script>
 
-<main class="min-h-screen bg-slate-950 text-white">
-	<section class="mx-auto max-w-3xl px-6 py-10">
-		<a href="/dashboard" class="text-sm text-emerald-400 hover:text-emerald-300">
-			← Back to dashboard
-		</a>
+<div class="mx-auto max-w-3xl space-y-4">
+	<a
+		href={resolve('/dashboard')}
+		class="inline-flex rounded-full bg-blue-100 px-5 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-200"
+	>
+		← Back to dashboard
+	</a>
+	<div class="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/70">
+		<div class="mb-8">
+			<p class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600">Rally</p>
+			<h2 class="mt-2 text-3xl font-black text-slate-950">Create event</h2>
+			<p class="mt-2 text-slate-500">Fill in the event details and start inviting people.</p>
+		</div>
 
-		<div class="mt-6 rounded-3xl border border-slate-800 bg-slate-900 p-8">
-			<p class="text-sm uppercase tracking-[0.3em] text-emerald-400">Rally</p>
-			<h1 class="mt-2 text-3xl font-bold">Create event</h1>
-			<p class="mt-2 text-slate-400">
-				Create a sports activity and start inviting people.
-			</p>
+		{#if error}
+			<div class="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
+				{error}
+			</div>
+		{/if}
 
-			{#if error}
-				<div class="mt-6 rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-red-200">
-					{error}
-				</div>
-			{/if}
+		<form
+			class="space-y-5"
+			onsubmit={(e) => {
+				e.preventDefault();
+				handleCreateEvent();
+			}}
+		>
+			<div>
+				<label for="title" class="text-sm font-bold text-slate-700">Event title</label>
+				<input
+					id="title"
+					bind:value={title}
+					placeholder="Saturday football match"
+					class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
+				/>
+			</div>
 
-			<form class="mt-8 space-y-5" onsubmit={(e) => { e.preventDefault(); handleCreateEvent(); }}>
+			<div>
+				<label for="sport" class="text-sm font-bold text-slate-700">Sport</label>
+				<select
+					id="sport"
+					bind:value={sport}
+					class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
+				>
+					<option value="football">Football</option>
+					<option value="padel">Padel</option>
+					<option value="basketball">Basketball</option>
+					<option value="running">Running</option>
+					<option value="gym">Gym</option>
+					<option value="tennis">Tennis</option>
+					<option value="cycling">Cycling</option>
+					<option value="volleyball">Volleyball</option>
+					<option value="other">Other</option>
+				</select>
+			</div>
+
+			<div>
+				<label for="description" class="text-sm font-bold text-slate-700">Description</label>
+				<textarea
+					id="description"
+					bind:value={description}
+					placeholder="Casual game, all levels welcome..."
+					class="mt-2 min-h-28 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
+				></textarea>
+			</div>
+
+			<div class="grid gap-5 md:grid-cols-2">
 				<div>
-					<label for="title" class="text-sm font-medium text-slate-300">Event title</label>
+					<label for="location" class="text-sm font-bold text-slate-700">Location name</label>
 					<input
-						id="title"
-						bind:value={title}
-						placeholder="Saturday football match"
-						class="mt-2 w-full rounded-xl border-slate-700 bg-slate-950 text-white"
+						id="location"
+						bind:value={locationName}
+						placeholder="City Sports Center"
+						class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
 					/>
 				</div>
 
 				<div>
-					<label for="sport" class="text-sm font-medium text-slate-300">Sport</label>
+					<label for="address" class="text-sm font-bold text-slate-700">Address</label>
+					<input
+						id="address"
+						bind:value={address}
+						placeholder="Lisbon, Portugal"
+						class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
+					/>
+				</div>
+			</div>
+
+			<div class="grid gap-5 md:grid-cols-2">
+				<div>
+					<label for="startAt" class="text-sm font-bold text-slate-700">Date and time</label>
+					<input
+						id="startAt"
+						type="datetime-local"
+						bind:value={startAt}
+						class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
+					/>
+				</div>
+
+				<div>
+					<label for="maxParticipants" class="text-sm font-bold text-slate-700">
+						Max participants
+					</label>
+					<input
+						id="maxParticipants"
+						type="number"
+						min="2"
+						bind:value={maxParticipants}
+						class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
+					/>
+				</div>
+			</div>
+
+			<div class="grid gap-5 md:grid-cols-2">
+				<div>
+					<label for="visibility" class="text-sm font-bold text-slate-700">Visibility</label>
 					<select
-						id="sport"
-						bind:value={sport}
-						class="mt-2 w-full rounded-xl border-slate-700 bg-slate-950 text-white"
+						id="visibility"
+						bind:value={visibility}
+						class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
 					>
-						<option value="football">Football</option>
-						<option value="padel">Padel</option>
-						<option value="basketball">Basketball</option>
-						<option value="running">Running</option>
-						<option value="gym">Gym</option>
-						<option value="tennis">Tennis</option>
-						<option value="cycling">Cycling</option>
-						<option value="volleyball">Volleyball</option>
-						<option value="other">Other</option>
+						<option value="private">Private</option>
+						<option value="friends">Friends</option>
+						<option value="public">Public</option>
 					</select>
 				</div>
 
 				<div>
-					<label for="description" class="text-sm font-medium text-slate-300">Description</label>
-					<textarea
-						id="description"
-						bind:value={description}
-						placeholder="Casual game, all levels welcome..."
-						class="mt-2 w-full rounded-xl border-slate-700 bg-slate-950 text-white"
-					></textarea>
+					<label for="price" class="text-sm font-bold text-slate-700">Total price (€)</label>
+					<input
+						id="price"
+						type="number"
+						min="0"
+						step="0.01"
+						bind:value={priceTotal}
+						placeholder="Optional"
+						class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
+					/>
 				</div>
+			</div>
 
-				<div class="grid gap-5 md:grid-cols-2">
-					<div>
-						<label for="location" class="text-sm font-medium text-slate-300">Location name</label>
-						<input
-							id="location"
-							bind:value={locationName}
-							placeholder="City Sports Center"
-							class="mt-2 w-full rounded-xl border-slate-700 bg-slate-950 text-white"
-						/>
-					</div>
-
-					<div>
-						<label for="address" class="text-sm font-medium text-slate-300">Address</label>
-						<input
-							id="address"
-							bind:value={address}
-							placeholder="Lisbon, Portugal"
-							class="mt-2 w-full rounded-xl border-slate-700 bg-slate-950 text-white"
-						/>
-					</div>
-				</div>
-
-				<div class="grid gap-5 md:grid-cols-2">
-					<div>
-						<label for="startAt" class="text-sm font-medium text-slate-300">Date and time</label>
-						<input
-							id="startAt"
-							type="datetime-local"
-							bind:value={startAt}
-							class="mt-2 w-full rounded-xl border-slate-700 bg-slate-950 text-white"
-						/>
-					</div>
-
-					<div>
-						<label for="maxParticipants" class="text-sm font-medium text-slate-300">
-							Max participants
-						</label>
-						<input
-							id="maxParticipants"
-							type="number"
-							min="2"
-							bind:value={maxParticipants}
-							class="mt-2 w-full rounded-xl border-slate-700 bg-slate-950 text-white"
-						/>
-					</div>
-				</div>
-
-				<div class="grid gap-5 md:grid-cols-2">
-					<div>
-						<label for="visibility" class="text-sm font-medium text-slate-300">Visibility</label>
-						<select
-							id="visibility"
-							bind:value={visibility}
-							class="mt-2 w-full rounded-xl border-slate-700 bg-slate-950 text-white"
-						>
-							<option value="private">Private</option>
-							<option value="friends">Friends</option>
-							<option value="public">Public</option>
-						</select>
-					</div>
-
-					<div>
-						<label for="price" class="text-sm font-medium text-slate-300">Total price (€)</label>
-						<input
-							id="price"
-							type="number"
-							min="0"
-							step="0.01"
-							bind:value={priceTotal}
-							placeholder="Optional"
-							class="mt-2 w-full rounded-xl border-slate-700 bg-slate-950 text-white"
-						/>
-					</div>
-				</div>
-
-				<button
-					type="submit"
-					disabled={loading}
-					class="w-full rounded-xl bg-emerald-500 px-5 py-3 font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:opacity-60"
-				>
-					{loading ? 'Creating...' : 'Create event'}
-				</button>
-			</form>
-		</div>
-	</section>
-</main>
+			<button
+				type="submit"
+				disabled={loading}
+				class="mt-3 w-full rounded-2xl bg-blue-600 px-5 py-4 font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+			>
+				{loading ? 'Creating...' : 'Create event'}
+			</button>
+		</form>
+	</div>
+</div>

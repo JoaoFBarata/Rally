@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import type { SportEvent } from '$lib/schema';
 
 	let { event } = $props<{
@@ -26,43 +27,43 @@
 </script>
 
 <a
-	href={`/events/${event.id}`}
-	class="block rounded-3xl border border-slate-800 bg-slate-950 p-5 transition hover:border-emerald-400/60 hover:bg-slate-900"
+	href={resolve(`/events/${event.id}`)}
+	class="block rounded-[2rem] border border-slate-200 bg-white p-5 shadow-lg shadow-slate-200/70 transition hover:border-blue-300 hover:bg-blue-50/40"
 >
 	<div class="flex items-start justify-between gap-4">
 		<div>
-			<p class="text-sm font-semibold uppercase tracking-wide text-emerald-400">
+			<p class="text-sm font-bold uppercase tracking-wide text-blue-600">
 				{event.sport}
 			</p>
 
-			<h3 class="mt-1 text-xl font-bold text-white">
+			<h3 class="mt-1 text-xl font-black text-slate-950">
 				{event.title}
 			</h3>
 
-			<p class="mt-2 text-sm text-slate-400">
+			<p class="mt-2 text-sm text-slate-500">
 				📍 {event.location.name}
 			</p>
 
-			<p class="mt-1 text-sm text-slate-400">
+			<p class="mt-1 text-sm text-slate-500">
 				🕒 {formatDate(event.startAt)}
 			</p>
 		</div>
 
-		<div class="rounded-2xl bg-slate-800 px-3 py-2 text-center">
-			<p class="text-sm font-bold text-white">
+		<div class="rounded-2xl bg-blue-50 px-3 py-2 text-center">
+			<p class="text-sm font-black text-blue-600">
 				{event.participantIds.length}/{event.maxParticipants}
 			</p>
-			<p class="text-xs text-slate-400">players</p>
+			<p class="text-xs font-medium text-slate-500">players</p>
 		</div>
 	</div>
 
 	<div class="mt-4 flex items-center justify-between">
-		<span class="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300">
+		<span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-600">
 			{event.status}
 		</span>
 
 		{#if event.pricePerPerson}
-			<span class="text-sm text-slate-300">
+			<span class="text-sm font-medium text-slate-600">
 				€{event.pricePerPerson.toFixed(2)} / person
 			</span>
 		{/if}
