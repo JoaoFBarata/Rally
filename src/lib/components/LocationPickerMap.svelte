@@ -5,16 +5,51 @@
 
 	let {
 		lat = $bindable<number | null>(),
-		lng = $bindable<number | null>()
+		lng = $bindable<number | null>(),
+		address = $bindable('')
 	} = $props();
 
 	let mapContainer: HTMLDivElement;
 	let map: mapboxgl.Map | null = null;
 	let marker: mapboxgl.Marker | null = null;
+	async function reverseGeocode(newLng: number, newLat: number) {
+		try {
+			const url = new URL('https://api.mapbox.com/search/geocode/v6/reverse');
 
-	function setLocation(newLng: number, newLat: number) {
+			url.searchParams.set('longitude', String(newLng));
+			url.searchParams.set('latitude', String(newLat));
+			url.searchParams.set('access_token', PUBLIC_MAPBOX_ACCESS_TOKEN);
+
+			const response = await fetch(url);
+
+			if (!response.ok) {
+				throw new Error('Could not fetch address.');
+			}
+
+			const data = await response.json();
+
+			const feature = data.features?.[0];
+
+			if (!feature) {
+				address = '';
+				return;
+			}
+
+			address =
+				feature.properties?.full_address ??
+				feature.properties?.name_preferred ??
+				feature.properties?.name ??
+				feature.properties?.place_formatted ??
+				'';
+		} catch (err) {
+			console.error('Reverse geocoding error:', err);
+		}
+	}
+	async function setLocation(newLng: number, newLat: number) {
 		lng = Number(newLng.toFixed(6));
 		lat = Number(newLat.toFixed(6));
+
+		await reverseGeocode(lng, lat);
 
 		if (!marker) {
 			marker = new mapboxgl.Marker({ color: '#2563eb' });
@@ -43,8 +78,8 @@
 			map?.resize();
 		});
 
-		map.on('click', (event) => {
-			setLocation(event.lngLat.lng, event.lngLat.lat);
+		map.on('click', async (event) => {
+			await setLocation(event.lngLat.lng, event.lngLat.lat);
 		});
 
 		return () => {
@@ -53,9 +88,21 @@
 		};
 	});
 </script>
+<style>
+		:global(.location-picker-map .mapboxgl-canvas) {
+			cursor: crosshair !important;
+		}
 
+		:global(.location-picker-map .mapboxgl-canvas-container.mapboxgl-interactive) {
+			cursor: crosshair !important;
+		}
+
+		:global(.location-picker-map .mapboxgl-canvas-container.mapboxgl-interactive:active) {
+			cursor: crosshair !important;
+		}
+	</style>
 <div
-	class="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+	class="location-picker-map overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 >
 	<div class="border-b border-slate-200 p-5 dark:border-slate-800">
 		<p class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">

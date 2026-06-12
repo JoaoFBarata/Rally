@@ -181,8 +181,9 @@
 						<input
 							id="address"
 							bind:value={address}
-							placeholder="Lisbon, Portugal"
-							class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+							readonly
+							placeholder="Click on the map to fill the address"
+							class="mt-2 w-full cursor-not-allowed rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-slate-600 outline-none transition placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:placeholder:text-slate-500"
 						/>
 					</div>
 				</div>
@@ -252,7 +253,9 @@
 						/>
 					</div>
 				</div>
-
+				<div class="mt-8">
+					<LocationPickerMap bind:lat bind:lng bind:address />
+				</div>
 				<button
 					type="submit"
 					disabled={loading}
@@ -263,8 +266,5 @@
 			</form>
 		</div>
 
-		<div class="mt-8">
-			<LocationPickerMap bind:lat bind:lng />
-		</div>
 	</div>
 </div>
