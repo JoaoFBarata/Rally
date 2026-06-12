@@ -1,3 +1,4 @@
+<!-- src/routes/events/[id]/invite/+page.svelte-->
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';

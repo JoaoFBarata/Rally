@@ -41,8 +41,8 @@
 	}
 
 	function shouldHideNavigation() {
-		return pathname === '/login' || pathname === '/register';
-	}
+        return pathname === '/' || pathname === '/login' || pathname === '/register';
+    }
 </script>
 
 {#if shouldHideNavigation()}
@@ -53,7 +53,7 @@
 			<!-- Desktop sidebar -->
 			<aside class="hidden w-72 border-r border-slate-200 bg-white px-5 py-6 md:block">
 				<div>
-                    <RallyLogo size="sm" />
+                    <RallyLogo size="sm" href="/dashboard" />
                     <p class="mt-2 text-xs text-slate-500">Make sports happen</p>
                 </div>
 

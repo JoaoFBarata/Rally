@@ -19,18 +19,22 @@ export type InviteStatus = 'pending' | 'accepted' | 'declined' | 'maybe';
 
 export type PaymentStatus = 'not_required' | 'pending' | 'paid';
 
+export type SportLevel = 'beginner' | 'casual' | 'intermediate' | 'advanced';
+
+export type FriendRequestStatus = 'pending' | 'accepted' | 'declined';
+
 export interface UserProfile {
 	id: string;
 	email: string;
 	displayName: string;
 	photoURL?: string | null;
 
+	rallyTag?: string;
+	bio?: string;
+	city?: string;
+	level?: SportLevel;
+
 	sports: Sport[];
-	location?: {
-		city?: string;
-		lat?: number;
-		lng?: number;
-	};
 
 	createdAt: Timestamp;
 	updatedAt: Timestamp;
@@ -88,4 +92,39 @@ export interface EventPayment {
 
 	createdAt: Timestamp;
 	updatedAt: Timestamp;
+}
+
+export interface FriendRequest {
+	id: string;
+	fromUserId: string;
+	toUserId: string;
+	status: FriendRequestStatus;
+	createdAt: Timestamp;
+	updatedAt: Timestamp;
+}
+
+export interface Friendship {
+	id: string;
+	memberIds: string[];
+	createdAt: Timestamp;
+	updatedAt: Timestamp;
+}
+
+export interface ChatConversation {
+	id: string;
+	memberIds: string[];
+	type: 'direct' | 'group';
+	title?: string;
+	lastMessage?: string;
+	lastMessageAt?: Timestamp;
+	createdAt: Timestamp;
+	updatedAt: Timestamp;
+}
+
+export interface ChatMessage {
+	id: string;
+	conversationId: string;
+	senderId: string;
+	text: string;
+	createdAt: Timestamp;
 }

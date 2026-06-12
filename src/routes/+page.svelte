@@ -1,5 +1,13 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { authState } from '$lib/auth.svelte';
 	import RallyLogo from '$lib/components/RallyLogo.svelte';
+
+	$effect(() => {
+		if (!authState.loading && authState.user) {
+			goto('/dashboard');
+		}
+	});
 </script>
 
 <main class="min-h-screen bg-slate-50">
