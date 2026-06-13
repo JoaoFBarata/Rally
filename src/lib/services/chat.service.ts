@@ -1,15 +1,19 @@
+//C:\Users\henri\Fct3Ano\ADC\Rally\src\lib\services\chat.service.ts
 import {
 	addDoc,
+	arrayRemove,
 	collection,
 	doc,
-    getDoc,
+	getDoc,
 	getDocs,
+	onSnapshot,
 	orderBy,
 	query,
 	serverTimestamp,
 	setDoc,
 	updateDoc,
-	where
+	where,
+	type Unsubscribe
 } from 'firebase/firestore';
 import { db } from '$lib/firebase';
 import type { ChatConversation, ChatMessage } from '$lib/schema';
@@ -76,6 +80,16 @@ export async function sendMessage(params: {
 		throw new Error('Message cannot be empty.');
 	}
 
+	const conversationRef = doc(db, 'conversations', params.conversationId);
+	const conversationSnap = await getDoc(conversationRef);
+
+	if (!conversationSnap.exists()) {
+		throw new Error('Conversation not found.');
+	}
+
+	const conversationData = conversationSnap.data() as ChatConversation;
+	const unreadFor = conversationData.memberIds.filter((memberId) => memberId !== params.senderId);
+
 	await addDoc(collection(db, 'conversations', params.conversationId, 'messages'), {
 		conversationId: params.conversationId,
 		senderId: params.senderId,
@@ -83,10 +97,12 @@ export async function sendMessage(params: {
 		createdAt: serverTimestamp()
 	});
 
-	await updateDoc(doc(db, 'conversations', params.conversationId), {
+	await updateDoc(conversationRef, {
 		lastMessage: cleanText,
+		lastSenderId: params.senderId,
 		lastMessageAt: serverTimestamp(),
-		updatedAt: serverTimestamp()
+		updatedAt: serverTimestamp(),
+		unreadFor
 	});
 }
 
@@ -100,4 +116,54 @@ export async function getConversationById(conversationId: string) {
 		id: snap.id,
 		...snap.data()
 	} as ChatConversation;
+}
+function getTimestampMillis(value: unknown) {
+	const timestamp = value as { toMillis?: () => number; toDate?: () => Date };
+
+	if (timestamp?.toMillis) return timestamp.toMillis();
+	if (timestamp?.toDate) return timestamp.toDate().getTime();
+
+	return 0;
+}
+
+export function listenConversationsForUser(
+	userId: string,
+	callback: (conversations: ChatConversation[]) => void,
+	onError?: (error: Error) => void
+): Unsubscribe {
+	const q = query(
+		collection(db, 'conversations'),
+		where('memberIds', 'array-contains', userId)
+	);
+
+	return onSnapshot(
+		q,
+		(snap) => {
+			const conversations = snap.docs
+				.map((docSnap) => ({
+					id: docSnap.id,
+					...docSnap.data()
+				})) as ChatConversation[];
+
+			conversations.sort((a, b) => {
+				const aTime = getTimestampMillis(a.lastMessageAt ?? a.updatedAt);
+				const bTime = getTimestampMillis(b.lastMessageAt ?? b.updatedAt);
+
+				return bTime - aTime;
+			});
+
+			callback(conversations);
+		},
+		(error) => {
+			console.error('Conversations listener error:', error);
+			onError?.(error);
+		}
+	);
+}
+
+export async function markConversationAsRead(conversationId: string, userId: string) {
+	await updateDoc(doc(db, 'conversations', conversationId), {
+		unreadFor: arrayRemove(userId),
+		updatedAt: serverTimestamp()
+	});
 }

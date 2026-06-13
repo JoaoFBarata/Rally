@@ -4,15 +4,14 @@ import {
 	doc,
 	getDoc,
 	getDocs,
+	onSnapshot,
 	query,
 	serverTimestamp,
 	setDoc,
 	updateDoc,
-	where
+	where,
+	type Unsubscribe
 } from 'firebase/firestore';
-import { db } from '$lib/firebase';
-import type { FriendRequest, FriendRequestStatus, UserProfile } from '$lib/schema';
-import { getUserProfile, searchUsersByRallyTag } from '$lib/services/user.service';
 
 function friendshipIdFor(userA: string, userB: string) {
 	return [userA, userB].sort().join('_');
@@ -129,4 +128,30 @@ export async function getFriendsForUser(userId: string) {
 	);
 
 	return friends.filter(Boolean) as UserProfile[];
+}
+export function listenFriendRequestsForUser(
+	userId: string,
+	callback: (requests: FriendRequest[]) => void,
+	onError?: (error: Error) => void
+): Unsubscribe {
+	const q = query(
+		collection(db, 'friendRequests'),
+		where('toUserId', '==', userId)
+	);
+
+	return onSnapshot(
+		q,
+		(snap) => {
+			const requests = snap.docs.map((docSnap) => ({
+				id: docSnap.id,
+				...docSnap.data()
+			})) as FriendRequest[];
+
+			callback(requests);
+		},
+		(error) => {
+			console.error('Friend requests listener error:', error);
+			onError?.(error);
+		}
+	);
 }

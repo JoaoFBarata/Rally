@@ -7,7 +7,8 @@
 	import {
 		getConversationById,
 		getMessagesForConversation,
-		sendMessage
+		sendMessage,
+		markConversationAsRead
 	} from '$lib/services/chat.service';
 	import { getUserProfile } from '$lib/services/user.service';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -84,6 +85,7 @@
 			}
 
 			messages = await getMessagesForConversation(id);
+			await markConversationAsRead(id, currentUser.uid);
 			await scrollToBottom();
 		} catch (err) {
 			console.error('Conversation load error:', err);

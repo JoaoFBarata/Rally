@@ -114,13 +114,15 @@ export interface Friendship {
 
 export interface ChatConversation {
 	id: string;
-	memberIds: string[];
 	type: 'direct' | 'group';
-    eventId?: string;
+  eventId?: string;
+	memberIds: string[];
 	title?: string;
-    photoURL?: string | null;
+  photoURL?: string | null;
 	lastMessage?: string;
+	lastSenderId?: string;
 	lastMessageAt?: Timestamp;
+	unreadFor?: string[];
 	createdAt: Timestamp;
 	updatedAt: Timestamp;
 }
