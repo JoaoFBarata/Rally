@@ -11,7 +11,10 @@
 	} from '$lib/services/chat.service';
 	import { getUserProfile } from '$lib/services/user.service';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
-	import type { ChatMessage, UserProfile } from '$lib/schema';
+	import type { ChatConversation, ChatMessage, UserProfile } from '$lib/schema';
+
+	let conversation = $state<ChatConversation | null>(null);
+	let senderProfiles = $state<Record<string, UserProfile>>({});
 
 	let conversationId = $state('');
 	let otherUser = $state<UserProfile | null>(null);
@@ -51,7 +54,8 @@
 		error = '';
 
 		try {
-			const conversation = await getConversationById(id);
+			const loadedConversation = await getConversationById(id);
+			conversation = loadedConversation;
 
 			if (!conversation) {
 				error = 'Conversation not found.';
@@ -63,8 +67,21 @@
 				return;
 			}
 
-			const otherUserId = conversation.memberIds.find((memberId) => memberId !== currentUser.uid);
-			otherUser = otherUserId ? await getUserProfile(otherUserId) : null;
+			if (loadedConversation.type === 'group') {
+				const profiles = await Promise.all(
+					loadedConversation.memberIds.map(async (memberId) => {
+						const profile = await getUserProfile(memberId);
+						return profile;
+					})
+				);
+
+				senderProfiles = Object.fromEntries(
+					profiles.filter(Boolean).map((profile) => [profile!.id, profile!])
+				);
+			} else {
+				const otherUserId = loadedConversation.memberIds.find((memberId) => memberId !== currentUser.uid);
+				otherUser = otherUserId ? await getUserProfile(otherUserId) : null;
+			}
 
 			messages = await getMessagesForConversation(id);
 			await scrollToBottom();
@@ -122,19 +139,23 @@
 		</a>
 
 		<UserAvatar
-			displayName={otherUser?.displayName}
+			displayName={conversation?.type === 'group' ? conversation.title : otherUser?.displayName}
 			email={otherUser?.email}
-			photoURL={otherUser?.photoURL}
+			photoURL={conversation?.type === 'group' ? conversation.photoURL : otherUser?.photoURL}
 			size="md"
 		/>
 
 		<div class="min-w-0 flex-1">
 			<h1 class="truncate text-base font-black text-slate-950 dark:text-white">
-				{otherUser?.displayName ?? 'Rally user'}
+				{conversation?.type === 'group'
+					? conversation.title
+					: otherUser?.displayName ?? 'Rally user'}
 			</h1>
 
 			<p class="truncate text-xs text-slate-500 dark:text-slate-400">
-				@{otherUser?.rallyTag ?? 'rally'}
+				{conversation?.type === 'group'
+					? 'Event group'
+					: `@${otherUser?.rallyTag ?? 'rally'}`}
 			</p>
 		</div>
 	</header>
@@ -184,9 +205,15 @@
 					>
 						{#if message.senderId !== auth.currentUser?.uid}
 							<UserAvatar
-								displayName={otherUser?.displayName}
-								email={otherUser?.email}
-								photoURL={otherUser?.photoURL}
+								displayName={conversation?.type === 'group'
+									? senderProfiles[message.senderId]?.displayName
+									: otherUser?.displayName}
+								email={conversation?.type === 'group'
+									? senderProfiles[message.senderId]?.email
+									: otherUser?.email}
+								photoURL={conversation?.type === 'group'
+									? senderProfiles[message.senderId]?.photoURL
+									: otherUser?.photoURL}
 								size="sm"
 							/>
 						{/if}
