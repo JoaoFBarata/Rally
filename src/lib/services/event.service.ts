@@ -1,4 +1,4 @@
-//C:\Users\henri\Fct3Ano\ADC\Rally\src\lib\services\event.service.ts
+// src/lib/services/event.service.ts
 
 import {
 	addDoc,
@@ -9,12 +9,37 @@ import {
 	orderBy,
 	query,
 	serverTimestamp,
+	setDoc,
 	Timestamp,
 	updateDoc,
 	where
 } from 'firebase/firestore';
 import { db } from '$lib/firebase';
 import type { EventStatus, EventVisibility, Sport, SportEvent } from '$lib/schema';
+
+export function getEventGroupConversationId(eventId: string) {
+	return `event_${eventId}`;
+}
+
+async function syncEventGroupConversation(event: SportEvent) {
+	const conversationId = getEventGroupConversationId(event.id);
+	const conversationRef = doc(db, 'conversations', conversationId);
+
+	await setDoc(
+		conversationRef,
+		{
+			id: conversationId,
+			type: 'group',
+			eventId: event.id,
+			title: event.title,
+			photoURL: event.groupPhotoURL ?? null,
+			memberIds: event.participantIds ?? [],
+			updatedAt: serverTimestamp(),
+			createdAt: serverTimestamp()
+		},
+		{ merge: true }
+	);
+}
 
 export async function createSportEvent(params: {
 	title: string;
@@ -30,6 +55,7 @@ export async function createSportEvent(params: {
 	maxParticipants: number;
 	visibility?: EventVisibility;
 	priceTotal?: number;
+	groupPhotoURL?: string | null;
 }) {
 	const participantIds = [params.creatorId];
 
@@ -43,6 +69,7 @@ export async function createSportEvent(params: {
 		description: params.description ?? '',
 		sport: params.sport,
 		creatorId: params.creatorId,
+		groupPhotoURL: params.groupPhotoURL ?? null,
 
 		location: {
 			name: params.locationName,
@@ -70,10 +97,14 @@ export async function createSportEvent(params: {
 
 	const docRef = await addDoc(collection(db, 'events'), eventData);
 
-	return {
+	const createdEvent = {
 		id: docRef.id,
 		...eventData
-	};
+	} as SportEvent;
+
+	await syncEventGroupConversation(createdEvent);
+
+	return createdEvent;
 }
 
 export async function getEventById(eventId: string) {
@@ -110,6 +141,10 @@ export async function joinEvent(eventId: string, userId: string) {
 		throw new Error('Event not found');
 	}
 
+	if (event.status === 'cancelled') {
+		throw new Error('This event has been cancelled.');
+	}
+
 	if (event.participantIds.includes(userId)) {
 		return;
 	}
@@ -119,6 +154,7 @@ export async function joinEvent(eventId: string, userId: string) {
 	}
 
 	const newParticipantIds = [...event.participantIds, userId];
+
 	const newStatus: EventStatus =
 		newParticipantIds.length >= event.maxParticipants ? 'full' : 'open';
 
@@ -126,5 +162,137 @@ export async function joinEvent(eventId: string, userId: string) {
 		participantIds: newParticipantIds,
 		status: newStatus,
 		updatedAt: serverTimestamp()
+	});
+
+	await syncEventGroupConversation({
+		...event,
+		participantIds: newParticipantIds,
+		status: newStatus
+	});
+}
+
+export async function leaveEvent(eventId: string, userId: string) {
+	const event = await getEventById(eventId);
+
+	if (!event) {
+		throw new Error('Event not found');
+	}
+
+	if (event.creatorId === userId) {
+		throw new Error('The creator cannot leave the event. Cancel the event instead.');
+	}
+
+	if (!event.participantIds.includes(userId)) {
+		return;
+	}
+
+	const newParticipantIds = event.participantIds.filter((id) => id !== userId);
+
+	const newStatus: EventStatus =
+		event.status === 'cancelled'
+			? 'cancelled'
+			: newParticipantIds.length >= event.maxParticipants
+				? 'full'
+				: 'open';
+
+	await updateDoc(doc(db, 'events', eventId), {
+		participantIds: newParticipantIds,
+		status: newStatus,
+		updatedAt: serverTimestamp()
+	});
+
+	await syncEventGroupConversation({
+		...event,
+		participantIds: newParticipantIds,
+		status: newStatus
+	});
+}
+
+export async function cancelEvent(eventId: string, userId: string) {
+	const event = await getEventById(eventId);
+
+	if (!event) {
+		throw new Error('Event not found');
+	}
+
+	if (event.creatorId !== userId) {
+		throw new Error('Only the creator can cancel this event.');
+	}
+
+	await updateDoc(doc(db, 'events', eventId), {
+		status: 'cancelled',
+		updatedAt: serverTimestamp()
+	});
+
+	await syncEventGroupConversation({
+		...event,
+		status: 'cancelled'
+	});
+}
+
+export async function removeParticipantFromEvent(params: {
+	eventId: string;
+	creatorId: string;
+	participantId: string;
+}) {
+	const event = await getEventById(params.eventId);
+
+	if (!event) {
+		throw new Error('Event not found');
+	}
+
+	if (event.creatorId !== params.creatorId) {
+		throw new Error('Only the creator can remove people from this event.');
+	}
+
+	if (params.participantId === event.creatorId) {
+		throw new Error('The creator cannot be removed.');
+	}
+
+	const newParticipantIds = event.participantIds.filter((id) => id !== params.participantId);
+
+	const newStatus: EventStatus =
+		event.status === 'cancelled'
+			? 'cancelled'
+			: newParticipantIds.length >= event.maxParticipants
+				? 'full'
+				: 'open';
+
+	await updateDoc(doc(db, 'events', params.eventId), {
+		participantIds: newParticipantIds,
+		status: newStatus,
+		updatedAt: serverTimestamp()
+	});
+
+	await syncEventGroupConversation({
+		...event,
+		participantIds: newParticipantIds,
+		status: newStatus
+	});
+}
+
+export async function updateEventGroupPhoto(params: {
+	eventId: string;
+	userId: string;
+	groupPhotoURL: string;
+}) {
+	const event = await getEventById(params.eventId);
+
+	if (!event) {
+		throw new Error('Event not found');
+	}
+
+	if (event.creatorId !== params.userId) {
+		throw new Error('Only the creator can update the group photo.');
+	}
+
+	await updateDoc(doc(db, 'events', params.eventId), {
+		groupPhotoURL: params.groupPhotoURL,
+		updatedAt: serverTimestamp()
+	});
+
+	await syncEventGroupConversation({
+		...event,
+		groupPhotoURL: params.groupPhotoURL
 	});
 }

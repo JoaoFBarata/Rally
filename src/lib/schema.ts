@@ -48,6 +48,8 @@ export interface SportEvent {
 	sport: Sport;
 	creatorId: string;
 
+    groupPhotoURL?: string | null;
+
 	location: {
 		name: string;
 		address?: string;
@@ -114,7 +116,9 @@ export interface ChatConversation {
 	id: string;
 	memberIds: string[];
 	type: 'direct' | 'group';
+    eventId?: string;
 	title?: string;
+    photoURL?: string | null;
 	lastMessage?: string;
 	lastMessageAt?: Timestamp;
 	createdAt: Timestamp;

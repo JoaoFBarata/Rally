@@ -111,16 +111,23 @@
 			const userConversations = await getConversationsForUser(currentUser.uid);
 
 			conversations = await Promise.all(
-				userConversations.map(async (conversation) => {
-					const otherUserId = conversation.memberIds.find((id) => id !== currentUser.uid);
-					const otherUser = otherUserId ? await getUserProfile(otherUserId) : null;
+                userConversations.map(async (conversation) => {
+                    if (conversation.type === 'group') {
+                        return {
+                            ...conversation,
+                            otherUser: null
+                        };
+                    }
 
-					return {
-						...conversation,
-						otherUser
-					};
-				})
-			);
+                    const otherUserId = conversation.memberIds.find((id) => id !== currentUser.uid);
+                    const otherUser = otherUserId ? await getUserProfile(otherUserId) : null;
+
+                    return {
+                        ...conversation,
+                        otherUser
+                    };
+                })
+            );
 		} catch (err) {
 			console.error('Messages load error:', err);
 			error = err instanceof Error ? err.message : 'Could not load messages.';
@@ -383,20 +390,28 @@
 								class="flex items-center gap-3 py-4 transition hover:bg-slate-50 dark:hover:bg-slate-900"
 							>
 								<UserAvatar
-                                    displayName={conversation.otherUser?.displayName}
+                                    displayName={conversation.type === 'group'
+                                        ? conversation.title
+                                        : conversation.otherUser?.displayName}
                                     email={conversation.otherUser?.email}
-                                    photoURL={conversation.otherUser?.photoURL}
+                                    photoURL={conversation.type === 'group'
+                                        ? conversation.photoURL
+                                        : conversation.otherUser?.photoURL}
                                     size="md"
                                 />
 
-								<div class="min-w-0 flex-1">
-									<p class="truncate font-black">
-										{conversation.otherUser?.displayName ?? conversation.title ?? 'Group chat'}
-									</p>
-									<p class="truncate text-sm text-slate-500 dark:text-slate-400">
-										{conversation.lastMessage ?? 'No messages yet'}
-									</p>
-								</div>
+                                <div class="min-w-0 flex-1">
+                                    <p class="truncate font-black">
+                                        {conversation.type === 'group'
+                                            ? conversation.title
+                                            : conversation.otherUser?.displayName ?? 'Rally user'}
+                                    </p>
+
+                                    <p class="truncate text-sm text-slate-500 dark:text-slate-400">
+                                        {conversation.lastMessage ??
+                                            (conversation.type === 'group' ? 'Event group' : 'No messages yet')}
+                                    </p>
+                                </div>
 
 								<span class="text-slate-300 dark:text-slate-600">›</span>
 							</a>
