@@ -87,12 +87,16 @@ export async function ensureUserProfile(user: User) {
 		id: snap.id
 	} as UserProfile;
 
+	const nextPhotoURL = data.photoURL ?? user.photoURL ?? null;
+
 	const needsUpdate =
 		!data.rallyTag ||
 		data.bio === undefined ||
 		data.city === undefined ||
 		data.level === undefined ||
-		data.sports === undefined;
+		data.sports === undefined ||
+		data.photoURL === undefined ||
+		(!data.photoURL && user.photoURL);
 
 	if (needsUpdate) {
 		const rallyTag =
@@ -104,6 +108,7 @@ export async function ensureUserProfile(user: User) {
 			city: data.city ?? '',
 			level: data.level ?? 'casual',
 			sports: data.sports ?? [],
+			photoURL: nextPhotoURL,
 			updatedAt: serverTimestamp()
 		};
 
@@ -111,8 +116,7 @@ export async function ensureUserProfile(user: User) {
 
 		return {
 			...data,
-			...normalizedProfile,
-			updatedAt: data.updatedAt
+			...normalizedProfile
 		} as UserProfile;
 	}
 

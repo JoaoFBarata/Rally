@@ -6,19 +6,20 @@
 	import { resolve } from '$app/paths';
 	import { auth } from '$lib/firebase';
 	import { getEventById, joinEvent } from '$lib/services/event.service';
-	import type { UserProfile } from '$lib/schema';
 	import { getUserProfilesByIds } from '$lib/services/user.service';
 	import EventMap from '$lib/components/maps/EventMap.svelte';
-	import type { SportEvent } from '$lib/schema';
+	import type { SportEvent, UserProfile } from '$lib/schema';
+	import UserAvatar from '$lib/components/UserAvatar.svelte';
 
 	let event = $state<SportEvent | null>(null);
 	let loading = $state(true);
 	let actionLoading = $state(false);
 	let error = $state('');
 	let participants = $state<UserProfile[]>([]);
-    let isCreator = $derived.by(() => {
-	const currentUser = auth.currentUser;
-        return !!currentUser && !!event && event.creatorId === currentUser.uid;
+
+  let isCreator = $derived.by(() => {
+		const currentUser = auth.currentUser;
+    	return !!currentUser && !!event && event.creatorId === currentUser.uid;
     });
 
     let isParticipant = $derived.by(() => {
@@ -102,7 +103,13 @@
 
 		try {
 			await joinEvent(event.id, currentUser.uid);
-			event = await getEventById(event.id);
+
+			const updatedEvent = await getEventById(event.id);
+
+			if (updatedEvent) {
+				event = updatedEvent;
+				participants = await getUserProfilesByIds(updatedEvent.participantIds ?? []);
+			}
 		} catch (err) {
 			console.error('Join event error:', err);
 
@@ -224,25 +231,25 @@
 							<div
 								class="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800"
 							>
-								<div class="flex items-center gap-3">
-									<div
-										class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-black text-blue-600 dark:bg-blue-950 dark:text-blue-300"
-									>
-										{participant.displayName?.slice(0, 1).toUpperCase() ?? '?'}
-									</div>
+								<div class="flex min-w-0 items-center gap-3">
+									<UserAvatar
+										photoURL={participant.photoURL}
+										displayName={participant.displayName}
+										email={participant.email}
+										size="md"
+									/>
 
-									<div>
-										<p class="font-bold text-slate-950 dark:text-slate-50">
+									<div class="min-w-0">
+										<p class="truncate font-bold text-slate-950 dark:text-slate-50">
 											{participant.displayName}
 										</p>
 
-										{#if participant.rallyTag}
-											<p class="text-sm text-slate-500 dark:text-slate-400">
-												@{participant.rallyTag}
-											</p>
-										{/if}
+										<p class="truncate text-xs text-slate-500 dark:text-slate-400">
+											@{participant.rallyTag}
+										</p>
 									</div>
 								</div>
+
 								{#if participant.level}
 									<span
 										class="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300"
