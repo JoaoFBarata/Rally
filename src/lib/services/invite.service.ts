@@ -1,4 +1,4 @@
-//C:\Users\henri\Fct3Ano\ADC\Rally\src\lib\services\invite.service.ts
+// src/lib/services/invite.service.ts
 
 import {
 	addDoc,
@@ -36,6 +36,28 @@ export async function inviteUserToEvent(params: {
 	};
 }
 
+export async function inviteUsersToEvent(params: {
+	eventId: string;
+	fromUserId: string;
+	toUserIds: string[];
+}) {
+	const uniqueUserIds = [...new Set(params.toUserIds)].filter(
+		(userId) => userId && userId !== params.fromUserId
+	);
+
+	await Promise.all(
+		uniqueUserIds.map((toUserId) =>
+			inviteUserToEvent({
+				eventId: params.eventId,
+				fromUserId: params.fromUserId,
+				toUserId
+			})
+		)
+	);
+
+	return uniqueUserIds.length;
+}
+
 export async function getInvitesForUser(userId: string) {
 	const q = query(collection(db, 'eventInvites'), where('toUserId', '==', userId));
 
@@ -55,12 +77,12 @@ export async function respondToInvite(params: {
 }) {
 	const inviteRef = doc(db, 'eventInvites', params.inviteId);
 
+	if (params.status === 'accepted') {
+		await joinEvent(params.eventId, params.userId);
+	}
+
 	await updateDoc(inviteRef, {
 		status: params.status,
 		updatedAt: serverTimestamp()
 	});
-
-	if (params.status === 'accepted') {
-		await joinEvent(params.eventId, params.userId);
-	}
 }

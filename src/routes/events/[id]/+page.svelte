@@ -1,3 +1,4 @@
+<!--src/routes/events/[id]/+page.svelte-->
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
@@ -15,6 +16,23 @@
 	let actionLoading = $state(false);
 	let error = $state('');
 	let participants = $state<UserProfile[]>([]);
+    let isCreator = $derived.by(() => {
+	const currentUser = auth.currentUser;
+        return !!currentUser && !!event && event.creatorId === currentUser.uid;
+    });
+
+    let isParticipant = $derived.by(() => {
+        const currentUser = auth.currentUser;
+        return !!currentUser && !!event && event.participantIds.includes(currentUser.uid);
+    });
+
+    let canJoin = $derived.by(() => {
+        return !!event && !isCreator && !isParticipant && event.status !== 'full';
+    });
+
+    let canInvite = $derived.by(() => {
+        return !!event && (isCreator || isParticipant);
+    });
 
 	function formatDate(dateValue: unknown) {
 		try {
@@ -267,20 +285,42 @@
 					</p>
 				</div>
 
-				<button
-					onclick={handleJoinEvent}
-					disabled={actionLoading || event.status === 'full'}
-					class="mt-5 w-full rounded-2xl bg-blue-600 px-5 py-4 font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:shadow-blue-950/40"
-				>
-					{actionLoading ? 'Joining...' : event.status === 'full' ? 'Event full' : 'Join event'}
-				</button>
+				{#if isCreator}
+                    <div
+                        class="mt-5 rounded-2xl bg-blue-50 px-5 py-4 text-center font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                    >
+                        You are hosting this event
+                    </div>
+                {:else if isParticipant}
+                    <div
+                        class="mt-5 rounded-2xl bg-green-50 px-5 py-4 text-center font-bold text-green-700 dark:bg-green-950 dark:text-green-300"
+                    >
+                        You are already joining this event
+                    </div>
+                {:else if event.status === 'full'}
+                    <div
+                        class="mt-5 rounded-2xl bg-slate-100 px-5 py-4 text-center font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300"
+                    >
+                        Event full
+                    </div>
+                {:else}
+                    <button
+                        onclick={handleJoinEvent}
+                        disabled={actionLoading}
+                        class="mt-5 w-full rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                    >
+                        {actionLoading ? 'Joining...' : 'Join event'}
+                    </button>
+                {/if}
 
-				<a
-					href={resolve(`/events/${event.id}/invite`)}
-					class="mt-3 block rounded-2xl border border-slate-200 bg-white px-5 py-4 text-center font-bold text-blue-600 transition hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-900 dark:text-blue-400 dark:hover:bg-slate-800"
-				>
-					Invite people
-				</a>
+				{#if canInvite}
+                    <a
+                        href={resolve(`/events/${event.id}/invite`)}
+                        class="mt-3 block rounded-2xl border border-slate-200 bg-white px-5 py-3 text-center font-bold text-slate-700 transition hover:border-blue-200 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-500 dark:hover:text-blue-400"
+                    >
+                        Invite people
+                    </a>
+                {/if}
 			</div>
 
 			<EventMap

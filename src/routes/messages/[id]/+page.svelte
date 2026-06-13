@@ -1,4 +1,4 @@
-<!-- src/routes/messages/convo/+page.svelte-->
+<!-- src/routes/messages/[id]/+page.svelte-->
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
 	import { page } from '$app/state';

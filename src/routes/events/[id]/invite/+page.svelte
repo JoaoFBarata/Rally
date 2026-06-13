@@ -1,226 +1,306 @@
 <!-- src/routes/events/[id]/invite/+page.svelte -->
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { auth } from '$lib/firebase';
-	import {
-		getConversationById,
-		getMessagesForConversation,
-		sendMessage
-	} from '$lib/services/chat.service';
-	import { getUserProfile } from '$lib/services/user.service';
+	import { inviteUsersToEvent } from '$lib/services/invite.service';
+	import { getEventById } from '$lib/services/event.service';
+	import { getFriendsForUser } from '$lib/services/social.service';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
-	import type { ChatMessage, UserProfile } from '$lib/schema';
+	import type { SportEvent, UserProfile } from '$lib/schema';
 
-	let conversationId = $state('');
-	let otherUser = $state<UserProfile | null>(null);
-	let messages = $state<ChatMessage[]>([]);
-	let text = $state('');
+	let eventId = $state('');
+	let event = $state<SportEvent | null>(null);
+	let friends = $state<UserProfile[]>([]);
+	let selectedFriendIds = $state<string[]>([]);
+
 	let loading = $state(true);
 	let sending = $state(false);
+	let success = $state('');
 	let error = $state('');
-	let messagesContainer: HTMLDivElement;
 
-	async function scrollToBottom() {
-		await tick();
+	let canInvite = $derived.by(() => {
+		const currentUser = auth.currentUser;
 
-		if (messagesContainer) {
-			messagesContainer.scrollTop = messagesContainer.scrollHeight;
+		if (!currentUser || !event) return false;
+
+		return event.creatorId === currentUser.uid || event.participantIds.includes(currentUser.uid);
+	});
+
+	let availableFriends = $derived.by(() => {
+		if (!event) return friends;
+
+		return friends.filter((friend) => !event?.participantIds.includes(friend.id));
+	});
+
+	function isSelected(friendId: string) {
+		return selectedFriendIds.includes(friendId);
+	}
+
+	function toggleFriend(friendId: string) {
+		if (selectedFriendIds.includes(friendId)) {
+			selectedFriendIds = selectedFriendIds.filter((id) => id !== friendId);
+		} else {
+			selectedFriendIds = [...selectedFriendIds, friendId];
 		}
 	}
 
-	async function loadConversation() {
+	function selectAllFriends() {
+		selectedFriendIds = availableFriends.map((friend) => friend.id);
+	}
+
+	function clearSelection() {
+		selectedFriendIds = [];
+	}
+
+	onMount(async () => {
 		const currentUser = auth.currentUser;
 
 		if (!currentUser) {
-			await goto('/login');
+			await goto(resolve('/login'));
 			return;
 		}
 
 		const id = page.params.id;
 
 		if (!id) {
-			error = 'Conversation not found.';
+			error = 'Event ID not found.';
 			loading = false;
 			return;
 		}
 
-		conversationId = id;
-		loading = true;
-		error = '';
+		eventId = id;
 
 		try {
-			const conversation = await getConversationById(id);
+			event = await getEventById(id);
 
-			if (!conversation) {
-				error = 'Conversation not found.';
+			if (!event) {
+				error = 'Event not found.';
 				return;
 			}
 
-			if (!conversation.memberIds.includes(currentUser.uid)) {
-				error = 'You do not have access to this conversation.';
-				return;
-			}
-
-			const otherUserId = conversation.memberIds.find((memberId) => memberId !== currentUser.uid);
-			otherUser = otherUserId ? await getUserProfile(otherUserId) : null;
-
-			messages = await getMessagesForConversation(id);
-			await scrollToBottom();
+			friends = await getFriendsForUser(currentUser.uid);
 		} catch (err) {
-			console.error('Conversation load error:', err);
-			error = err instanceof Error ? err.message : 'Could not load conversation.';
+			console.error('Invite page load error:', err);
+			error = err instanceof Error ? err.message : 'Could not load invite page.';
 		} finally {
 			loading = false;
 		}
-	}
+	});
 
-	async function handleSendMessage() {
+	async function handleSendInvites() {
 		const currentUser = auth.currentUser;
 
-		if (!currentUser || !conversationId || !text.trim()) return;
+		if (!currentUser) {
+			await goto(resolve('/login'));
+			return;
+		}
+
+		if (!event) {
+			error = 'Event not found.';
+			return;
+		}
+
+		if (!canInvite) {
+			error = 'You can only invite people to events you created or joined.';
+			return;
+		}
+
+		if (selectedFriendIds.length === 0) {
+			error = 'Select at least one friend to invite.';
+			return;
+		}
 
 		sending = true;
 		error = '';
+		success = '';
 
 		try {
-			await sendMessage({
-				conversationId,
-				senderId: currentUser.uid,
-				text
+			const count = await inviteUsersToEvent({
+				eventId,
+				fromUserId: currentUser.uid,
+				toUserIds: selectedFriendIds
 			});
 
-			text = '';
-			messages = await getMessagesForConversation(conversationId);
-			await scrollToBottom();
+			success = `${count} invite${count === 1 ? '' : 's'} sent successfully.`;
+			selectedFriendIds = [];
 		} catch (err) {
-			console.error('Send message error:', err);
-			error = err instanceof Error ? err.message : 'Could not send message.';
+			console.error('Invite error:', err);
+			error = err instanceof Error ? err.message : 'Could not send invites.';
 		} finally {
 			sending = false;
 		}
 	}
-
-	onMount(() => {
-		loadConversation();
-	});
 </script>
 
-<main class="flex h-[calc(100vh-5rem)] flex-col bg-white text-slate-950 dark:bg-slate-950 dark:text-white md:h-screen">
-	<header
-		class="flex items-center gap-3 border-b border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950"
+<div class="mx-auto max-w-3xl">
+	<a
+		href={resolve(`/events/${eventId}`)}
+		class="inline-flex rounded-full bg-blue-50 px-5 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
 	>
-		<a
-			href="/messages"
-			class="flex h-10 w-10 items-center justify-center rounded-full text-xl font-bold transition hover:bg-slate-100 dark:hover:bg-slate-900"
-			aria-label="Back to messages"
-		>
-			←
-		</a>
+		← Back to event
+	</a>
 
-		<UserAvatar
-			name={otherUser?.displayName}
-			photoURL={otherUser?.photoURL}
-			size="md"
-		/>
+	<div class="mt-6">
+		<p class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
+			Rally
+		</p>
 
-		<div class="min-w-0 flex-1">
-			<h1 class="truncate text-base font-black text-slate-950 dark:text-white">
-				{otherUser?.displayName ?? 'Rally user'}
-			</h1>
-			<p class="truncate text-xs text-slate-500 dark:text-slate-400">
-				@{otherUser?.rallyTag ?? 'rally'}
+		<h1 class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">
+			Invite people
+		</h1>
+
+		{#if event}
+			<p class="mt-2 text-slate-500 dark:text-slate-400">
+				Invite friends to join <span class="font-bold text-slate-800 dark:text-slate-200">{event.title}</span>.
 			</p>
-		</div>
-	</header>
+		{:else}
+			<p class="mt-2 text-slate-500 dark:text-slate-400">
+				Choose friends to invite to this event.
+			</p>
+		{/if}
+	</div>
 
 	{#if error}
 		<div
-			class="mx-5 mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200"
+			class="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
 		>
 			{error}
 		</div>
 	{/if}
 
-	<section
-		bind:this={messagesContainer}
-		class="flex-1 overflow-y-auto bg-slate-50 px-4 py-5 dark:bg-slate-950"
-	>
-		{#if loading}
-			<div class="flex h-full items-center justify-center text-sm text-slate-500">
-				Loading conversation...
-			</div>
-		{:else if messages.length === 0}
-			<div class="flex h-full items-center justify-center text-center">
+	{#if success}
+		<div
+			class="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm font-medium text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300"
+		>
+			{success}
+		</div>
+	{/if}
+
+	{#if loading}
+		<div class="py-16 text-center text-sm text-slate-500 dark:text-slate-400">
+			Loading friends...
+		</div>
+	{:else if !canInvite}
+		<div
+			class="mt-8 rounded-3xl bg-slate-50 p-8 text-center dark:bg-slate-900"
+		>
+			<p class="text-4xl">🔒</p>
+			<h2 class="mt-3 text-xl font-black text-slate-950 dark:text-white">
+				You cannot invite people to this event
+			</h2>
+			<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
+				Only the event creator or confirmed participants can invite others.
+			</p>
+		</div>
+	{:else}
+		<div class="mt-8">
+			<div class="mb-4 flex items-center justify-between gap-4">
 				<div>
-					<UserAvatar
-						name={otherUser?.displayName}
-						photoURL={otherUser?.photoURL}
-						size="lg"
-					/>
-					<p class="mt-3 font-bold text-slate-700 dark:text-slate-200">
-						No messages yet
-					</p>
-					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-						Send a message to {otherUser?.displayName ?? 'this friend'}.
+					<h2 class="text-lg font-black text-slate-950 dark:text-white">
+						Friends
+					</h2>
+					<p class="text-sm text-slate-500 dark:text-slate-400">
+						Select one or more friends.
 					</p>
 				</div>
-			</div>
-		{:else}
-			<div class="mx-auto flex max-w-3xl flex-col gap-2">
-				{#each messages as message}
-					<div
-						class={`flex items-end gap-2 ${
-							message.senderId === auth.currentUser?.uid ? 'justify-end' : 'justify-start'
-						}`}
+
+				<div class="flex gap-2">
+					<button
+						type="button"
+						onclick={selectAllFriends}
+						class="rounded-full bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
 					>
-						{#if message.senderId !== auth.currentUser?.uid}
-							<UserAvatar
-								name={otherUser?.displayName}
-								photoURL={otherUser?.photoURL}
-								size="sm"
-							/>
-						{/if}
+						Select all
+					</button>
 
-						<div
-							class={`max-w-[78%] rounded-3xl px-4 py-2 text-sm leading-6 shadow-sm ${
-								message.senderId === auth.currentUser?.uid
-									? 'rounded-br-md bg-blue-600 text-white'
-									: 'rounded-bl-md bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100'
-							}`}
-						>
-							{message.text}
-						</div>
-					</div>
-				{/each}
+					<button
+						type="button"
+						onclick={clearSelection}
+						class="rounded-full px-4 py-2 text-sm font-bold text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+					>
+						Clear
+					</button>
+				</div>
 			</div>
-		{/if}
-	</section>
 
-	<form
-		class="border-t border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950"
-		onsubmit={(e) => {
-			e.preventDefault();
-			handleSendMessage();
-		}}
-	>
-		<div
-			class="mx-auto flex max-w-3xl items-center gap-2 rounded-full bg-slate-100 px-3 py-2 dark:bg-slate-900"
-		>
-			<input
-				bind:value={text}
-				placeholder="Message..."
-				class="min-w-0 flex-1 border-0 bg-transparent px-2 text-sm text-slate-950 placeholder:text-slate-400 focus:ring-0 dark:text-white"
-			/>
+			{#if availableFriends.length === 0}
+				<div class="rounded-3xl bg-slate-50 p-8 text-center dark:bg-slate-900">
+					<p class="text-4xl">👥</p>
+					<h2 class="mt-3 text-xl font-black text-slate-950 dark:text-white">
+						No friends available
+					</h2>
+					<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
+						Add friends from your profile first, or all your friends are already in this event.
+					</p>
+				</div>
+			{:else}
+				<div class="divide-y divide-slate-100 dark:divide-slate-800">
+					{#each availableFriends as friend (friend.id)}
+						<button
+							type="button"
+							onclick={() => toggleFriend(friend.id)}
+							class="flex w-full items-center gap-3 py-4 text-left transition hover:bg-slate-50 dark:hover:bg-slate-900"
+						>
+							<UserAvatar
+								displayName={friend.displayName}
+								email={friend.email}
+								photoURL={friend.photoURL}
+								size="md"
+							/>
 
-			<button
-				type="submit"
-				disabled={sending || !text.trim()}
-				class="rounded-full bg-blue-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-blue-700 disabled:opacity-50"
+							<div class="min-w-0 flex-1">
+								<p class="truncate font-black text-slate-950 dark:text-white">
+									{friend.displayName}
+								</p>
+								<p class="truncate text-sm text-slate-500 dark:text-slate-400">
+									@{friend.rallyTag}
+								</p>
+							</div>
+
+							<div
+								class={`flex h-7 w-7 items-center justify-center rounded-full border text-sm font-black transition ${
+									isSelected(friend.id)
+										? 'border-blue-600 bg-blue-600 text-white'
+										: 'border-slate-300 text-transparent dark:border-slate-700'
+								}`}
+							>
+								✓
+							</div>
+						</button>
+					{/each}
+				</div>
+			{/if}
+
+			<div
+				class="sticky bottom-20 mt-8 rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-xl shadow-slate-200/70 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90 dark:shadow-none md:bottom-4"
 			>
-				{sending ? '...' : 'Send'}
-			</button>
+				<div class="flex items-center justify-between gap-4">
+					<p class="text-sm font-bold text-slate-600 dark:text-slate-300">
+						{selectedFriendIds.length} selected
+					</p>
+
+					<button
+						type="button"
+						onclick={handleSendInvites}
+						disabled={sending || selectedFriendIds.length === 0}
+						class="rounded-full bg-blue-600 px-6 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+					>
+						{sending ? 'Sending...' : 'Send invites'}
+					</button>
+				</div>
+			</div>
 		</div>
-	</form>
-</main>
+
+		<div class="mt-10 border-t border-slate-100 pt-6 dark:border-slate-800">
+			<h2 class="text-lg font-black text-slate-950 dark:text-white">
+				Groups
+			</h2>
+			<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+				Group invites will appear here after we add groups to the app.
+			</p>
+		</div>
+	{/if}
+</div>
