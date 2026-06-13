@@ -1,14 +1,15 @@
 // src/lib/services/invite.service.ts
-
 import {
 	addDoc,
 	collection,
 	doc,
 	getDocs,
+	onSnapshot,
 	query,
 	serverTimestamp,
 	updateDoc,
-	where
+	where,
+	type Unsubscribe
 } from 'firebase/firestore';
 import { db } from '$lib/firebase';
 import type { EventInvite, InviteStatus } from '$lib/schema';
@@ -85,4 +86,30 @@ export async function respondToInvite(params: {
 		status: params.status,
 		updatedAt: serverTimestamp()
 	});
+}
+export function listenInvitesForUser(
+	userId: string,
+	callback: (invites: EventInvite[]) => void,
+	onError?: (error: Error) => void
+): Unsubscribe {
+	const q = query(
+		collection(db, 'eventInvites'),
+		where('toUserId', '==', userId)
+	);
+
+	return onSnapshot(
+		q,
+		(snap) => {
+			const invites = snap.docs.map((docSnap) => ({
+				id: docSnap.id,
+				...docSnap.data()
+			})) as EventInvite[];
+
+			callback(invites);
+		},
+		(error) => {
+			console.error('Invites listener error:', error);
+			onError?.(error);
+		}
+	);
 }

@@ -199,7 +199,7 @@
 			</div>
 		{:else}
 			<div class="mx-auto flex max-w-3xl flex-col gap-2">
-				{#each messages as message}
+				{#each messages as message (message.id)}
 					<div
 						class={`flex items-end gap-2 ${
 							message.senderId === auth.currentUser?.uid ? 'justify-end' : 'justify-start'

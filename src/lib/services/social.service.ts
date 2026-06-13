@@ -12,6 +12,9 @@ import {
 	where,
 	type Unsubscribe
 } from 'firebase/firestore';
+import { db } from '$lib/firebase';
+import type { FriendRequest, FriendRequestStatus, UserProfile } from '$lib/schema';
+import { getUserProfile, searchUsersByRallyTag } from '$lib/services/user.service';
 
 function friendshipIdFor(userA: string, userB: string) {
 	return [userA, userB].sort().join('_');

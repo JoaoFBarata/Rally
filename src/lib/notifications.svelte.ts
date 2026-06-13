@@ -1,6 +1,7 @@
 import type { Unsubscribe } from 'firebase/firestore';
 import { listenConversationsForUser } from '$lib/services/chat.service';
 import { listenFriendRequestsForUser } from '$lib/services/social.service';
+import { listenInvitesForUser } from '$lib/services/invite.service';
 import type { ChatConversation, EventInvite, FriendRequest } from '$lib/schema';
 
 export const notificationState = $state({
@@ -46,6 +47,15 @@ export function startNotifications(userId: string) {
 		notificationState.ready = true;
 	});
 
+	const unsubscribeInvites = listenInvitesForUser(userId, (invites: EventInvite[]) => {
+		notificationState.pendingInvites = invites.filter(
+			(invite) => invite.status === 'pending'
+		).length;
+
+		updateTotal();
+		notificationState.ready = true;
+	});
+
 	const unsubscribeFriendRequests = listenFriendRequestsForUser(userId, (requests: FriendRequest[]) => {
 		notificationState.pendingFriendRequests = requests.filter(
 			(request) => request.status === 'pending'
@@ -55,5 +65,9 @@ export function startNotifications(userId: string) {
 		notificationState.ready = true;
 	});
 
-	unsubscribers = [unsubscribeConversations, unsubscribeFriendRequests];
+	unsubscribers = [
+		unsubscribeConversations,
+		unsubscribeInvites,
+		unsubscribeFriendRequests
+	];
 }

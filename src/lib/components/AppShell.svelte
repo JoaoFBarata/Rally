@@ -1,7 +1,15 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { page } from '$app/state';
-  import RallyLogo from '$lib/components/RallyLogo.svelte';
+	import { auth } from '$lib/firebase';
+	import { onAuthStateChanged } from 'firebase/auth';
+	import RallyLogo from '$lib/components/RallyLogo.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+	import {
+		notificationState,
+		startNotifications,
+		stopNotifications
+	} from '$lib/notifications.svelte';
 
 	let { children } = $props();
 
@@ -36,8 +44,27 @@
 	}
 
 	function shouldHideNavigation() {
-        return pathname === '/' || pathname === '/login' || pathname === '/register';
-    }
+		return pathname === '/' || pathname === '/login' || pathname === '/register';
+	}
+
+	function formatBadge(count: number) {
+		return count > 9 ? '9+' : String(count);
+	}
+
+	onMount(() => {
+		const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+			if (user) {
+				startNotifications(user.uid);
+			} else {
+				stopNotifications();
+			}
+		});
+
+		return () => {
+			unsubscribeAuth();
+			stopNotifications();
+		};
+	});
 </script>
 
 {#if shouldHideNavigation()}
@@ -71,7 +98,20 @@
 							}`}
 						>
 							<span class="text-lg">{item.icon}</span>
+
 							<span>{item.label}</span>
+
+							{#if item.href === '/messages' && notificationState.total > 0}
+								<span
+									class={`ml-auto flex min-h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-black ${
+										isActive(item.href)
+											? 'bg-white text-blue-600'
+											: 'bg-red-500 text-white'
+									}`}
+								>
+									{formatBadge(notificationState.total)}
+								</span>
+							{/if}
 						</a>
 					{/each}
 				</nav>
@@ -87,26 +127,32 @@
 
 		<!-- Mobile bottom navigation -->
 		<nav class="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 px-3 py-2 shadow-2xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 md:hidden">
-			<div class="mx-auto grid max-w-md grid-cols-5 items-end gap-1">
+			<div class="mx-auto grid max-w-md grid-cols-4 items-end gap-1">
 				{#each navItems as item (item.href)}
 					<a href={item.href} class="flex flex-col items-center justify-end gap-1">
 						<span
-							class={`flex items-center justify-center ${
-								item.main
-									? 'mb-1 h-12 w-12 rounded-full bg-blue-600 text-3xl font-light text-white shadow-lg shadow-blue-600/30'
-									: `h-9 w-9 rounded-2xl text-lg ${
-											isActive(item.href)
-												? 'bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400'
-												: 'text-slate-400 dark:text-slate-500'
-										}`
+							class={`relative flex h-9 w-9 items-center justify-center rounded-2xl text-lg ${
+								isActive(item.href)
+									? 'bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400'
+									: 'text-slate-400 dark:text-slate-500'
 							}`}
 						>
 							{item.icon}
+
+							{#if item.href === '/messages' && notificationState.total > 0}
+								<span
+									class="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black text-white"
+								>
+									{formatBadge(notificationState.total)}
+								</span>
+							{/if}
 						</span>
 
 						<span
 							class={`text-[11px] font-medium ${
-								isActive(item.href) ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500'
+								isActive(item.href)
+									? 'text-blue-600 dark:text-blue-400'
+									: 'text-slate-400 dark:text-slate-500'
 							}`}
 						>
 							{item.label}
