@@ -69,12 +69,18 @@
 					Welcome, {user?.displayName ?? user?.email}
 				</p>
 			</div>
-			<UserAvatar
-				photoURL={user?.photoURL}
-				displayName={user?.displayName}
-				email={user?.email}
-				size="lg"
-			/>
+			<a
+				href={resolve('/profile')}
+				class="rounded-full transition hover:scale-105"
+				aria-label="Go to profile"
+			>
+				<UserAvatar
+					photoURL={user?.photoURL}
+					displayName={user?.displayName}
+					email={user?.email}
+					size="lg"
+				/>
+			</a>
 		</header>
 
 		{#if error}
