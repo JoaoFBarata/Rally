@@ -2,6 +2,7 @@ import {
 	addDoc,
 	collection,
 	doc,
+    getDoc,
 	getDocs,
 	orderBy,
 	query,
@@ -87,4 +88,16 @@ export async function sendMessage(params: {
 		lastMessageAt: serverTimestamp(),
 		updatedAt: serverTimestamp()
 	});
+}
+
+export async function getConversationById(conversationId: string) {
+	const conversationRef = doc(db, 'conversations', conversationId);
+	const snap = await getDoc(conversationRef);
+
+	if (!snap.exists()) return null;
+
+	return {
+		id: snap.id,
+		...snap.data()
+	} as ChatConversation;
 }

@@ -1,4 +1,4 @@
-<!-- src/routes/events/[id]/invite/+page.svelte -->
+<!-- src/routes/messages/convo/+page.svelte-->
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
 	import { page } from '$app/state';
@@ -107,7 +107,9 @@
 	});
 </script>
 
-<main class="flex h-[calc(100vh-5rem)] flex-col bg-white text-slate-950 dark:bg-slate-950 dark:text-white md:h-screen">
+<main
+	class="flex h-[calc(100vh-5rem)] flex-col bg-white text-slate-950 dark:bg-slate-950 dark:text-white md:h-screen"
+>
 	<header
 		class="flex items-center gap-3 border-b border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950"
 	>
@@ -120,7 +122,8 @@
 		</a>
 
 		<UserAvatar
-			name={otherUser?.displayName}
+			displayName={otherUser?.displayName}
+			email={otherUser?.email}
 			photoURL={otherUser?.photoURL}
 			size="md"
 		/>
@@ -129,6 +132,7 @@
 			<h1 class="truncate text-base font-black text-slate-950 dark:text-white">
 				{otherUser?.displayName ?? 'Rally user'}
 			</h1>
+
 			<p class="truncate text-xs text-slate-500 dark:text-slate-400">
 				@{otherUser?.rallyTag ?? 'rally'}
 			</p>
@@ -153,15 +157,18 @@
 			</div>
 		{:else if messages.length === 0}
 			<div class="flex h-full items-center justify-center text-center">
-				<div>
+				<div class="flex flex-col items-center">
 					<UserAvatar
-						name={otherUser?.displayName}
+						displayName={otherUser?.displayName}
+						email={otherUser?.email}
 						photoURL={otherUser?.photoURL}
-						size="lg"
+						size="xl"
 					/>
+
 					<p class="mt-3 font-bold text-slate-700 dark:text-slate-200">
 						No messages yet
 					</p>
+
 					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
 						Send a message to {otherUser?.displayName ?? 'this friend'}.
 					</p>
@@ -177,7 +184,8 @@
 					>
 						{#if message.senderId !== auth.currentUser?.uid}
 							<UserAvatar
-								name={otherUser?.displayName}
+								displayName={otherUser?.displayName}
+								email={otherUser?.email}
 								photoURL={otherUser?.photoURL}
 								size="sm"
 							/>
