@@ -14,6 +14,7 @@
 	} from '$lib/services/social.service';
 	import {
 		getConversationsForUser,
+		getMessagesForConversation,
 		getOrCreateDirectConversation
 	} from '$lib/services/chat.service';
 	import { getUserProfile } from '$lib/services/user.service';
@@ -37,6 +38,8 @@
 
 	type ConversationWithProfile = ChatConversation & {
 		otherUser: UserProfile | null;
+		unreadCount: number;
+		lastInteractionAtMs: number;
 	};
 
 	let invites = $state<InviteWithEvent[]>([]);
@@ -47,6 +50,54 @@
 	let loading = $state(true);
 	let actionLoading = $state('');
 	let error = $state('');
+
+	function timestampToMillis(value: unknown) {
+		try {
+			const timestamp = value as { toDate?: () => Date };
+			return timestamp?.toDate?.()?.getTime?.() ?? 0;
+		} catch {
+			return 0;
+		}
+	}
+
+	function getConversationLastInteraction(conversation: ChatConversation) {
+		return (
+			timestampToMillis(conversation.lastMessageAt) ||
+			timestampToMillis(conversation.updatedAt) ||
+			timestampToMillis(conversation.createdAt)
+		);
+	}
+
+	function getReadKey(conversationId: string) {
+		return `rally:last-read:${conversationId}`;
+	}
+
+	function getLastReadAt(conversationId: string) {
+		const storedValue = localStorage.getItem(getReadKey(conversationId));
+
+		if (storedValue) {
+			return Number(storedValue);
+		}
+
+		const baseline = Date.now();
+		localStorage.setItem(getReadKey(conversationId), String(baseline));
+
+		return baseline;
+	}
+
+	function markConversationAsRead(conversationId: string) {
+		localStorage.setItem(getReadKey(conversationId), String(Date.now()));
+	}
+
+	function formatUnreadCount(count: number) {
+		return count > 99 ? '99+' : String(count);
+	}
+
+	function sortByDisplayName(a: UserProfile, b: UserProfile) {
+		return (a.displayName ?? '').localeCompare(b.displayName ?? '', undefined, {
+			sensitivity: 'base'
+		});
+	}
 
 	function formatDate(dateValue: unknown) {
 		try {
@@ -66,6 +117,17 @@
 		} catch {
 			return 'Date not set';
 		}
+	}
+
+	async function getUnreadCount(conversationId: string, currentUserId: string) {
+		const lastReadAt = getLastReadAt(conversationId);
+		const messages = await getMessagesForConversation(conversationId);
+
+		return messages.filter((message) => {
+			const createdAtMs = timestampToMillis(message.createdAt);
+
+			return message.senderId !== currentUserId && createdAtMs > lastReadAt;
+		}).length;
 	}
 
 	async function loadMessagesPage() {
@@ -95,7 +157,7 @@
 
 			const requests = await getFriendRequestsForUser(currentUser.uid);
 
-			friendRequests = await Promise.all(
+			const requestsWithProfiles = await Promise.all(
 				requests.map(async (request) => {
 					const fromUser = await getUserProfile(request.fromUserId);
 
@@ -106,28 +168,43 @@
 				})
 			);
 
-			friends = await getFriendsForUser(currentUser.uid);
+			friendRequests = requestsWithProfiles.sort(
+				(a, b) => timestampToMillis(b.createdAt) - timestampToMillis(a.createdAt)
+			);
+
+			const rawFriends = await getFriendsForUser(currentUser.uid);
+			friends = rawFriends.sort(sortByDisplayName);
 
 			const userConversations = await getConversationsForUser(currentUser.uid);
 
-			conversations = await Promise.all(
-                userConversations.map(async (conversation) => {
-                    if (conversation.type === 'group') {
-                        return {
-                            ...conversation,
-                            otherUser: null
-                        };
-                    }
+			const conversationsWithProfiles = await Promise.all(
+				userConversations.map(async (conversation) => {
+					const unreadCount = await getUnreadCount(conversation.id, currentUser.uid);
 
-                    const otherUserId = conversation.memberIds.find((id) => id !== currentUser.uid);
-                    const otherUser = otherUserId ? await getUserProfile(otherUserId) : null;
+					if (conversation.type === 'group') {
+						return {
+							...conversation,
+							otherUser: null,
+							unreadCount,
+							lastInteractionAtMs: getConversationLastInteraction(conversation)
+						};
+					}
 
-                    return {
-                        ...conversation,
-                        otherUser
-                    };
-                })
-            );
+					const otherUserId = conversation.memberIds.find((id) => id !== currentUser.uid);
+					const otherUser = otherUserId ? await getUserProfile(otherUserId) : null;
+
+					return {
+						...conversation,
+						otherUser,
+						unreadCount,
+						lastInteractionAtMs: getConversationLastInteraction(conversation)
+					};
+				})
+			);
+
+			conversations = conversationsWithProfiles.sort(
+				(a, b) => b.lastInteractionAtMs - a.lastInteractionAtMs
+			);
 		} catch (err) {
 			console.error('Messages load error:', err);
 			error = err instanceof Error ? err.message : 'Could not load messages.';
@@ -205,11 +282,17 @@
 
 		try {
 			const conversationId = await getOrCreateDirectConversation(currentUser.uid, friendId);
+			markConversationAsRead(conversationId);
 			await goto(`/messages/${conversationId}`);
 		} catch (err) {
 			console.error('Start conversation error:', err);
 			error = err instanceof Error ? err.message : 'Could not start conversation.';
 		}
+	}
+
+	async function openConversation(conversationId: string) {
+		markConversationAsRead(conversationId);
+		await goto(`/messages/${conversationId}`);
 	}
 
 	onMount(() => {
@@ -249,7 +332,9 @@
 				</div>
 
 				{#if invites.length === 0}
-					<p class="rounded-2xl bg-slate-50 px-4 py-5 text-center text-sm text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+					<p
+						class="rounded-2xl bg-slate-50 px-4 py-5 text-center text-sm text-slate-500 dark:bg-slate-900 dark:text-slate-400"
+					>
 						No event invitations yet.
 					</p>
 				{:else}
@@ -259,7 +344,9 @@
 								class="min-w-[280px] max-w-[280px] rounded-3xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900"
 							>
 								{#if invite.event}
-									<p class="text-xs font-black uppercase tracking-wide text-blue-600 dark:text-blue-400">
+									<p
+										class="text-xs font-black uppercase tracking-wide text-blue-600 dark:text-blue-400"
+									>
 										{invite.event.sport}
 									</p>
 
@@ -328,14 +415,14 @@
 					<p class="text-sm text-slate-500 dark:text-slate-400">No friend requests.</p>
 				{:else}
 					<div class="divide-y divide-slate-100 dark:divide-slate-800">
-						{#each friendRequests as request (request.id)}
+						{#each friendRequests.slice(0, 3) as request (request.id)}
 							<div class="flex items-center gap-3 py-4">
 								<UserAvatar
-                                    displayName={request.fromUser?.displayName}
-                                    email={request.fromUser?.email}
-                                    photoURL={request.fromUser?.photoURL}
-                                    size="md"
-                                />
+									displayName={request.fromUser?.displayName}
+									email={request.fromUser?.email}
+									photoURL={request.fromUser?.photoURL}
+									size="md"
+								/>
 
 								<div class="min-w-0 flex-1">
 									<p class="truncate font-black">
@@ -372,6 +459,12 @@
 							</div>
 						{/each}
 					</div>
+
+					{#if friendRequests.length > 3}
+						<p class="mt-3 text-sm font-semibold text-slate-500 dark:text-slate-400">
+							Showing latest 3 requests.
+						</p>
+					{/if}
 				{/if}
 			</section>
 
@@ -385,36 +478,43 @@
 				{:else}
 					<div class="divide-y divide-slate-100 dark:divide-slate-800">
 						{#each conversations as conversation (conversation.id)}
-							<a
-								href={`/messages/${conversation.id}`}
-								class="flex items-center gap-3 py-4 transition hover:bg-slate-50 dark:hover:bg-slate-900"
+							<button
+								type="button"
+								onclick={() => openConversation(conversation.id)}
+								class="flex w-full items-center gap-3 py-4 text-left transition hover:bg-slate-50 dark:hover:bg-slate-900"
 							>
 								<UserAvatar
-                                    displayName={conversation.type === 'group'
-                                        ? conversation.title
-                                        : conversation.otherUser?.displayName}
-                                    email={conversation.otherUser?.email}
-                                    photoURL={conversation.type === 'group'
-                                        ? conversation.photoURL
-                                        : conversation.otherUser?.photoURL}
-                                    size="md"
-                                />
+									displayName={conversation.type === 'group'
+										? conversation.title
+										: conversation.otherUser?.displayName}
+									email={conversation.otherUser?.email}
+									photoURL={conversation.type === 'group'
+										? conversation.photoURL
+										: conversation.otherUser?.photoURL}
+									size="md"
+								/>
 
-                                <div class="min-w-0 flex-1">
-                                    <p class="truncate font-black">
-                                        {conversation.type === 'group'
-                                            ? conversation.title
-                                            : conversation.otherUser?.displayName ?? 'Rally user'}
-                                    </p>
+								<div class="min-w-0 flex-1">
+									<p class="truncate font-black">
+										{conversation.type === 'group'
+											? conversation.title
+											: conversation.otherUser?.displayName ?? 'Rally user'}
+									</p>
 
-                                    <p class="truncate text-sm text-slate-500 dark:text-slate-400">
-                                        {conversation.lastMessage ??
-                                            (conversation.type === 'group' ? 'Event group' : 'No messages yet')}
-                                    </p>
-                                </div>
+									<p class="truncate text-sm text-slate-500 dark:text-slate-400">
+										{conversation.lastMessage ??
+											(conversation.type === 'group' ? 'Event group' : 'No messages yet')}
+									</p>
+								</div>
 
-								<span class="text-slate-300 dark:text-slate-600">›</span>
-							</a>
+								{#if conversation.unreadCount > 0}
+									<span
+										class="flex h-7 min-w-7 items-center justify-center rounded-full bg-blue-600 px-2 text-xs font-black text-white"
+									>
+										{formatUnreadCount(conversation.unreadCount)}
+									</span>
+								{/if}
+							</button>
 						{/each}
 					</div>
 				{/if}
@@ -432,11 +532,11 @@
 						{#each friends as friend (friend.id)}
 							<div class="flex items-center gap-3 py-4">
 								<UserAvatar
-                                    displayName={friend.displayName}
-                                    email={friend.email}
-                                    photoURL={friend.photoURL}
-                                    size="md"
-                                />
+									displayName={friend.displayName}
+									email={friend.email}
+									photoURL={friend.photoURL}
+									size="md"
+								/>
 
 								<div class="min-w-0 flex-1">
 									<p class="truncate font-black">{friend.displayName}</p>

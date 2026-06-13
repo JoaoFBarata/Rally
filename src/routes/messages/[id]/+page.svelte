@@ -50,6 +50,8 @@
 			return;
 		}
 
+		localStorage.setItem(`rally:last-read:${id}`, String(Date.now()));
+		
 		conversationId = id;
 		loading = true;
 		error = '';
