@@ -5,6 +5,7 @@
 	import { auth } from '$lib/firebase';
 	import { getInvitesForUser, respondToInvite } from '$lib/services/invite.service';
 	import { getEventById } from '$lib/services/event.service';
+	import RallyWordmark from '$lib/components/RallyWordmark.svelte';
 	import {
 		getFriendRequestsForUser,
 		getFriendsForUser,
@@ -210,9 +211,7 @@
 
 <main class="mx-auto max-w-6xl px-5 py-6">
 	<header class="mb-6">
-		<p class="text-sm font-semibold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
-			Rally
-		</p>
+		<RallyWordmark size="sm" />
 		<h1 class="mt-2 text-3xl font-bold text-slate-950 dark:text-slate-50">Messages</h1>
 		<p class="mt-1 text-slate-500 dark:text-slate-400">
 			Invitations, friend requests and conversations.
@@ -263,7 +262,7 @@
 				</div>
 			{:else}
 				<div class="mt-5 flex gap-4 overflow-x-auto pb-3">
-					{#each invites as invite}
+					{#each invites as invite (invite.id)}
 						<article
 							class="min-w-[310px] max-w-[310px] rounded-3xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800"
 						>
@@ -358,7 +357,7 @@
 				</div>
 			{:else}
 				<div class="mt-5 grid gap-3 md:grid-cols-2">
-					{#each friendRequests as request}
+					{#each friendRequests as request (request.id)}
 						<article class="rounded-3xl bg-slate-50 p-5 dark:bg-slate-800">
 							<div class="flex items-center gap-3">
 								<div class="flex h-12 w-12 items-center justify-center rounded-full bg-blue-600 font-bold text-white">
@@ -428,7 +427,7 @@
 				</div>
 			{:else}
 				<div class="mt-5 space-y-3">
-					{#each conversations as conversation}
+					{#each conversations as conversation (conversation.id)}
 						<a
 							href={`/messages/${conversation.id}`}
 							class="flex items-center justify-between rounded-3xl bg-slate-50 p-4 transition hover:bg-blue-50 dark:bg-slate-800 dark:hover:bg-slate-700"
@@ -475,7 +474,7 @@
 				</div>
 			{:else}
 				<div class="mt-5 grid gap-3 md:grid-cols-2">
-					{#each friends as friend}
+					{#each friends as friend (friend.id)}
 						<article class="flex items-center justify-between rounded-3xl bg-slate-50 p-4 dark:bg-slate-800">
 							<div class="flex items-center gap-3">
 								<div class="flex h-12 w-12 items-center justify-center rounded-full bg-blue-600 font-bold uppercase text-white">

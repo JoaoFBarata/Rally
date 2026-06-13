@@ -6,6 +6,7 @@
 	import { getVisibleEventsForUser } from '$lib/services/explore.service';
 	import type { SportEvent } from '$lib/schema';
 	import ExploreMap from '$lib/components/maps/ExploreMap.svelte';
+	import RallyWordmark from '$lib/components/RallyWordmark.svelte';
 
 	let events = $state<SportEvent[]>([]);
 	let loading = $state(true);
@@ -41,7 +42,7 @@
 
 <main class="mx-auto max-w-6xl px-5 py-6">
 	<header class="mb-6">
-		<p class="text-sm font-semibold uppercase tracking-[0.25em] text-blue-600">Rally</p>
+		<RallyWordmark size="sm" />
 		<h1 class="mt-2 text-3xl font-bold">Explore</h1>
 		<p class="mt-1 text-slate-500">Find games, teams and sports partners nearby.</p>
 	</header>

@@ -5,6 +5,7 @@
 	import { signOut } from 'firebase/auth';
 	import type { Sport, SportLevel, UserProfile } from '$lib/schema';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
+	import RallyWordmark from '$lib/components/RallyWordmark.svelte';
 	import {
 		ensureUserProfile,
 		updateUserProfileDetails
@@ -158,9 +159,7 @@
 
 <main class="mx-auto max-w-6xl px-5 py-6">
 	<header class="mb-6">
-		<p class="text-sm font-semibold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
-			Rally
-		</p>
+		<RallyWordmark size="sm" />
 		<h1 class="mt-2 text-3xl font-bold text-slate-950 dark:text-slate-50">Profile</h1>
 		<p class="mt-1 text-slate-500 dark:text-slate-400">
 			Manage your sports identity, friends and account.
@@ -194,33 +193,42 @@
 			<section
 				class="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
 			>
-				<div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-					<div class="flex items-center gap-4">
-						<UserAvatar
-							photoURL={profile.photoURL ?? auth.currentUser?.photoURL ?? null}
-							displayName={profile.displayName}
-							email={profile.email}
-							size="xl"
-						/>
+				<div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+					<div class="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center">
+						<div class="shrink-0">
+							<UserAvatar
+								photoURL={profile.photoURL ?? auth.currentUser?.photoURL ?? null}
+								displayName={profile.displayName}
+								email={profile.email}
+								size="xl"
+							/>
+						</div>
 
-						<div>
-							<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">
+						<div class="min-w-0">
+							<h2 class="break-words text-2xl font-black text-slate-950 dark:text-slate-50">
 								{profile.displayName}
 							</h2>
-							<p class="text-slate-500 dark:text-slate-400">{profile.email}</p>
+
+							<p class="truncate text-slate-500 dark:text-slate-400">
+								{profile.email}
+							</p>
 
 							<button
 								onclick={copyTag}
-								class="mt-2 rounded-full bg-blue-50 px-3 py-1 text-sm font-bold text-blue-700 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+								class="mt-2 max-w-full truncate rounded-full bg-blue-50 px-3 py-1 text-sm font-bold text-blue-700 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
 							>
 								@{profile.rallyTag ?? 'creating-tag'} · copy
 							</button>
 						</div>
 					</div>
 
-					<div class="rounded-3xl bg-slate-50 p-4 text-center dark:bg-slate-800">
-						<p class="text-3xl font-black text-blue-600 dark:text-blue-400">{friends.length}</p>
-						<p class="text-sm font-semibold text-slate-500 dark:text-slate-400">friends</p>
+					<div class="w-full shrink-0 rounded-3xl bg-slate-50 p-4 text-center dark:bg-slate-800 xl:w-28">
+						<p class="text-3xl font-black text-blue-600 dark:text-blue-400">
+							{friends.length}
+						</p>
+						<p class="text-sm font-semibold text-slate-500 dark:text-slate-400">
+							friends
+						</p>
 					</div>
 				</div>
 

@@ -11,6 +11,7 @@
 	import EventCard from '$lib/components/EventCard.svelte';
 	import UserMiniMap from '$lib/components/maps/UserMiniMap.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
+	import RallyWordmark from '$lib/components/RallyWordmark.svelte';
 
 	let user = $state<User | null>(null);
 	let loading = $state(true);
@@ -58,9 +59,7 @@
 	<section class="mx-auto max-w-6xl px-5 py-6">
 		<header class="mb-6 flex items-start justify-between gap-4">
 			<div>
-				<p class="text-sm font-semibold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
-					Rally
-				</p>
+				<RallyWordmark size="sm" />
 
 				<h1 class="mt-2 text-3xl font-bold text-slate-950 dark:text-slate-50">
 					Dashboard
