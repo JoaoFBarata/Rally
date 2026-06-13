@@ -48,7 +48,7 @@ export interface SportEvent {
 	sport: Sport;
 	creatorId: string;
 
-    groupPhotoURL?: string | null;
+	groupPhotoURL?: string | null;
 
 	location: {
 		name: string;
@@ -58,7 +58,7 @@ export interface SportEvent {
 	};
 
 	startAt: Timestamp;
-	endAt?: Timestamp;
+	endAt?: Timestamp | null;
 
 	maxParticipants: number;
 	participantIds: string[];
@@ -66,8 +66,8 @@ export interface SportEvent {
 	visibility: EventVisibility;
 	status: EventStatus;
 
-	priceTotal?: number;
-	pricePerPerson?: number;
+	priceTotal?: number | null;
+	pricePerPerson?: number | null;
 	currency?: 'EUR';
 
 	createdAt: Timestamp;
@@ -114,15 +114,15 @@ export interface Friendship {
 
 export interface ChatConversation {
 	id: string;
-	type: 'direct' | 'group';
-  eventId?: string;
 	memberIds: string[];
+	type: 'direct' | 'group';
+
+	eventId?: string;
 	title?: string;
-  photoURL?: string | null;
+	photoURL?: string | null;
+
 	lastMessage?: string;
-	lastSenderId?: string;
 	lastMessageAt?: Timestamp;
-	unreadFor?: string[];
 	createdAt: Timestamp;
 	updatedAt: Timestamp;
 }

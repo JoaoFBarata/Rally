@@ -41,6 +41,18 @@ async function syncEventGroupConversation(event: SportEvent) {
 	);
 }
 
+export async function ensureEventGroupConversation(eventId: string) {
+	const event = await getEventById(eventId);
+
+	if (!event) {
+		throw new Error('Event not found');
+	}
+
+	await syncEventGroupConversation(event);
+
+	return getEventGroupConversationId(eventId);
+}
+
 export async function createSportEvent(params: {
 	title: string;
 	description?: string;
@@ -146,6 +158,7 @@ export async function joinEvent(eventId: string, userId: string) {
 	}
 
 	if (event.participantIds.includes(userId)) {
+		await syncEventGroupConversation(event);
 		return;
 	}
 
