@@ -123,7 +123,12 @@ export interface ChatConversation {
 	photoURL?: string | null;
 
 	lastMessage?: string;
+	lastSenderId?: string;
 	lastMessageAt?: Timestamp;
+
+	unreadFor?: string[];
+	unreadCounts?: Record<string, number>;
+
 	createdAt: Timestamp;
 	updatedAt: Timestamp;
 }

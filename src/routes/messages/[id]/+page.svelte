@@ -1,18 +1,19 @@
 <!-- src/routes/messages/[id]/+page.svelte-->
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { auth } from '$lib/firebase';
 	import {
 		getConversationById,
-		getMessagesForConversation,
+		listenMessagesForConversation,
 		sendMessage,
 		markConversationAsRead
 	} from '$lib/services/chat.service';
 	import { getUserProfile } from '$lib/services/user.service';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import type { ChatConversation, ChatMessage, UserProfile } from '$lib/schema';
+	import type { Unsubscribe } from 'firebase/firestore';
 
 	let conversation = $state<ChatConversation | null>(null);
 	let senderProfiles = $state<Record<string, UserProfile>>({});
@@ -25,6 +26,14 @@
 	let sending = $state(false);
 	let error = $state('');
 	let messagesContainer: HTMLDivElement;
+	let unsubscribeMessages: Unsubscribe | null = null;
+
+	function stopMessagesListener() {
+		if (unsubscribeMessages) {
+			unsubscribeMessages();
+			unsubscribeMessages = null;
+		}
+	}
 
 	async function scrollToBottom() {
 		await tick();
@@ -49,8 +58,6 @@
 			loading = false;
 			return;
 		}
-
-		localStorage.setItem(`rally:last-read:${id}`, String(Date.now()));
 		
 		conversationId = id;
 		loading = true;
@@ -86,9 +93,21 @@
 				otherUser = otherUserId ? await getUserProfile(otherUserId) : null;
 			}
 
-			messages = await getMessagesForConversation(id);
-			await markConversationAsRead(id, currentUser.uid);
-			await scrollToBottom();
+			stopMessagesListener();
+
+			unsubscribeMessages = listenMessagesForConversation(
+				id,
+				async (liveMessages) => {
+					messages = liveMessages;
+
+					await markConversationAsRead(id, currentUser.uid);
+					await scrollToBottom();
+				},
+				(listenerError) => {
+					console.error('Messages realtime error:', listenerError);
+					error = listenerError.message;
+				}
+			);
 		} catch (err) {
 			console.error('Conversation load error:', err);
 			error = err instanceof Error ? err.message : 'Could not load conversation.';
@@ -113,7 +132,6 @@
 			});
 
 			text = '';
-			messages = await getMessagesForConversation(conversationId);
 			await scrollToBottom();
 		} catch (err) {
 			console.error('Send message error:', err);
@@ -125,6 +143,10 @@
 
 	onMount(() => {
 		loadConversation();
+	});
+
+	onDestroy(() => {
+		stopMessagesListener();
 	});
 </script>
 

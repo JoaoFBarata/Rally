@@ -14,8 +14,8 @@
 	} from '$lib/services/social.service';
 	import {
 		getConversationsForUser,
-		getMessagesForConversation,
-		getOrCreateDirectConversation
+		getOrCreateDirectConversation,
+		markConversationAsRead,
 	} from '$lib/services/chat.service';
 	import { getUserProfile } from '$lib/services/user.service';
 	import type {
@@ -68,26 +68,7 @@
 		);
 	}
 
-	function getReadKey(conversationId: string) {
-		return `rally:last-read:${conversationId}`;
-	}
 
-	function getLastReadAt(conversationId: string) {
-		const storedValue = localStorage.getItem(getReadKey(conversationId));
-
-		if (storedValue) {
-			return Number(storedValue);
-		}
-
-		const baseline = Date.now();
-		localStorage.setItem(getReadKey(conversationId), String(baseline));
-
-		return baseline;
-	}
-
-	function markConversationAsRead(conversationId: string) {
-		localStorage.setItem(getReadKey(conversationId), String(Date.now()));
-	}
 
 	function formatUnreadCount(count: number) {
 		return count > 99 ? '99+' : String(count);
@@ -119,16 +100,6 @@
 		}
 	}
 
-	async function getUnreadCount(conversationId: string, currentUserId: string) {
-		const lastReadAt = getLastReadAt(conversationId);
-		const messages = await getMessagesForConversation(conversationId);
-
-		return messages.filter((message) => {
-			const createdAtMs = timestampToMillis(message.createdAt);
-
-			return message.senderId !== currentUserId && createdAtMs > lastReadAt;
-		}).length;
-	}
 
 	async function loadMessagesPage() {
 		const currentUser = auth.currentUser;
@@ -179,7 +150,7 @@
 
 			const conversationsWithProfiles = await Promise.all(
 				userConversations.map(async (conversation) => {
-					const unreadCount = await getUnreadCount(conversation.id, currentUser.uid);
+					const unreadCount = conversation.unreadCounts?.[currentUser.uid] ?? 0;
 
 					if (conversation.type === 'group') {
 						return {
@@ -282,7 +253,7 @@
 
 		try {
 			const conversationId = await getOrCreateDirectConversation(currentUser.uid, friendId);
-			markConversationAsRead(conversationId);
+			await markConversationAsRead(conversationId, currentUser.uid);
 			await goto(`/messages/${conversationId}`);
 		} catch (err) {
 			console.error('Start conversation error:', err);
@@ -291,7 +262,12 @@
 	}
 
 	async function openConversation(conversationId: string) {
-		markConversationAsRead(conversationId);
+		const currentUser = auth.currentUser;
+
+		if (currentUser) {
+			await markConversationAsRead(conversationId, currentUser.uid);
+		}
+
 		await goto(`/messages/${conversationId}`);
 	}
 

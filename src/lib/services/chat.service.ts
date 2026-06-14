@@ -88,7 +88,27 @@ export async function sendMessage(params: {
 	}
 
 	const conversationData = conversationSnap.data() as ChatConversation;
-	const unreadFor = conversationData.memberIds.filter((memberId) => memberId !== params.senderId);
+
+	const receivers = conversationData.memberIds.filter(
+		(memberId) => memberId !== params.senderId
+	);
+
+	const currentUnreadFor = conversationData.unreadFor ?? [];
+	const nextUnreadFor = [
+		...new Set([
+			...currentUnreadFor.filter((memberId) => memberId !== params.senderId),
+			...receivers
+		])
+	];
+
+	const currentUnreadCounts = conversationData.unreadCounts ?? {};
+	const nextUnreadCounts = { ...currentUnreadCounts };
+
+	for (const receiverId of receivers) {
+		nextUnreadCounts[receiverId] = (nextUnreadCounts[receiverId] ?? 0) + 1;
+	}
+
+	nextUnreadCounts[params.senderId] = 0;
 
 	await addDoc(collection(db, 'conversations', params.conversationId, 'messages'), {
 		conversationId: params.conversationId,
@@ -102,7 +122,8 @@ export async function sendMessage(params: {
 		lastSenderId: params.senderId,
 		lastMessageAt: serverTimestamp(),
 		updatedAt: serverTimestamp(),
-		unreadFor
+		unreadFor: nextUnreadFor,
+		unreadCounts: nextUnreadCounts
 	});
 }
 
@@ -162,8 +183,47 @@ export function listenConversationsForUser(
 }
 
 export async function markConversationAsRead(conversationId: string, userId: string) {
-	await updateDoc(doc(db, 'conversations', conversationId), {
+	const conversationRef = doc(db, 'conversations', conversationId);
+	const conversationSnap = await getDoc(conversationRef);
+
+	if (!conversationSnap.exists()) return;
+
+	const conversationData = conversationSnap.data() as ChatConversation;
+	const nextUnreadCounts = {
+		...(conversationData.unreadCounts ?? {}),
+		[userId]: 0
+	};
+
+	await updateDoc(conversationRef, {
 		unreadFor: arrayRemove(userId),
+		unreadCounts: nextUnreadCounts,
 		updatedAt: serverTimestamp()
 	});
+}
+
+export function listenMessagesForConversation(
+	conversationId: string,
+	callback: (messages: ChatMessage[]) => void,
+	onError?: (error: Error) => void
+): Unsubscribe {
+	const q = query(
+		collection(db, 'conversations', conversationId, 'messages'),
+		orderBy('createdAt', 'asc')
+	);
+
+	return onSnapshot(
+		q,
+		(snap) => {
+			const messages = snap.docs.map((docSnap) => ({
+				id: docSnap.id,
+				...docSnap.data()
+			})) as ChatMessage[];
+
+			callback(messages);
+		},
+		(error) => {
+			console.error('Messages listener error:', error);
+			onError?.(error);
+		}
+	);
 }
