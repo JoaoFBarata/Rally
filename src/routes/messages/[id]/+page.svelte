@@ -20,7 +20,7 @@
 
 	let conversation = $state<ChatConversation | null>(null);
 	let senderProfiles = $state<Record<string, UserProfile>>({});
-
+	
 	let conversationId = $state('');
 	let otherUser = $state<UserProfile | null>(null);
 	let messages = $state<ChatMessage[]>([]);
@@ -31,7 +31,7 @@
 	let typingLabel = $state('');
 
 	let messagesContainer = $state<HTMLElement | null>(null);
-
+	let messageInput: HTMLInputElement;
 	let unsubscribeMessages: Unsubscribe | null = null;
 	let unsubscribeConversation: Unsubscribe | null = null;
 	let typingTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -60,7 +60,7 @@
 			typingTimeout = null;
 		}
 	}
-
+	
 	function timestampToMillis(value: unknown) {
 		try {
 			const timestamp = value as { toMillis?: () => number; toDate?: () => Date };
@@ -73,7 +73,9 @@
 			return 0;
 		}
 	}
-	function updateTypingLabel(currentConversation: ChatConversation | null, currentUserId: string) {
+	async function updateTypingLabel(currentConversation: ChatConversation | null, currentUserId: string) {
+		const previousTypingLabel = typingLabel;
+
 		if (!currentConversation?.typing) {
 			typingLabel = '';
 			return;
@@ -98,10 +100,13 @@
 
 		if (activeTypingUsers.length === 1) {
 			typingLabel = `${activeTypingUsers[0].displayName} is typing...`;
-			return;
+		} else {
+			typingLabel = `${activeTypingUsers.length} people are typing...`;
 		}
 
-		typingLabel = `${activeTypingUsers.length} people are typing...`;
+		if (typingLabel && typingLabel !== previousTypingLabel) {
+			await scrollToBottom();
+		}
 	}
 	async function scrollToBottom() {
 		await tick();
@@ -171,7 +176,7 @@
 				id,
 				(liveConversation) => {
 					conversation = liveConversation;
-					updateTypingLabel(liveConversation, currentUser.uid);
+					void updateTypingLabel(liveConversation, currentUser.uid);
 				},
 				(listenerError) => {
 					console.error('Conversation realtime error:', listenerError);
@@ -194,6 +199,7 @@
 					error = listenerError.message;
 				}
 			);
+			await focusMessageInput();
 		} catch (err) {
 			console.error('Conversation load error:', err);
 			error = err instanceof Error ? err.message : 'Could not load conversation.';
@@ -246,7 +252,13 @@
 
 		await clearUserTyping(conversationId, currentUser.uid);
 	}
+	async function focusMessageInput() {
+		await tick();
 
+		if (messageInput) {
+			messageInput.focus();
+		}
+	}
 	async function handleSendMessage() {
 		const currentUser = auth.currentUser;
 
@@ -416,6 +428,7 @@
 			class="mx-auto flex max-w-3xl items-center gap-2 rounded-full bg-slate-100 px-3 py-2 dark:bg-slate-900"
 		>
 			<input
+				bind:this={messageInput}
 				bind:value={text}
 				oninput={handleTyping}
 				placeholder="Message..."
