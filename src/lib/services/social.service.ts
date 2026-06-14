@@ -139,7 +139,8 @@ export function listenFriendRequestsForUser(
 ): Unsubscribe {
 	const q = query(
 		collection(db, 'friendRequests'),
-		where('toUserId', '==', userId)
+		where('toUserId', '==', userId),
+		where('status', '==', 'pending')
 	);
 
 	return onSnapshot(

@@ -78,14 +78,14 @@ export async function respondToInvite(params: {
 }) {
 	const inviteRef = doc(db, 'eventInvites', params.inviteId);
 
-	if (params.status === 'accepted') {
-		await joinEvent(params.eventId, params.userId);
-	}
-
 	await updateDoc(inviteRef, {
 		status: params.status,
 		updatedAt: serverTimestamp()
 	});
+
+	if (params.status === 'accepted') {
+		await joinEvent(params.eventId, params.userId);
+	}
 }
 export function listenInvitesForUser(
 	userId: string,
@@ -94,7 +94,8 @@ export function listenInvitesForUser(
 ): Unsubscribe {
 	const q = query(
 		collection(db, 'eventInvites'),
-		where('toUserId', '==', userId)
+		where('toUserId', '==', userId),
+		where('status', '==', 'pending')
 	);
 
 	return onSnapshot(
