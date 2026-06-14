@@ -30,7 +30,7 @@
 	let error = $state('');
 	let typingLabel = $state('');
 
-	let messagesContainer: HTMLDivElement;
+	let messagesContainer = $state<HTMLElement | null>(null);
 
 	let unsubscribeMessages: Unsubscribe | null = null;
 	let unsubscribeConversation: Unsubscribe | null = null;
@@ -133,14 +133,15 @@
 
 		try {
 			const loadedConversation = await getConversationById(id);
-			conversation = loadedConversation;
 
-			if (!conversation) {
+			if (!loadedConversation) {
 				error = 'Conversation not found.';
 				return;
 			}
 
-			if (!conversation.memberIds.includes(currentUser.uid)) {
+			conversation = loadedConversation;
+
+			if (!loadedConversation.memberIds.includes(currentUser.uid)) {
 				error = 'You do not have access to this conversation.';
 				return;
 			}
