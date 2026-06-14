@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
+	import { resolve } from '$app/paths';
 	import { auth } from '$lib/firebase';
 	import { onAuthStateChanged } from 'firebase/auth';
 	import RallyLogo from '$lib/components/RallyLogo.svelte';
@@ -47,6 +48,10 @@
 		return pathname === '/' || pathname === '/login' || pathname === '/register';
 	}
 
+	function shouldShowCreateButton() {
+		return !shouldHideNavigation() && pathname !== '/events/create';
+	}
+
 	function formatBadge(count: number) {
 		return count > 9 ? '9+' : String(count);
 	}
@@ -73,7 +78,9 @@
 	<div class="min-h-screen bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
 		<div class="flex min-h-screen">
 			<!-- Desktop sidebar -->
-			<aside class="hidden w-72 border-r border-slate-200 bg-white px-5 py-6 dark:border-slate-800 dark:bg-slate-900 md:block">
+			<aside
+				class="hidden w-72 border-r border-slate-200 bg-white px-5 py-6 dark:border-slate-800 dark:bg-slate-900 md:block"
+			>
 				<div>
 					<div>
 						<div class="flex items-center justify-between gap-3">
@@ -85,7 +92,7 @@
 							Make sports happen
 						</p>
 					</div>
-        </div>
+				</div>
 
 				<nav class="mt-10 space-y-2">
 					{#each navItems as item (item.href)}
@@ -117,7 +124,6 @@
 				</nav>
 			</aside>
 
-			<!-- Main content -->
 			<div class="flex min-w-0 flex-1 flex-col">
 				<main class="min-h-screen pb-24 md:pb-0">
 					{@render children()}
@@ -125,8 +131,21 @@
 			</div>
 		</div>
 
+		{#if shouldShowCreateButton()}
+            <a
+                href={resolve('/events/create')}
+                aria-label="Create event"
+                title="Create event"
+                class="fixed bottom-6 left-6 z-[100] flex h-18 w-18 items-center justify-center rounded-full bg-slate-200 text-blue-800 shadow-2xl shadow-slate-400/30 transition hover:scale-105 hover:bg-slate-300 active:scale-95 dark:bg-slate-800 dark:text-blue-400 dark:shadow-slate-950/40 dark:hover:bg-slate-700"
+            >
+                <span class="-mt-1 text-6xl font-light leading-none">+</span>
+            </a>
+        {/if}
+
 		<!-- Mobile bottom navigation -->
-		<nav class="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 px-3 py-2 shadow-2xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 md:hidden">
+		<nav
+			class="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 px-3 py-2 shadow-2xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 md:hidden"
+		>
 			<div class="mx-auto grid max-w-md grid-cols-4 items-end gap-1">
 				{#each navItems as item (item.href)}
 					<a href={item.href} class="flex flex-col items-center justify-end gap-1">
