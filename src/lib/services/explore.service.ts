@@ -82,7 +82,7 @@ export async function getVisibleEventsForUser(userId: string) {
 	const invites = await getInvitesForUser(userId);
 
 	for (const invite of invites) {
-		if (invite.status === 'rejected') continue;
+		if (invite.status === 'declined') continue;
 
 		const invitedEvent = await getEventById(invite.eventId);
 

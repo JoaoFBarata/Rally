@@ -39,9 +39,15 @@ export function startNotifications(userId: string) {
 	stopNotifications();
 
 	const unsubscribeConversations = listenConversationsForUser(userId, (conversations: ChatConversation[]) => {
-		notificationState.unreadMessages = conversations.filter((conversation) =>
-			conversation.unreadFor?.includes(userId)
-		).length;
+		notificationState.unreadMessages = conversations.reduce((total, conversation) => {
+			const directCount = conversation.unreadCounts?.[userId];
+
+			if (typeof directCount === 'number') {
+				return total + directCount;
+			}
+
+			return total + (conversation.unreadFor?.includes(userId) ? 1 : 0);
+		}, 0);
 
 		updateTotal();
 		notificationState.ready = true;

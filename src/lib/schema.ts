@@ -28,10 +28,12 @@ export interface UserProfile {
 	email: string;
 	displayName: string;
 	photoURL?: string | null;
+    profilePhotoPath?: string | null;
 
 	rallyTag?: string;
 	bio?: string;
 	city?: string;
+    age?: number | null;
 	level?: SportLevel;
 
 	sports: Sport[];
@@ -49,6 +51,7 @@ export interface SportEvent {
 	creatorId: string;
 
 	groupPhotoURL?: string | null;
+    groupPhotoPath?: string | null;
 
 	location: {
 		name: string;
@@ -112,6 +115,12 @@ export interface Friendship {
 	updatedAt: Timestamp;
 }
 
+export interface ChatTypingState {
+	userId: string;
+	displayName: string;
+	updatedAt: Timestamp;
+}
+
 export interface ChatConversation {
 	id: string;
 	memberIds: string[];
@@ -122,7 +131,13 @@ export interface ChatConversation {
 	photoURL?: string | null;
 
 	lastMessage?: string;
+	lastSenderId?: string;
 	lastMessageAt?: Timestamp;
+
+	unreadFor?: string[];
+	unreadCounts?: Record<string, number>;
+	typing?: Record<string, ChatTypingState>;
+
 	createdAt: Timestamp;
 	updatedAt: Timestamp;
 }

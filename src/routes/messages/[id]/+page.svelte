@@ -1,22 +1,26 @@
 <!-- src/routes/messages/[id]/+page.svelte-->
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { auth } from '$lib/firebase';
 	import {
+		clearUserTyping,
 		getConversationById,
-		getMessagesForConversation,
+		listenConversationById,
+		listenMessagesForConversation,
+		markConversationAsRead,
 		sendMessage,
-		markConversationAsRead
+		setUserTyping
 	} from '$lib/services/chat.service';
 	import { getUserProfile } from '$lib/services/user.service';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
-	import type { ChatConversation, ChatMessage, UserProfile } from '$lib/schema';
+	import type { ChatConversation, ChatMessage, ChatTypingState, UserProfile } from '$lib/schema';
+	import type { Unsubscribe } from 'firebase/firestore';
 
 	let conversation = $state<ChatConversation | null>(null);
 	let senderProfiles = $state<Record<string, UserProfile>>({});
-
+	
 	let conversationId = $state('');
 	let otherUser = $state<UserProfile | null>(null);
 	let messages = $state<ChatMessage[]>([]);
@@ -24,7 +28,132 @@
 	let loading = $state(true);
 	let sending = $state(false);
 	let error = $state('');
-	let messagesContainer: HTMLDivElement;
+	let typingLabel = $state('');
+
+	let messagesContainer = $state<HTMLElement | null>(null);
+	let messageInput: HTMLInputElement;
+	let unsubscribeMessages: Unsubscribe | null = null;
+	let unsubscribeConversation: Unsubscribe | null = null;
+	let typingTimeout: ReturnType<typeof setTimeout> | null = null;
+	let lastTypingSentAt = 0;
+
+	const TYPING_REFRESH_MS = 2000;
+	const TYPING_VISIBLE_MS = 5000;
+
+	function stopMessagesListener() {
+		if (unsubscribeMessages) {
+			unsubscribeMessages();
+			unsubscribeMessages = null;
+		}
+	}
+
+	function stopConversationListener() {
+		if (unsubscribeConversation) {
+			unsubscribeConversation();
+			unsubscribeConversation = null;
+		}
+	}
+
+	function stopTypingTimeout() {
+		if (typingTimeout) {
+			clearTimeout(typingTimeout);
+			typingTimeout = null;
+		}
+	}
+	
+	function timestampToMillis(value: unknown) {
+		try {
+			const timestamp = value as { toMillis?: () => number; toDate?: () => Date };
+
+			if (timestamp?.toMillis) return timestamp.toMillis();
+			if (timestamp?.toDate) return timestamp.toDate().getTime();
+
+			return 0;
+		} catch {
+			return 0;
+		}
+	}
+
+	function formatMessageTime(dateValue: unknown) {
+		try {
+			const timestamp = dateValue as { toDate?: () => Date };
+
+			if (!timestamp?.toDate) return '';
+
+			return timestamp.toDate().toLocaleTimeString('en-GB', {
+				hour: '2-digit',
+				minute: '2-digit'
+			});
+		} catch {
+			return '';
+		}
+	}
+
+	async function updateTypingLabel(currentConversation: ChatConversation | null, currentUserId: string) {
+		const previousTypingLabel = typingLabel;
+
+		if (!currentConversation?.typing) {
+			typingLabel = '';
+			return;
+		}
+
+		const now = Date.now();
+
+		const activeTypingUsers = Object.values(currentConversation.typing).filter(
+			(typingUser: ChatTypingState) => {
+				if (typingUser.userId === currentUserId) return false;
+
+				const updatedAt = timestampToMillis(typingUser.updatedAt);
+
+				return updatedAt > 0 && now - updatedAt <= TYPING_VISIBLE_MS;
+			}
+		);
+
+		if (activeTypingUsers.length === 0) {
+			typingLabel = '';
+			return;
+		}
+
+		if (activeTypingUsers.length === 1) {
+			typingLabel = `${activeTypingUsers[0].displayName} is typing...`;
+		} else {
+			typingLabel = `${activeTypingUsers.length} people are typing...`;
+		}
+
+		if (typingLabel && typingLabel !== previousTypingLabel) {
+			await scrollToBottom();
+		}
+	}
+	function getMessageDate(message: ChatMessage) {
+		try {
+			const timestamp = message.createdAt as { toDate?: () => Date };
+
+			if (!timestamp?.toDate) return null;
+
+			return timestamp.toDate();
+		} catch {
+			return null;
+		}
+	}
+
+	function isSameMinute(messageA: ChatMessage, messageB: ChatMessage) {
+		const dateA = getMessageDate(messageA);
+		const dateB = getMessageDate(messageB);
+
+		if (!dateA || !dateB) return false;
+
+		return Math.floor(dateA.getTime() / 60000) === Math.floor(dateB.getTime() / 60000);
+	}
+
+	function shouldShowMessageTime(message: ChatMessage, index: number) {
+		const nextMessage = messages[index + 1];
+
+		if (!nextMessage) return true;
+
+		if (nextMessage.senderId !== message.senderId) return true;
+
+		return !isSameMinute(message, nextMessage);
+	}
 
 	async function scrollToBottom() {
 		await tick();
@@ -56,14 +185,15 @@
 
 		try {
 			const loadedConversation = await getConversationById(id);
-			conversation = loadedConversation;
 
-			if (!conversation) {
+			if (!loadedConversation) {
 				error = 'Conversation not found.';
 				return;
 			}
 
-			if (!conversation.memberIds.includes(currentUser.uid)) {
+			conversation = loadedConversation;
+
+			if (!loadedConversation.memberIds.includes(currentUser.uid)) {
 				error = 'You do not have access to this conversation.';
 				return;
 			}
@@ -80,13 +210,43 @@
 					profiles.filter(Boolean).map((profile) => [profile!.id, profile!])
 				);
 			} else {
-				const otherUserId = loadedConversation.memberIds.find((memberId) => memberId !== currentUser.uid);
+				const otherUserId = loadedConversation.memberIds.find(
+					(memberId) => memberId !== currentUser.uid
+				);
+
 				otherUser = otherUserId ? await getUserProfile(otherUserId) : null;
 			}
 
-			messages = await getMessagesForConversation(id);
-			await markConversationAsRead(id, currentUser.uid);
-			await scrollToBottom();
+			stopConversationListener();
+
+			unsubscribeConversation = listenConversationById(
+				id,
+				(liveConversation) => {
+					conversation = liveConversation;
+					void updateTypingLabel(liveConversation, currentUser.uid);
+				},
+				(listenerError) => {
+					console.error('Conversation realtime error:', listenerError);
+					error = listenerError.message;
+				}
+			);
+
+			stopMessagesListener();
+
+			unsubscribeMessages = listenMessagesForConversation(
+				id,
+				async (liveMessages) => {
+					messages = liveMessages;
+
+					await markConversationAsRead(id, currentUser.uid);
+					await scrollToBottom();
+				},
+				(listenerError) => {
+					console.error('Messages realtime error:', listenerError);
+					error = listenerError.message;
+				}
+			);
+			await focusMessageInput();
 		} catch (err) {
 			console.error('Conversation load error:', err);
 			error = err instanceof Error ? err.message : 'Could not load conversation.';
@@ -95,6 +255,57 @@
 		}
 	}
 
+	function handleTyping(event: Event) {
+		const currentUser = auth.currentUser;
+
+		if (!currentUser || !conversationId) return;
+
+		const value = (event.currentTarget as HTMLInputElement).value;
+		const cleanValue = value.trim();
+
+		stopTypingTimeout();
+
+		if (!cleanValue) {
+			lastTypingSentAt = 0;
+			void clearUserTyping(conversationId, currentUser.uid);
+			return;
+		}
+
+		const now = Date.now();
+
+		if (now - lastTypingSentAt >= TYPING_REFRESH_MS) {
+			lastTypingSentAt = now;
+
+			void setUserTyping({
+				conversationId,
+				userId: currentUser.uid,
+				displayName: currentUser.displayName ?? currentUser.email ?? 'Rally user'
+			});
+		}
+
+		typingTimeout = setTimeout(() => {
+			lastTypingSentAt = 0;
+			void clearUserTyping(conversationId, currentUser.uid);
+		}, TYPING_VISIBLE_MS);
+	}
+
+	async function clearCurrentUserTyping() {
+		const currentUser = auth.currentUser;
+
+		stopTypingTimeout();
+		lastTypingSentAt = 0;
+
+		if (!currentUser || !conversationId) return;
+
+		await clearUserTyping(conversationId, currentUser.uid);
+	}
+	async function focusMessageInput() {
+		await tick();
+
+		if (messageInput) {
+			messageInput.focus();
+		}
+	}
 	async function handleSendMessage() {
 		const currentUser = auth.currentUser;
 
@@ -104,6 +315,8 @@
 		error = '';
 
 		try {
+			await clearCurrentUserTyping();
+
 			await sendMessage({
 				conversationId,
 				senderId: currentUser.uid,
@@ -111,7 +324,6 @@
 			});
 
 			text = '';
-			messages = await getMessagesForConversation(conversationId);
 			await scrollToBottom();
 		} catch (err) {
 			console.error('Send message error:', err);
@@ -123,6 +335,14 @@
 
 	onMount(() => {
 		loadConversation();
+	});
+
+	onDestroy(() => {
+		void clearCurrentUserTyping();
+
+		stopMessagesListener();
+		stopConversationListener();
+		stopTypingTimeout();
 	});
 </script>
 
@@ -199,38 +419,65 @@
 			</div>
 		{:else}
 			<div class="mx-auto flex max-w-3xl flex-col gap-2">
-				{#each messages as message (message.id)}
-					<div
-						class={`flex items-end gap-2 ${
-							message.senderId === auth.currentUser?.uid ? 'justify-end' : 'justify-start'
-						}`}
-					>
-						{#if message.senderId !== auth.currentUser?.uid}
-							<UserAvatar
-								displayName={conversation?.type === 'group'
-									? senderProfiles[message.senderId]?.displayName
-									: otherUser?.displayName}
-								email={conversation?.type === 'group'
-									? senderProfiles[message.senderId]?.email
-									: otherUser?.email}
-								photoURL={conversation?.type === 'group'
-									? senderProfiles[message.senderId]?.photoURL
-									: otherUser?.photoURL}
-								size="sm"
-							/>
-						{/if}
+				{#each messages as message, index (message.id)}
+					{@const isOwnMessage = message.senderId === auth.currentUser?.uid}
+					{@const messageTime = formatMessageTime(message.createdAt)}
+					{@const showMessageTime = shouldShowMessageTime(message, index)}
 
+					<div class={`flex w-full flex-col ${isOwnMessage ? 'items-end' : 'items-start'}`}>
 						<div
-							class={`max-w-[78%] rounded-3xl px-4 py-2 text-sm leading-6 shadow-sm ${
-								message.senderId === auth.currentUser?.uid
-									? 'rounded-br-md bg-blue-600 text-white'
-									: 'rounded-bl-md bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100'
+							class={`flex w-full items-end gap-2 ${
+								isOwnMessage ? 'justify-end' : 'justify-start'
 							}`}
 						>
-							{message.text}
+							{#if !isOwnMessage}
+								<UserAvatar
+									displayName={conversation?.type === 'group'
+										? senderProfiles[message.senderId]?.displayName
+										: otherUser?.displayName}
+									email={conversation?.type === 'group'
+										? senderProfiles[message.senderId]?.email
+										: otherUser?.email}
+									photoURL={conversation?.type === 'group'
+										? senderProfiles[message.senderId]?.photoURL
+										: otherUser?.photoURL}
+									size="sm"
+								/>
+							{/if}
+
+							<div
+								class={`max-w-[88%] rounded-3xl px-4 py-2 text-sm leading-6 shadow-sm sm:max-w-[78%] ${
+									isOwnMessage
+										? 'rounded-br-md bg-blue-600 text-white'
+										: 'rounded-bl-md bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100'
+								}`}
+							>
+								<p class="whitespace-pre-wrap break-words">
+									{message.text}
+								</p>
+							</div>
 						</div>
+
+						{#if showMessageTime && messageTime}
+							<p
+								class={`mt-1 text-[10px] leading-none text-slate-400 dark:text-slate-500 ${
+									isOwnMessage ? 'mr-2 text-right' : 'ml-12 text-left'
+								}`}
+							>
+								{messageTime}
+							</p>
+						{/if}
 					</div>
 				{/each}
+			</div>
+		{/if}
+		{#if typingLabel}
+			<div class="mx-auto mt-3 flex max-w-3xl justify-start">
+				<div
+					class="rounded-full bg-white px-4 py-2 text-xs font-semibold text-slate-500 shadow-sm dark:bg-slate-900 dark:text-slate-400"
+				>
+					{typingLabel}
+				</div>
 			</div>
 		{/if}
 	</section>
@@ -246,7 +493,9 @@
 			class="mx-auto flex max-w-3xl items-center gap-2 rounded-full bg-slate-100 px-3 py-2 dark:bg-slate-900"
 		>
 			<input
+				bind:this={messageInput}
 				bind:value={text}
+				oninput={handleTyping}
 				placeholder="Message..."
 				class="min-w-0 flex-1 border-0 bg-transparent px-2 text-sm text-slate-950 placeholder:text-slate-400 focus:ring-0 dark:text-white"
 			/>
