@@ -16,9 +16,11 @@
 		updateEventGroupPhoto
 	} from '$lib/services/event.service';
 	import { getMessagesForConversation, sendMessage } from '$lib/services/chat.service';
-	import { getUserProfile } from '$lib/services/user.service';
+	import { getUserProfilesByIds } from '$lib/services/user.service';
+	import EventMap from '$lib/components/maps/EventMap.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import type { ChatMessage, SportEvent, UserProfile } from '$lib/schema';
+    import { uploadEventGroupPhoto } from '$lib/services/storage.service';
 
 	let event = $state<SportEvent | null>(null);
 	let loading = $state(true);
@@ -44,7 +46,13 @@
 	});
 
 	let canJoin = $derived.by(() => {
-		return !!event && !isCreator && !isParticipant && event.status !== 'full' && event.status !== 'cancelled';
+		return (
+			!!event &&
+			!isCreator &&
+			!isParticipant &&
+			event.status !== 'full' &&
+			event.status !== 'cancelled'
+		);
 	});
 
 	let canInvite = $derived.by(() => {
@@ -56,19 +64,6 @@
 			string,
 			UserProfile
 		>;
-	});
-
-	let mapEmbedUrl = $derived.by(() => {
-		if (!event) return '';
-
-		const lat = event.location.lat;
-		const lng = event.location.lng;
-
-		if (typeof lat !== 'number' || typeof lng !== 'number') return '';
-
-		const bbox = `${lng - 0.012}%2C${lat - 0.012}%2C${lng + 0.012}%2C${lat + 0.012}`;
-
-		return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat}%2C${lng}`;
 	});
 
 	function formatDate(dateValue: unknown) {
@@ -90,12 +85,6 @@
 		} catch {
 			return 'Date not set';
 		}
-	}
-
-	async function getUserProfilesByIds(userIds: string[]) {
-		const profiles = await Promise.all(userIds.map((userId) => getUserProfile(userId)));
-
-		return profiles.filter(Boolean) as UserProfile[];
 	}
 
 	async function scrollGroupChatToBottom() {
@@ -275,64 +264,42 @@
 		}
 	}
 
-	function readFileAsDataURL(file: File) {
-		return new Promise<string>((resolveFile, rejectFile) => {
-			const reader = new FileReader();
-
-			reader.onload = () => {
-				if (typeof reader.result === 'string') {
-					resolveFile(reader.result);
-				} else {
-					rejectFile(new Error('Could not read image.'));
-				}
-			};
-
-			reader.onerror = () => rejectFile(new Error('Could not read image.'));
-			reader.readAsDataURL(file);
-		});
-	}
-
 	async function handleGroupPhotoFileChange(fileEvent: Event) {
-		const currentUser = auth.currentUser;
+        const currentUser = auth.currentUser;
 
-		if (!currentUser || !event) return;
+        if (!currentUser || !event) return;
 
-		const input = fileEvent.target as HTMLInputElement;
-		const file = input.files?.[0];
+        const input = fileEvent.target as HTMLInputElement;
+        const file = input.files?.[0];
 
-		if (!file) return;
+        if (!file) return;
 
-		if (!file.type.startsWith('image/')) {
-			error = 'Please choose an image file.';
-			return;
-		}
+        groupPhotoSaving = true;
+        error = '';
 
-		if (file.size > 400_000) {
-			error = 'Image is too large. Choose an image under 400 KB for now.';
-			return;
-		}
+        try {
+            const uploadedPhoto = await uploadEventGroupPhoto({
+                eventId: event.id,
+                userId: currentUser.uid,
+                file
+            });
 
-		groupPhotoSaving = true;
-		error = '';
+            await updateEventGroupPhoto({
+                eventId: event.id,
+                userId: currentUser.uid,
+                groupPhotoURL: uploadedPhoto.url,
+                groupPhotoPath: uploadedPhoto.path
+            });
 
-		try {
-			const dataURL = await readFileAsDataURL(file);
-
-			await updateEventGroupPhoto({
-				eventId: event.id,
-				userId: currentUser.uid,
-				groupPhotoURL: dataURL
-			});
-
-			input.value = '';
-			await reloadEvent();
-		} catch (err) {
-			console.error('Update group photo error:', err);
-			error = err instanceof Error ? err.message : 'Could not update group photo.';
-		} finally {
-			groupPhotoSaving = false;
-		}
-	}
+            input.value = '';
+            await reloadEvent();
+        } catch (err) {
+            console.error('Update group photo error:', err);
+            error = err instanceof Error ? err.message : 'Could not update group photo.';
+        } finally {
+            groupPhotoSaving = false;
+        }
+    }
 
 	async function handleSendGroupMessage() {
 		const currentUser = auth.currentUser;
@@ -392,46 +359,72 @@
 		{error}
 	</div>
 {:else if event}
-	<div class="mt-8 grid gap-6 xl:grid-cols-[1.65fr_0.85fr]">
+	<div class="mt-8 grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
 		<div class="space-y-6">
 			<section
 				class="rounded-4xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 			>
-				<p class="text-sm font-black uppercase tracking-[0.45em] text-blue-600 dark:text-blue-400">
-					{event.sport}
-				</p>
+				<div class="flex flex-col gap-5 sm:flex-row sm:items-start">
+					<div class="relative h-20 w-20 shrink-0">
+						{#if event.groupPhotoURL}
+							<img
+								src={event.groupPhotoURL}
+								alt={event.title}
+								class="h-20 w-20 rounded-full object-cover ring-4 ring-slate-100 dark:ring-slate-800"
+							/>
+						{:else}
+							<div
+								class="flex h-20 w-20 items-center justify-center rounded-full bg-blue-100 text-3xl font-black text-blue-600 ring-4 ring-slate-100 dark:bg-blue-950 dark:text-blue-300 dark:ring-slate-800"
+							>
+								{event.title.slice(0, 1).toUpperCase()}
+							</div>
+						{/if}
 
-				<div class="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-					<div>
-						<h1 class="text-4xl font-black tracking-tight text-slate-950 dark:text-white">
+						{#if isCreator && event.status !== 'cancelled'}
+							<label
+								title="Edit group photo"
+								class="absolute -bottom-1 -right-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-blue-600 text-sm text-white shadow-lg transition hover:bg-blue-700"
+							>
+								{groupPhotoSaving ? '…' : '✎'}
+								<input
+									type="file"
+									accept="image/*"
+									class="hidden"
+									onchange={handleGroupPhotoFileChange}
+								/>
+							</label>
+						{/if}
+					</div>
+
+					<div class="min-w-0 flex-1">
+						<p class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
+							{event.sport}
+						</p>
+
+						<h1 class="mt-3 text-4xl font-black tracking-tight text-slate-950 dark:text-slate-50">
 							{event.title}
 						</h1>
 
-						<p class="mt-4 text-slate-600 dark:text-slate-400">
+						<p class="mt-4 text-slate-600 dark:text-slate-300">
 							{event.description || 'No description provided.'}
 						</p>
 					</div>
-
-					{#if event.status === 'cancelled'}
-						<span
-							class="rounded-full bg-red-50 px-4 py-2 text-sm font-black text-red-700 dark:bg-red-950 dark:text-red-300"
-						>
-							Cancelled
-						</span>
-					{/if}
 				</div>
 
 				<div class="mt-8 grid gap-4 md:grid-cols-2">
-					<div class="rounded-3xl bg-slate-50 p-5 dark:bg-slate-950">
-						<p class="text-sm font-bold text-slate-500 dark:text-slate-400">Date and time</p>
-						<p class="mt-2 font-black text-slate-950 dark:text-white">
+					<div class="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800">
+						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Date and time</p>
+						<p class="mt-2 font-bold text-slate-950 dark:text-slate-50">
 							{formatDate(event.startAt)}
 						</p>
 					</div>
 
-					<div class="rounded-3xl bg-slate-50 p-5 dark:bg-slate-950">
-						<p class="text-sm font-bold text-slate-500 dark:text-slate-400">Location</p>
-						<p class="mt-2 font-black text-slate-950 dark:text-white">{event.location.name}</p>
+					<div class="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800">
+						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Location</p>
+						<p class="mt-2 font-bold text-slate-950 dark:text-slate-50">
+							{event.location.name}
+						</p>
+
 						{#if event.location.address}
 							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
 								{event.location.address}
@@ -439,69 +432,75 @@
 						{/if}
 					</div>
 
-					<div class="rounded-3xl bg-slate-50 p-5 dark:bg-slate-950">
-						<p class="text-sm font-bold text-slate-500 dark:text-slate-400">Participants</p>
-						<p class="mt-2 font-black text-slate-950 dark:text-white">
+					<div class="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800">
+						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Participants</p>
+						<p class="mt-2 font-bold text-slate-950 dark:text-slate-50">
 							{event.participantIds.length}/{event.maxParticipants}
 						</p>
 					</div>
 
-					<div class="rounded-3xl bg-slate-50 p-5 dark:bg-slate-950">
-						<p class="text-sm font-bold text-slate-500 dark:text-slate-400">Price</p>
+					<div class="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800">
+						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Price</p>
+
 						{#if event.pricePerPerson}
-							<p class="mt-2 font-black text-slate-950 dark:text-white">
+							<p class="mt-2 font-bold text-slate-950 dark:text-slate-50">
 								€{event.pricePerPerson.toFixed(2)} per person
 							</p>
 						{:else}
-							<p class="mt-2 font-black text-slate-950 dark:text-white">Free / not defined</p>
+							<p class="mt-2 font-bold text-slate-950 dark:text-slate-50">
+								Free / not defined
+							</p>
 						{/if}
 					</div>
 				</div>
 
 				<div
-					class="mt-8 rounded-4xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"
+					class="mt-8 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 				>
 					<div class="flex items-center justify-between gap-4">
 						<div>
-							<p class="text-sm font-black uppercase tracking-[0.45em] text-blue-600 dark:text-blue-400">
+							<p class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
 								Players
 							</p>
 
-							<h2 class="mt-2 text-2xl font-black text-slate-950 dark:text-white">
+							<h2 class="mt-2 text-2xl font-black text-slate-950 dark:text-slate-50">
 								People in this event
 							</h2>
 						</div>
 
-						<div class="rounded-3xl bg-blue-50 px-5 py-3 text-center dark:bg-blue-950">
-							<p class="text-xl font-black text-blue-600 dark:text-blue-300">
-								{event.participantIds.length}/{event.maxParticipants}
+						<div class="rounded-2xl bg-blue-50 px-4 py-2 text-center dark:bg-blue-950">
+							<p class="text-lg font-black text-blue-600 dark:text-blue-300">
+								{participants.length}/{event.maxParticipants}
 							</p>
-							<p class="text-xs font-bold text-slate-500 dark:text-slate-400">players</p>
+							<p class="text-xs font-medium text-slate-500 dark:text-slate-400">
+								players
+							</p>
 						</div>
 					</div>
 
-					{#if participants.length === 0}
-						<p class="mt-6 text-sm text-slate-500 dark:text-slate-400">No players yet.</p>
-					{:else}
-						<div class="mt-6 space-y-3">
+					{#if participants.length > 0}
+						<div class="mt-5 space-y-3">
 							{#each participants as participant (participant.id)}
 								<div
-									class="flex items-center gap-3 rounded-3xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950"
+									class="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800"
 								>
-									<UserAvatar
-										displayName={participant.displayName}
-										email={participant.email}
-										photoURL={participant.photoURL}
-										size="md"
-									/>
+									<div class="flex min-w-0 items-center gap-3">
+										<UserAvatar
+											photoURL={participant.photoURL}
+											displayName={participant.displayName}
+											email={participant.email}
+											size="md"
+										/>
 
-									<div class="min-w-0 flex-1">
-										<p class="truncate font-black text-slate-950 dark:text-white">
-											{participant.displayName}
-										</p>
-										<p class="truncate text-sm text-slate-500 dark:text-slate-400">
-											@{participant.rallyTag ?? 'rally'}
-										</p>
+										<div class="min-w-0">
+											<p class="truncate font-bold text-slate-950 dark:text-slate-50">
+												{participant.displayName}
+											</p>
+
+											<p class="truncate text-xs text-slate-500 dark:text-slate-400">
+												@{participant.rallyTag}
+											</p>
+										</div>
 									</div>
 
 									{#if participant.id === event.creatorId}
@@ -519,18 +518,32 @@
 										>
 											Remove
 										</button>
-									{:else}
+									{:else if participant.level}
 										<span
-											class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+											class="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300"
 										>
-											Player
+											{participant.level}
 										</span>
 									{/if}
 								</div>
 							{/each}
 						</div>
+					{:else}
+						<div class="mt-5 rounded-2xl bg-slate-50 p-5 text-center dark:bg-slate-800">
+							<p class="text-sm font-semibold text-slate-500 dark:text-slate-400">
+								No players yet.
+							</p>
+						</div>
 					{/if}
 				</div>
+
+				{#if error}
+					<div
+						class="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
+					>
+						{error}
+					</div>
+				{/if}
 			</section>
 
 			{#if isParticipant && event.status !== 'cancelled'}
@@ -560,20 +573,6 @@
 								Group chat · {event.participantIds.length} members
 							</p>
 						</div>
-
-						{#if isCreator}
-							<label
-								class="cursor-pointer rounded-full bg-slate-100 px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-							>
-								{groupPhotoSaving ? '...' : '📷'}
-								<input
-									type="file"
-									accept="image/*"
-									class="hidden"
-									onchange={handleGroupPhotoFileChange}
-								/>
-							</label>
-						{/if}
 					</div>
 
 					<div
@@ -664,11 +663,11 @@
 		</div>
 
 		<aside class="space-y-6">
-			<section
+			<div
 				class="rounded-4xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 			>
 				<div class="flex items-center justify-between gap-3">
-					<h2 class="text-xl font-black text-slate-950 dark:text-white">Team status</h2>
+					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Team status</h2>
 
 					{#if isCreator && event.status !== 'cancelled'}
 						<button
@@ -695,53 +694,44 @@
 					{/if}
 				</div>
 
-				<div class="mt-5 rounded-3xl bg-blue-50 p-5 dark:bg-blue-950">
+				<div class="mt-5 rounded-2xl bg-blue-50 p-5 dark:bg-blue-950">
 					<p class="text-4xl font-black text-blue-600 dark:text-blue-300">
 						{event.participantIds.length}/{event.maxParticipants}
 					</p>
-					<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">
+					<p class="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
 						confirmed players
 					</p>
 				</div>
 
-				{#if error}
-					<div
-						class="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
-					>
-						{error}
-					</div>
-				{/if}
-
 				{#if event.status === 'cancelled'}
 					<div
-						class="mt-5 rounded-2xl bg-red-50 px-5 py-4 text-center font-black text-red-700 dark:bg-red-950 dark:text-red-300"
+						class="mt-5 rounded-2xl bg-red-50 px-5 py-4 text-center font-bold text-red-700 dark:bg-red-950 dark:text-red-300"
 					>
 						This event has been cancelled
 					</div>
 				{:else if isCreator}
 					<div
-						class="mt-5 rounded-2xl bg-blue-50 px-5 py-4 text-center font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+						class="mt-5 rounded-2xl bg-blue-50 px-5 py-4 text-center font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
 					>
 						You are hosting this event
 					</div>
 				{:else if isParticipant}
 					<div
-						class="mt-5 rounded-2xl bg-green-50 px-5 py-4 text-center font-black text-green-700 dark:bg-green-950 dark:text-green-300"
+						class="mt-5 rounded-2xl bg-green-50 px-5 py-4 text-center font-bold text-green-700 dark:bg-green-950 dark:text-green-300"
 					>
-						You are joining this event
+						You are already joining this event
 					</div>
 				{:else if event.status === 'full'}
 					<div
-						class="mt-5 rounded-2xl bg-slate-100 px-5 py-4 text-center font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+						class="mt-5 rounded-2xl bg-slate-100 px-5 py-4 text-center font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300"
 					>
 						Event full
 					</div>
 				{:else if canJoin}
 					<button
-						type="button"
 						onclick={handleJoinEvent}
 						disabled={actionLoading}
-						class="mt-5 w-full rounded-2xl bg-blue-600 px-5 py-3 font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
+						class="mt-5 w-full rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-700 disabled:opacity-60"
 					>
 						{actionLoading ? 'Joining...' : 'Join event'}
 					</button>
@@ -750,49 +740,19 @@
 				{#if canInvite}
 					<a
 						href={resolve(`/events/${event.id}/invite`)}
-						class="mt-3 block rounded-2xl border border-slate-200 bg-white px-5 py-3 text-center font-black text-slate-700 transition hover:border-blue-200 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-500 dark:hover:text-blue-400"
+						class="mt-3 block rounded-2xl border border-slate-200 bg-white px-5 py-3 text-center font-bold text-slate-700 transition hover:border-blue-200 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-500 dark:hover:text-blue-400"
 					>
 						Invite people
 					</a>
 				{/if}
-			</section>
+			</div>
 
-			<section
-				class="overflow-hidden rounded-4xl border border-slate-200 bg-white shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
-			>
-				<div class="p-6">
-					<p class="text-sm font-black uppercase tracking-[0.45em] text-blue-600 dark:text-blue-400">
-						Location
-					</p>
-					<h2 class="mt-2 text-2xl font-black text-slate-950 dark:text-white">
-						{event.location.name}
-					</h2>
-
-					{#if event.location.address}
-						<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-							{event.location.address}
-						</p>
-					{/if}
-				</div>
-
-				{#if mapEmbedUrl}
-					<iframe
-						title="Event location map"
-						src={mapEmbedUrl}
-						class="h-72 w-full border-0"
-						loading="lazy"
-					></iframe>
-				{:else}
-					<div class="flex h-72 items-center justify-center bg-slate-100 dark:bg-slate-950">
-						<div class="text-center">
-							<p class="text-5xl">📍</p>
-							<p class="mt-3 text-sm font-bold text-slate-500 dark:text-slate-400">
-								Map location not available
-							</p>
-						</div>
-					</div>
-				{/if}
-			</section>
+			<EventMap
+				lat={event.location.lat}
+				lng={event.location.lng}
+				name={event.location.name}
+				address={event.location.address}
+			/>
 		</aside>
 	</div>
 {/if}

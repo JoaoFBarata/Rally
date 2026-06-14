@@ -82,6 +82,7 @@ export async function createSportEvent(params: {
 		sport: params.sport,
 		creatorId: params.creatorId,
 		groupPhotoURL: params.groupPhotoURL ?? null,
+        groupPhotoPath: null,
 
 		location: {
 			name: params.locationName,
@@ -288,6 +289,7 @@ export async function updateEventGroupPhoto(params: {
 	eventId: string;
 	userId: string;
 	groupPhotoURL: string;
+	groupPhotoPath?: string;
 }) {
 	const event = await getEventById(params.eventId);
 
@@ -301,6 +303,7 @@ export async function updateEventGroupPhoto(params: {
 
 	await updateDoc(doc(db, 'events', params.eventId), {
 		groupPhotoURL: params.groupPhotoURL,
+		groupPhotoPath: params.groupPhotoPath ?? null,
 		updatedAt: serverTimestamp()
 	});
 

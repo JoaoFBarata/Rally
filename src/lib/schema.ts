@@ -49,6 +49,7 @@ export interface SportEvent {
 	creatorId: string;
 
 	groupPhotoURL?: string | null;
+    groupPhotoPath?: string | null;
 
 	location: {
 		name: string;
