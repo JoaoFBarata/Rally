@@ -180,6 +180,14 @@
 				(liveConversation) => {
 					conversation = liveConversation;
 					void updateTypingLabel(liveConversation, currentUser.uid);
+
+					const hasUnreadForCurrentUser =
+						liveConversation?.unreadFor?.includes(currentUser.uid) ||
+						(liveConversation?.unreadCounts?.[currentUser.uid] ?? 0) > 0;
+
+					if (hasUnreadForCurrentUser) {
+						void markConversationAsRead(id, currentUser.uid);
+					}
 				},
 				(listenerError) => {
 					console.error('Conversation realtime error:', listenerError);
