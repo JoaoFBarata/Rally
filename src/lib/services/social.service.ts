@@ -159,3 +159,34 @@ export function listenFriendRequestsForUser(
 		}
 	);
 }
+
+export async function addFriendByQrCode(params: {
+	fromUserId: string;
+	toUserId: string;
+}) {
+	const targetUser = await getUserProfile(params.toUserId);
+
+	if (!targetUser) {
+		throw new Error('User not found.');
+	}
+
+	if (targetUser.id === params.fromUserId) {
+		throw new Error('You cannot add yourself as a friend.');
+	}
+
+	const friendshipRef = doc(db, 'friendships', friendshipIdFor(params.fromUserId, targetUser.id));
+	const friendshipSnap = await getDoc(friendshipRef);
+
+	if (friendshipSnap.exists()) {
+		return targetUser;
+	}
+
+	await setDoc(friendshipRef, {
+		id: friendshipRef.id,
+		memberIds: [params.fromUserId, targetUser.id],
+		createdAt: serverTimestamp(),
+		updatedAt: serverTimestamp()
+	});
+
+	return targetUser;
+}

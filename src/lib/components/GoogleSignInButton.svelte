@@ -33,11 +33,11 @@
 		disabled={loading}
 		class="flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3 font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
 	>
-		<span
-			class="flex h-6 w-6 items-center justify-center rounded-full bg-white text-lg font-black text-blue-600"
-		>
-			G
-		</span>
+		<img
+			src="/google-logo.png"
+			alt="Google"
+			class="h-5 w-5 object-contain"
+		/>
 
 		<span>
 			{loading ? 'Continuing...' : 'Continue with Google'}
