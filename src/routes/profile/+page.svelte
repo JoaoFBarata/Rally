@@ -34,7 +34,7 @@
 	let displayName = $state('');
 	let bio = $state('');
 	let city = $state('');
-	let age = $state('');
+	let age = $state<string | number>('');
 	let level = $state<SportLevel>('casual');
 	let sports = $state<Sport[]>([]);
 
@@ -111,12 +111,16 @@
 
 		if (!currentUser) return;
 
-		const parsedAge = age.trim() ? Number(age) : null;
+		const cleanAge = String(age ?? '').trim();
+        const parsedAge = cleanAge === '' ? null : Number(cleanAge);
 
-		if (parsedAge !== null && (!Number.isInteger(parsedAge) || parsedAge < 13 || parsedAge > 100)) {
-			error = 'Please enter a valid age between 13 and 100.';
-			return;
-		}
+        if (
+            parsedAge !== null &&
+            (!Number.isInteger(parsedAge) || parsedAge < 13 || parsedAge > 100)
+        ) {
+            error = 'Please enter a valid age between 13 and 100.';
+            return;
+        }
 
 		saving = true;
 		error = '';
@@ -286,7 +290,7 @@
 			>
 				<div class="flex flex-col gap-5 sm:flex-row sm:items-start">
 					<div class="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center">
-						<div class="relative h-24 w-24 shrink-0">
+						<div class="relative h-21 w-21 shrink-0">
 							<UserAvatar
 								photoURL={profile.photoURL ?? auth.currentUser?.photoURL ?? null}
 								displayName={profile.displayName}
@@ -296,7 +300,7 @@
 
 							<label
 								title="Edit profile photo"
-								class="absolute -bottom-1 -right-1 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-blue-600 text-sm text-white shadow-lg transition hover:bg-blue-700"
+								class="absolute -bottom-1 -right-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-blue-600 text-sm text-white shadow-lg transition hover:bg-blue-700"
 							>
 								{photoSaving ? '…' : '✎'}
 								<input
