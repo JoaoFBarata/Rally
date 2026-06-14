@@ -16,6 +16,12 @@
 
 	const navItems = [
 		{
+			label: 'Create event',
+			href: '/events/create',
+			icon: '+',
+			primary: true
+		},
+		{
 			label: 'Explore',
 			href: '/explore',
 			icon: '⌖'
@@ -48,9 +54,6 @@
 		return pathname === '/' || pathname === '/login' || pathname === '/register';
 	}
 
-	function shouldShowCreateButton() {
-		return !shouldHideNavigation() && pathname !== '/events/create';
-	}
 
 	function formatBadge(count: number) {
 		return count > 9 ? '9+' : String(count);
@@ -94,17 +97,42 @@
 					</div>
 				</div>
 
-				<nav class="mt-10 space-y-2">
+				<nav class="mt-10 space-y-1">
 					{#each navItems as item (item.href)}
 						<a
 							href={item.href}
-							class={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-								isActive(item.href)
-									? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-									: 'text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
+							class={`flex items-center text-sm font-semibold transition ${
+								item.primary
+									? 'mb-6 w-fit gap-3 rounded-2xl bg-blue-300 px-3 py-2.5 pr-5 text-slate-800 shadow-none hover:bg-blue-300 hover:text-slate-800 hover:shadow-lg hover:shadow-slate-400/30 dark:bg-blue-950/70 dark:text-blue-300 dark:hover:bg-blue-950/70 dark:hover:text-blue-300 dark:hover:shadow-black/40'
+									: `-ml-5 mr-3 w-auto gap-5 rounded-l-none rounded-r-full py-3 pl-10 pr-5 ${
+											isActive(item.href)
+												? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+												: 'text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
+										}`
 							}`}
 						>
-							<span class="text-lg">{item.icon}</span>
+							<span
+								class={`flex items-center justify-center rounded-xl ${
+									item.primary ? 'h-7 w-7 text-blue-700 dark:text-blue-200' : 'h-7 w-7 text-lg'
+								}`}
+							>
+								{#if item.primary}
+									<svg
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="2.6"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										class="h-5 w-5"
+									>
+										<path d="M12 5v14" />
+										<path d="M5 12h14" />
+									</svg>
+								{:else}
+									{item.icon}
+								{/if}
+							</span>
 
 							<span>{item.label}</span>
 
@@ -130,33 +158,40 @@
 				</main>
 			</div>
 		</div>
-
-		{#if shouldShowCreateButton()}
-            <a
-                href={resolve('/events/create')}
-                aria-label="Create event"
-                title="Create event"
-                class="fixed bottom-6 left-6 z-[100] flex h-18 w-18 items-center justify-center rounded-full bg-slate-200 text-blue-800 shadow-2xl shadow-slate-400/30 transition hover:scale-105 hover:bg-slate-300 active:scale-95 dark:bg-slate-800 dark:text-blue-400 dark:shadow-slate-950/40 dark:hover:bg-slate-700"
-            >
-                <span class="-mt-1 text-6xl font-light leading-none">+</span>
-            </a>
-        {/if}
-
 		<!-- Mobile bottom navigation -->
 		<nav
 			class="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 px-3 py-2 shadow-2xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 md:hidden"
 		>
-			<div class="mx-auto grid max-w-md grid-cols-4 items-end gap-1">
+			<div class="mx-auto grid max-w-md grid-cols-5 items-end gap-1">
 				{#each navItems as item (item.href)}
 					<a href={item.href} class="flex flex-col items-center justify-end gap-1">
 						<span
 							class={`relative flex h-9 w-9 items-center justify-center rounded-2xl text-lg ${
-								isActive(item.href)
-									? 'bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400'
-									: 'text-slate-400 dark:text-slate-500'
+								item.primary
+									? isActive(item.href)
+										? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+										: 'bg-blue-50 text-blue-600 shadow-sm dark:bg-blue-950 dark:text-blue-300'
+									: isActive(item.href)
+										? 'bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400'
+										: 'text-slate-400 dark:text-slate-500'
 							}`}
 						>
-							{item.icon}
+							{#if item.primary}
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2.6"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									class="h-5 w-5"
+								>
+									<path d="M12 5v14" />
+									<path d="M5 12h14" />
+								</svg>
+							{:else}
+								{item.icon}
+							{/if}
 
 							{#if item.href === '/messages' && notificationState.total > 0}
 								<span
@@ -169,9 +204,13 @@
 
 						<span
 							class={`text-[11px] font-medium ${
-								isActive(item.href)
-									? 'text-blue-600 dark:text-blue-400'
-									: 'text-slate-400 dark:text-slate-500'
+								item.primary
+									? isActive(item.href)
+										? 'text-blue-600 dark:text-blue-400'
+										: 'text-blue-600 dark:text-blue-300'
+									: isActive(item.href)
+										? 'text-blue-600 dark:text-blue-400'
+										: 'text-slate-400 dark:text-slate-500'
 							}`}
 						>
 							{item.label}
