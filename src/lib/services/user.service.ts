@@ -45,9 +45,11 @@ export async function createUserProfile(params: {
 		email: params.email,
 		displayName: params.displayName,
 		photoURL: params.photoURL ?? null,
+		profilePhotoPath: null,
 		rallyTag,
 		bio: '',
 		city: '',
+		age: null,
 		level: 'casual',
 		sports: params.sports ?? [],
 		createdAt: serverTimestamp(),
@@ -93,9 +95,11 @@ export async function ensureUserProfile(user: User) {
 		!data.rallyTag ||
 		data.bio === undefined ||
 		data.city === undefined ||
+		data.age === undefined ||
 		data.level === undefined ||
 		data.sports === undefined ||
 		data.photoURL === undefined ||
+		data.profilePhotoPath === undefined ||
 		(!data.photoURL && user.photoURL);
 
 	if (needsUpdate) {
@@ -106,9 +110,11 @@ export async function ensureUserProfile(user: User) {
 			rallyTag,
 			bio: data.bio ?? '',
 			city: data.city ?? '',
+			age: data.age ?? null,
 			level: data.level ?? 'casual',
 			sports: data.sports ?? [],
 			photoURL: nextPhotoURL,
+			profilePhotoPath: data.profilePhotoPath ?? null,
 			updatedAt: serverTimestamp()
 		};
 
@@ -159,9 +165,7 @@ export async function updateUserSports(userId: string, sports: Sport[]) {
 export async function getUserProfilesByIds(userIds: string[]) {
 	const uniqueIds = [...new Set(userIds)].filter(Boolean);
 
-	const profiles = await Promise.all(
-		uniqueIds.map((userId) => getUserProfile(userId))
-	);
+	const profiles = await Promise.all(uniqueIds.map((userId) => getUserProfile(userId)));
 
 	return profiles.filter((profile): profile is UserProfile => profile !== null);
 }
@@ -172,6 +176,7 @@ export async function updateUserProfileDetails(
 		displayName: string;
 		bio: string;
 		city: string;
+		age: number | null;
 		level: SportLevel;
 		sports: Sport[];
 	}
@@ -182,8 +187,23 @@ export async function updateUserProfileDetails(
 		displayName: params.displayName,
 		bio: params.bio,
 		city: params.city,
+		age: params.age,
 		level: params.level,
 		sports: params.sports,
+		updatedAt: serverTimestamp()
+	});
+}
+
+export async function updateUserProfilePhoto(params: {
+	userId: string;
+	photoURL: string;
+	profilePhotoPath: string;
+}) {
+	const userRef = doc(db, 'users', params.userId);
+
+	await updateDoc(userRef, {
+		photoURL: params.photoURL,
+		profilePhotoPath: params.profilePhotoPath,
 		updatedAt: serverTimestamp()
 	});
 }
