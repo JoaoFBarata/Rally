@@ -313,7 +313,7 @@
 				>
 					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Add friend</h2>
 					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-						Use the public Rally tag, not the Firebase ID.
+						Use the public Rally tag
 					</p>
 
 					<div class="mt-5 flex gap-2">

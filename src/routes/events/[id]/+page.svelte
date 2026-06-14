@@ -709,18 +709,7 @@
 					>
 						This event has been cancelled
 					</div>
-				{:else if isCreator}
-					<div
-						class="mt-5 rounded-2xl bg-blue-50 px-5 py-4 text-center font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-					>
-						You are hosting this event
-					</div>
-				{:else if isParticipant}
-					<div
-						class="mt-5 rounded-2xl bg-green-50 px-5 py-4 text-center font-bold text-green-700 dark:bg-green-950 dark:text-green-300"
-					>
-						You are already joining this event
-					</div>
+					
 				{:else if event.status === 'full'}
 					<div
 						class="mt-5 rounded-2xl bg-slate-100 px-5 py-4 text-center font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300"
