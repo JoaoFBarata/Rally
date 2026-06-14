@@ -1,6 +1,6 @@
 <!-- src/routes/events/[id]/+page.svelte -->
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
@@ -15,12 +15,14 @@
 		removeParticipantFromEvent,
 		updateEventGroupPhoto
 	} from '$lib/services/event.service';
-	import { getMessagesForConversation, sendMessage } from '$lib/services/chat.service';
+	import { listenMessagesForConversation, sendMessage } from '$lib/services/chat.service';
 	import { getUserProfilesByIds } from '$lib/services/user.service';
 	import EventMap from '$lib/components/maps/EventMap.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import type { ChatMessage, SportEvent, UserProfile } from '$lib/schema';
-    import { uploadEventGroupPhoto } from '$lib/services/storage.service';
+  import { uploadEventGroupPhoto } from '$lib/services/storage.service';
+	import type { Unsubscribe } from 'firebase/firestore';
+	import ChatMessageList from '$lib/components/chat/ChatMessageList.svelte';
 
 	let event = $state<SportEvent | null>(null);
 	let loading = $state(true);
@@ -34,6 +36,8 @@
 	let groupChatSending = $state(false);
 	let groupPhotoSaving = $state(false);
 	let messagesContainer = $state<HTMLDivElement | null>(null);
+	let groupTypingLabel = $state('');
+	let unsubscribeGroupMessages: Unsubscribe | null = null;
 
 	let isCreator = $derived.by(() => {
 		const currentUser = auth.currentUser;
@@ -86,6 +90,12 @@
 			return 'Date not set';
 		}
 	}
+	function stopGroupMessagesListener() {
+		if (unsubscribeGroupMessages) {
+			unsubscribeGroupMessages();
+			unsubscribeGroupMessages = null;
+		}
+	}
 
 	async function scrollGroupChatToBottom() {
 		await tick();
@@ -101,6 +111,7 @@
 		if (!currentUser) return;
 
 		if (!currentEvent.participantIds.includes(currentUser.uid)) {
+			stopGroupMessagesListener();
 			groupMessages = [];
 			return;
 		}
@@ -111,12 +122,23 @@
 			await ensureEventGroupConversation(currentEvent.id);
 
 			const conversationId = getEventGroupConversationId(currentEvent.id);
-			groupMessages = await getMessagesForConversation(conversationId);
 
-			await scrollGroupChatToBottom();
+			stopGroupMessagesListener();
+
+			unsubscribeGroupMessages = listenMessagesForConversation(
+				conversationId,
+				async (liveMessages) => {
+					groupMessages = liveMessages;
+					groupChatLoading = false;
+					await scrollGroupChatToBottom();
+				},
+				(listenerError) => {
+					console.error('Group chat realtime error:', listenerError);
+					groupChatLoading = false;
+				}
+			);
 		} catch (err) {
 			console.error('Group chat load error:', err);
-		} finally {
 			groupChatLoading = false;
 		}
 	}
@@ -324,7 +346,6 @@
 			});
 
 			groupMessageText = '';
-			groupMessages = await getMessagesForConversation(conversationId);
 			await scrollGroupChatToBottom();
 		} catch (err) {
 			console.error('Send group message error:', err);
@@ -336,6 +357,10 @@
 
 	onMount(() => {
 		loadEventPage();
+	});
+
+	onDestroy(() => {
+		stopGroupMessagesListener();
 	});
 </script>
 
@@ -596,40 +621,13 @@
 								</div>
 							</div>
 						{:else}
-							<div class="mx-auto flex max-w-3xl flex-col gap-3">
-								{#each groupMessages as message (message.id)}
-									<div
-										class={`flex items-end gap-2 ${
-											message.senderId === auth.currentUser?.uid ? 'justify-end' : 'justify-start'
-										}`}
-									>
-										{#if message.senderId !== auth.currentUser?.uid}
-											<UserAvatar
-												displayName={participantById[message.senderId]?.displayName}
-												email={participantById[message.senderId]?.email}
-												photoURL={participantById[message.senderId]?.photoURL}
-												size="sm"
-											/>
-										{/if}
-
-										<div
-											class={`max-w-[78%] rounded-3xl px-4 py-2 text-sm leading-6 shadow-sm ${
-												message.senderId === auth.currentUser?.uid
-													? 'rounded-br-md bg-blue-600 text-white'
-													: 'rounded-bl-md bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100'
-											}`}
-										>
-											{#if message.senderId !== auth.currentUser?.uid}
-												<p class="mb-1 text-xs font-black text-blue-600 dark:text-blue-300">
-													{participantById[message.senderId]?.displayName ?? 'Rally user'}
-												</p>
-											{/if}
-
-											{message.text}
-										</div>
-									</div>
-								{/each}
-							</div>
+							<ChatMessageList
+								messages={groupMessages}
+								currentUserId={auth.currentUser?.uid}
+								getSenderProfile={(senderId) => participantById[senderId]}
+								typingLabel={groupTypingLabel}
+								showSenderName={true}
+							/>
 						{/if}
 					</div>
 

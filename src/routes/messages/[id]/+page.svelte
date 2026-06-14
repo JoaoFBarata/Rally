@@ -15,6 +15,7 @@
 	} from '$lib/services/chat.service';
 	import { getUserProfile } from '$lib/services/user.service';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
+	import ChatMessageList from '$lib/components/chat/ChatMessageList.svelte';
 	import type { ChatConversation, ChatMessage, ChatTypingState, UserProfile } from '$lib/schema';
 	import type { Unsubscribe } from 'firebase/firestore';
 
@@ -74,21 +75,6 @@
 		}
 	}
 
-	function formatMessageTime(dateValue: unknown) {
-		try {
-			const timestamp = dateValue as { toDate?: () => Date };
-
-			if (!timestamp?.toDate) return '';
-
-			return timestamp.toDate().toLocaleTimeString('en-GB', {
-				hour: '2-digit',
-				minute: '2-digit'
-			});
-		} catch {
-			return '';
-		}
-	}
-
 	async function updateTypingLabel(currentConversation: ChatConversation | null, currentUserId: string) {
 		const previousTypingLabel = typingLabel;
 
@@ -123,36 +109,6 @@
 		if (typingLabel && typingLabel !== previousTypingLabel) {
 			await scrollToBottom();
 		}
-	}
-	function getMessageDate(message: ChatMessage) {
-		try {
-			const timestamp = message.createdAt as { toDate?: () => Date };
-
-			if (!timestamp?.toDate) return null;
-
-			return timestamp.toDate();
-		} catch {
-			return null;
-		}
-	}
-
-	function isSameMinute(messageA: ChatMessage, messageB: ChatMessage) {
-		const dateA = getMessageDate(messageA);
-		const dateB = getMessageDate(messageB);
-
-		if (!dateA || !dateB) return false;
-
-		return Math.floor(dateA.getTime() / 60000) === Math.floor(dateB.getTime() / 60000);
-	}
-
-	function shouldShowMessageTime(message: ChatMessage, index: number) {
-		const nextMessage = messages[index + 1];
-
-		if (!nextMessage) return true;
-
-		if (nextMessage.senderId !== message.senderId) return true;
-
-		return !isSameMinute(message, nextMessage);
 	}
 
 	async function scrollToBottom() {
@@ -418,67 +374,14 @@
 				</div>
 			</div>
 		{:else}
-			<div class="mx-auto flex max-w-3xl flex-col gap-2">
-				{#each messages as message, index (message.id)}
-					{@const isOwnMessage = message.senderId === auth.currentUser?.uid}
-					{@const messageTime = formatMessageTime(message.createdAt)}
-					{@const showMessageTime = shouldShowMessageTime(message, index)}
-
-					<div class={`flex w-full flex-col ${isOwnMessage ? 'items-end' : 'items-start'}`}>
-						<div
-							class={`flex w-full items-end gap-2 ${
-								isOwnMessage ? 'justify-end' : 'justify-start'
-							}`}
-						>
-							{#if !isOwnMessage}
-								<UserAvatar
-									displayName={conversation?.type === 'group'
-										? senderProfiles[message.senderId]?.displayName
-										: otherUser?.displayName}
-									email={conversation?.type === 'group'
-										? senderProfiles[message.senderId]?.email
-										: otherUser?.email}
-									photoURL={conversation?.type === 'group'
-										? senderProfiles[message.senderId]?.photoURL
-										: otherUser?.photoURL}
-									size="sm"
-								/>
-							{/if}
-
-							<div
-								class={`max-w-[88%] rounded-3xl px-4 py-2 text-sm leading-6 shadow-sm sm:max-w-[78%] ${
-									isOwnMessage
-										? 'rounded-br-md bg-blue-600 text-white'
-										: 'rounded-bl-md bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100'
-								}`}
-							>
-								<p class="whitespace-pre-wrap break-words">
-									{message.text}
-								</p>
-							</div>
-						</div>
-
-						{#if showMessageTime && messageTime}
-							<p
-								class={`mt-1 text-[10px] leading-none text-slate-400 dark:text-slate-500 ${
-									isOwnMessage ? 'mr-2 text-right' : 'ml-12 text-left'
-								}`}
-							>
-								{messageTime}
-							</p>
-						{/if}
-					</div>
-				{/each}
-			</div>
-		{/if}
-		{#if typingLabel}
-			<div class="mx-auto mt-3 flex max-w-3xl justify-start">
-				<div
-					class="rounded-full bg-white px-4 py-2 text-xs font-semibold text-slate-500 shadow-sm dark:bg-slate-900 dark:text-slate-400"
-				>
-					{typingLabel}
-				</div>
-			</div>
+			<ChatMessageList
+				messages={messages}
+				currentUserId={auth.currentUser?.uid}
+				getSenderProfile={(senderId) =>
+					conversation?.type === 'group' ? senderProfiles[senderId] : otherUser}
+				typingLabel={typingLabel}
+				showSenderName={conversation?.type === 'group'}
+			/>
 		{/if}
 	</section>
 
