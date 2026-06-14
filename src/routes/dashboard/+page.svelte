@@ -7,17 +7,67 @@
 	import { onAuthStateChanged, type User } from 'firebase/auth';
 	import { getEventsCreatedByUser } from '$lib/services/event.service';
 	import { getInvitesForUser } from '$lib/services/invite.service';
-	import type { SportEvent, EventInvite } from '$lib/schema';
+	import { ensureUserProfile } from '$lib/services/user.service';
+	import type { EventInvite, SportEvent, UserProfile } from '$lib/schema';
 	import EventCard from '$lib/components/EventCard.svelte';
 	import UserMiniMap from '$lib/components/maps/UserMiniMap.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import RallyWordmark from '$lib/components/RallyWordmark.svelte';
 
 	let user = $state<User | null>(null);
+	let profile = $state<UserProfile | null>(null);
 	let loading = $state(true);
 	let events = $state<SportEvent[]>([]);
 	let invites = $state<EventInvite[]>([]);
 	let error = $state('');
+
+	let pendingInvites = $derived(invites.filter((invite) => invite.status === 'pending'));
+
+	let nextEvent = $derived.by(() => {
+		const now = Date.now();
+
+		return (
+			events
+				.filter((event) => event.status !== 'cancelled')
+				.filter((event) => {
+					const startAt = event.startAt?.toDate?.()?.getTime?.() ?? 0;
+					return startAt >= now;
+				})
+				.sort((a, b) => {
+					const dateA = a.startAt?.toDate?.()?.getTime?.() ?? 0;
+					const dateB = b.startAt?.toDate?.()?.getTime?.() ?? 0;
+					return dateA - dateB;
+				})[0] ?? null
+		);
+	});
+
+	let activeEventsCount = $derived(
+		events.filter((event) => event.status !== 'cancelled' && event.status !== 'finished').length
+	);
+
+	let totalParticipants = $derived(
+		events.reduce((total, event) => total + (event.participantIds?.length ?? 0), 0)
+	);
+
+	function formatDate(dateValue: unknown) {
+		try {
+			const timestamp = dateValue as { toDate?: () => Date };
+
+			if (timestamp?.toDate) {
+				return timestamp.toDate().toLocaleString('en-GB', {
+					weekday: 'short',
+					day: '2-digit',
+					month: 'short',
+					hour: '2-digit',
+					minute: '2-digit'
+				});
+			}
+
+			return 'Date not set';
+		} catch {
+			return 'Date not set';
+		}
+	}
 
 	onMount(() => {
 		const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -27,8 +77,11 @@
 			}
 
 			user = currentUser;
+			loading = true;
+			error = '';
 
 			try {
+				profile = await ensureUserProfile(currentUser);
 				events = await getEventsCreatedByUser(currentUser.uid);
 				invites = await getInvitesForUser(currentUser.uid);
 			} catch (err) {
@@ -41,14 +94,13 @@
 				} else {
 					error = 'Could not load your dashboard data.';
 				}
+			} finally {
+				loading = false;
 			}
-
-			loading = false;
 		});
 
 		return unsubscribe;
 	});
-
 </script>
 
 {#if loading}
@@ -61,23 +113,24 @@
 			<div>
 				<RallyWordmark size="sm" />
 
-				<h1 class="mt-2 text-3xl font-bold text-slate-950 dark:text-slate-50">
+				<h1 class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">
 					Dashboard
 				</h1>
 
 				<p class="mt-1 text-slate-500 dark:text-slate-400">
-					Welcome, {user?.displayName ?? user?.email}
+					Welcome back, {profile?.displayName ?? user?.displayName ?? user?.email}
 				</p>
 			</div>
+
 			<a
 				href={resolve('/profile')}
 				class="rounded-full transition hover:scale-105"
 				aria-label="Go to profile"
 			>
 				<UserAvatar
-					photoURL={user?.photoURL}
-					displayName={user?.displayName}
-					email={user?.email}
+					photoURL={profile?.photoURL ?? user?.photoURL}
+					displayName={profile?.displayName ?? user?.displayName}
+					email={profile?.email ?? user?.email}
 					size="lg"
 				/>
 			</a>
@@ -91,18 +144,124 @@
 			</div>
 		{/if}
 
-		<section class="grid gap-6 md:grid-cols-3">
-			<a
-				href={resolve('/events/create')}
-				class="rounded-4xl bg-blue-600 p-6 text-white shadow-xl shadow-blue-600/25 transition hover:scale-[1.02] hover:bg-blue-700 dark:shadow-blue-950/40"
+		<section class="grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
+			<div
+				class="rounded-4xl bg-blue-600 p-7 text-white shadow-xl shadow-blue-600/25 dark:shadow-blue-950/40"
 			>
-				<p class="text-sm font-bold uppercase tracking-wide text-blue-100">Create</p>
-				<h2 class="mt-2 text-2xl font-black">New sports event</h2>
-				<p class="mt-3 text-sm leading-6 text-blue-50">
-					Create a football match, padel game, run, gym session or another activity.
-				</p>
-			</a>
+				<div class="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+					<div>
+						<p class="text-sm font-black uppercase tracking-[0.25em] text-blue-100">
+							Rally home
+						</p>
 
+						<h2 class="mt-3 text-3xl font-black">
+							Organize your next game
+						</h2>
+
+						<p class="mt-3 max-w-xl text-sm leading-6 text-blue-50">
+							Create events, invite friends, manage your groups and keep every sports plan in one place.
+						</p>
+					</div>
+
+					<a
+						href={resolve('/events/create')}
+						class="shrink-0 rounded-2xl bg-white px-5 py-3 text-center font-black text-blue-600 transition hover:bg-blue-50"
+					>
+						Create event
+					</a>
+				</div>
+
+				<div class="mt-6 grid gap-3 sm:grid-cols-3">
+					<a
+						href={resolve('/explore')}
+						class="rounded-3xl bg-white/10 p-4 transition hover:bg-white/15"
+					>
+						<p class="text-2xl">🔎</p>
+						<p class="mt-2 font-black">Explore</p>
+						<p class="mt-1 text-xs text-blue-100">Find events near you</p>
+					</a>
+
+					<a
+						href={resolve('/messages')}
+						class="rounded-3xl bg-white/10 p-4 transition hover:bg-white/15"
+					>
+						<p class="text-2xl">💬</p>
+						<p class="mt-2 font-black">Messages</p>
+						<p class="mt-1 text-xs text-blue-100">Chats and invites</p>
+					</a>
+
+					<a
+						href={resolve('/profile')}
+						class="rounded-3xl bg-white/10 p-4 transition hover:bg-white/15"
+					>
+						<p class="text-2xl">👤</p>
+						<p class="mt-2 font-black">Profile</p>
+						<p class="mt-1 text-xs text-blue-100">Edit your Rally identity</p>
+					</a>
+				</div>
+			</div>
+
+			<div
+				class="rounded-4xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+			>
+				<div class="flex items-center gap-4">
+					<UserAvatar
+						photoURL={profile?.photoURL ?? user?.photoURL}
+						displayName={profile?.displayName ?? user?.displayName}
+						email={profile?.email ?? user?.email}
+						size="xl"
+					/>
+
+					<div class="min-w-0">
+						<p class="truncate text-xl font-black text-slate-950 dark:text-slate-50">
+							{profile?.displayName ?? user?.displayName ?? 'Rally user'}
+						</p>
+
+						<p class="truncate text-sm text-slate-500 dark:text-slate-400">
+							@{profile?.rallyTag ?? 'rally'}
+						</p>
+					</div>
+				</div>
+
+				<div class="mt-5 grid grid-cols-2 gap-3">
+					<div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
+						<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Level</p>
+						<p class="mt-1 font-black capitalize text-slate-950 dark:text-slate-50">
+							{profile?.level ?? 'casual'}
+						</p>
+					</div>
+
+					<div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
+						<p class="text-xs font-bold text-slate-500 dark:text-slate-400">City</p>
+						<p class="mt-1 truncate font-black text-slate-950 dark:text-slate-50">
+							{profile?.city || 'Not set'}
+						</p>
+					</div>
+				</div>
+
+				<div class="mt-4 rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
+					<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Sports</p>
+
+					{#if profile?.sports?.length}
+						<div class="mt-2 flex flex-wrap gap-2">
+							{#each profile.sports.slice(0, 4) as sport (sport)}
+								<span
+									class="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+								>
+									{sport}
+								</span>
+							{/each}
+						</div>
+					{:else}
+						<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+							Add your sports in Profile.
+						</p>
+					{/if}
+				</div>
+			</div>
+		</section>
+
+		<section class="mt-6 grid gap-6 md:grid-cols-3">
 			<div
 				class="rounded-4xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 			>
@@ -118,12 +277,24 @@
 			<div
 				class="rounded-4xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 			>
-				<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Invitations</p>
+				<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Active events</p>
 				<p class="mt-2 text-4xl font-black text-slate-950 dark:text-slate-50">
-					{invites.length}
+					{activeEventsCount}
 				</p>
 				<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-					Pending or received invites
+					Open or upcoming plans
+				</p>
+			</div>
+
+			<div
+				class="rounded-4xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+			>
+				<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Invitations</p>
+				<p class="mt-2 text-4xl font-black text-slate-950 dark:text-slate-50">
+					{pendingInvites.length}
+				</p>
+				<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
+					Pending invites
 				</p>
 			</div>
 		</section>
@@ -169,15 +340,84 @@
 				{/if}
 			</div>
 
-			<div
-				class="rounded-4xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
-			>
-				<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">
-					Nearby activity
-				</h2>
+			<div class="space-y-6">
+				<div
+					class="rounded-4xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+				>
+					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">
+						Nearby activity
+					</h2>
 
-				<div class="mt-5">
-					<UserMiniMap />
+					<div class="mt-5">
+						<UserMiniMap />
+					</div>
+				</div>
+
+				<div
+					class="rounded-4xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+				>
+					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">
+						Next event
+					</h2>
+
+					{#if nextEvent}
+						<div class="mt-5 rounded-3xl bg-slate-50 p-5 dark:bg-slate-800">
+							<p class="text-sm font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">
+								{nextEvent.sport}
+							</p>
+
+							<p class="mt-2 text-lg font-black text-slate-950 dark:text-slate-50">
+								{nextEvent.title}
+							</p>
+
+							<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
+								🕒 {formatDate(nextEvent.startAt)}
+							</p>
+
+							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+								👥 {nextEvent.participantIds.length}/{nextEvent.maxParticipants} players
+							</p>
+
+							<a
+								href={resolve(`/events/${nextEvent.id}`)}
+								class="mt-4 inline-flex rounded-2xl bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-700"
+							>
+								View event
+							</a>
+						</div>
+					{:else}
+						<p class="mt-4 text-sm text-slate-500 dark:text-slate-400">
+							No upcoming events yet.
+						</p>
+					{/if}
+				</div>
+
+				<div
+					class="rounded-4xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+				>
+					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">
+						Rally stats
+					</h2>
+
+					<div class="mt-5 grid grid-cols-2 gap-3">
+						<div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
+							<p class="text-2xl font-black text-slate-950 dark:text-slate-50">
+								{totalParticipants}
+							</p>
+							<p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+								total players
+							</p>
+						</div>
+
+						<div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
+							<p class="text-2xl font-black text-slate-950 dark:text-slate-50">
+								{profile?.sports?.length ?? 0}
+							</p>
+							<p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+								sports
+							</p>
+						</div>
+					</div>
 				</div>
 			</div>
 		</section>
