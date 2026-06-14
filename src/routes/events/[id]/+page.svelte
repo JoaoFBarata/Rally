@@ -13,14 +13,16 @@
 		joinEvent,
 		leaveEvent,
 		removeParticipantFromEvent,
-		updateEventGroupPhoto
+		updateEventGroupPhoto,
+        getEffectiveEventStatus,
+        isEventFinished
 	} from '$lib/services/event.service';
 	import { listenMessagesForConversation, sendMessage } from '$lib/services/chat.service';
 	import { getUserProfilesByIds } from '$lib/services/user.service';
 	import EventMap from '$lib/components/maps/EventMap.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import type { ChatMessage, SportEvent, UserProfile } from '$lib/schema';
-  import { uploadEventGroupPhoto } from '$lib/services/storage.service';
+    import { uploadEventGroupPhoto } from '$lib/services/storage.service';
 	import type { Unsubscribe } from 'firebase/firestore';
 	import ChatMessageList from '$lib/components/chat/ChatMessageList.svelte';
 
@@ -50,17 +52,18 @@
 	});
 
 	let canJoin = $derived.by(() => {
-		return (
-			!!event &&
-			!isCreator &&
-			!isParticipant &&
-			event.status !== 'full' &&
-			event.status !== 'cancelled'
-		);
-	});
+        return (
+            !!event &&
+            !isCreator &&
+            !isParticipant &&
+            effectiveStatus !== 'full' &&
+            effectiveStatus !== 'cancelled' &&
+            effectiveStatus !== 'finished'
+        );
+    });
 
 	let canInvite = $derived.by(() => {
-		return !!event && event.status !== 'cancelled' && (isCreator || isParticipant);
+		return !!event && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished' && (isCreator || isParticipant);
 	});
 
 	let participantById = $derived.by(() => {
@@ -69,6 +72,14 @@
 			UserProfile
 		>;
 	});
+
+    let effectiveStatus = $derived.by(() => {
+        return event ? getEffectiveEventStatus(event) : 'draft';
+    });
+
+    let eventHasFinished = $derived.by(() => {
+        return event ? isEventFinished(event) : false;
+    });
 
 	function formatDate(dateValue: unknown) {
 		try {
@@ -405,7 +416,7 @@
 							</div>
 						{/if}
 
-						{#if isCreator && event.status !== 'cancelled'}
+						{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
 							<label
 								title="Edit group photo"
 								class="absolute -bottom-1 -right-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-blue-600 text-sm text-white shadow-lg transition hover:bg-blue-700"
@@ -534,7 +545,7 @@
 										>
 											Host
 										</span>
-									{:else if isCreator && event.status !== 'cancelled'}
+									{:else if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
 										<button
 											type="button"
 											onclick={() => handleRemoveParticipant(participant.id)}
@@ -571,7 +582,7 @@
 				{/if}
 			</section>
 
-			{#if isParticipant && event.status !== 'cancelled'}
+			{#if isParticipant && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
 				<section
 					class="rounded-4xl border border-slate-200 bg-white shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 				>
@@ -667,7 +678,7 @@
 				<div class="flex items-center justify-between gap-3">
 					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Team status</h2>
 
-					{#if isCreator && event.status !== 'cancelled'}
+					{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
 						<button
 							type="button"
 							onclick={handleCancelEvent}
@@ -678,7 +689,7 @@
 						>
 							×
 						</button>
-					{:else if isParticipant && !isCreator && event.status !== 'cancelled'}
+					{:else if isParticipant && !isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
 						<button
 							type="button"
 							onclick={handleLeaveEvent}
@@ -701,12 +712,19 @@
 					</p>
 				</div>
 
-				{#if event.status === 'cancelled'}
+				{#if effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
 					<div
 						class="mt-5 rounded-2xl bg-red-50 px-5 py-4 text-center font-bold text-red-700 dark:bg-red-950 dark:text-red-300"
 					>
 						This event has been cancelled
 					</div>
+
+                {:else if effectiveStatus === 'finished'}
+                    <div
+                        class="mt-5 rounded-2xl bg-slate-100 px-5 py-4 text-center font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300"
+                    >
+                        This event has already finished
+                    </div>
 					
 				{:else if event.status === 'full'}
 					<div

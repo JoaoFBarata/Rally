@@ -6,7 +6,6 @@ import {
 	doc,
 	getDoc,
 	getDocs,
-	orderBy,
 	query,
 	serverTimestamp,
 	setDoc,
@@ -19,6 +18,45 @@ import type { EventStatus, EventVisibility, Sport, SportEvent } from '$lib/schem
 
 export function getEventGroupConversationId(eventId: string) {
 	return `event_${eventId}`;
+}
+
+export function getEventStartAtMillis(event: SportEvent) {
+	const startAt = event.startAt as unknown as { toMillis?: () => number; toDate?: () => Date };
+
+	if (startAt?.toMillis) return startAt.toMillis();
+	if (startAt?.toDate) return startAt.toDate().getTime();
+
+	return 0;
+}
+
+export function isEventFinished(event: SportEvent) {
+	if (event.status === 'finished') return true;
+	if (event.status === 'cancelled') return false;
+
+	const startAtMs = getEventStartAtMillis(event);
+
+	if (!startAtMs) return false;
+
+	return startAtMs < Date.now();
+}
+
+export function getEffectiveEventStatus(event: SportEvent): EventStatus {
+	if (event.status === 'cancelled') return 'cancelled';
+	if (isEventFinished(event)) return 'finished';
+	return event.status;
+}
+
+export function sortEventsByStartDate(events: SportEvent[]) {
+	return [...events].sort((a, b) => getEventStartAtMillis(a) - getEventStartAtMillis(b));
+}
+
+export function getUpcomingEvents(events: SportEvent[]) {
+	return sortEventsByStartDate(
+		events.filter((event) => {
+			const status = getEffectiveEventStatus(event);
+			return status !== 'cancelled' && status !== 'finished';
+		})
+	);
 }
 
 async function syncEventGroupConversation(event: SportEvent) {
@@ -82,7 +120,7 @@ export async function createSportEvent(params: {
 		sport: params.sport,
 		creatorId: params.creatorId,
 		groupPhotoURL: params.groupPhotoURL ?? null,
-        groupPhotoPath: null,
+		groupPhotoPath: null,
 
 		location: {
 			name: params.locationName,
@@ -133,18 +171,33 @@ export async function getEventById(eventId: string) {
 }
 
 export async function getEventsCreatedByUser(userId: string) {
-	const q = query(
-		collection(db, 'events'),
-		where('creatorId', '==', userId),
-		orderBy('startAt', 'asc')
-	);
-
+	const q = query(collection(db, 'events'), where('creatorId', '==', userId));
 	const snap = await getDocs(q);
 
-	return snap.docs.map((docSnap) => ({
+	const events = snap.docs.map((docSnap) => ({
 		id: docSnap.id,
 		...docSnap.data()
 	})) as SportEvent[];
+
+	return sortEventsByStartDate(events);
+}
+
+export async function getEventsForUser(userId: string) {
+	const q = query(collection(db, 'events'), where('participantIds', 'array-contains', userId));
+	const snap = await getDocs(q);
+
+	const events = snap.docs.map((docSnap) => ({
+		id: docSnap.id,
+		...docSnap.data()
+	})) as SportEvent[];
+
+	return sortEventsByStartDate(events);
+}
+
+export async function getEventsJoinedByUser(userId: string) {
+	const events = await getEventsForUser(userId);
+
+	return events.filter((event) => event.creatorId !== userId);
 }
 
 export async function joinEvent(eventId: string, userId: string) {
@@ -154,8 +207,14 @@ export async function joinEvent(eventId: string, userId: string) {
 		throw new Error('Event not found');
 	}
 
-	if (event.status === 'cancelled') {
+	const status = getEffectiveEventStatus(event);
+
+	if (status === 'cancelled') {
 		throw new Error('This event has been cancelled.');
+	}
+
+	if (status === 'finished') {
+		throw new Error('This event has already finished.');
 	}
 
 	if (event.participantIds.includes(userId)) {
@@ -163,7 +222,7 @@ export async function joinEvent(eventId: string, userId: string) {
 		return;
 	}
 
-	if (event.participantIds.length >= event.maxParticipants) {
+	if (event.participantIds.length >= event.maxParticipants || status === 'full') {
 		throw new Error('Event is already full');
 	}
 

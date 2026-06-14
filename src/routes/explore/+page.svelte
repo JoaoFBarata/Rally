@@ -20,7 +20,6 @@
 			return;
 		}
 		currentUserId = currentUser.uid;
-		events = await getVisibleEventsForUser(currentUser.uid);
 
 		try {
 			events = await getVisibleEventsForUser(currentUser.uid);

@@ -1,12 +1,12 @@
-import {
-	collection,
-	getDocs,
-	query,
-	where
-} from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '$lib/firebase';
 import type { SportEvent } from '$lib/schema';
-import { getEventById } from '$lib/services/event.service';
+import {
+	getEffectiveEventStatus,
+	getEventById,
+	getEventStartAtMillis,
+	sortEventsByStartDate
+} from '$lib/services/event.service';
 import { getInvitesForUser } from '$lib/services/invite.service';
 import { getFriendsForUser } from '$lib/services/social.service';
 
@@ -17,13 +17,15 @@ function eventFromDoc(docSnap: { id: string; data: () => unknown }) {
 	} as SportEvent;
 }
 
-function getStartAtMillis(event: SportEvent) {
-	const startAt = event.startAt as unknown as { toMillis?: () => number; toDate?: () => Date };
+function isVisibleInExplore(event: SportEvent) {
+	const status = getEffectiveEventStatus(event);
 
-	if (startAt?.toMillis) return startAt.toMillis();
-	if (startAt?.toDate) return startAt.toDate().getTime();
+	if (status === 'cancelled') return false;
+	if (status === 'finished') return false;
 
-	return 0;
+	const startAtMs = getEventStartAtMillis(event);
+
+	return startAtMs >= Date.now();
 }
 
 function chunkArray<T>(items: T[], size: number) {
@@ -39,12 +41,7 @@ function chunkArray<T>(items: T[], size: number) {
 export async function getVisibleEventsForUser(userId: string) {
 	const eventsById = new Map<string, SportEvent>();
 
-	// 1. Eventos criados por mim
-	const myEventsQuery = query(
-		collection(db, 'events'),
-		where('creatorId', '==', userId)
-	);
-
+	const myEventsQuery = query(collection(db, 'events'), where('creatorId', '==', userId));
 	const myEventsSnap = await getDocs(myEventsQuery);
 
 	for (const docSnap of myEventsSnap.docs) {
@@ -52,7 +49,6 @@ export async function getVisibleEventsForUser(userId: string) {
 		eventsById.set(event.id, event);
 	}
 
-	// 2. Eventos onde já sou participante
 	const joinedEventsQuery = query(
 		collection(db, 'events'),
 		where('participantIds', 'array-contains', userId)
@@ -65,12 +61,7 @@ export async function getVisibleEventsForUser(userId: string) {
 		eventsById.set(event.id, event);
 	}
 
-	// 3. Eventos públicos
-	const publicEventsQuery = query(
-		collection(db, 'events'),
-		where('visibility', '==', 'public')
-	);
-
+	const publicEventsQuery = query(collection(db, 'events'), where('visibility', '==', 'public'));
 	const publicEventsSnap = await getDocs(publicEventsQuery);
 
 	for (const docSnap of publicEventsSnap.docs) {
@@ -78,7 +69,6 @@ export async function getVisibleEventsForUser(userId: string) {
 		eventsById.set(event.id, event);
 	}
 
-	// 4. Eventos para os quais fui convidado
 	const invites = await getInvitesForUser(userId);
 
 	for (const invite of invites) {
@@ -91,7 +81,6 @@ export async function getVisibleEventsForUser(userId: string) {
 		}
 	}
 
-	// 5. Eventos "friends" criados por amigos
 	const friends = await getFriendsForUser(userId);
 	const friendIds = friends.map((friend) => friend.id).filter(Boolean);
 
@@ -110,7 +99,5 @@ export async function getVisibleEventsForUser(userId: string) {
 		}
 	}
 
-	return Array.from(eventsById.values()).sort(
-		(a, b) => getStartAtMillis(a) - getStartAtMillis(b)
-	);
+	return sortEventsByStartDate(Array.from(eventsById.values()).filter(isVisibleInExplore));
 }
