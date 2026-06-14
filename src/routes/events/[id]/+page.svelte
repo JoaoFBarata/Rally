@@ -712,7 +712,7 @@
 					</p>
 				</div>
 
-				{#if effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
+				{#if effectiveStatus === 'cancelled'}
 					<div
 						class="mt-5 rounded-2xl bg-red-50 px-5 py-4 text-center font-bold text-red-700 dark:bg-red-950 dark:text-red-300"
 					>
