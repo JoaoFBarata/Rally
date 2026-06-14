@@ -1,6 +1,6 @@
 <!-- src/routes/messages/+page.svelte -->
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { auth } from '$lib/firebase';
 	import { getInvitesForUser, respondToInvite } from '$lib/services/invite.service';
@@ -13,9 +13,9 @@
 		respondToFriendRequest
 	} from '$lib/services/social.service';
 	import {
-		getConversationsForUser,
 		getOrCreateDirectConversation,
-		markConversationAsRead,
+		listenConversationsForUser,
+		markConversationAsRead
 	} from '$lib/services/chat.service';
 	import { getUserProfile } from '$lib/services/user.service';
 	import type {
@@ -27,6 +27,7 @@
 		SportEvent,
 		UserProfile
 	} from '$lib/schema';
+	import type { Unsubscribe } from 'firebase/firestore';
 
 	type InviteWithEvent = EventInvite & {
 		event: SportEvent | null;
@@ -50,6 +51,14 @@
 	let loading = $state(true);
 	let actionLoading = $state('');
 	let error = $state('');
+	let unsubscribeConversations: Unsubscribe | null = null;
+
+	function stopConversationsListener() {
+		if (unsubscribeConversations) {
+			unsubscribeConversations();
+			unsubscribeConversations = null;
+		}
+	}
 
 	function timestampToMillis(value: unknown) {
 		try {
@@ -100,6 +109,39 @@
 		}
 	}
 
+	async function updateConversationPreviews(
+		userConversations: ChatConversation[],
+		currentUserId: string
+	) {
+		const conversationsWithProfiles = await Promise.all(
+			userConversations.map(async (conversation) => {
+				const unreadCount = conversation.unreadCounts?.[currentUserId] ?? 0;
+
+				if (conversation.type === 'group') {
+					return {
+						...conversation,
+						otherUser: null,
+						unreadCount,
+						lastInteractionAtMs: getConversationLastInteraction(conversation)
+					};
+				}
+
+				const otherUserId = conversation.memberIds.find((id) => id !== currentUserId);
+				const otherUser = otherUserId ? await getUserProfile(otherUserId) : null;
+
+				return {
+					...conversation,
+					otherUser,
+					unreadCount,
+					lastInteractionAtMs: getConversationLastInteraction(conversation)
+				};
+			})
+		);
+
+		conversations = conversationsWithProfiles.sort(
+			(a, b) => b.lastInteractionAtMs - a.lastInteractionAtMs
+		);
+	}
 
 	async function loadMessagesPage() {
 		const currentUser = auth.currentUser;
@@ -146,35 +188,17 @@
 			const rawFriends = await getFriendsForUser(currentUser.uid);
 			friends = rawFriends.sort(sortByDisplayName);
 
-			const userConversations = await getConversationsForUser(currentUser.uid);
+			stopConversationsListener();
 
-			const conversationsWithProfiles = await Promise.all(
-				userConversations.map(async (conversation) => {
-					const unreadCount = conversation.unreadCounts?.[currentUser.uid] ?? 0;
-
-					if (conversation.type === 'group') {
-						return {
-							...conversation,
-							otherUser: null,
-							unreadCount,
-							lastInteractionAtMs: getConversationLastInteraction(conversation)
-						};
-					}
-
-					const otherUserId = conversation.memberIds.find((id) => id !== currentUser.uid);
-					const otherUser = otherUserId ? await getUserProfile(otherUserId) : null;
-
-					return {
-						...conversation,
-						otherUser,
-						unreadCount,
-						lastInteractionAtMs: getConversationLastInteraction(conversation)
-					};
-				})
-			);
-
-			conversations = conversationsWithProfiles.sort(
-				(a, b) => b.lastInteractionAtMs - a.lastInteractionAtMs
+			unsubscribeConversations = listenConversationsForUser(
+				currentUser.uid,
+				(userConversations) => {
+					void updateConversationPreviews(userConversations, currentUser.uid);
+				},
+				(listenerError) => {
+					console.error('Conversations realtime error:', listenerError);
+					error = listenerError.message;
+				}
 			);
 		} catch (err) {
 			console.error('Messages load error:', err);
@@ -272,7 +296,11 @@
 	}
 
 	onMount(() => {
-		loadMessagesPage();
+	loadMessagesPage();
+	});
+
+	onDestroy(() => {
+		stopConversationsListener();
 	});
 </script>
 
