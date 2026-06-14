@@ -737,10 +737,10 @@
 			</div>
 
 			<EventMap
-				lat={event.location.lat}
-				lng={event.location.lng}
-				name={event.location.name}
-				address={event.location.address}
+                lat={event.location.lat ?? null}
+                lng={event.location.lng ?? null}
+                name={event.location.name}
+                address={event.location.address ?? ''}
 			/>
 		</aside>
 	</div>

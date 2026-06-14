@@ -28,10 +28,12 @@ export interface UserProfile {
 	email: string;
 	displayName: string;
 	photoURL?: string | null;
+    profilePhotoPath?: string | null;
 
 	rallyTag?: string;
 	bio?: string;
 	city?: string;
+    age?: number | null;
 	level?: SportLevel;
 
 	sports: Sport[];
