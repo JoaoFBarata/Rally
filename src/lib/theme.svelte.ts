@@ -1,12 +1,10 @@
 import { browser } from '$app/environment';
+import { writable } from 'svelte/store';
 
-export const themeState = $state({
-	isDark: false,
-	ready: false
-});
+export const themeState = writable(false);
 
 export function applyTheme(isDark: boolean) {
-	themeState.isDark = isDark;
+	themeState.set(isDark);
 
 	if (!browser) return;
 
@@ -15,7 +13,7 @@ export function applyTheme(isDark: boolean) {
 }
 
 export function initTheme() {
-	if (!browser || themeState.ready) return;
+	if (!browser) return;
 
 	const savedTheme = localStorage.getItem('theme');
 
@@ -27,6 +25,4 @@ export function initTheme() {
 		const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 		applyTheme(prefersDark);
 	}
-
-	themeState.ready = true;
 }

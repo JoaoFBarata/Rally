@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import mapboxgl from 'mapbox-gl';
 	import { PUBLIC_MAPBOX_ACCESS_TOKEN } from '$env/static/public';
+	import { themeState } from '$lib/theme.svelte';
 
 	let {
 		lat = $bindable<number | null>(),
@@ -62,14 +63,28 @@
 		}
 	}
 
+	
 	onMount(() => {
 		mapboxgl.accessToken = PUBLIC_MAPBOX_ACCESS_TOKEN;
 
 		map = new mapboxgl.Map({
 			container: mapContainer,
-			style: 'mapbox://styles/mapbox/streets-v12',
+			style: 'mapbox://styles/mapbox/standard',
+			config: {
+				basemap: {
+					lightPreset: $themeState ? "night" : "day",
+				},
+			},
 			center: [-9.1393, 38.7223],
 			zoom: 10
+		});
+
+		const unsubscribeThemeState = themeState.subscribe((state) => {
+			const lPreset = state ? "night" : "day";
+			
+			if(map) {
+				map.setConfig("basemap", { lightPreset: lPreset });
+			}
 		});
 
 		map.addControl(new mapboxgl.NavigationControl(), 'top-right');
@@ -83,6 +98,7 @@
 		});
 
 		return () => {
+			unsubscribeThemeState();
 			marker?.remove();
 			map?.remove();
 		};

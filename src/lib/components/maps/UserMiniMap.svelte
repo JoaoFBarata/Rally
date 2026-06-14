@@ -1,25 +1,39 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { themeState } from '$lib/theme.svelte';
 	import { PUBLIC_MAPBOX_ACCESS_TOKEN } from '$env/static/public';
 
 	let mapContainer: HTMLDivElement;
 	let status = $state('Getting your location...');
 	let map: import('mapbox-gl').Map | null = null;
 	let marker: import('mapbox-gl').Marker | null = null;
+	let unsubscribeThemeState: () => void = () => {};
 
 	const fallbackCenter: [number, number] = [-9.1393, 38.7223]; // Lisboa
 
 	async function createMap(center: [number, number], isFallback = false) {
 		const mapboxgl = await import('mapbox-gl');
-
 		mapboxgl.default.accessToken = PUBLIC_MAPBOX_ACCESS_TOKEN;
 
 		map = new mapboxgl.default.Map({
 			container: mapContainer,
-			style: 'mapbox://styles/mapbox/streets-v12',
+			style: 'mapbox://styles/mapbox/standard',
+			config: {
+				basemap: {
+					lightPreset: $themeState ? 'night' : 'day',
+				},
+			},
 			center,
 			zoom: 12,
 			interactive: true
+		});
+
+		unsubscribeThemeState = themeState.subscribe((state) => {
+			const lPreset = state ? 'night' : 'day';
+
+			if(map) {
+				map.setConfig("basemap", { lightPreset: lPreset });
+			}
 		});
 
 		map.addControl(new mapboxgl.default.NavigationControl(), 'top-right');
@@ -63,6 +77,7 @@
 		);
 
 		return () => {
+			unsubscribeThemeState();
 			marker?.remove();
 			map?.remove();
 		};

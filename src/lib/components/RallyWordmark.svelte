@@ -15,7 +15,7 @@
 	const currentSize = $derived(sizes[size]);
 
 	const logoSrc = $derived(
-		themeState.isDark ? '/r-logo-white.PNG' : '/r-logo-black.PNG'
+		$themeState ? '/r-logo-white.PNG' : '/r-logo-black.PNG'
 	);
 
 	onMount(() => {

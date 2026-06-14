@@ -20,7 +20,7 @@
 	});
 
 	const logoSrc = $derived(
-		themeState.isDark ? '/rally-logo-white.png' : '/rally-logo-black.png'
+		$themeState ? '/rally-logo-white.png' : '/rally-logo-black.png'
 	);
 </script>
 
