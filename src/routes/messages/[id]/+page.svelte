@@ -5,14 +5,17 @@
 	import { goto } from '$app/navigation';
 	import { auth } from '$lib/firebase';
 	import {
+		clearUserTyping,
 		getConversationById,
+		listenConversationById,
 		listenMessagesForConversation,
+		markConversationAsRead,
 		sendMessage,
-		markConversationAsRead
+		setUserTyping
 	} from '$lib/services/chat.service';
 	import { getUserProfile } from '$lib/services/user.service';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
-	import type { ChatConversation, ChatMessage, UserProfile } from '$lib/schema';
+	import type { ChatConversation, ChatMessage, ChatTypingState, UserProfile } from '$lib/schema';
 	import type { Unsubscribe } from 'firebase/firestore';
 
 	let conversation = $state<ChatConversation | null>(null);
@@ -25,8 +28,17 @@
 	let loading = $state(true);
 	let sending = $state(false);
 	let error = $state('');
+	let typingLabel = $state('');
+
 	let messagesContainer: HTMLDivElement;
+
 	let unsubscribeMessages: Unsubscribe | null = null;
+	let unsubscribeConversation: Unsubscribe | null = null;
+	let typingTimeout: ReturnType<typeof setTimeout> | null = null;
+	let lastTypingSentAt = 0;
+
+	const TYPING_REFRESH_MS = 2000;
+	const TYPING_VISIBLE_MS = 5000;
 
 	function stopMessagesListener() {
 		if (unsubscribeMessages) {
@@ -35,6 +47,62 @@
 		}
 	}
 
+	function stopConversationListener() {
+		if (unsubscribeConversation) {
+			unsubscribeConversation();
+			unsubscribeConversation = null;
+		}
+	}
+
+	function stopTypingTimeout() {
+		if (typingTimeout) {
+			clearTimeout(typingTimeout);
+			typingTimeout = null;
+		}
+	}
+
+	function timestampToMillis(value: unknown) {
+		try {
+			const timestamp = value as { toMillis?: () => number; toDate?: () => Date };
+
+			if (timestamp?.toMillis) return timestamp.toMillis();
+			if (timestamp?.toDate) return timestamp.toDate().getTime();
+
+			return 0;
+		} catch {
+			return 0;
+		}
+	}
+	function updateTypingLabel(currentConversation: ChatConversation | null, currentUserId: string) {
+		if (!currentConversation?.typing) {
+			typingLabel = '';
+			return;
+		}
+
+		const now = Date.now();
+
+		const activeTypingUsers = Object.values(currentConversation.typing).filter(
+			(typingUser: ChatTypingState) => {
+				if (typingUser.userId === currentUserId) return false;
+
+				const updatedAt = timestampToMillis(typingUser.updatedAt);
+
+				return updatedAt > 0 && now - updatedAt <= TYPING_VISIBLE_MS;
+			}
+		);
+
+		if (activeTypingUsers.length === 0) {
+			typingLabel = '';
+			return;
+		}
+
+		if (activeTypingUsers.length === 1) {
+			typingLabel = `${activeTypingUsers[0].displayName} is typing...`;
+			return;
+		}
+
+		typingLabel = `${activeTypingUsers.length} people are typing...`;
+	}
 	async function scrollToBottom() {
 		await tick();
 
@@ -58,7 +126,7 @@
 			loading = false;
 			return;
 		}
-		
+
 		conversationId = id;
 		loading = true;
 		error = '';
@@ -89,9 +157,26 @@
 					profiles.filter(Boolean).map((profile) => [profile!.id, profile!])
 				);
 			} else {
-				const otherUserId = loadedConversation.memberIds.find((memberId) => memberId !== currentUser.uid);
+				const otherUserId = loadedConversation.memberIds.find(
+					(memberId) => memberId !== currentUser.uid
+				);
+
 				otherUser = otherUserId ? await getUserProfile(otherUserId) : null;
 			}
+
+			stopConversationListener();
+
+			unsubscribeConversation = listenConversationById(
+				id,
+				(liveConversation) => {
+					conversation = liveConversation;
+					updateTypingLabel(liveConversation, currentUser.uid);
+				},
+				(listenerError) => {
+					console.error('Conversation realtime error:', listenerError);
+					error = listenerError.message;
+				}
+			);
 
 			stopMessagesListener();
 
@@ -116,6 +201,51 @@
 		}
 	}
 
+	function handleTyping(event: Event) {
+		const currentUser = auth.currentUser;
+
+		if (!currentUser || !conversationId) return;
+
+		const value = (event.currentTarget as HTMLInputElement).value;
+		const cleanValue = value.trim();
+
+		stopTypingTimeout();
+
+		if (!cleanValue) {
+			lastTypingSentAt = 0;
+			void clearUserTyping(conversationId, currentUser.uid);
+			return;
+		}
+
+		const now = Date.now();
+
+		if (now - lastTypingSentAt >= TYPING_REFRESH_MS) {
+			lastTypingSentAt = now;
+
+			void setUserTyping({
+				conversationId,
+				userId: currentUser.uid,
+				displayName: currentUser.displayName ?? currentUser.email ?? 'Rally user'
+			});
+		}
+
+		typingTimeout = setTimeout(() => {
+			lastTypingSentAt = 0;
+			void clearUserTyping(conversationId, currentUser.uid);
+		}, TYPING_VISIBLE_MS);
+	}
+
+	async function clearCurrentUserTyping() {
+		const currentUser = auth.currentUser;
+
+		stopTypingTimeout();
+		lastTypingSentAt = 0;
+
+		if (!currentUser || !conversationId) return;
+
+		await clearUserTyping(conversationId, currentUser.uid);
+	}
+
 	async function handleSendMessage() {
 		const currentUser = auth.currentUser;
 
@@ -125,6 +255,8 @@
 		error = '';
 
 		try {
+			await clearCurrentUserTyping();
+
 			await sendMessage({
 				conversationId,
 				senderId: currentUser.uid,
@@ -146,7 +278,11 @@
 	});
 
 	onDestroy(() => {
+		void clearCurrentUserTyping();
+
 		stopMessagesListener();
+		stopConversationListener();
+		stopTypingTimeout();
 	});
 </script>
 
@@ -257,6 +393,15 @@
 				{/each}
 			</div>
 		{/if}
+		{#if typingLabel}
+			<div class="mx-auto mt-3 flex max-w-3xl justify-start">
+				<div
+					class="rounded-full bg-white px-4 py-2 text-xs font-semibold text-slate-500 shadow-sm dark:bg-slate-900 dark:text-slate-400"
+				>
+					{typingLabel}
+				</div>
+			</div>
+		{/if}
 	</section>
 
 	<form
@@ -271,6 +416,7 @@
 		>
 			<input
 				bind:value={text}
+				oninput={handleTyping}
 				placeholder="Message..."
 				class="min-w-0 flex-1 border-0 bg-transparent px-2 text-sm text-slate-950 placeholder:text-slate-400 focus:ring-0 dark:text-white"
 			/>

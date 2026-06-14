@@ -110,6 +110,10 @@ export async function sendMessage(params: {
 
 	nextUnreadCounts[params.senderId] = 0;
 
+	const currentTyping = conversationData.typing ?? {};
+	const nextTyping = { ...currentTyping };
+	delete nextTyping[params.senderId];
+
 	await addDoc(collection(db, 'conversations', params.conversationId, 'messages'), {
 		conversationId: params.conversationId,
 		senderId: params.senderId,
@@ -123,7 +127,8 @@ export async function sendMessage(params: {
 		lastMessageAt: serverTimestamp(),
 		updatedAt: serverTimestamp(),
 		unreadFor: nextUnreadFor,
-		unreadCounts: nextUnreadCounts
+		unreadCounts: nextUnreadCounts,
+		typing: nextTyping
 	});
 }
 
@@ -146,7 +151,32 @@ function getTimestampMillis(value: unknown) {
 
 	return 0;
 }
+export function listenConversationById(
+	conversationId: string,
+	callback: (conversation: ChatConversation | null) => void,
+	onError?: (error: Error) => void
+): Unsubscribe {
+	const conversationRef = doc(db, 'conversations', conversationId);
 
+	return onSnapshot(
+		conversationRef,
+		(snap) => {
+			if (!snap.exists()) {
+				callback(null);
+				return;
+			}
+
+			callback({
+				id: snap.id,
+				...snap.data()
+			} as ChatConversation);
+		},
+		(error) => {
+			console.error('Conversation listener error:', error);
+			onError?.(error);
+		}
+	);
+}
 export function listenConversationsForUser(
 	userId: string,
 	callback: (conversations: ChatConversation[]) => void,
@@ -181,7 +211,46 @@ export function listenConversationsForUser(
 		}
 	);
 }
+export async function setUserTyping(params: {
+	conversationId: string;
+	userId: string;
+	displayName: string;
+}) {
+	const conversationRef = doc(db, 'conversations', params.conversationId);
+	const conversationSnap = await getDoc(conversationRef);
 
+	if (!conversationSnap.exists()) return;
+
+	const conversationData = conversationSnap.data() as ChatConversation;
+
+	const nextTyping = {
+		...(conversationData.typing ?? {}),
+		[params.userId]: {
+			userId: params.userId,
+			displayName: params.displayName,
+			updatedAt: serverTimestamp()
+		}
+	};
+
+	await updateDoc(conversationRef, {
+		typing: nextTyping
+	});
+}
+export async function clearUserTyping(conversationId: string, userId: string) {
+	const conversationRef = doc(db, 'conversations', conversationId);
+	const conversationSnap = await getDoc(conversationRef);
+
+	if (!conversationSnap.exists()) return;
+
+	const conversationData = conversationSnap.data() as ChatConversation;
+	const nextTyping = { ...(conversationData.typing ?? {}) };
+
+	delete nextTyping[userId];
+
+	await updateDoc(conversationRef, {
+		typing: nextTyping
+	});
+}
 export async function markConversationAsRead(conversationId: string, userId: string) {
 	const conversationRef = doc(db, 'conversations', conversationId);
 	const conversationSnap = await getDoc(conversationRef);

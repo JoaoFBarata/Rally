@@ -115,6 +115,12 @@ export interface Friendship {
 	updatedAt: Timestamp;
 }
 
+export interface ChatTypingState {
+	userId: string;
+	displayName: string;
+	updatedAt: Timestamp;
+}
+
 export interface ChatConversation {
 	id: string;
 	memberIds: string[];
@@ -130,6 +136,7 @@ export interface ChatConversation {
 
 	unreadFor?: string[];
 	unreadCounts?: Record<string, number>;
+	typing?: Record<string, ChatTypingState>;
 
 	createdAt: Timestamp;
 	updatedAt: Timestamp;
