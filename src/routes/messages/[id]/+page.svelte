@@ -3,6 +3,7 @@
 	import { onDestroy, onMount, tick } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { auth } from '$lib/firebase';
 	import {
 		clearUserTyping,
@@ -318,32 +319,59 @@
 	>
 		<a
 			href="/messages"
-			class="flex h-10 w-10 items-center justify-center rounded-full text-xl font-bold transition hover:bg-slate-100 dark:hover:bg-slate-900"
+			class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xl font-bold transition hover:bg-slate-100 dark:hover:bg-slate-900"
 			aria-label="Back to messages"
 		>
 			←
 		</a>
 
-		<UserAvatar
-			displayName={conversation?.type === 'group' ? conversation.title : otherUser?.displayName}
-			email={otherUser?.email}
-			photoURL={conversation?.type === 'group' ? conversation.photoURL : otherUser?.photoURL}
-			size="md"
-		/>
+		{#if conversation?.type === 'direct' && otherUser}
+			<a
+				href={`/users/${otherUser.id}`}
+				class="flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-1 transition hover:bg-slate-100 dark:hover:bg-slate-900"
+				aria-label={`Open ${otherUser.displayName}'s profile`}
+			>
+				<UserAvatar
+					displayName={otherUser.displayName}
+					email={otherUser.email}
+					photoURL={otherUser.photoURL}
+					size="md"
+				/>
 
-		<div class="min-w-0 flex-1">
-			<h1 class="truncate text-base font-black text-slate-950 dark:text-white">
-				{conversation?.type === 'group'
-					? conversation.title
-					: otherUser?.displayName ?? 'Rally user'}
-			</h1>
+				<div class="min-w-0 flex-1">
+					<h1 class="truncate text-base font-black text-slate-950 dark:text-white">
+						{otherUser.displayName}
+					</h1>
 
-			<p class="truncate text-xs text-slate-500 dark:text-slate-400">
-				{conversation?.type === 'group'
-					? 'Event group'
-					: `@${otherUser?.rallyTag ?? 'rally'}`}
-			</p>
-		</div>
+					<p class="truncate text-xs text-slate-500 dark:text-slate-400">
+						@{otherUser.rallyTag ?? 'rally'}
+					</p>
+				</div>
+			</a>
+		{:else}
+			<div class="flex min-w-0 flex-1 items-center gap-3">
+				<UserAvatar
+					displayName={conversation?.type === 'group' ? conversation.title : 'Rally user'}
+					email={otherUser?.email}
+					photoURL={conversation?.type === 'group' ? conversation.photoURL : otherUser?.photoURL}
+					size="md"
+				/>
+
+				<div class="min-w-0 flex-1">
+					<h1 class="truncate text-base font-black text-slate-950 dark:text-white">
+						{conversation?.type === 'group'
+							? conversation.title
+							: otherUser?.displayName ?? 'Rally user'}
+					</h1>
+
+					<p class="truncate text-xs text-slate-500 dark:text-slate-400">
+						{conversation?.type === 'group'
+							? 'Event group'
+							: `@${otherUser?.rallyTag ?? 'rally'}`}
+					</p>
+				</div>
+			</div>
+		{/if}
 	</header>
 
 	{#if error}

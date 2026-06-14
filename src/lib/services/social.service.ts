@@ -16,6 +16,8 @@ import { db } from '$lib/firebase';
 import type { FriendRequest, FriendRequestStatus, UserProfile } from '$lib/schema';
 import { getUserProfile, searchUsersByRallyTag } from '$lib/services/user.service';
 
+export type RelationshipStatus = 'self' | 'friends' | 'request_sent' | 'request_received' | 'none';
+
 function friendshipIdFor(userA: string, userB: string) {
 	return [userA, userB].sort().join('_');
 }
@@ -189,4 +191,52 @@ export async function addFriendByQrCode(params: {
 	});
 
 	return targetUser;
+}
+
+export async function getRelationshipStatus(params: {
+	currentUserId: string;
+	targetUserId: string;
+}): Promise<RelationshipStatus> {
+	if (params.currentUserId === params.targetUserId) {
+		return 'self';
+	}
+
+	const friendshipRef = doc(
+		db,
+		'friendships',
+		friendshipIdFor(params.currentUserId, params.targetUserId)
+	);
+
+	const friendshipSnap = await getDoc(friendshipRef);
+
+	if (friendshipSnap.exists()) {
+		return 'friends';
+	}
+
+	const sentRequestRef = doc(
+		db,
+		'friendRequests',
+		friendRequestIdFor(params.currentUserId, params.targetUserId)
+	);
+
+	const receivedRequestRef = doc(
+		db,
+		'friendRequests',
+		friendRequestIdFor(params.targetUserId, params.currentUserId)
+	);
+
+	const [sentSnap, receivedSnap] = await Promise.all([
+		getDoc(sentRequestRef),
+		getDoc(receivedRequestRef)
+	]);
+
+	if (sentSnap.exists() && sentSnap.data().status === 'pending') {
+		return 'request_sent';
+	}
+
+	if (receivedSnap.exists() && receivedSnap.data().status === 'pending') {
+		return 'request_received';
+	}
+
+	return 'none';
 }

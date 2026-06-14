@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
     import { page } from '$app/state';
+    import { resolve } from '$app/paths';
 	import { auth } from '$lib/firebase';
 	import { signOut } from 'firebase/auth';
 	import type { Sport, SportLevel, UserProfile } from '$lib/schema';
@@ -630,23 +631,26 @@
 								<div
 									class="flex items-center justify-between rounded-3xl bg-slate-50 p-4 dark:bg-slate-800"
 								>
-									<div class="flex min-w-0 items-center gap-3">
-										<UserAvatar
-											photoURL={friend.photoURL}
-											displayName={friend.displayName}
-											email={friend.email}
-											size="md"
-										/>
+									<a
+                                        href={resolve(`/users/${friend.id}`)}
+                                        class="flex items-center gap-3 rounded-2xl p-2 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+                                    >
+                                        <UserAvatar
+                                            photoURL={friend.photoURL}
+                                            displayName={friend.displayName}
+                                            email={friend.email}
+                                            size="md"
+                                        />
 
-										<div class="min-w-0">
-											<p class="truncate font-bold text-slate-950 dark:text-slate-50">
-												{friend.displayName}
-											</p>
-											<p class="truncate text-xs text-slate-500 dark:text-slate-400">
-												@{friend.rallyTag}
-											</p>
-										</div>
-									</div>
+                                        <div class="min-w-0">
+                                            <p class="truncate font-bold text-slate-950 dark:text-slate-50">
+                                                {friend.displayName}
+                                            </p>
+                                            <p class="truncate text-xs text-slate-500 dark:text-slate-400">
+                                                @{friend.rallyTag}
+                                            </p>
+                                        </div>
+                                    </a>
 
 									<button
 										type="button"

@@ -630,24 +630,26 @@
 								<div
 									class="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800"
 								>
-									<div class="flex min-w-0 items-center gap-3">
-										<UserAvatar
-											photoURL={participant.photoURL}
-											displayName={participant.displayName}
-											email={participant.email}
-											size="md"
-										/>
+									<a
+                                        href={resolve(`/users/${participant.id}`)}
+                                        class="flex items-center gap-3 rounded-2xl p-2 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+                                    >
+                                        <UserAvatar
+                                            photoURL={participant.photoURL}
+                                            displayName={participant.displayName}
+                                            email={participant.email}
+                                            size="md"
+                                        />
 
-										<div class="min-w-0">
-											<p class="truncate font-bold text-slate-950 dark:text-slate-50">
-												{participant.displayName}
-											</p>
-
-											<p class="truncate text-xs text-slate-500 dark:text-slate-400">
-												@{participant.rallyTag}
-											</p>
-										</div>
-									</div>
+                                        <div class="min-w-0">
+                                            <p class="truncate font-bold text-slate-950 dark:text-slate-50">
+                                                {participant.displayName}
+                                            </p>
+                                            <p class="truncate text-xs text-slate-500 dark:text-slate-400">
+                                                @{participant.rallyTag}
+                                            </p>
+                                        </div>
+                                    </a>
 
 									{#if participant.id === event.creatorId}
 										<span
