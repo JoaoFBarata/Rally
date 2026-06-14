@@ -3,13 +3,13 @@
 	import { onDestroy, onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { auth } from '$lib/firebase';
-	import { getInvitesForUser, respondToInvite } from '$lib/services/invite.service';
+	import { listenInvitesForUser, respondToInvite } from '$lib/services/invite.service';
 	import { getEventById } from '$lib/services/event.service';
 	import RallyWordmark from '$lib/components/RallyWordmark.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import {
-		getFriendRequestsForUser,
 		getFriendsForUser,
+		listenFriendRequestsForUser,
 		respondToFriendRequest
 	} from '$lib/services/social.service';
 	import {
@@ -52,6 +52,8 @@
 	let actionLoading = $state('');
 	let error = $state('');
 	let unsubscribeConversations: Unsubscribe | null = null;
+	let unsubscribeInvites: Unsubscribe | null = null;
+	let unsubscribeFriendRequests: Unsubscribe | null = null;
 
 	function stopConversationsListener() {
 		if (unsubscribeConversations) {
@@ -60,6 +62,19 @@
 		}
 	}
 
+	function stopInvitesListener() {
+		if (unsubscribeInvites) {
+			unsubscribeInvites();
+			unsubscribeInvites = null;
+		}
+	}
+
+	function stopFriendRequestsListener() {
+		if (unsubscribeFriendRequests) {
+			unsubscribeFriendRequests();
+			unsubscribeFriendRequests = null;
+		}
+	}
 	function timestampToMillis(value: unknown) {
 		try {
 			const timestamp = value as { toDate?: () => Date };
@@ -142,7 +157,39 @@
 			(a, b) => b.lastInteractionAtMs - a.lastInteractionAtMs
 		);
 	}
+	async function updateInvitesWithEvents(userInvites: EventInvite[]) {
+		const invitesWithEvents = await Promise.all(
+			userInvites.map(async (invite) => {
+				const event = await getEventById(invite.eventId);
 
+				return {
+					...invite,
+					event
+				};
+			})
+		);
+
+		invites = invitesWithEvents.sort(
+			(a, b) => timestampToMillis(b.createdAt) - timestampToMillis(a.createdAt)
+		);
+	}
+
+	async function updateFriendRequestsWithProfiles(requests: FriendRequest[]) {
+		const requestsWithProfiles = await Promise.all(
+			requests.map(async (request) => {
+				const fromUser = await getUserProfile(request.fromUserId);
+
+				return {
+					...request,
+					fromUser
+				};
+			})
+		);
+
+		friendRequests = requestsWithProfiles.sort(
+			(a, b) => timestampToMillis(b.createdAt) - timestampToMillis(a.createdAt)
+		);
+	}
 	async function loadMessagesPage() {
 		const currentUser = auth.currentUser;
 
@@ -155,34 +202,30 @@
 		error = '';
 
 		try {
-			const userInvites = await getInvitesForUser(currentUser.uid);
+			stopInvitesListener();
 
-			invites = await Promise.all(
-				userInvites.map(async (invite) => {
-					const event = await getEventById(invite.eventId);
-
-					return {
-						...invite,
-						event
-					};
-				})
+			unsubscribeInvites = listenInvitesForUser(
+				currentUser.uid,
+				(userInvites) => {
+					void updateInvitesWithEvents(userInvites);
+				},
+				(listenerError) => {
+					console.error('Invites realtime error:', listenerError);
+					error = listenerError.message;
+				}
 			);
 
-			const requests = await getFriendRequestsForUser(currentUser.uid);
+			stopFriendRequestsListener();
 
-			const requestsWithProfiles = await Promise.all(
-				requests.map(async (request) => {
-					const fromUser = await getUserProfile(request.fromUserId);
-
-					return {
-						...request,
-						fromUser
-					};
-				})
-			);
-
-			friendRequests = requestsWithProfiles.sort(
-				(a, b) => timestampToMillis(b.createdAt) - timestampToMillis(a.createdAt)
+			unsubscribeFriendRequests = listenFriendRequestsForUser(
+				currentUser.uid,
+				(requests) => {
+					void updateFriendRequestsWithProfiles(requests);
+				},
+				(listenerError) => {
+					console.error('Friend requests realtime error:', listenerError);
+					error = listenerError.message;
+				}
 			);
 
 			const rawFriends = await getFriendsForUser(currentUser.uid);
@@ -226,8 +269,6 @@
 				userId: currentUser.uid,
 				status
 			});
-
-			await loadMessagesPage();
 		} catch (err) {
 			console.error('Invite response error:', err);
 			error = err instanceof Error ? err.message : 'Could not update invitation.';
@@ -258,7 +299,10 @@
 				status
 			});
 
-			await loadMessagesPage();
+			if (status === 'accepted') {
+				const rawFriends = await getFriendsForUser(currentUser.uid);
+				friends = rawFriends.sort(sortByDisplayName);
+			}
 		} catch (err) {
 			console.error('Friend response error:', err);
 			error = err instanceof Error ? err.message : 'Could not update friend request.';
@@ -301,6 +345,8 @@
 
 	onDestroy(() => {
 		stopConversationsListener();
+		stopInvitesListener();
+		stopFriendRequestsListener();
 	});
 </script>
 

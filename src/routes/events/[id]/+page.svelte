@@ -14,17 +14,29 @@
 		leaveEvent,
 		removeParticipantFromEvent,
 		updateEventGroupPhoto,
-        getEffectiveEventStatus,
-        isEventFinished
+    getEffectiveEventStatus,
+    isEventFinished
 	} from '$lib/services/event.service';
-	import { listenMessagesForConversation, sendMessage } from '$lib/services/chat.service';
+	import {
+		clearUserTyping,
+		listenConversationById,
+		listenMessagesForConversation,
+		sendMessage,
+		setUserTyping
+	} from '$lib/services/chat.service';
 	import { getUserProfilesByIds } from '$lib/services/user.service';
 	import EventMap from '$lib/components/maps/EventMap.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
-	import type { ChatMessage, SportEvent, UserProfile } from '$lib/schema';
-    import { uploadEventGroupPhoto } from '$lib/services/storage.service';
+	import type {
+		ChatConversation,
+		ChatMessage,
+		SportEvent,
+		UserProfile
+	} from '$lib/schema';
+  import { uploadEventGroupPhoto } from '$lib/services/storage.service';
 	import type { Unsubscribe } from 'firebase/firestore';
 	import ChatMessageList from '$lib/components/chat/ChatMessageList.svelte';
+	import { getTypingLabel } from '$lib/utils/chat-typing.utils';
 
 	let event = $state<SportEvent | null>(null);
 	let loading = $state(true);
@@ -40,7 +52,14 @@
 	let messagesContainer = $state<HTMLDivElement | null>(null);
 	let groupTypingLabel = $state('');
 	let unsubscribeGroupMessages: Unsubscribe | null = null;
-
+	let unsubscribeGroupConversation: Unsubscribe | null = null;
+	let groupTypingTimeout: ReturnType<typeof setTimeout> | null = null;
+	let groupLastTypingSentAt = 0;
+	let effectiveStatus = $derived.by(() => {
+			return event ? getEffectiveEventStatus(event) : 'draft';
+	});
+	const TYPING_REFRESH_MS = 2000;
+	const TYPING_VISIBLE_MS = 5000;
 	let isCreator = $derived.by(() => {
 		const currentUser = auth.currentUser;
 		return !!currentUser && !!event && event.creatorId === currentUser.uid;
@@ -72,14 +91,6 @@
 			UserProfile
 		>;
 	});
-
-    let effectiveStatus = $derived.by(() => {
-        return event ? getEffectiveEventStatus(event) : 'draft';
-    });
-
-    let eventHasFinished = $derived.by(() => {
-        return event ? isEventFinished(event) : false;
-    });
 
 	function formatDate(dateValue: unknown) {
 		try {
@@ -116,6 +127,23 @@
 		}
 	}
 
+	async function updateGroupTypingLabel(
+		currentConversation: ChatConversation | null,
+		currentUserId: string
+	) {
+		const previousTypingLabel = groupTypingLabel;
+
+		groupTypingLabel = getTypingLabel(
+			currentConversation?.typing,
+			currentUserId,
+			TYPING_VISIBLE_MS
+		);
+
+		if (groupTypingLabel && groupTypingLabel !== previousTypingLabel) {
+			await scrollGroupChatToBottom();
+		}
+	}
+
 	async function loadGroupMessages(currentEvent: SportEvent) {
 		const currentUser = auth.currentUser;
 
@@ -123,7 +151,11 @@
 
 		if (!currentEvent.participantIds.includes(currentUser.uid)) {
 			stopGroupMessagesListener();
+			stopGroupConversationListener();
+			stopGroupTypingTimeout();
+
 			groupMessages = [];
+			groupTypingLabel = '';
 			return;
 		}
 
@@ -133,7 +165,17 @@
 			await ensureEventGroupConversation(currentEvent.id);
 
 			const conversationId = getEventGroupConversationId(currentEvent.id);
+			stopGroupConversationListener();
 
+			unsubscribeGroupConversation = listenConversationById(
+				conversationId,
+				(liveConversation) => {
+					void updateGroupTypingLabel(liveConversation, currentUser.uid);
+				},
+				(listenerError) => {
+					console.error('Group conversation realtime error:', listenerError);
+				}
+			);
 			stopGroupMessagesListener();
 
 			unsubscribeGroupMessages = listenMessagesForConversation(
@@ -151,6 +193,55 @@
 		} catch (err) {
 			console.error('Group chat load error:', err);
 			groupChatLoading = false;
+		}
+	}
+
+	function stopGroupConversationListener() {
+		if (unsubscribeGroupConversation) {
+			unsubscribeGroupConversation();
+			unsubscribeGroupConversation = null;
+		}
+	}
+	function handleGroupTyping(inputEvent: Event) {
+		const currentUser = auth.currentUser;
+
+		if (!currentUser || !event) return;
+
+		const value = (inputEvent.currentTarget as HTMLInputElement).value;
+		const cleanValue = value.trim();
+
+		const conversationId = getEventGroupConversationId(event.id);
+
+		stopGroupTypingTimeout();
+
+		if (!cleanValue) {
+			groupLastTypingSentAt = 0;
+			void clearUserTyping(conversationId, currentUser.uid);
+			return;
+		}
+
+		const now = Date.now();
+
+		if (now - groupLastTypingSentAt >= TYPING_REFRESH_MS) {
+			groupLastTypingSentAt = now;
+
+			void setUserTyping({
+				conversationId,
+				userId: currentUser.uid,
+				displayName: currentUser.displayName ?? currentUser.email ?? 'Rally user'
+			});
+		}
+
+		groupTypingTimeout = setTimeout(() => {
+			groupLastTypingSentAt = 0;
+			void clearUserTyping(conversationId, currentUser.uid);
+		}, TYPING_VISIBLE_MS);
+	}
+
+	function stopGroupTypingTimeout() {
+		if (groupTypingTimeout) {
+			clearTimeout(groupTypingTimeout);
+			groupTypingTimeout = null;
 		}
 	}
 
@@ -298,41 +389,54 @@
 	}
 
 	async function handleGroupPhotoFileChange(fileEvent: Event) {
-        const currentUser = auth.currentUser;
+				const currentUser = auth.currentUser;
 
-        if (!currentUser || !event) return;
+				if (!currentUser || !event) return;
 
-        const input = fileEvent.target as HTMLInputElement;
-        const file = input.files?.[0];
+				const input = fileEvent.target as HTMLInputElement;
+				const file = input.files?.[0];
 
-        if (!file) return;
+				if (!file) return;
 
-        groupPhotoSaving = true;
-        error = '';
+				groupPhotoSaving = true;
+				error = '';
 
-        try {
-            const uploadedPhoto = await uploadEventGroupPhoto({
-                eventId: event.id,
-                userId: currentUser.uid,
-                file
-            });
+				try {
+						const uploadedPhoto = await uploadEventGroupPhoto({
+								eventId: event.id,
+								userId: currentUser.uid,
+								file
+						});
 
-            await updateEventGroupPhoto({
-                eventId: event.id,
-                userId: currentUser.uid,
-                groupPhotoURL: uploadedPhoto.url,
-                groupPhotoPath: uploadedPhoto.path
-            });
+						await updateEventGroupPhoto({
+								eventId: event.id,
+								userId: currentUser.uid,
+								groupPhotoURL: uploadedPhoto.url,
+								groupPhotoPath: uploadedPhoto.path
+						});
 
-            input.value = '';
-            await reloadEvent();
-        } catch (err) {
-            console.error('Update group photo error:', err);
-            error = err instanceof Error ? err.message : 'Could not update group photo.';
-        } finally {
-            groupPhotoSaving = false;
-        }
-    }
+						input.value = '';
+						await reloadEvent();
+				} catch (err) {
+						console.error('Update group photo error:', err);
+						error = err instanceof Error ? err.message : 'Could not update group photo.';
+				} finally {
+						groupPhotoSaving = false;
+				}
+		}
+
+	async function clearCurrentUserGroupTyping() {
+		const currentUser = auth.currentUser;
+
+		stopGroupTypingTimeout();
+		groupLastTypingSentAt = 0;
+
+		if (!currentUser || !event) return;
+
+		const conversationId = getEventGroupConversationId(event.id);
+
+		await clearUserTyping(conversationId, currentUser.uid);
+	}
 
 	async function handleSendGroupMessage() {
 		const currentUser = auth.currentUser;
@@ -349,6 +453,8 @@
 
 		try {
 			const conversationId = getEventGroupConversationId(event.id);
+
+			await clearCurrentUserGroupTyping();
 
 			await sendMessage({
 				conversationId,
@@ -371,7 +477,11 @@
 	});
 
 	onDestroy(() => {
+		void clearCurrentUserGroupTyping();
+
 		stopGroupMessagesListener();
+		stopGroupConversationListener();
+		stopGroupTypingTimeout();
 	});
 </script>
 
@@ -520,24 +630,26 @@
 								<div
 									class="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800"
 								>
-									<div class="flex min-w-0 items-center gap-3">
-										<UserAvatar
-											photoURL={participant.photoURL}
-											displayName={participant.displayName}
-											email={participant.email}
-											size="md"
-										/>
+									<a
+                                        href={resolve(`/users/${participant.id}`)}
+                                        class="flex items-center gap-3 rounded-2xl p-2 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+                                    >
+                                        <UserAvatar
+                                            photoURL={participant.photoURL}
+                                            displayName={participant.displayName}
+                                            email={participant.email}
+                                            size="md"
+                                        />
 
-										<div class="min-w-0">
-											<p class="truncate font-bold text-slate-950 dark:text-slate-50">
-												{participant.displayName}
-											</p>
-
-											<p class="truncate text-xs text-slate-500 dark:text-slate-400">
-												@{participant.rallyTag}
-											</p>
-										</div>
-									</div>
+                                        <div class="min-w-0">
+                                            <p class="truncate font-bold text-slate-950 dark:text-slate-50">
+                                                {participant.displayName}
+                                            </p>
+                                            <p class="truncate text-xs text-slate-500 dark:text-slate-400">
+                                                @{participant.rallyTag}
+                                            </p>
+                                        </div>
+                                    </a>
 
 									{#if participant.id === event.creatorId}
 										<span
@@ -620,6 +732,15 @@
 								Loading group chat...
 							</div>
 						{:else if groupMessages.length === 0}
+							{#if groupTypingLabel}
+								<div class="mx-auto mt-4 flex max-w-3xl justify-start">
+									<div
+										class="rounded-full bg-white px-4 py-2 text-xs font-semibold text-slate-500 shadow-sm dark:bg-slate-900 dark:text-slate-400"
+									>
+										{groupTypingLabel}
+									</div>
+								</div>
+							{/if}
 							<div class="flex h-full items-center justify-center text-center">
 								<div>
 									<p class="text-4xl">💬</p>
@@ -654,6 +775,7 @@
 						>
 							<input
 								bind:value={groupMessageText}
+								oninput={handleGroupTyping}
 								placeholder="Message the group..."
 								class="min-w-0 flex-1 border-0 bg-transparent px-2 text-sm text-slate-950 placeholder:text-slate-400 focus:ring-0 dark:text-white"
 							/>
