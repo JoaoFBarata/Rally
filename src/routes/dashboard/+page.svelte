@@ -237,13 +237,6 @@
 
 				<div class="mt-5 grid grid-cols-2 gap-3">
 					<div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
-						<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Level</p>
-						<p class="mt-1 font-black capitalize text-slate-950 dark:text-slate-50">
-							{profile?.level ?? 'casual'}
-						</p>
-					</div>
-
-					<div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
 						<p class="text-xs font-bold text-slate-500 dark:text-slate-400">City</p>
 						<p class="mt-1 truncate font-black text-slate-950 dark:text-slate-50">
 							{profile?.city || 'Not set'}
