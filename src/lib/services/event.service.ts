@@ -14,7 +14,19 @@ import {
 	where
 } from 'firebase/firestore';
 import { db } from '$lib/firebase';
-import type { EventStatus, EventVisibility, Sport, SportEvent } from '$lib/schema';
+import type {
+	EventHostType,
+	EventPaymentMode,
+	EventStatus,
+	EventVisibility,
+	Sport,
+	SportEvent
+} from '$lib/schema';
+import {
+	getOrganizationById,
+	isOrganizationAdmin,
+	canCreateOfficialPaidEvents
+} from '$lib/services/organization.service';
 
 export function getEventGroupConversationId(eventId: string) {
 	return `event_${eventId}`;
@@ -91,11 +103,25 @@ export async function ensureEventGroupConversation(eventId: string) {
 	return getEventGroupConversationId(eventId);
 }
 
+async function assertCanManageEvent(event: SportEvent, userId: string) {
+	if (event.creatorId === userId) return;
+
+	if (event.hostType === 'organization' && event.organizationId) {
+		const organization = await getOrganizationById(event.organizationId);
+
+		if (organization && isOrganizationAdmin(organization, userId)) return;
+	}
+
+	throw new Error('You do not have permission to manage this event.');
+}
+
 export async function createSportEvent(params: {
 	title: string;
 	description?: string;
 	sport: Sport;
 	creatorId: string;
+	hostType?: EventHostType;
+	organizationId?: string | null;
 	locationName: string;
 	address?: string;
 	lat?: number;
@@ -105,8 +131,53 @@ export async function createSportEvent(params: {
 	maxParticipants: number;
 	visibility?: EventVisibility;
 	priceTotal?: number;
+	paymentMode?: EventPaymentMode;
 	groupPhotoURL?: string | null;
 }) {
+	const hostType = params.hostType ?? 'user';
+	const paymentMode: EventPaymentMode = params.paymentMode ?? (params.priceTotal ? 'split' : 'none');
+
+	let organizationSnapshot: {
+		organizationId: string | null;
+		organizationName: string | null;
+		organizationLogoURL: string | null;
+		organizationVerificationStatus: SportEvent['organizationVerificationStatus'];
+	} = {
+		organizationId: null,
+		organizationName: null,
+		organizationLogoURL: null,
+		organizationVerificationStatus: null
+	};
+
+	if (hostType === 'organization') {
+		if (!params.organizationId) {
+			throw new Error('Choose an organization to host this event.');
+		}
+
+		const organization = await getOrganizationById(params.organizationId);
+
+		if (!organization) {
+			throw new Error('Organization not found.');
+		}
+
+		if (!isOrganizationAdmin(organization, params.creatorId)) {
+			throw new Error('You do not have permission to create events for this organization.');
+		}
+
+		if (paymentMode === 'official' && !canCreateOfficialPaidEvents(organization)) {
+			throw new Error('Only verified organizations can create official paid events.');
+		}
+
+		organizationSnapshot = {
+			organizationId: organization.id,
+			organizationName: organization.name,
+			organizationLogoURL: organization.logoURL ?? null,
+			organizationVerificationStatus: organization.verificationStatus
+		};
+	} else if (paymentMode === 'official') {
+		throw new Error('Official paid events can only be created by verified organizations.');
+	}
+
 	const participantIds = [params.creatorId];
 
 	const pricePerPerson =
@@ -119,6 +190,8 @@ export async function createSportEvent(params: {
 		description: params.description ?? '',
 		sport: params.sport,
 		creatorId: params.creatorId,
+		hostType,
+		...organizationSnapshot,
 		groupPhotoURL: params.groupPhotoURL ?? null,
 		groupPhotoPath: null,
 
@@ -141,6 +214,7 @@ export async function createSportEvent(params: {
 		priceTotal: params.priceTotal ?? null,
 		pricePerPerson: pricePerPerson ?? null,
 		currency: 'EUR',
+		paymentMode,
 
 		createdAt: serverTimestamp(),
 		updatedAt: serverTimestamp()
@@ -151,7 +225,7 @@ export async function createSportEvent(params: {
 	const createdEvent = {
 		id: docRef.id,
 		...eventData
-	} as SportEvent;
+	} as unknown as SportEvent;
 
 	await syncEventGroupConversation(createdEvent);
 
@@ -172,6 +246,18 @@ export async function getEventById(eventId: string) {
 
 export async function getEventsCreatedByUser(userId: string) {
 	const q = query(collection(db, 'events'), where('creatorId', '==', userId));
+	const snap = await getDocs(q);
+
+	const events = snap.docs.map((docSnap) => ({
+		id: docSnap.id,
+		...docSnap.data()
+	})) as SportEvent[];
+
+	return sortEventsByStartDate(events);
+}
+
+export async function getEventsCreatedByOrganization(organizationId: string) {
+	const q = query(collection(db, 'events'), where('organizationId', '==', organizationId));
 	const snap = await getDocs(q);
 
 	const events = snap.docs.map((docSnap) => ({
@@ -288,9 +374,7 @@ export async function cancelEvent(eventId: string, userId: string) {
 		throw new Error('Event not found');
 	}
 
-	if (event.creatorId !== userId) {
-		throw new Error('Only the creator can cancel this event.');
-	}
+	await assertCanManageEvent(event, userId);
 
 	await updateDoc(doc(db, 'events', eventId), {
 		status: 'cancelled',
@@ -314,9 +398,7 @@ export async function removeParticipantFromEvent(params: {
 		throw new Error('Event not found');
 	}
 
-	if (event.creatorId !== params.creatorId) {
-		throw new Error('Only the creator can remove people from this event.');
-	}
+	await assertCanManageEvent(event, params.creatorId);
 
 	if (params.participantId === event.creatorId) {
 		throw new Error('The creator cannot be removed.');
@@ -356,9 +438,7 @@ export async function updateEventGroupPhoto(params: {
 		throw new Error('Event not found');
 	}
 
-	if (event.creatorId !== params.userId) {
-		throw new Error('Only the creator can update the group photo.');
-	}
+	await assertCanManageEvent(event, params.userId);
 
 	await updateDoc(doc(db, 'events', params.eventId), {
 		groupPhotoURL: params.groupPhotoURL,

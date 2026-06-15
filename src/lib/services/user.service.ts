@@ -11,7 +11,7 @@ import {
 } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
 import { db } from '$lib/firebase';
-import type { Sport, SportLevel, UserProfile } from '$lib/schema';
+import type { AccountType, Sport, SportLevel, UserProfile } from '$lib/schema';
 
 function slugify(value: string) {
 	return value
@@ -36,6 +36,8 @@ export async function createUserProfile(params: {
 	displayName: string;
 	photoURL?: string | null;
 	sports?: Sport[];
+	accountType?: AccountType;
+	activeOrganizationId?: string | null;
 }) {
 	const userRef = doc(db, 'users', params.id);
 	const rallyTag = generateRallyTag(params.displayName, params.email, params.id);
@@ -46,6 +48,8 @@ export async function createUserProfile(params: {
 		displayName: params.displayName,
 		photoURL: params.photoURL ?? null,
 		profilePhotoPath: null,
+		accountType: params.accountType ?? 'personal',
+		activeOrganizationId: params.activeOrganizationId ?? null,
 		rallyTag,
 		bio: '',
 		city: '',
@@ -58,7 +62,12 @@ export async function createUserProfile(params: {
 
 	await setDoc(userRef, profile);
 
-	return profile;
+	const snap = await getDoc(userRef);
+
+	return {
+		...snap.data(),
+		id: snap.id
+	} as UserProfile;
 }
 
 export async function ensureUserProfile(user: User) {
@@ -69,19 +78,13 @@ export async function ensureUserProfile(user: User) {
 	const email = user.email ?? '';
 
 	if (!snap.exists()) {
-		await createUserProfile({
+		return createUserProfile({
 			id: user.uid,
 			email,
 			displayName,
-			photoURL: user.photoURL
+			photoURL: user.photoURL,
+			accountType: 'personal'
 		});
-
-		const newSnap = await getDoc(userRef);
-
-		return {
-			...newSnap.data(),
-			id: newSnap.id
-		} as UserProfile;
 	}
 
 	const data = {
@@ -100,13 +103,15 @@ export async function ensureUserProfile(user: User) {
 		data.sports === undefined ||
 		data.photoURL === undefined ||
 		data.profilePhotoPath === undefined ||
+		data.accountType === undefined ||
+		data.activeOrganizationId === undefined ||
 		(!data.photoURL && user.photoURL);
 
 	if (needsUpdate) {
 		const rallyTag =
 			data.rallyTag ?? generateRallyTag(data.displayName ?? displayName, data.email ?? email, user.uid);
 
-		const normalizedProfile = {
+		await updateDoc(userRef, {
 			rallyTag,
 			bio: data.bio ?? '',
 			city: data.city ?? '',
@@ -115,14 +120,16 @@ export async function ensureUserProfile(user: User) {
 			sports: data.sports ?? [],
 			photoURL: nextPhotoURL,
 			profilePhotoPath: data.profilePhotoPath ?? null,
+			accountType: data.accountType ?? 'personal',
+			activeOrganizationId: data.activeOrganizationId ?? null,
 			updatedAt: serverTimestamp()
-		};
+		});
 
-		await updateDoc(userRef, normalizedProfile);
+		const updatedSnap = await getDoc(userRef);
 
 		return {
-			...data,
-			...normalizedProfile
+			...updatedSnap.data(),
+			id: updatedSnap.id
 		} as UserProfile;
 	}
 
@@ -141,9 +148,15 @@ export async function getUserProfile(userId: string) {
 	} as UserProfile;
 }
 
+export async function getUserProfilesByIds(userIds: string[]) {
+	const uniqueIds = [...new Set(userIds)].filter(Boolean);
+	const profiles = await Promise.all(uniqueIds.map((userId) => getUserProfile(userId)));
+
+	return profiles.filter((profile): profile is UserProfile => profile !== null);
+}
+
 export async function searchUsersByRallyTag(rallyTag: string) {
 	const cleanTag = rallyTag.trim().toLowerCase();
-
 	const q = query(collection(db, 'users'), where('rallyTag', '==', cleanTag));
 	const snap = await getDocs(q);
 
@@ -154,20 +167,10 @@ export async function searchUsersByRallyTag(rallyTag: string) {
 }
 
 export async function updateUserSports(userId: string, sports: Sport[]) {
-	const userRef = doc(db, 'users', userId);
-
-	await updateDoc(userRef, {
+	await updateDoc(doc(db, 'users', userId), {
 		sports,
 		updatedAt: serverTimestamp()
 	});
-}
-
-export async function getUserProfilesByIds(userIds: string[]) {
-	const uniqueIds = [...new Set(userIds)].filter(Boolean);
-
-	const profiles = await Promise.all(uniqueIds.map((userId) => getUserProfile(userId)));
-
-	return profiles.filter((profile): profile is UserProfile => profile !== null);
 }
 
 export async function updateUserProfileDetails(
@@ -181,9 +184,7 @@ export async function updateUserProfileDetails(
 		sports: Sport[];
 	}
 ) {
-	const userRef = doc(db, 'users', userId);
-
-	await updateDoc(userRef, {
+	await updateDoc(doc(db, 'users', userId), {
 		displayName: params.displayName,
 		bio: params.bio,
 		city: params.city,
@@ -199,11 +200,21 @@ export async function updateUserProfilePhoto(params: {
 	photoURL: string;
 	profilePhotoPath: string;
 }) {
-	const userRef = doc(db, 'users', params.userId);
-
-	await updateDoc(userRef, {
+	await updateDoc(doc(db, 'users', params.userId), {
 		photoURL: params.photoURL,
 		profilePhotoPath: params.profilePhotoPath,
+		updatedAt: serverTimestamp()
+	});
+}
+
+export async function updateUserActiveOrganization(params: {
+	userId: string;
+	organizationId: string | null;
+	accountType?: AccountType;
+}) {
+	await updateDoc(doc(db, 'users', params.userId), {
+		activeOrganizationId: params.organizationId,
+		accountType: params.accountType ?? (params.organizationId ? 'organization' : 'personal'),
 		updatedAt: serverTimestamp()
 	});
 }
