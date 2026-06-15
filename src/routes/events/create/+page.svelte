@@ -38,12 +38,12 @@
 		}
 
 		if (lat === null || lng === null) {
-			error = 'Please click on the map to select the event location.';
+			error = 'Please search an address or click on the map to select the event location.';
 			return;
 		}
 
-		if (!address) {
-			error = 'Please wait for the address to be filled after clicking on the map.';
+		if (!address.trim()) {
+			error = 'Please add an address for the event location.';
 			return;
 		}
 
@@ -185,33 +185,17 @@
 					></textarea>
 				</div>
 
-				<div class="grid gap-5 md:grid-cols-2">
-					<div>
-						<label for="location" class="text-sm font-bold text-slate-700 dark:text-slate-300">
-							Location name
-						</label>
+				<div>
+					<label for="location" class="text-sm font-bold text-slate-700 dark:text-slate-300">
+						Location name
+					</label>
 
-						<input
-							id="location"
-							bind:value={locationName}
-							placeholder="City Sports Center"
-							class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-						/>
-					</div>
-
-					<div>
-						<label for="address" class="text-sm font-bold text-slate-700 dark:text-slate-300">
-							Address
-						</label>
-
-						<input
-							id="address"
-							bind:value={address}
-							readonly
-							placeholder="Click on the map to fill the address"
-							class="mt-2 w-full cursor-not-allowed rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-slate-600 outline-none transition placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:placeholder:text-slate-500"
-						/>
-					</div>
+					<input
+						id="location"
+						bind:value={locationName}
+						placeholder="City Sports Center"
+						class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+					/>
 				</div>
 
 				<div class="grid gap-5 md:grid-cols-2">
