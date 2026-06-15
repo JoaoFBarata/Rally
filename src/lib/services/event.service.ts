@@ -20,7 +20,8 @@ import type {
 	EventStatus,
 	EventVisibility,
 	Sport,
-	SportEvent
+	SportEvent,
+	SportLevel
 } from '$lib/schema';
 import {
 	getOrganizationById,
@@ -85,7 +86,7 @@ async function syncEventGroupConversation(event: SportEvent) {
 			photoURL: event.groupPhotoURL ?? null,
 			memberIds: event.participantIds ?? [],
 			updatedAt: serverTimestamp(),
-			createdAt: serverTimestamp()
+			createdAt: serverTimestamp(),
 		},
 		{ merge: true }
 	);
@@ -119,6 +120,7 @@ export async function createSportEvent(params: {
 	title: string;
 	description?: string;
 	sport: Sport;
+	level?: SportLevel;
 	creatorId: string;
 	hostType?: EventHostType;
 	organizationId?: string | null;
@@ -189,6 +191,7 @@ export async function createSportEvent(params: {
 		title: params.title,
 		description: params.description ?? '',
 		sport: params.sport,
+		level: params.level ?? 'casual',
 		creatorId: params.creatorId,
 		hostType,
 		...organizationSnapshot,
@@ -217,7 +220,8 @@ export async function createSportEvent(params: {
 		paymentMode,
 
 		createdAt: serverTimestamp(),
-		updatedAt: serverTimestamp()
+		updatedAt: serverTimestamp(),
+
 	};
 
 	const docRef = await addDoc(collection(db, 'events'), eventData);

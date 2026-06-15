@@ -117,7 +117,8 @@ export interface SportEvent {
 	title: string;
 	description?: string;
 	sport: Sport;
-
+	level?: SportLevel;
+	
 	// creatorId = user Firebase que criou o documento.
 	creatorId: string;
 
@@ -154,6 +155,7 @@ export interface SportEvent {
 
 	createdAt: Timestamp;
 	updatedAt: Timestamp;
+
 }
 
 export interface EventInvite {

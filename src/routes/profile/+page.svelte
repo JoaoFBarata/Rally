@@ -6,7 +6,7 @@
     import { resolve } from '$app/paths';
 	import { auth } from '$lib/firebase';
 	import { signOut } from 'firebase/auth';
-	import type { Sport, SportLevel, UserProfile } from '$lib/schema';
+	import type { Sport, UserProfile } from '$lib/schema';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import RallyWordmark from '$lib/components/RallyWordmark.svelte';
 	import {
@@ -17,8 +17,8 @@
 	import { getFriendsForUser, sendFriendRequestByTag } from '$lib/services/social.service';
 	import { getOrCreateDirectConversation } from '$lib/services/chat.service';
 	import { uploadUserProfilePhoto } from '$lib/services/storage.service';
-    import QRCode from 'qrcode';
-    import { browser } from '$app/environment';
+  //import QRCode from 'qrcode';
+  import { browser } from '$app/environment';
 
 	const availableSports: Sport[] = [
 		'football',
@@ -39,7 +39,6 @@
 	let bio = $state('');
 	let city = $state('');
 	let age = $state<string | number>('');
-	let level = $state<SportLevel>('casual');
 	let sports = $state<Sport[]>([]);
 
 	let friendTag = $state('');
@@ -51,10 +50,10 @@
 	let editMode = $state(false);
 	let error = $state('');
 	let success = $state('');
-    let qrCodeDataUrl = $state('');
-    let qrCodeLink = $state('');
-    let showQrModal = $state(false);
-
+  let qrCodeDataUrl = $state('');
+  let qrCodeLink = $state('');
+  let showQrModal = $state(false);
+		
 	function sortByDisplayName(a: UserProfile, b: UserProfile) {
 		return (a.displayName ?? '').localeCompare(b.displayName ?? '', undefined, {
 			sensitivity: 'base'
@@ -66,7 +65,6 @@
 		bio = nextProfile.bio ?? '';
 		city = nextProfile.city ?? '';
 		age = nextProfile.age ? String(nextProfile.age) : '';
-		level = nextProfile.level ?? 'casual';
 		sports = nextProfile.sports ?? [];
 	}
 
@@ -84,8 +82,8 @@
 		try {
 			profile = await ensureUserProfile(currentUser);
 			resetFormFromProfile(profile);
-            await generateProfileQrCode(profile.id);
-            await handleQrFriendRequestFromUrl();
+      await generateProfileQrCode(profile.id);
+      await handleQrFriendRequestFromUrl();
 
 			const rawFriends = await getFriendsForUser(currentUser.uid);
 			friends = rawFriends.sort(sortByDisplayName);
@@ -141,7 +139,6 @@
 				bio,
 				city,
 				age: parsedAge,
-				level,
 				sports
 			});
 
@@ -456,22 +453,6 @@
 						</div>
 
 						<div>
-							<label for="level" class="text-sm font-bold text-slate-700 dark:text-slate-300">
-								Level
-							</label>
-							<select
-								id="level"
-								bind:value={level}
-								class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-							>
-								<option value="beginner">Beginner</option>
-								<option value="casual">Casual</option>
-								<option value="intermediate">Intermediate</option>
-								<option value="advanced">Advanced</option>
-							</select>
-						</div>
-
-						<div>
 							<p class="text-sm font-bold text-slate-700 dark:text-slate-300">Sports</p>
 
 							<div class="mt-3 flex flex-wrap gap-2">
@@ -515,12 +496,12 @@
 							</p>
 						</div>
 
-						<div class="rounded-3xl bg-slate-50 p-5 dark:bg-slate-800">
+						<!-- <div class="rounded-3xl bg-slate-50 p-5 dark:bg-slate-800">
 							<p class="text-sm font-bold text-slate-500 dark:text-slate-400">Level</p>
 							<p class="mt-2 font-black capitalize text-slate-950 dark:text-slate-50">
 								{profile.level ?? 'casual'}
 							</p>
-						</div>
+						</div> -->
 
 						<div class="rounded-3xl bg-slate-50 p-5 dark:bg-slate-800">
 							<p class="text-sm font-bold text-slate-500 dark:text-slate-400">Friends</p>

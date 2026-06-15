@@ -5,7 +5,7 @@
 	import { auth } from '$lib/firebase';
 	import LocationPickerMap from '$lib/components/maps/LocationPickerMap.svelte';
 	import { createSportEvent } from '$lib/services/event.service';
-	import type { Sport, EventVisibility } from '$lib/schema';
+	import type { Sport, EventVisibility, SportLevel } from '$lib/schema';
 
 	let title = $state('');
 	let description = $state('');
@@ -18,7 +18,7 @@
 	let maxParticipants = $state(10);
 	let visibility = $state<EventVisibility>('private');
 	let priceTotal = $state<number | null>(null);
-
+	let level = $state<SportLevel>('casual');
 	let loading = $state(false);
 	let error = $state('');
 
@@ -32,7 +32,7 @@
 			return;
 		}
 
-		if (!title || !locationName || !startAt || maxParticipants < 2) {
+		if (!title || !locationName || !startAt || maxParticipants < 2 || !visibility || !level) {
 			error = 'Please fill in the required fields.';
 			return;
 		}
@@ -54,6 +54,7 @@
 				title,
 				description,
 				sport,
+				level,
 				creatorId: currentUser.uid,
 				locationName,
 				lat,
@@ -155,7 +156,22 @@
 						<option value="other">Other</option>
 					</select>
 				</div>
+				<div>
+					<label for="level" class="text-sm font-bold text-slate-700 dark:text-slate-300">
+						Event level
+					</label>
 
+					<select
+						id="level"
+						bind:value={level}
+						class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+					>
+						<option value="beginner">Beginner</option>
+						<option value="casual">Casual</option>
+						<option value="intermediate">Intermediate</option>
+						<option value="advanced">Advanced</option>
+					</select>
+				</div>
 				<div>
 					<label for="description" class="text-sm font-bold text-slate-700 dark:text-slate-300">
 						Description

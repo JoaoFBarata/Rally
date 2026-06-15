@@ -149,13 +149,21 @@
 		</div>
 	</div>
 
-	<div class="mt-4 flex items-center justify-between">
-		<span class={`rounded-full px-3 py-1 text-xs font-bold ${getStatusClasses()}`}>
-			{getStatusLabel()}
-		</span>
+	<div class="mt-4 flex items-center justify-between gap-3">
+		<div class="flex items-center gap-2">
+			<span class={`rounded-full px-3 py-1 text-xs font-bold ${getStatusClasses()}`}>
+				{getStatusLabel()}
+			</span>
+
+			<span
+				class="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold capitalize text-slate-900 dark:bg-slate-800 dark:text-slate-300"
+			>
+				{event.level ?? 'casual'}
+			</span>
+		</div>
 
 		{#if event.pricePerPerson}
-			<span class="text-sm font-medium text-slate-600 dark:text-slate-300">
+			<span class="ml-auto text-sm font-medium text-slate-600 dark:text-slate-300">
 				€{event.pricePerPerson.toFixed(2)} / person
 			</span>
 		{/if}

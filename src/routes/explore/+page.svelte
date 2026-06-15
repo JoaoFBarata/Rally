@@ -12,6 +12,7 @@
 	let loading = $state(true);
 	let error = $state('');
 	let currentUserId = $state('');
+	let filteredEventCount = $state(0);
 
 	onMount(async () => {
 		const currentUser = auth.currentUser;
@@ -23,6 +24,7 @@
 
 		try {
 			events = await getVisibleEventsForUser(currentUser.uid);
+			filteredEventCount = events.length;
 		} catch (err) {
 			console.error('Explore events error:', err);
 
@@ -55,10 +57,14 @@
 			{error}
 		</section>
 	{:else}
-		<ExploreMap {events} {currentUserId} />
+		<ExploreMap
+			{events}
+			{currentUserId}
+			onFilteredCountChange={(count) => (filteredEventCount = count)}
+		/>
 
-		<div class="mt-4 rounded-2xl bg-blue-100 dark:bg-slate-900 px-5 py-4 text-sm font-medium text-blue-700 dark:text-blue-300">
-			Showing {events.length} visible event{events.length === 1 ? '' : 's'}.
+		<div class="mt-4 rounded-2xl bg-blue-100 px-5 py-4 text-sm font-medium text-blue-700 dark:bg-slate-900 dark:text-blue-300">
+			Showing {filteredEventCount} of {events.length} visible event{events.length === 1 ? '' : 's'}.
 		</div>
 	{/if}
 </main>
