@@ -16,6 +16,7 @@ export type EventVisibility = 'private' | 'friends' | 'public';
 export type EventStatus = 'draft' | 'open' | 'full' | 'cancelled' | 'finished';
 export type InviteStatus = 'pending' | 'accepted' | 'declined' | 'maybe';
 export type PaymentStatus = 'not_required' | 'pending' | 'paid' | 'refunded';
+export type PayoutStatus = 'not_applicable' | 'held' | 'released' | 'blocked';
 export type SportLevel = 'beginner' | 'casual' | 'intermediate' | 'advanced';
 export type FriendRequestStatus = 'pending' | 'accepted' | 'declined';
 
@@ -33,6 +34,7 @@ export type VerificationStatus = 'unverified' | 'pending' | 'verified' | 'reject
 export type VerificationLevel = 'none' | 'basic' | 'legal' | 'venue';
 export type EventHostType = 'user' | 'organization';
 export type EventPaymentMode = 'none' | 'split' | 'official';
+export type EventPromotionStatus = 'none' | 'active' | 'paused' | 'ended';
 
 export interface UserProfile {
 	id: string;
@@ -40,7 +42,7 @@ export interface UserProfile {
 	displayName: string;
 	photoURL?: string | null;
 	profilePhotoPath?: string | null;
-    
+
 	accountType?: AccountType;
 	activeOrganizationId?: string | null;
 
@@ -116,13 +118,11 @@ export interface SportEvent {
 	id: string;
 	title: string;
 	description?: string;
+
 	sport: Sport;
 	level?: SportLevel;
-	
-	// creatorId = user Firebase que criou o documento.
 	creatorId: string;
 
-	// hostType indica se o evento aparece publicamente como user ou organization.
 	hostType?: EventHostType;
 	organizationId?: string | null;
 	organizationName?: string | null;
@@ -152,10 +152,21 @@ export interface SportEvent {
 	pricePerPerson?: number | null;
 	currency?: 'EUR';
 	paymentMode?: EventPaymentMode;
+	paymentProtected?: boolean;
+	payoutStatus?: PayoutStatus;
+
+	promotionStatus?: EventPromotionStatus;
+	isPromoted?: boolean;
+	promotionBudget?: number | null;
+	promotionTargetCity?: string;
+	promotionTargetSport?: Sport | null;
+	promotionStartedAt?: Timestamp | null;
+	promotionEndsAt?: Timestamp | null;
+	promotionViews?: number;
+	promotionClicks?: number;
 
 	createdAt: Timestamp;
 	updatedAt: Timestamp;
-
 }
 
 export interface EventInvite {
@@ -164,6 +175,7 @@ export interface EventInvite {
 	fromUserId: string;
 	toUserId: string;
 	status: InviteStatus;
+
 	createdAt: Timestamp;
 	updatedAt: Timestamp;
 }
@@ -174,6 +186,7 @@ export interface EventPayment {
 	userId: string;
 	amount: number;
 	status: PaymentStatus;
+
 	createdAt: Timestamp;
 	updatedAt: Timestamp;
 }
@@ -204,15 +217,19 @@ export interface ChatConversation {
 	id: string;
 	memberIds: string[];
 	type: 'direct' | 'group';
+
 	eventId?: string;
 	title?: string;
 	photoURL?: string | null;
+
 	lastMessage?: string;
 	lastSenderId?: string;
 	lastMessageAt?: Timestamp;
+
 	unreadFor?: string[];
 	unreadCounts?: Record<string, number>;
 	typing?: Record<string, ChatTypingState>;
+
 	createdAt: Timestamp;
 	updatedAt: Timestamp;
 }

@@ -1,11 +1,14 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { auth } from '$lib/firebase';
 	import { onAuthStateChanged } from 'firebase/auth';
 	import RallyLogo from '$lib/components/RallyLogo.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+	import type { UserProfile } from '$lib/schema';
+	import { ensureUserProfile } from '$lib/services/user.service';
 	import {
 		notificationState,
 		startNotifications,
@@ -14,57 +17,137 @@
 
 	let { children } = $props();
 
-	const navItems = [
-		{
-			label: 'Create event',
-			href: '/events/create',
-			icon: '+',
-			primary: true
-		},
-		{
-			label: 'Explore',
-			href: '/explore',
-			icon: '⌖'
-		},
-		{
-			label: 'My events',
-			href: '/dashboard',
-			icon: '◷'
-		},
-		{
-			label: 'Messages',
-			href: '/messages',
-			icon: '✉'
-		},
-		{
-			label: 'Profile',
-			href: '/profile',
-			icon: '☻'
-		}
-	];
+	let profile = $state<UserProfile | null>(null);
+	let loadingProfile = $state(true);
 
 	let pathname = $derived(page.url.pathname);
 
+	let organizationId = $derived(
+		profile?.accountType === 'organization' && profile.activeOrganizationId
+			? profile.activeOrganizationId
+			: null
+	);
+
+	let organizationManageHref = $derived(
+		organizationId ? `/organizations/${organizationId}/manage` : null
+	);
+
+	let organizationPublicHref = $derived(
+		organizationId ? `/organizations/${organizationId}` : null
+	);
+
+	let createEventHref = $derived(
+		organizationId ? `/organizations/${organizationId}/events/create` : '/events/create'
+	);
+
+	let navItems = $derived.by(() => {
+		if (organizationId && organizationManageHref && organizationPublicHref) {
+			return [
+				{
+					label: 'Create event',
+					href: createEventHref,
+					icon: '+',
+					primary: true
+				},
+				{
+					label: 'Explore',
+					href: '/explore',
+					icon: '⌖'
+				},
+				{
+					label: 'Organization',
+					href: organizationManageHref,
+					icon: '◆'
+				},
+				{
+					label: 'Messages',
+					href: '/messages',
+					icon: '✉'
+				},
+				{
+					label: 'Public page',
+					href: organizationPublicHref,
+					icon: '✓'
+				}
+			];
+		}
+
+		return [
+			{
+				label: 'Create event',
+				href: '/events/create',
+				icon: '+',
+				primary: true
+			},
+			{
+				label: 'Explore',
+				href: '/explore',
+				icon: '⌖'
+			},
+			{
+				label: 'My events',
+				href: '/dashboard',
+				icon: '◷'
+			},
+			{
+				label: 'Messages',
+				href: '/messages',
+				icon: '✉'
+			},
+			{
+				label: 'Profile',
+				href: '/profile',
+				icon: '☻'
+			}
+		];
+	});
+
 	function isActive(href: string) {
+		if (href.startsWith('/events/create')) return pathname === '/events/create';
 		if (href === '/dashboard') return pathname === '/dashboard';
+		if (href.includes('/manage')) return pathname === href;
 		return pathname.startsWith(href);
 	}
 
 	function shouldHideNavigation() {
-		return pathname === '/' || pathname === '/login' || pathname === '/register';
+		return pathname === '/' || pathname === '/login' || pathname.startsWith('/register');
 	}
-
 
 	function formatBadge(count: number) {
 		return count > 9 ? '9+' : String(count);
 	}
 
+	$effect(() => {
+		if (loadingProfile || !organizationId) return;
+
+		if (pathname === '/dashboard') {
+			goto(resolve(`/organizations/${organizationId}/manage`), { replaceState: true });
+		}
+
+		if (pathname === '/profile') {
+			goto(resolve(`/organizations/${organizationId}`), { replaceState: true });
+		}
+	});
+
 	onMount(() => {
-		const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+		const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+			profile = null;
+			loadingProfile = true;
+
 			if (user) {
 				startNotifications(user.uid);
+
+				try {
+					profile = await ensureUserProfile(user);
+				} catch (err) {
+					console.error('Load shell profile error:', err);
+					profile = null;
+				} finally {
+					loadingProfile = false;
+				}
 			} else {
 				stopNotifications();
+				loadingProfile = false;
 			}
 		});
 
@@ -85,22 +168,20 @@
 				class="hidden w-72 border-r border-slate-200 bg-white px-5 py-6 dark:border-slate-800 dark:bg-slate-900 md:block"
 			>
 				<div>
-					<div>
-						<div class="flex items-center justify-between gap-3">
-							<RallyLogo size="sm" href="/dashboard" />
-							<ThemeToggle />
-						</div>
-
-						<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
-							Make sports happen
-						</p>
+					<div class="flex items-center justify-between gap-3">
+						<RallyLogo size="sm" href={organizationManageHref ?? '/dashboard'} />
+						<ThemeToggle />
 					</div>
+
+					<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+						{organizationId ? 'Manage official sports experiences' : 'Make sports happen'}
+					</p>
 				</div>
 
 				<nav class="mt-10 space-y-1">
 					{#each navItems as item (item.href)}
 						<a
-							href={item.href}
+							href={resolve(item.href)}
 							class={`flex items-center text-sm font-semibold transition ${
 								item.primary
 									? 'mb-6 w-fit gap-3 rounded-2xl bg-blue-300 px-3 py-2.5 pr-5 text-slate-800 shadow-none hover:bg-blue-300 hover:text-slate-800 hover:shadow-lg hover:shadow-slate-400/30 dark:bg-blue-950/70 dark:text-blue-300 dark:hover:bg-blue-950/70 dark:hover:text-blue-300 dark:hover:shadow-black/40'
@@ -158,13 +239,14 @@
 				</main>
 			</div>
 		</div>
+
 		<!-- Mobile bottom navigation -->
 		<nav
 			class="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 px-3 py-2 shadow-2xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 md:hidden"
 		>
 			<div class="mx-auto grid max-w-md grid-cols-5 items-end gap-1">
 				{#each navItems as item (item.href)}
-					<a href={item.href} class="flex flex-col items-center justify-end gap-1">
+					<a href={resolve(item.href)} class="flex flex-col items-center justify-end gap-1">
 						<span
 							class={`relative flex h-9 w-9 items-center justify-center rounded-2xl text-lg ${
 								item.primary

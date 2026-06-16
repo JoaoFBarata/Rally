@@ -24,9 +24,9 @@ import type {
 	SportLevel
 } from '$lib/schema';
 import {
+	canCreateOfficialPaidEvents,
 	getOrganizationById,
-	isOrganizationAdmin,
-	canCreateOfficialPaidEvents
+	isOrganizationAdmin
 } from '$lib/services/organization.service';
 
 export function getEventGroupConversationId(eventId: string) {
@@ -83,10 +83,10 @@ async function syncEventGroupConversation(event: SportEvent) {
 			type: 'group',
 			eventId: event.id,
 			title: event.title,
-			photoURL: event.groupPhotoURL ?? null,
+			photoURL: event.groupPhotoURL ?? event.organizationLogoURL ?? null,
 			memberIds: event.participantIds ?? [],
 			updatedAt: serverTimestamp(),
-			createdAt: serverTimestamp(),
+			createdAt: serverTimestamp()
 		},
 		{ merge: true }
 	);
@@ -218,10 +218,21 @@ export async function createSportEvent(params: {
 		pricePerPerson: pricePerPerson ?? null,
 		currency: 'EUR',
 		paymentMode,
+		paymentProtected: paymentMode === 'official',
+		payoutStatus: paymentMode === 'official' ? 'held' : 'not_applicable',
+
+		promotionStatus: 'none',
+		isPromoted: false,
+		promotionBudget: null,
+		promotionTargetCity: '',
+		promotionTargetSport: null,
+		promotionStartedAt: null,
+		promotionEndsAt: null,
+		promotionViews: 0,
+		promotionClicks: 0,
 
 		createdAt: serverTimestamp(),
-		updatedAt: serverTimestamp(),
-
+		updatedAt: serverTimestamp()
 	};
 
 	const docRef = await addDoc(collection(db, 'events'), eventData);
@@ -260,16 +271,67 @@ export async function getEventsCreatedByUser(userId: string) {
 	return sortEventsByStartDate(events);
 }
 
+function chunkArray<T>(items: T[], size: number) {
+	const chunks: T[][] = [];
+
+	for (let i = 0; i < items.length; i += size) {
+		chunks.push(items.slice(i, i + size));
+	}
+
+	return chunks;
+}
+
 export async function getEventsCreatedByOrganization(organizationId: string) {
-	const q = query(collection(db, 'events'), where('organizationId', '==', organizationId));
-	const snap = await getDocs(q);
+	const organization = await getOrganizationById(organizationId);
+	const eventsById = new Map<string, SportEvent>();
 
-	const events = snap.docs.map((docSnap) => ({
-		id: docSnap.id,
-		...docSnap.data()
-	})) as SportEvent[];
+	const organizationEventsQuery = query(
+		collection(db, 'events'),
+		where('organizationId', '==', organizationId)
+	);
 
-	return sortEventsByStartDate(events);
+	const organizationEventsSnap = await getDocs(organizationEventsQuery);
+
+	for (const docSnap of organizationEventsSnap.docs) {
+		const event = {
+			id: docSnap.id,
+			...docSnap.data()
+		} as SportEvent;
+
+		eventsById.set(event.id, event);
+	}
+
+	const adminIds = organization?.adminIds ?? [];
+
+	for (const chunk of chunkArray(adminIds, 10)) {
+		if (chunk.length === 0) continue;
+
+		const adminEventsQuery = query(
+			collection(db, 'events'),
+			where('creatorId', 'in', chunk)
+		);
+
+		const adminEventsSnap = await getDocs(adminEventsQuery);
+
+		for (const docSnap of adminEventsSnap.docs) {
+			const event = {
+				id: docSnap.id,
+				...docSnap.data()
+			} as SportEvent;
+
+			eventsById.set(event.id, {
+				...event,
+				hostType: event.hostType ?? 'organization',
+				organizationId: event.organizationId ?? organizationId,
+				organizationName: event.organizationName ?? organization?.name ?? null,
+				organizationLogoURL: event.organizationLogoURL ?? organization?.logoURL ?? null,
+				organizationVerificationStatus:
+					event.organizationVerificationStatus ?? organization?.verificationStatus ?? 'unverified'
+			});
+		}
+	}
+
+	return sortEventsByStartDate(Array.from(eventsById.values()));
 }
 
 export async function getEventsForUser(userId: string) {
@@ -453,5 +515,69 @@ export async function updateEventGroupPhoto(params: {
 	await syncEventGroupConversation({
 		...event,
 		groupPhotoURL: params.groupPhotoURL
+	});
+}
+
+export async function promoteEvent(params: {
+	eventId: string;
+	userId: string;
+	budget: number;
+	durationDays: number;
+	targetCity?: string;
+	targetSport?: Sport | null;
+}) {
+	const event = await getEventById(params.eventId);
+
+	if (!event) {
+		throw new Error('Event not found');
+	}
+
+	await assertCanManageEvent(event, params.userId);
+
+	if (event.hostType !== 'organization' || !event.organizationId) {
+		throw new Error('Only organization events can be promoted.');
+	}
+
+	const organization = await getOrganizationById(event.organizationId);
+
+	if (!organization) {
+		throw new Error('Organization not found.');
+	}
+
+	if (!canCreateOfficialPaidEvents(organization)) {
+		throw new Error('Only verified organizations can promote events.');
+	}
+
+	const durationDays = Math.max(1, Math.min(params.durationDays, 30));
+	const endsAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
+
+	await updateDoc(doc(db, 'events', params.eventId), {
+		isPromoted: true,
+		promotionStatus: 'active',
+		promotionBudget: Math.max(0, params.budget),
+		promotionTargetCity: params.targetCity?.trim() ?? '',
+		promotionTargetSport: params.targetSport ?? null,
+		promotionStartedAt: serverTimestamp(),
+		promotionEndsAt: Timestamp.fromDate(endsAt),
+		updatedAt: serverTimestamp()
+	});
+}
+
+export async function stopEventPromotion(params: {
+	eventId: string;
+	userId: string;
+}) {
+	const event = await getEventById(params.eventId);
+
+	if (!event) {
+		throw new Error('Event not found');
+	}
+
+	await assertCanManageEvent(event, params.userId);
+
+	await updateDoc(doc(db, 'events', params.eventId), {
+		isPromoted: false,
+		promotionStatus: 'ended',
+		updatedAt: serverTimestamp()
 	});
 }

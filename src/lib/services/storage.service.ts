@@ -85,3 +85,37 @@ export async function uploadUserProfilePhoto(params: {
 		path
 	};
 }
+
+export async function uploadOrganizationLogo(params: {
+	organizationId: string;
+	userId: string;
+	file: File;
+}) {
+	const { organizationId, userId, file } = params;
+
+	if (!file.type.startsWith('image/')) {
+		throw new Error('Please choose an image file.');
+	}
+
+	if (file.size > 5 * 1024 * 1024) {
+		throw new Error('Image is too large. Choose an image under 5 MB.');
+	}
+
+	const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+	const fileName = `${Date.now()}.${extension}`;
+	const path = `organization-logos/${organizationId}/${userId}/${fileName}`;
+
+	const storageRef = ref(storage, path);
+
+	await uploadBytes(storageRef, file, {
+		contentType: file.type,
+		customMetadata: {
+			organizationId,
+			uploadedBy: userId
+		}
+	});
+
+	const url = await getDownloadURL(storageRef);
+
+	return { url, path };
+}

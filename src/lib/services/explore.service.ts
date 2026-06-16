@@ -9,6 +9,7 @@ import {
 } from '$lib/services/event.service';
 import { getInvitesForUser } from '$lib/services/invite.service';
 import { getFriendsForUser } from '$lib/services/social.service';
+import { getOrganizationsFollowedByUser } from '$lib/services/organization.service';
 
 function eventFromDoc(docSnap: { id: string; data: () => unknown }) {
 	return {
@@ -38,6 +39,13 @@ function chunkArray<T>(items: T[], size: number) {
 	return chunks;
 }
 
+function promotedFirst(events: SportEvent[]) {
+	return [...events].sort((a, b) => {
+		if (!!a.isPromoted !== !!b.isPromoted) return a.isPromoted ? -1 : 1;
+		return getEventStartAtMillis(a) - getEventStartAtMillis(b);
+	});
+}
+
 export async function getVisibleEventsForUser(userId: string) {
 	const eventsById = new Map<string, SportEvent>();
 
@@ -65,6 +73,14 @@ export async function getVisibleEventsForUser(userId: string) {
 	const publicEventsSnap = await getDocs(publicEventsQuery);
 
 	for (const docSnap of publicEventsSnap.docs) {
+		const event = eventFromDoc(docSnap);
+		eventsById.set(event.id, event);
+	}
+
+	const promotedEventsQuery = query(collection(db, 'events'), where('isPromoted', '==', true));
+	const promotedEventsSnap = await getDocs(promotedEventsQuery);
+
+	for (const docSnap of promotedEventsSnap.docs) {
 		const event = eventFromDoc(docSnap);
 		eventsById.set(event.id, event);
 	}
@@ -99,5 +115,22 @@ export async function getVisibleEventsForUser(userId: string) {
 		}
 	}
 
-	return sortEventsByStartDate(Array.from(eventsById.values()).filter(isVisibleInExplore));
+	const followedOrganizations = await getOrganizationsFollowedByUser(userId);
+	const followedOrganizationIds = followedOrganizations.map((organization) => organization.id);
+
+	for (const chunk of chunkArray(followedOrganizationIds, 10)) {
+		const followedOrgEventsQuery = query(
+			collection(db, 'events'),
+			where('organizationId', 'in', chunk)
+		);
+
+		const followedOrgEventsSnap = await getDocs(followedOrgEventsQuery);
+
+		for (const docSnap of followedOrgEventsSnap.docs) {
+			const event = eventFromDoc(docSnap);
+			eventsById.set(event.id, event);
+		}
+	}
+
+	return promotedFirst(sortEventsByStartDate(Array.from(eventsById.values()).filter(isVisibleInExplore)));
 }

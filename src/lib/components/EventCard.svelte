@@ -85,6 +85,10 @@
 			return 'border-slate-200 bg-slate-50/80 opacity-85 hover:border-slate-300 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900/70 dark:hover:bg-slate-800';
 		}
 
+		if (event.isPromoted) {
+			return 'border-blue-200 bg-blue-50/30 hover:border-blue-400 hover:bg-blue-50 dark:border-blue-900 dark:bg-blue-950/20 dark:hover:bg-blue-950/30';
+		}
+
 		return 'border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/40 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-500 dark:hover:bg-slate-800';
 	}
 
@@ -106,6 +110,14 @@
 			return 'Date not set';
 		}
 	}
+
+	function isOfficialPaidEvent() {
+		return event.paymentMode === 'official';
+	}
+
+	function isOrganizationEvent() {
+		return event.hostType === 'organization' && !!event.organizationName;
+	}
 </script>
 
 <a
@@ -119,11 +131,39 @@
 					{event.sport}
 				</p>
 
+				<span class={`rounded-full px-3 py-1 text-xs font-black ${getStatusClasses()}`}>
+					{getStatusLabel()}
+				</span>
+
+				{#if event.isPromoted}
+					<span
+						class="rounded-full bg-blue-600 px-3 py-1 text-xs font-black text-white dark:bg-blue-500"
+					>
+						Promoted
+					</span>
+				{/if}
+
+				{#if isOfficialPaidEvent()}
+					<span
+						class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+					>
+						Protected payment
+					</span>
+				{/if}
 			</div>
 
 			<h3 class="mt-2 truncate text-xl font-black text-slate-950 dark:text-slate-50">
 				{event.title}
 			</h3>
+
+			{#if isOrganizationEvent()}
+				<p class="mt-2 truncate text-sm font-bold text-slate-600 dark:text-slate-300">
+					Hosted by {event.organizationName}
+					{#if event.organizationVerificationStatus === 'verified'}
+						<span class="text-blue-600 dark:text-blue-400">✓</span>
+					{/if}
+				</p>
+			{/if}
 
 			<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
 				📍 {event.location.name}
@@ -149,21 +189,13 @@
 		</div>
 	</div>
 
-	<div class="mt-4 flex items-center justify-between gap-3">
-		<div class="flex items-center gap-2">
-			<span class={`rounded-full px-3 py-1 text-xs font-bold ${getStatusClasses()}`}>
-				{getStatusLabel()}
-			</span>
-
-			<span
-				class="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold capitalize text-slate-900 dark:bg-slate-800 dark:text-slate-300"
-			>
-				{event.level ?? 'casual'}
-			</span>
-		</div>
+	<div class="mt-4 flex flex-wrap items-center justify-between gap-2">
+		<span class={`rounded-full px-3 py-1 text-xs font-bold ${getStatusClasses()}`}>
+			{getStatusLabel()}
+		</span>
 
 		{#if event.pricePerPerson}
-			<span class="ml-auto text-sm font-medium text-slate-600 dark:text-slate-300">
+			<span class="text-sm font-medium text-slate-600 dark:text-slate-300">
 				€{event.pricePerPerson.toFixed(2)} / person
 			</span>
 		{/if}
