@@ -170,9 +170,9 @@
 
 			<div class="px-7 pb-8">
 				<div class="-mt-14 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-					<div class="flex min-w-0 flex-col gap-4 md:flex-row md:items-end">
+					<div class="min-w-0">
 						<div
-							class="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-[2rem] border-4 border-white bg-slate-100 text-5xl font-black text-blue-600 shadow-xl dark:border-slate-900 dark:bg-slate-800 dark:text-blue-300"
+							class="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-slate-100 text-5xl font-black text-blue-600 shadow-xl dark:border-slate-900 dark:bg-slate-800 dark:text-blue-300"
 						>
 							{#if organization.logoURL}
 								<img
@@ -185,9 +185,9 @@
 							{/if}
 						</div>
 
-						<div class="min-w-0 pb-1">
+						<div class="mt-5 min-w-0">
 							<div class="flex flex-wrap items-center gap-2">
-								<h1 class="truncate text-4xl font-black tracking-tight text-slate-950 dark:text-slate-50">
+								<h1 class="break-words text-4xl font-black tracking-tight text-slate-950 dark:text-slate-50">
 									{organization.name}
 								</h1>
 

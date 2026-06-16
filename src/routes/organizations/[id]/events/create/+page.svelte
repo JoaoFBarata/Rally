@@ -15,6 +15,7 @@
 	} from '$lib/schema';
 	import { assertCanManageOrganization, canCreateOfficialPaidEvents } from '$lib/services/organization.service';
 	import { createSportEvent, promoteEvent } from '$lib/services/event.service';
+    import LocationPickerMap from '$lib/components/maps/LocationPickerMap.svelte';
 
 	let organization = $state<Organization | null>(null);
 
@@ -150,9 +151,9 @@
 			throw new Error('Add an event title.');
 		}
 
-		if (!locationName.trim()) {
-			throw new Error('Add a location name.');
-		}
+		if (!locationName.trim() || !lat.trim() || !lng.trim()) {
+            throw new Error('Choose the event location on the map.');
+        }
 
 		const participants = Number(maxParticipants);
 
@@ -478,60 +479,40 @@
 				</section>
 
 				<section
-					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
-				>
-					<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">
-						Location and schedule
-					</h2>
+                    class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+                >
+                    <h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">
+                        Location and schedule
+                    </h2>
 
-					<div class="mt-5 space-y-4">
-						<input
-							bind:value={locationName}
-							placeholder="Location name"
-							class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-						/>
+                    <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                        Search the place or click directly on the map to select the exact event location.
+                    </p>
 
-						<input
-							bind:value={address}
-							placeholder="Address"
-							class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-						/>
+                    <div class="mt-5 space-y-5">
+                        <div class="grid gap-3 md:grid-cols-2">
+                            <input
+                                bind:value={date}
+                                type="date"
+                                class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+                            />
 
-						<div class="grid gap-3 md:grid-cols-2">
-							<input
-								bind:value={date}
-								type="date"
-								class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-							/>
+                            <input
+                                bind:value={startTime}
+                                type="time"
+                                class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+                            />
+                        </div>
 
-							<input
-								bind:value={startTime}
-								type="time"
-								class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-							/>
-						</div>
+                        <input
+                            bind:value={endTime}
+                            type="time"
+                            class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+                        />
 
-						<input
-							bind:value={endTime}
-							type="time"
-							class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-						/>
-
-						<div class="grid gap-3 md:grid-cols-2">
-							<input
-								bind:value={lat}
-								placeholder="Latitude optional"
-								class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-							/>
-
-							<input
-								bind:value={lng}
-								placeholder="Longitude optional"
-								class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-							/>
-						</div>
-					</div>
-				</section>
+                        <LocationPickerMap bind:lat bind:lng bind:address />
+                    </div>
+                </section>
 			</div>
 
 			<aside class="space-y-6">

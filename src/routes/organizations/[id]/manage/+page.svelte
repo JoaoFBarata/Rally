@@ -282,7 +282,7 @@
 		<div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 			<div class="flex min-w-0 items-center gap-4">
 				<div
-					class="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-[1.5rem] bg-slate-100 text-3xl font-black text-blue-600 shadow-lg dark:bg-slate-800 dark:text-blue-300"
+					class="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-3xl font-black text-blue-600 shadow-lg dark:bg-slate-800 dark:text-blue-300"
 				>
 					{#if organization.logoURL}
 						<img

@@ -103,10 +103,23 @@
 	});
 
 	function isActive(href: string) {
-		if (href.startsWith('/events/create')) return pathname === '/events/create';
-		if (href === '/dashboard') return pathname === '/dashboard';
-		if (href.includes('/manage')) return pathname === href;
-		return pathname.startsWith(href);
+		const cleanHref = href.split('?')[0];
+
+		if (cleanHref.includes('/events/create')) {
+			return pathname === cleanHref;
+		}
+
+		if (organizationManageHref && cleanHref === organizationManageHref) {
+			return pathname === organizationManageHref;
+		}
+
+		if (organizationPublicHref && cleanHref === organizationPublicHref) {
+			return pathname === organizationPublicHref;
+		}
+
+		if (cleanHref === '/dashboard') return pathname === '/dashboard';
+
+		return pathname.startsWith(cleanHref);
 	}
 
 	function shouldHideNavigation() {

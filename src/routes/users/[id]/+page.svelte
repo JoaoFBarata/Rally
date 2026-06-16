@@ -74,6 +74,11 @@
 				return;
 			}
 
+			if (loadedTargetProfile.accountType === 'organization' && loadedTargetProfile.activeOrganizationId) {
+				await goto(resolve(`/organizations/${loadedTargetProfile.activeOrganizationId}`));
+				return;
+			}
+
 			targetProfile = loadedTargetProfile;
 			currentProfile = loadedCurrentProfile;
 
