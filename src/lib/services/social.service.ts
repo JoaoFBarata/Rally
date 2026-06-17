@@ -30,11 +30,21 @@ export async function sendFriendRequestByTag(params: {
 	fromUserId: string;
 	rallyTag: string;
 }) {
+	const fromUser = await getUserProfile(params.fromUserId);
+
+	if (fromUser?.accountType === 'organization') {
+		throw new Error('Organizations cannot send friend requests.');
+	}
+
 	const matches = await searchUsersByRallyTag(params.rallyTag);
 	const targetUser = matches[0];
 
 	if (!targetUser) {
 		throw new Error('No user found with that Rally tag.');
+	}
+
+	if (targetUser.accountType === 'organization') {
+		throw new Error('Organizations cannot be added as friends. Send them a message instead.');
 	}
 
 	if (targetUser.id === params.fromUserId) {
@@ -49,7 +59,11 @@ export async function sendFriendRequestByTag(params: {
 	}
 
 	const requestRef = doc(db, 'friendRequests', friendRequestIdFor(params.fromUserId, targetUser.id));
-	const reverseRequestRef = doc(db, 'friendRequests', friendRequestIdFor(targetUser.id, params.fromUserId));
+	const reverseRequestRef = doc(
+		db,
+		'friendRequests',
+		friendRequestIdFor(targetUser.id, params.fromUserId)
+	);
 
 	const requestSnap = await getDoc(requestRef);
 	const reverseRequestSnap = await getDoc(reverseRequestRef);
@@ -174,6 +188,16 @@ export async function addFriendByQrCode(params: {
 
 	if (targetUser.id === params.fromUserId) {
 		throw new Error('You cannot add yourself as a friend.');
+	}
+
+	const fromUser = await getUserProfile(params.fromUserId);
+
+	if (fromUser?.accountType === 'organization') {
+		throw new Error('Organizations cannot add friends.');
+	}
+
+	if (targetUser.accountType === 'organization') {
+		throw new Error('Organizations cannot be added as friends. Send them a message instead.');
 	}
 
 	const friendshipRef = doc(db, 'friendships', friendshipIdFor(params.fromUserId, targetUser.id));

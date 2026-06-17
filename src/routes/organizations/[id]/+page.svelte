@@ -19,6 +19,7 @@
 		getEventsCreatedByOrganization,
 		getUpcomingEvents
 	} from '$lib/services/event.service';
+	import { getOrCreateOrganizationConversation } from '$lib/services/chat.service';
 
 	let organization = $state<Organization | null>(null);
 	let events = $state<SportEvent[]>([]);
@@ -28,6 +29,7 @@
 	let following = $state(false);
 	let canManage = $state(false);
 	let error = $state('');
+	let messageLoading = $state(false);
 
 	let upcomingEvents = $derived(getUpcomingEvents(events));
 
@@ -59,6 +61,30 @@
 		}
 
 		return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300';
+	}
+
+	async function messageOrganization() {
+		const user = auth.currentUser;
+
+		if (!user || !organization) return;
+
+		messageLoading = true;
+		error = '';
+
+		try {
+			const conversationId = await getOrCreateOrganizationConversation({
+				organizationId: organization.id,
+				userId: user.uid,
+				currentUserId: user.uid
+			});
+
+			await goto(resolve(`/messages/${conversationId}`));
+		} catch (err) {
+			console.error('Message organization error:', err);
+			error = err instanceof Error ? err.message : 'Could not open organization chat.';
+		} finally {
+			messageLoading = false;
+		}
 	}
 
 	async function loadPage(userId: string) {
@@ -220,6 +246,15 @@
 								class="rounded-2xl bg-blue-600 px-5 py-3 font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-60"
 							>
 								{actionLoading ? 'Updating...' : following ? 'Following' : 'Follow'}
+							</button>
+
+							<button
+								type="button"
+								onclick={messageOrganization}
+								disabled={messageLoading}
+								class="rounded-2xl bg-slate-950 px-5 py-3 font-black text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+							>
+								{messageLoading ? 'Opening...' : 'Message'}
 							</button>
 						{/if}
 					</div>

@@ -1,4 +1,4 @@
-//C:\Users\henri\Fct3Ano\ADC\Rally\src\lib\services\chat.service.ts
+//src\lib\services\chat.service.ts
 import {
 	addDoc,
 	arrayRemove,
@@ -17,9 +17,18 @@ import {
 } from 'firebase/firestore';
 import { db } from '$lib/firebase';
 import type { ChatConversation, ChatMessage } from '$lib/schema';
+import { getOrganizationById } from '$lib/services/organization.service';
 
 function directConversationIdFor(userA: string, userB: string) {
 	return [userA, userB].sort().join('_');
+}
+
+function organizationConversationIdFor(organizationId: string, userId: string) {
+	return `org_${organizationId}_user_${userId}`;
+}
+
+function uniqueIds(ids: string[]) {
+	return [...new Set(ids.filter(Boolean))];
 }
 
 export async function getOrCreateDirectConversation(currentUserId: string, friendId: string) {
@@ -32,6 +41,54 @@ export async function getOrCreateDirectConversation(currentUserId: string, frien
 			id: conversationId,
 			type: 'direct',
 			memberIds: [currentUserId, friendId],
+			createdAt: serverTimestamp(),
+			updatedAt: serverTimestamp()
+		},
+		{ merge: true }
+	);
+
+	return conversationId;
+}
+
+export async function getOrCreateOrganizationConversation(params: {
+	organizationId: string;
+	userId: string;
+	currentUserId: string;
+}) {
+	const organization = await getOrganizationById(params.organizationId);
+
+	if (!organization) {
+		throw new Error('Organization not found.');
+	}
+
+	const currentUserIsClient = params.currentUserId === params.userId;
+	const currentUserIsOrganizationAdmin = organization.adminIds.includes(params.currentUserId);
+
+	if (!currentUserIsClient && !currentUserIsOrganizationAdmin) {
+		throw new Error('You do not have permission to message this organization.');
+	}
+
+	const conversationId = organizationConversationIdFor(params.organizationId, params.userId);
+	const conversationRef = doc(db, 'conversations', conversationId);
+
+	const memberIds = uniqueIds([params.userId, ...organization.adminIds]);
+
+	await setDoc(
+		conversationRef,
+		{
+			id: conversationId,
+			type: 'organization_direct',
+			memberIds,
+
+			organizationId: organization.id,
+			organizationName: organization.name,
+			organizationLogoURL: organization.logoURL ?? null,
+			organizationVerificationStatus: organization.verificationStatus,
+
+			userId: params.userId,
+			title: organization.name,
+			photoURL: organization.logoURL ?? null,
+
 			createdAt: serverTimestamp(),
 			updatedAt: serverTimestamp()
 		},

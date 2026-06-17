@@ -32,10 +32,11 @@
 		SportEvent,
 		UserProfile
 	} from '$lib/schema';
-  import { uploadEventGroupPhoto } from '$lib/services/storage.service';
+  	import { uploadEventGroupPhoto } from '$lib/services/storage.service';
 	import type { Unsubscribe } from 'firebase/firestore';
 	import ChatMessageList from '$lib/components/chat/ChatMessageList.svelte';
 	import { getTypingLabel } from '$lib/utils/chat-typing.utils';
+	import { getOrCreateOrganizationConversation } from '$lib/services/chat.service';
 
 	let event = $state<SportEvent | null>(null);
 	let loading = $state(true);
@@ -91,6 +92,32 @@
 		>;
 	});
 
+	let contactLoading = $state(false);
+
+	async function contactOrganizer() {
+		const user = auth.currentUser;
+
+		if (!user || !event?.organizationId) return;
+
+		contactLoading = true;
+		error = '';
+
+		try {
+			const conversationId = await getOrCreateOrganizationConversation({
+				organizationId: event.organizationId,
+				userId: user.uid,
+				currentUserId: user.uid
+			});
+
+			await goto(resolve(`/messages/${conversationId}`));
+		} catch (err) {
+			console.error('Contact organizer error:', err);
+			error = err instanceof Error ? err.message : 'Could not contact organizer.';
+		} finally {
+			contactLoading = false;
+		}
+	}
+
 	function formatDate(dateValue: unknown) {
 		try {
 			const timestamp = dateValue as { toDate?: () => Date };
@@ -111,6 +138,7 @@
 			return 'Date not set';
 		}
 	}
+
 	function stopGroupMessagesListener() {
 		if (unsubscribeGroupMessages) {
 			unsubscribeGroupMessages();
@@ -839,6 +867,15 @@
 							</p>
 						</div>
 					</a>
+
+					<button
+						type="button"
+						onclick={contactOrganizer}
+						disabled={contactLoading}
+						class="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3 font-black text-slate-800 transition hover:border-blue-300 hover:bg-blue-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-blue-500 dark:hover:bg-slate-700"
+					>
+						{contactLoading ? 'Opening chat...' : 'Contact organizer'}
+					</button>
 				</div>
 			{/if}
 

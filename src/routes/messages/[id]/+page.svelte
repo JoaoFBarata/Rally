@@ -39,6 +39,64 @@
 	let typingTimeout: ReturnType<typeof setTimeout> | null = null;
 	let lastTypingSentAt = 0;
 
+	let isOrganizationChat = $derived(conversation?.type === 'organization_direct');
+
+	let conversationTitle = $derived.by(() => {
+		if (!conversation) return 'Messages';
+
+		if (conversation.type === 'organization_direct') {
+			return conversation.organizationName ?? conversation.title ?? 'Organization';
+		}
+
+		if (conversation.type === 'group') {
+			return conversation.title ?? 'Event group';
+		}
+
+		return otherUser?.displayName ?? 'Rally user';
+	});
+
+	let conversationSubtitle = $derived.by(() => {
+		if (!conversation) return '';
+
+		if (conversation.type === 'organization_direct') {
+			return 'Organization inbox';
+		}
+
+		if (conversation.type === 'group') {
+			return 'Event group';
+		}
+
+		return `@${otherUser?.rallyTag ?? 'rally'}`;
+	});
+
+	let conversationPhotoURL = $derived.by(() => {
+		if (!conversation) return null;
+
+		if (conversation.type === 'organization_direct') {
+			return conversation.organizationLogoURL ?? conversation.photoURL ?? null;
+		}
+
+		if (conversation.type === 'group') {
+			return conversation.photoURL ?? null;
+		}
+
+		return otherUser?.photoURL ?? null;
+	});
+
+	let conversationProfileHref = $derived.by(() => {
+		if (!conversation) return null;
+
+		if (conversation.type === 'organization_direct' && conversation.organizationId) {
+			return `/organizations/${conversation.organizationId}`;
+		}
+
+		if (conversation.type === 'direct' && otherUser?.id) {
+			return `/users/${otherUser.id}`;
+		}
+
+		return null;
+	});
+
 	const TYPING_REFRESH_MS = 2000;
 	const TYPING_VISIBLE_MS = 5000;
 
@@ -325,49 +383,60 @@
 			←
 		</a>
 
-		{#if conversation?.type === 'direct' && otherUser}
+		{#if conversationProfileHref}
 			<a
-				href={`/users/${otherUser.id}`}
+				href={conversationProfileHref}
 				class="flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-1 transition hover:bg-slate-100 dark:hover:bg-slate-900"
-				aria-label={`Open ${otherUser.displayName}'s profile`}
 			>
-				<UserAvatar
-					displayName={otherUser.displayName}
-					email={otherUser.email}
-					photoURL={otherUser.photoURL}
-					size="md"
-				/>
+				<div
+					class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-base font-black text-blue-600 dark:bg-slate-800 dark:text-blue-300"
+				>
+					{#if conversationPhotoURL}
+						<img
+							src={conversationPhotoURL}
+							alt={conversationTitle}
+							class="h-full w-full object-cover"
+						/>
+					{:else}
+						{conversationTitle.charAt(0).toUpperCase()}
+					{/if}
+				</div>
 
 				<div class="min-w-0 flex-1">
-					<h1 class="truncate text-base font-black text-slate-950 dark:text-white">
-						{otherUser.displayName}
-					</h1>
+					<div class="flex items-center gap-2">
+						<h1 class="truncate text-base font-black text-slate-950 dark:text-white">
+							{conversationTitle}
+						</h1>
+
+						{#if isOrganizationChat}
+							<span
+								class="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+							>
+								Company
+							</span>
+						{/if}
+					</div>
 
 					<p class="truncate text-xs text-slate-500 dark:text-slate-400">
-						@{otherUser.rallyTag ?? 'rally'}
+						{conversationSubtitle}
 					</p>
 				</div>
 			</a>
 		{:else}
 			<div class="flex min-w-0 flex-1 items-center gap-3">
-				<UserAvatar
-					displayName={conversation?.type === 'group' ? conversation.title : 'Rally user'}
-					email={otherUser?.email}
-					photoURL={conversation?.type === 'group' ? conversation.photoURL : otherUser?.photoURL}
-					size="md"
-				/>
+				<div
+					class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-base font-black text-blue-600 dark:bg-slate-800 dark:text-blue-300"
+				>
+					{conversationTitle.charAt(0).toUpperCase()}
+				</div>
 
 				<div class="min-w-0 flex-1">
 					<h1 class="truncate text-base font-black text-slate-950 dark:text-white">
-						{conversation?.type === 'group'
-							? conversation.title
-							: otherUser?.displayName ?? 'Rally user'}
+						{conversationTitle}
 					</h1>
 
 					<p class="truncate text-xs text-slate-500 dark:text-slate-400">
-						{conversation?.type === 'group'
-							? 'Event group'
-							: `@${otherUser?.rallyTag ?? 'rally'}`}
+						{conversationSubtitle}
 					</p>
 				</div>
 			</div>
@@ -393,19 +462,26 @@
 		{:else if messages.length === 0}
 			<div class="flex h-full items-center justify-center text-center">
 				<div class="flex flex-col items-center">
-					<UserAvatar
-						displayName={otherUser?.displayName}
-						email={otherUser?.email}
-						photoURL={otherUser?.photoURL}
-						size="xl"
-					/>
+					<div
+						class="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-2xl font-black text-blue-600 dark:bg-slate-800 dark:text-blue-300"
+					>
+						{#if conversationPhotoURL}
+							<img src={conversationPhotoURL} alt={conversationTitle} class="h-full w-full object-cover" />
+						{:else}
+							{conversationTitle.charAt(0).toUpperCase()}
+						{/if}
+					</div>
 
 					<p class="mt-3 font-bold text-slate-700 dark:text-slate-200">
 						No messages yet
 					</p>
 
 					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-						Send a message to {otherUser?.displayName ?? 'this friend'}.
+						{#if isOrganizationChat}
+							Send a message to {conversationTitle}. They will receive it in their organization inbox.
+						{:else}
+							Send a message to {otherUser?.displayName ?? 'this friend'}.
+						{/if}
 					</p>
 				</div>
 			</div>

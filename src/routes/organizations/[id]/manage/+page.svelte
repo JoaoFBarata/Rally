@@ -392,11 +392,34 @@
 				class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 			>
 				<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
-					Paid events
+					Inbox
 				</p>
 				<p class="mt-2 text-sm font-black text-slate-950 dark:text-slate-50">
-					{organization.verificationStatus === 'verified' ? 'Enabled' : 'Requires verification'}
+					Users can contact this organization
 				</p>
+			</div>
+		</section>
+
+		<section
+			class="mt-8 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+		>
+			<div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+				<div>
+					<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">
+						Organization inbox
+					</h2>
+
+					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+						Users can message this organization from the public page or from events hosted by it.
+					</p>
+				</div>
+
+				<a
+					href={resolve('/messages')}
+					class="rounded-2xl bg-slate-950 px-5 py-3 font-black text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+				>
+					Open messages
+				</a>
 			</div>
 		</section>
 

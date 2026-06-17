@@ -216,11 +216,17 @@ export interface ChatTypingState {
 export interface ChatConversation {
 	id: string;
 	memberIds: string[];
-	type: 'direct' | 'group';
+	type: 'direct' | 'group' | 'organization_direct';
 
 	eventId?: string;
 	title?: string;
 	photoURL?: string | null;
+
+	organizationId?: string | null;
+	organizationName?: string | null;
+	organizationLogoURL?: string | null;
+	organizationVerificationStatus?: VerificationStatus | null;
+	userId?: string | null;
 
 	lastMessage?: string;
 	lastSenderId?: string;
