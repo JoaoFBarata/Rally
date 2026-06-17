@@ -467,21 +467,26 @@
 					<div class="divide-y divide-slate-100 dark:divide-slate-800">
 						{#each friendRequests.slice(0, 3) as request (request.id)}
 							<div class="flex items-center gap-3 py-4">
-								<UserAvatar
-									displayName={request.fromUser?.displayName}
-									email={request.fromUser?.email}
-									photoURL={request.fromUser?.photoURL}
-									size="md"
-								/>
+								<a
+									href={`/users/${request.fromUserId}`}
+									class="flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-1 transition hover:bg-slate-100 dark:hover:bg-slate-900"
+								>
+									<UserAvatar
+										displayName={request.fromUser?.displayName}
+										email={request.fromUser?.email}
+										photoURL={request.fromUser?.photoURL}
+										size="md"
+									/>
 
-								<div class="min-w-0 flex-1">
-									<p class="truncate font-black">
-										{request.fromUser?.displayName ?? 'Rally user'}
-									</p>
-									<p class="truncate text-sm text-slate-500 dark:text-slate-400">
-										@{request.fromUser?.rallyTag}
-									</p>
-								</div>
+									<div class="min-w-0 flex-1">
+										<p class="truncate font-black">
+											{request.fromUser?.displayName ?? 'Rally user'}
+										</p>
+										<p class="truncate text-sm text-slate-500 dark:text-slate-400">
+											@{request.fromUser?.rallyTag}
+										</p>
+									</div>
+								</a>
 
 								{#if request.status === 'pending'}
 									<div class="flex gap-2">

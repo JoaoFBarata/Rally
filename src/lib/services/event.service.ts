@@ -72,6 +72,13 @@ export function getUpcomingEvents(events: SportEvent[]) {
 	);
 }
 
+function getEventGroupMemberIds(event: SportEvent) {
+	const memberIds = new Set<string>(event.participantIds ?? []);
+	memberIds.add(event.creatorId);
+
+	return Array.from(memberIds);
+}
+
 async function syncEventGroupConversation(event: SportEvent) {
 	const conversationId = getEventGroupConversationId(event.id);
 	const conversationRef = doc(db, 'conversations', conversationId);
@@ -84,7 +91,7 @@ async function syncEventGroupConversation(event: SportEvent) {
 			eventId: event.id,
 			title: event.title,
 			photoURL: event.groupPhotoURL ?? event.organizationLogoURL ?? null,
-			memberIds: event.participantIds ?? [],
+			memberIds: getEventGroupMemberIds(event),
 			updatedAt: serverTimestamp(),
 			createdAt: serverTimestamp()
 		},
@@ -180,7 +187,7 @@ export async function createSportEvent(params: {
 		throw new Error('Official paid events can only be created by verified organizations.');
 	}
 
-	const participantIds = [params.creatorId];
+	const participantIds = hostType === 'organization' ? [] : [params.creatorId];
 
 	const pricePerPerson =
 		params.priceTotal && params.maxParticipants > 0
@@ -253,10 +260,33 @@ export async function getEventById(eventId: string) {
 
 	if (!snap.exists()) return null;
 
-	return {
+	const event = {
 		id: snap.id,
 		...snap.data()
 	} as SportEvent;
+
+	return enrichEventWithOrganization(event);
+}
+
+async function enrichEventWithOrganization(event: SportEvent): Promise<SportEvent> {
+	if (event.hostType !== 'organization' || !event.organizationId) {
+		return event;
+	}
+
+	const organization = await getOrganizationById(event.organizationId);
+
+	if (!organization) {
+		return event;
+	}
+
+	return {
+		...event,
+		hostType: 'organization',
+		organizationId: organization.id,
+		organizationName: organization.name,
+		organizationLogoURL: organization.logoURL ?? null,
+		organizationVerificationStatus: organization.verificationStatus
+	};
 }
 
 export async function getEventsCreatedByUser(userId: string) {
@@ -283,6 +313,11 @@ function chunkArray<T>(items: T[], size: number) {
 
 export async function getEventsCreatedByOrganization(organizationId: string) {
 	const organization = await getOrganizationById(organizationId);
+
+	if (!organization) {
+		return [];
+	}
+
 	const eventsById = new Map<string, SportEvent>();
 
 	const organizationEventsQuery = query(
@@ -298,10 +333,11 @@ export async function getEventsCreatedByOrganization(organizationId: string) {
 			...docSnap.data()
 		} as SportEvent;
 
-		eventsById.set(event.id, event);
+		const enrichedEvent = await enrichEventWithOrganization(event);
+		eventsById.set(enrichedEvent.id, enrichedEvent);
 	}
 
-	const adminIds = organization?.adminIds ?? [];
+	const adminIds = organization.adminIds ?? [];
 
 	for (const chunk of chunkArray(adminIds, 10)) {
 		if (chunk.length === 0) continue;
@@ -319,15 +355,20 @@ export async function getEventsCreatedByOrganization(organizationId: string) {
 				...docSnap.data()
 			} as SportEvent;
 
-			eventsById.set(event.id, {
+			if (event.organizationId && event.organizationId !== organizationId) {
+				continue;
+			}
+
+			const normalizedEvent: SportEvent = {
 				...event,
-				hostType: event.hostType ?? 'organization',
-				organizationId: event.organizationId ?? organizationId,
-				organizationName: event.organizationName ?? organization?.name ?? null,
-				organizationLogoURL: event.organizationLogoURL ?? organization?.logoURL ?? null,
-				organizationVerificationStatus:
-					event.organizationVerificationStatus ?? organization?.verificationStatus ?? 'unverified'
-			});
+				hostType: 'organization',
+				organizationId,
+				organizationName: organization.name,
+				organizationLogoURL: organization.logoURL ?? null,
+				organizationVerificationStatus: organization.verificationStatus
+			};
+
+			eventsById.set(normalizedEvent.id, normalizedEvent);
 		}
 	}
 

@@ -29,9 +29,9 @@
 	let level = $state<SportLevel>('casual');
 
 	let locationName = $state('');
-	let address = $state('');
-	let lat = $state('');
-	let lng = $state('');
+    let address = $state('');
+    let lat = $state<number | null>(null);
+    let lng = $state<number | null>(null);
 
 	let date = $state('');
 	let startTime = $state('');
@@ -146,12 +146,26 @@
 		return end;
 	}
 
+    function getCleanLocationName() {
+        const cleanAddress = address.trim();
+
+        if (locationName.trim()) {
+            return locationName.trim();
+        }
+
+        if (cleanAddress.includes(',')) {
+            return cleanAddress.split(',')[0].trim();
+        }
+
+        return cleanAddress;
+    }
+
 	function validateForm() {
 		if (!title.trim()) {
 			throw new Error('Add an event title.');
 		}
 
-		if (!locationName.trim() || !lat.trim() || !lng.trim()) {
+		if (!address.trim() || lat === null || lng === null) {
             throw new Error('Choose the event location on the map.');
         }
 
@@ -193,25 +207,24 @@
 			const endAt = buildEndDate();
 
 			const createdEvent = await createSportEvent({
-				title: title.trim(),
-				description: description.trim(),
-				sport,
-				level,
-				creatorId: user.uid,
-				hostType: 'organization',
-				organizationId: organization.id,
-				locationName: locationName.trim(),
-				address: address.trim(),
-				lat: lat.trim() ? Number(lat) : undefined,
-				lng: lng.trim() ? Number(lng) : undefined,
-				startAt,
-				endAt,
-				maxParticipants: Number(maxParticipants),
-				visibility,
-				priceTotal: paymentMode === 'none' ? undefined : Number(priceTotal),
-				paymentMode
-			});
-
+                title: title.trim(),
+                description: description.trim(),
+                sport,
+                level,
+                creatorId: user.uid,
+                hostType: 'organization',
+                organizationId: organization.id,
+                locationName: getCleanLocationName(),
+                address: address.trim(),
+                lat: lat ?? undefined,
+                lng: lng ?? undefined,
+                startAt,
+                endAt,
+                maxParticipants: Number(maxParticipants),
+                visibility,
+                priceTotal: paymentMode === 'none' ? undefined : Number(priceTotal),
+                paymentMode
+            });
 			if (promote) {
 				await promoteEvent({
 					eventId: createdEvent.id,

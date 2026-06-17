@@ -793,6 +793,55 @@
 		</div>
 
 		<aside class="space-y-6">
+			{#if event?.hostType === 'organization'}
+				<div
+					class="rounded-4xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+				>
+					<p class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
+						Hosted by
+					</p>
+
+					<a
+						href={resolve(`/organizations/${event.organizationId}`)}
+						class="mt-4 flex items-center gap-3 rounded-2xl p-3 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+					>
+						<div
+							class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-lg font-black text-blue-600 dark:bg-slate-800 dark:text-blue-300"
+						>
+							{#if event.organizationLogoURL}
+								<img
+									src={event.organizationLogoURL}
+									alt={event.organizationName ?? 'Organization'}
+									class="h-full w-full object-cover"
+								/>
+							{:else}
+								{event.organizationName?.charAt(0).toUpperCase() ?? 'O'}
+							{/if}
+						</div>
+
+						<div class="min-w-0">
+							<div class="flex items-center gap-2">
+								<p class="truncate font-black text-slate-950 dark:text-slate-50">
+									{event.organizationName ?? 'Organization'}
+								</p>
+
+								{#if event.organizationVerificationStatus === 'verified'}
+									<span
+										class="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+									>
+										Verified
+									</span>
+								{/if}
+							</div>
+
+							<p class="text-xs text-slate-500 dark:text-slate-400">
+								Official organization host
+							</p>
+						</div>
+					</a>
+				</div>
+			{/if}
+
 			<div
 				class="rounded-4xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 			>

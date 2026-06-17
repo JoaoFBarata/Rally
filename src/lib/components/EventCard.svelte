@@ -116,7 +116,7 @@
 	}
 
 	function isOrganizationEvent() {
-		return event.hostType === 'organization' && !!event.organizationName;
+		return event.hostType === 'organization';
 	}
 </script>
 
@@ -125,7 +125,37 @@
 	class={`block rounded-4xl border p-5 shadow-lg shadow-slate-200/70 transition dark:shadow-none ${getCardClasses()}`}
 >
 	<div class="flex items-start justify-between gap-4">
-		<div class="min-w-0">
+		<div class="min-w-0 flex-1">
+			{#if isOrganizationEvent()}
+				<div class="mb-3 flex min-w-0 items-center gap-2">
+					<div
+						class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-xs font-black text-blue-600 dark:bg-slate-800 dark:text-blue-300"
+					>
+						{#if event.organizationLogoURL}
+							<img
+								src={event.organizationLogoURL}
+								alt={event.organizationName ?? 'Organization'}
+								class="h-full w-full object-cover"
+							/>
+						{:else}
+							{event.organizationName?.charAt(0).toUpperCase() ?? 'O'}
+						{/if}
+					</div>
+
+					<p class="truncate text-xs font-black text-slate-500 dark:text-slate-400">
+						Hosted by {event.organizationName ?? 'Organization'}
+					</p>
+
+					{#if event.organizationVerificationStatus === 'verified'}
+						<span
+							class="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+						>
+							Verified
+						</span>
+					{/if}
+				</div>
+			{/if}
+
 			<div class="flex flex-wrap items-center gap-2">
 				<p class="text-sm font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400">
 					{event.sport}
@@ -156,15 +186,6 @@
 				{event.title}
 			</h3>
 
-			{#if isOrganizationEvent()}
-				<p class="mt-2 truncate text-sm font-bold text-slate-600 dark:text-slate-300">
-					Hosted by {event.organizationName}
-					{#if event.organizationVerificationStatus === 'verified'}
-						<span class="text-blue-600 dark:text-blue-400">✓</span>
-					{/if}
-				</p>
-			{/if}
-
 			<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
 				📍 {event.location.name}
 			</p>
@@ -178,7 +199,7 @@
 			</p>
 		</div>
 
-		<div class="rounded-2xl bg-blue-50 px-3 py-2 text-center dark:bg-blue-950">
+		<div class="shrink-0 rounded-2xl bg-blue-50 px-3 py-2 text-center dark:bg-blue-950">
 			<p class="text-sm font-black text-blue-600 dark:text-blue-300">
 				{event.participantIds.length}/{event.maxParticipants}
 			</p>
