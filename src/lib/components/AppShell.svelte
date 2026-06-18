@@ -123,7 +123,7 @@
 	}
 
 	function shouldHideNavigation() {
-		return pathname === '/' || pathname === '/login' || pathname.startsWith('/register');
+		return pathname === '/' || pathname === '/login' || pathname.startsWith('/register') || pathname === '/discover';
 	}
 
 	function formatBadge(count: number) {

@@ -5,10 +5,11 @@
 	import type { Sport, SportEvent, SportLevel } from '$lib/schema';
 	import { themeState } from '$lib/theme.svelte';
 
-	let { events = [], currentUserId, onFilteredCountChange } = $props<{
+	let { events = [], currentUserId = '', onFilteredCountChange, getEventHref } = $props<{
 		events: SportEvent[];
-		currentUserId: string;
+		currentUserId?: string;
 		onFilteredCountChange?: (count: number) => void;
+		getEventHref?: (event: SportEvent) => string;
 	}>();
 
 	let mapContainer: HTMLDivElement;
@@ -192,20 +193,24 @@
 	<div bind:this={mapContainer} class="h-130 w-full"></div>
 	<div class="absolute right-0 bottom-0 z-10 rounded-2xl bg-white dark:bg-slate-900 p-4 shadow-lg">
 
-		<div class="flex items-center gap-2 text-sm">
-			<span class="h-3 w-3 rounded-full bg-blue-600"></span>
-			<span>My events</span>
-		</div>
+		{#if currentUserId}
+			<div class="flex items-center gap-2 text-sm">
+				<span class="h-3 w-3 rounded-full bg-blue-600"></span>
+				<span>My events</span>
+			</div>
+		{/if}
 
-		<div class="mt-2 flex items-center gap-2 text-sm">
+		<div class={currentUserId ? 'mt-2 flex items-center gap-2 text-sm' : 'flex items-center gap-2 text-sm'}>
 			<span class="h-3 w-3 rounded-full bg-red-600"></span>
 			<span>Public events</span>
 		</div>
 
-		<div class="mt-2 flex items-center gap-2 text-sm">
-			<span class="h-3 w-3 rounded-full bg-yellow-600"></span>
-			<span>Friends' events</span>
-		</div>
+		{#if currentUserId}
+			<div class="mt-2 flex items-center gap-2 text-sm">
+				<span class="h-3 w-3 rounded-full bg-yellow-600"></span>
+				<span>Friends' events</span>
+			</div>
+		{/if}
 	
 	</div>
 	<div class="border-t border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
@@ -231,17 +236,17 @@
 
 				<span>Filters</span>
 
-				{#if selectedSports.length > 0}
+				{#if selectedSports.length > 0 || selectedLevels.length > 0}
 					<span class="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white">
 						{selectedSports.length + selectedLevels.length}
 					</span>
 				{/if}
 			</button>
 
-			{#if selectedSports.length > 0}
+			{#if selectedSports.length > 0 || selectedLevels.length > 0}
 				<button
 					type="button"
-					onclick={clearSportFilters}
+					onclick={clearAllFilters}
 					class="text-sm font-bold text-slate-500 transition hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400"
 				>
 					Clear
@@ -374,10 +379,10 @@
 				{/if}
 
 				<a
-					href={`/events/${selectedEvent.id}`}
+					href={getEventHref ? getEventHref(selectedEvent) : `/events/${selectedEvent.id}`}
 					class="block rounded-2xl bg-blue-600 px-5 py-3 text-center font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700"
 				>
-					View event
+					{getEventHref ? 'Sign up to join' : 'View event'}
 				</a>
 			</div>
 		</aside>

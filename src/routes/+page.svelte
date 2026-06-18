@@ -41,7 +41,7 @@
 
 				<div class="hidden items-center gap-8 sm:flex">
 					<a
-						href="/explore"
+						href="/discover"
 						class="text-sm font-semibold text-white/75 transition hover:text-white"
 					>
 						Explore
@@ -112,7 +112,7 @@
 						</svg>
 					</a>
 					<a
-						href="/explore"
+						href="/discover"
 						class="inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/10 px-6 py-3 text-sm font-bold text-white backdrop-blur-sm transition hover:bg-white/20"
 					>
 						Explore

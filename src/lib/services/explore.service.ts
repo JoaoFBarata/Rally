@@ -46,6 +46,28 @@ function promotedFirst(events: SportEvent[]) {
 	});
 }
 
+export async function getPublicEvents() {
+	const eventsById = new Map<string, SportEvent>();
+
+	const publicEventsQuery = query(collection(db, 'events'), where('visibility', '==', 'public'));
+	const publicEventsSnap = await getDocs(publicEventsQuery);
+
+	for (const docSnap of publicEventsSnap.docs) {
+		const event = eventFromDoc(docSnap);
+		eventsById.set(event.id, event);
+	}
+
+	const promotedEventsQuery = query(collection(db, 'events'), where('isPromoted', '==', true));
+	const promotedEventsSnap = await getDocs(promotedEventsQuery);
+
+	for (const docSnap of promotedEventsSnap.docs) {
+		const event = eventFromDoc(docSnap);
+		eventsById.set(event.id, event);
+	}
+
+	return promotedFirst(sortEventsByStartDate(Array.from(eventsById.values()).filter(isVisibleInExplore)));
+}
+
 export async function getVisibleEventsForUser(userId: string) {
 	const eventsById = new Map<string, SportEvent>();
 

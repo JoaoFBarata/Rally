@@ -16,7 +16,6 @@
 		if (!authState.loading) {
 			const protectedRoutes =
 				page.url.pathname.startsWith('/dashboard') ||
-				page.url.pathname.startsWith('/explore') ||
 				page.url.pathname.startsWith('/events') ||
 				page.url.pathname.startsWith('/messages') ||
 				page.url.pathname.startsWith('/profile');
