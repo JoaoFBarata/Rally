@@ -37,6 +37,31 @@ export type EventPaymentMode = 'none' | 'split' | 'official';
 export type EventPromotionStatus = 'none' | 'active' | 'paused' | 'ended';
 export type EventPromotionPlan = 'local' | 'sport' | 'featured';
 
+export type EventKind = 'standard' | 'tournament';
+
+export type TournamentFormat = 'knockout' | 'groups_playoff' | 'league';
+
+export type TournamentRegistrationType = 'individual' | 'team';
+
+export type TournamentStatus =
+	| 'registration_open'
+	| 'registration_closed'
+	| 'in_progress'
+	| 'finished';
+
+export type EntryFeeType = 'free' | 'paid' | 'split';
+
+export type PrizeType = 'none' | 'trophy' | 'product' | 'cash' | 'other';
+
+export type TournamentEntryStatus = 'pending' | 'confirmed' | 'eliminated' | 'winner';
+
+export type TournamentMatchStage =
+	| 'group'
+	| 'knockout'
+	| 'semi_final'
+	| 'final'
+	| 'league';
+
 export interface UserProfile {
 	id: string;
 	email: string;
@@ -173,6 +198,33 @@ export interface SportEvent {
 	promotionViews?: number;
 	promotionClicks?: number;
 
+	eventKind?: EventKind;
+
+	tournamentFormat?: TournamentFormat | null;
+	tournamentRegistrationType?: TournamentRegistrationType | null;
+	tournamentStatus?: TournamentStatus | null;
+
+	maxTournamentEntries?: number | null;
+	groupCount?: number | null;
+	teamsPerGroup?: number | null;
+	playoffSpots?: number | null;
+
+	teamSize?: number | null;
+	minTeamSize?: number | null;
+	maxTeamSize?: number | null;
+	allowOpenTeams?: boolean;
+
+	registrationDeadline?: Timestamp | null;
+
+	entryFeeType?: EntryFeeType;
+	entryFeeAmount?: number | null;
+
+	prizeType?: PrizeType;
+	prizeDescription?: string;
+	prizeValue?: number | null;
+
+	tournamentRules?: string;
+
 	createdAt: Timestamp;
 	updatedAt: Timestamp;
 }
@@ -254,4 +306,53 @@ export interface ChatMessage {
 	senderId: string;
 	text: string;
 	createdAt: Timestamp;
+}
+
+export interface TournamentEntry {
+	id: string;
+	eventId: string;
+
+	type: TournamentRegistrationType;
+	name: string;
+
+	captainId?: string | null;
+	memberIds: string[];
+
+	isOpen?: boolean;
+	maxMembers?: number | null;
+
+	groupName?: string | null;
+	seed?: number | null;
+
+	status: TournamentEntryStatus;
+
+	createdAt: Timestamp;
+	updatedAt: Timestamp;
+}
+
+export interface TournamentMatch {
+	id: string;
+	eventId: string;
+
+	stage: TournamentMatchStage;
+	roundNumber: number;
+	groupName?: string | null;
+
+	homeEntryId?: string | null;
+	awayEntryId?: string | null;
+
+	homeName: string;
+	awayName: string;
+
+	homeScore?: number | null;
+	awayScore?: number | null;
+	winnerEntryId?: string | null;
+	winnerName?: string | null;
+
+	status: 'scheduled' | 'finished';
+
+	scheduledAt?: Timestamp | null;
+
+	createdAt: Timestamp;
+	updatedAt: Timestamp;
 }

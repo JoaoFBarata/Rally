@@ -164,6 +164,14 @@
 					{getStatusLabel()}
 				</span>
 
+				{#if event.eventKind === 'tournament'}
+					<span
+						class="rounded-full bg-purple-50 px-3 py-1 text-xs font-black text-purple-700 dark:bg-purple-950 dark:text-purple-300"
+					>
+						Tournament
+					</span>
+				{/if}
+
 				{#if event.paymentMode === 'official'}
 					<span
 						class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"

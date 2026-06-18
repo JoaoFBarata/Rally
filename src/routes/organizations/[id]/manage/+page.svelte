@@ -377,6 +377,13 @@
 					Create event
 				</a>
 
+				<a
+					href={resolve(`/organizations/${organization.id}/tournaments/create`)}
+					class="rounded-2xl bg-slate-950 px-5 py-3 font-black text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+				>
+					Create tournament
+				</a>
+
 				<button
 					type="button"
 					onclick={handleLogout}

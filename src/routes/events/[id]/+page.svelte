@@ -43,6 +43,7 @@
 	import ChatMessageList from '$lib/components/chat/ChatMessageList.svelte';
 	import { getTypingLabel } from '$lib/utils/chat-typing.utils';
 	import { getOrCreateOrganizationConversation } from '$lib/services/chat.service';
+	import TournamentPanel from '$lib/components/tournaments/TournamentPanel.svelte';
 
 	let event = $state<SportEvent | null>(null);
 	let loading = $state(true);
@@ -140,6 +141,16 @@
 			!!event.organizationId &&
 			event.creatorId === currentUser.uid
 		);
+	});
+
+	let currentUserId = $derived(auth.currentUser?.uid ?? '');
+
+	let canManageTournament = $derived.by(() => {
+		const user = auth.currentUser;
+
+		if (!user || !event) return false;
+
+		return event.creatorId === user.uid;
 	});
 
 	async function contactOrganizer() {
@@ -919,6 +930,14 @@
 				</section>
 			{/if}
 		</div>
+
+		{#if event?.eventKind === 'tournament'}
+			<TournamentPanel
+				{event}
+				{currentUserId}
+				canManage={canManageTournament}
+			/>
+		{/if}
 
 		<aside class="space-y-6">
 			{#if event?.hostType === 'organization'}
