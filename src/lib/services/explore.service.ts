@@ -5,6 +5,7 @@ import {
 	getEffectiveEventStatus,
 	getEventById,
 	getEventStartAtMillis,
+	isPromotionActive,
 	sortEventsByStartDate
 } from '$lib/services/event.service';
 import { getInvitesForUser } from '$lib/services/invite.service';
@@ -41,7 +42,24 @@ function chunkArray<T>(items: T[], size: number) {
 
 function promotedFirst(events: SportEvent[]) {
 	return [...events].sort((a, b) => {
-		if (!!a.isPromoted !== !!b.isPromoted) return a.isPromoted ? -1 : 1;
+		const aPromoted = isPromotionActive(a);
+		const bPromoted = isPromotionActive(b);
+
+		if (aPromoted !== bPromoted) return aPromoted ? -1 : 1;
+
+		if (aPromoted && bPromoted) {
+			const planWeight = {
+				featured: 3,
+				sport: 2,
+				local: 1
+			};
+
+			const aWeight = a.promotionPlan ? planWeight[a.promotionPlan] : 0;
+			const bWeight = b.promotionPlan ? planWeight[b.promotionPlan] : 0;
+
+			if (aWeight !== bWeight) return bWeight - aWeight;
+		}
+
 		return getEventStartAtMillis(a) - getEventStartAtMillis(b);
 	});
 }

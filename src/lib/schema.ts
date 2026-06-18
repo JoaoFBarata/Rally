@@ -35,6 +35,7 @@ export type VerificationLevel = 'none' | 'basic' | 'legal' | 'venue';
 export type EventHostType = 'user' | 'organization';
 export type EventPaymentMode = 'none' | 'split' | 'official';
 export type EventPromotionStatus = 'none' | 'active' | 'paused' | 'ended';
+export type EventPromotionPlan = 'local' | 'sport' | 'featured';
 
 export interface UserProfile {
 	id: string;
@@ -157,11 +158,18 @@ export interface SportEvent {
 
 	promotionStatus?: EventPromotionStatus;
 	isPromoted?: boolean;
+
+	promotionPlan?: EventPromotionPlan | null;
 	promotionBudget?: number | null;
+	promotionCpm?: number | null;
+	promotionImpressionLimit?: number | null;
+
 	promotionTargetCity?: string;
 	promotionTargetSport?: Sport | null;
+
 	promotionStartedAt?: Timestamp | null;
 	promotionEndsAt?: Timestamp | null;
+
 	promotionViews?: number;
 	promotionClicks?: number;
 

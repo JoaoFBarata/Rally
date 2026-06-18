@@ -33,6 +33,14 @@
 
 	let upcomingEvents = $derived(getUpcomingEvents(events));
 
+	let promotedEvents = $derived(
+		upcomingEvents.filter((event) => event.isPromoted && event.promotionStatus === 'active')
+	);
+
+	let normalUpcomingEvents = $derived(
+		upcomingEvents.filter((event) => !(event.isPromoted && event.promotionStatus === 'active'))
+	);
+
 	function formatOrganizationType(type: string) {
 		return type.replaceAll('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 	}
@@ -326,6 +334,28 @@
 			</div>
 		</section>
 
+		{#if promotedEvents.length > 0}
+			<section class="mt-10">
+				<div class="mb-5 flex items-center justify-between">
+					<div>
+						<p class="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
+							Promoted
+						</p>
+
+						<h2 class="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50">
+							Featured events
+						</h2>
+					</div>
+				</div>
+
+				<div class="grid gap-4 lg:grid-cols-2">
+					{#each promotedEvents as event (event.id)}
+						<EventCard {event} />
+					{/each}
+				</div>
+			</section>
+		{/if}
+
 		<section class="mt-10">
 			<div class="mb-5 flex items-center justify-between">
 				<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">
@@ -342,7 +372,7 @@
 				{/if}
 			</div>
 
-			{#if upcomingEvents.length === 0}
+			{#if normalUpcomingEvents.length === 0}
 				<div
 					class="rounded-[2rem] border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
 				>
@@ -350,7 +380,7 @@
 				</div>
 			{:else}
 				<div class="grid gap-4 lg:grid-cols-2">
-					{#each upcomingEvents as event (event.id)}
+					{#each normalUpcomingEvents as event (event.id)}
 						<EventCard {event} />
 					{/each}
 				</div>

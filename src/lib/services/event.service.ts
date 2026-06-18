@@ -6,6 +6,7 @@ import {
 	doc,
 	getDoc,
 	getDocs,
+	increment,
 	query,
 	serverTimestamp,
 	setDoc,
@@ -17,6 +18,7 @@ import { db } from '$lib/firebase';
 import type {
 	EventHostType,
 	EventPaymentMode,
+	EventPromotionPlan,
 	EventStatus,
 	EventVisibility,
 	Sport,
@@ -28,6 +30,84 @@ import {
 	getOrganizationById,
 	isOrganizationAdmin
 } from '$lib/services/organization.service';
+
+export const PROMOTION_PLANS: Record<
+	EventPromotionPlan,
+	{
+		label: string;
+		description: string;
+		cpm: number;
+	}
+> = {
+	local: {
+		label: 'Local Boost',
+		description: 'Best for reaching people near the event city.',
+		cpm: 3
+	},
+	sport: {
+		label: 'Sport Boost',
+		description: 'Best for reaching people interested in this sport.',
+		cpm: 5
+	},
+	featured: {
+		label: 'Featured Boost',
+		description: 'Best for top placement in Explore and promoted sections.',
+		cpm: 8
+	}
+};
+
+export function getPromotionPlanConfig(plan: EventPromotionPlan) {
+	return PROMOTION_PLANS[plan];
+}
+
+export function calculatePromotionImpressionLimit(params: {
+	budget: number;
+	cpm: number;
+}) {
+	if (!params.budget || !params.cpm) return 0;
+
+	return Math.floor((params.budget / params.cpm) * 1000);
+}
+
+export function calculatePromotionStats(event: SportEvent) {
+	const views = event.promotionViews ?? 0;
+	const clicks = event.promotionClicks ?? 0;
+	const cpm = event.promotionCpm ?? 0;
+	const impressionLimit = event.promotionImpressionLimit ?? 0;
+
+	const ctr = views > 0 ? (clicks / views) * 100 : 0;
+	const estimatedSpend = cpm > 0 ? (views / 1000) * cpm : 0;
+	const remainingImpressions =
+		impressionLimit > 0 ? Math.max(impressionLimit - views, 0) : null;
+
+	return {
+		views,
+		clicks,
+		ctr,
+		estimatedSpend,
+		remainingImpressions
+	};
+}
+
+export function isPromotionActive(event: SportEvent) {
+	if (!event.isPromoted) return false;
+	if (event.promotionStatus !== 'active') return false;
+
+	const endsAt = event.promotionEndsAt as unknown as {
+		toMillis?: () => number;
+		toDate?: () => Date;
+	} | null;
+
+	if (endsAt?.toMillis && endsAt.toMillis() < Date.now()) return false;
+	if (endsAt?.toDate && endsAt.toDate().getTime() < Date.now()) return false;
+
+	const views = event.promotionViews ?? 0;
+	const limit = event.promotionImpressionLimit ?? 0;
+
+	if (limit > 0 && views >= limit) return false;
+
+	return true;
+}
 
 export function getEventGroupConversationId(eventId: string) {
 	return `event_${eventId}`;
@@ -230,7 +310,10 @@ export async function createSportEvent(params: {
 
 		promotionStatus: 'none',
 		isPromoted: false,
+		promotionPlan: null,
 		promotionBudget: null,
+		promotionCpm: null,
+		promotionImpressionLimit: null,
 		promotionTargetCity: '',
 		promotionTargetSport: null,
 		promotionStartedAt: null,
@@ -564,6 +647,7 @@ export async function promoteEvent(params: {
 	userId: string;
 	budget: number;
 	durationDays: number;
+	plan: EventPromotionPlan;
 	targetCity?: string;
 	targetSport?: Sport | null;
 }) {
@@ -589,17 +673,29 @@ export async function promoteEvent(params: {
 		throw new Error('Only verified organizations can promote events.');
 	}
 
+	const budget = Math.max(1, params.budget);
 	const durationDays = Math.max(1, Math.min(params.durationDays, 30));
+	const planConfig = getPromotionPlanConfig(params.plan);
+	const impressionLimit = calculatePromotionImpressionLimit({
+		budget,
+		cpm: planConfig.cpm
+	});
+
 	const endsAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
 
 	await updateDoc(doc(db, 'events', params.eventId), {
 		isPromoted: true,
 		promotionStatus: 'active',
-		promotionBudget: Math.max(0, params.budget),
+		promotionPlan: params.plan,
+		promotionBudget: budget,
+		promotionCpm: planConfig.cpm,
+		promotionImpressionLimit: impressionLimit,
 		promotionTargetCity: params.targetCity?.trim() ?? '',
 		promotionTargetSport: params.targetSport ?? null,
 		promotionStartedAt: serverTimestamp(),
 		promotionEndsAt: Timestamp.fromDate(endsAt),
+		promotionViews: 0,
+		promotionClicks: 0,
 		updatedAt: serverTimestamp()
 	});
 }
@@ -619,6 +715,28 @@ export async function stopEventPromotion(params: {
 	await updateDoc(doc(db, 'events', params.eventId), {
 		isPromoted: false,
 		promotionStatus: 'ended',
+		updatedAt: serverTimestamp()
+	});
+}
+
+export async function trackEventPromotionView(eventId: string) {
+	const event = await getEventById(eventId);
+
+	if (!event || !isPromotionActive(event)) return;
+
+	await updateDoc(doc(db, 'events', eventId), {
+		promotionViews: increment(1),
+		updatedAt: serverTimestamp()
+	});
+}
+
+export async function trackEventPromotionClick(eventId: string) {
+	const event = await getEventById(eventId);
+
+	if (!event || !isPromotionActive(event)) return;
+
+	await updateDoc(doc(db, 'events', eventId), {
+		promotionClicks: increment(1),
 		updatedAt: serverTimestamp()
 	});
 }
