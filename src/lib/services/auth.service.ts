@@ -19,7 +19,9 @@ export const authService = {
 	async register(email: string, password: string, displayName: string) {
 		const credential = await createUserWithEmailAndPassword(auth, email, password);
 
-		await updateProfile(credential.user, { displayName });
+		await updateProfile(credential.user, {
+			displayName
+		});
 
 		await createUserProfile({
 			id: credential.user.uid,
@@ -62,14 +64,15 @@ export const authService = {
 		const organization = await createOrganization({
 			name: params.organizationName,
 			type: params.organizationType,
-			description: params.description,
+			description: params.description ?? '',
 			ownerId: credential.user.uid,
-			contactEmail: params.contactEmail || params.email,
+			contactEmail: params.contactEmail ?? params.email,
 			phone: params.phone,
 			website: params.website,
 			address: params.address,
 			city: params.city,
-			nif: params.nif
+			nif: params.nif,
+			logoURL: credential.user.photoURL
 		});
 
 		await updateUserActiveOrganization({
@@ -78,12 +81,17 @@ export const authService = {
 			accountType: 'organization'
 		});
 
-		return { user: credential.user, organization };
+		return {
+			user: credential.user,
+			organization
+		};
 	},
 
 	async login(email: string, password: string) {
 		const credential = await signInWithEmailAndPassword(auth, email, password);
+
 		await ensureUserProfile(credential.user);
+
 		return credential.user;
 	},
 
@@ -95,7 +103,9 @@ export const authService = {
 		});
 
 		const result = await signInWithPopup(auth, provider);
+
 		await ensureUserProfile(result.user);
+
 		return result.user;
 	},
 

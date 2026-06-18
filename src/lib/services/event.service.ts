@@ -24,9 +24,9 @@ import type {
 	SportLevel
 } from '$lib/schema';
 import {
+	canCreateOfficialPaidEvents,
 	getOrganizationById,
-	isOrganizationAdmin,
-	canCreateOfficialPaidEvents
+	isOrganizationAdmin
 } from '$lib/services/organization.service';
 
 export function getEventGroupConversationId(eventId: string) {
@@ -72,6 +72,13 @@ export function getUpcomingEvents(events: SportEvent[]) {
 	);
 }
 
+function getEventGroupMemberIds(event: SportEvent) {
+	const memberIds = new Set<string>(event.participantIds ?? []);
+	memberIds.add(event.creatorId);
+
+	return Array.from(memberIds);
+}
+
 async function syncEventGroupConversation(event: SportEvent) {
 	const conversationId = getEventGroupConversationId(event.id);
 	const conversationRef = doc(db, 'conversations', conversationId);
@@ -83,10 +90,10 @@ async function syncEventGroupConversation(event: SportEvent) {
 			type: 'group',
 			eventId: event.id,
 			title: event.title,
-			photoURL: event.groupPhotoURL ?? null,
-			memberIds: event.participantIds ?? [],
+			photoURL: event.groupPhotoURL ?? event.organizationLogoURL ?? null,
+			memberIds: getEventGroupMemberIds(event),
 			updatedAt: serverTimestamp(),
-			createdAt: serverTimestamp(),
+			createdAt: serverTimestamp()
 		},
 		{ merge: true }
 	);
@@ -180,7 +187,7 @@ export async function createSportEvent(params: {
 		throw new Error('Official paid events can only be created by verified organizations.');
 	}
 
-	const participantIds = [params.creatorId];
+	const participantIds = hostType === 'organization' ? [] : [params.creatorId];
 
 	const pricePerPerson =
 		params.priceTotal && params.maxParticipants > 0
@@ -218,10 +225,21 @@ export async function createSportEvent(params: {
 		pricePerPerson: pricePerPerson ?? null,
 		currency: 'EUR',
 		paymentMode,
+		paymentProtected: paymentMode === 'official',
+		payoutStatus: paymentMode === 'official' ? 'held' : 'not_applicable',
+
+		promotionStatus: 'none',
+		isPromoted: false,
+		promotionBudget: null,
+		promotionTargetCity: '',
+		promotionTargetSport: null,
+		promotionStartedAt: null,
+		promotionEndsAt: null,
+		promotionViews: 0,
+		promotionClicks: 0,
 
 		createdAt: serverTimestamp(),
-		updatedAt: serverTimestamp(),
-
+		updatedAt: serverTimestamp()
 	};
 
 	const docRef = await addDoc(collection(db, 'events'), eventData);
@@ -242,10 +260,33 @@ export async function getEventById(eventId: string) {
 
 	if (!snap.exists()) return null;
 
-	return {
+	const event = {
 		id: snap.id,
 		...snap.data()
 	} as SportEvent;
+
+	return enrichEventWithOrganization(event);
+}
+
+async function enrichEventWithOrganization(event: SportEvent): Promise<SportEvent> {
+	if (event.hostType !== 'organization' || !event.organizationId) {
+		return event;
+	}
+
+	const organization = await getOrganizationById(event.organizationId);
+
+	if (!organization) {
+		return event;
+	}
+
+	return {
+		...event,
+		hostType: 'organization',
+		organizationId: organization.id,
+		organizationName: organization.name,
+		organizationLogoURL: organization.logoURL ?? null,
+		organizationVerificationStatus: organization.verificationStatus
+	};
 }
 
 export async function getEventsCreatedByUser(userId: string) {
@@ -260,16 +301,78 @@ export async function getEventsCreatedByUser(userId: string) {
 	return sortEventsByStartDate(events);
 }
 
+function chunkArray<T>(items: T[], size: number) {
+	const chunks: T[][] = [];
+
+	for (let i = 0; i < items.length; i += size) {
+		chunks.push(items.slice(i, i + size));
+	}
+
+	return chunks;
+}
+
 export async function getEventsCreatedByOrganization(organizationId: string) {
-	const q = query(collection(db, 'events'), where('organizationId', '==', organizationId));
-	const snap = await getDocs(q);
+	const organization = await getOrganizationById(organizationId);
 
-	const events = snap.docs.map((docSnap) => ({
-		id: docSnap.id,
-		...docSnap.data()
-	})) as SportEvent[];
+	if (!organization) {
+		return [];
+	}
 
-	return sortEventsByStartDate(events);
+	const eventsById = new Map<string, SportEvent>();
+
+	const organizationEventsQuery = query(
+		collection(db, 'events'),
+		where('organizationId', '==', organizationId)
+	);
+
+	const organizationEventsSnap = await getDocs(organizationEventsQuery);
+
+	for (const docSnap of organizationEventsSnap.docs) {
+		const event = {
+			id: docSnap.id,
+			...docSnap.data()
+		} as SportEvent;
+
+		const enrichedEvent = await enrichEventWithOrganization(event);
+		eventsById.set(enrichedEvent.id, enrichedEvent);
+	}
+
+	const adminIds = organization.adminIds ?? [];
+
+	for (const chunk of chunkArray(adminIds, 10)) {
+		if (chunk.length === 0) continue;
+
+		const adminEventsQuery = query(
+			collection(db, 'events'),
+			where('creatorId', 'in', chunk)
+		);
+
+		const adminEventsSnap = await getDocs(adminEventsQuery);
+
+		for (const docSnap of adminEventsSnap.docs) {
+			const event = {
+				id: docSnap.id,
+				...docSnap.data()
+			} as SportEvent;
+
+			if (event.organizationId && event.organizationId !== organizationId) {
+				continue;
+			}
+
+			const normalizedEvent: SportEvent = {
+				...event,
+				hostType: 'organization',
+				organizationId,
+				organizationName: organization.name,
+				organizationLogoURL: organization.logoURL ?? null,
+				organizationVerificationStatus: organization.verificationStatus
+			};
+
+			eventsById.set(normalizedEvent.id, normalizedEvent);
+		}
+	}
+
+	return sortEventsByStartDate(Array.from(eventsById.values()));
 }
 
 export async function getEventsForUser(userId: string) {
@@ -453,5 +556,69 @@ export async function updateEventGroupPhoto(params: {
 	await syncEventGroupConversation({
 		...event,
 		groupPhotoURL: params.groupPhotoURL
+	});
+}
+
+export async function promoteEvent(params: {
+	eventId: string;
+	userId: string;
+	budget: number;
+	durationDays: number;
+	targetCity?: string;
+	targetSport?: Sport | null;
+}) {
+	const event = await getEventById(params.eventId);
+
+	if (!event) {
+		throw new Error('Event not found');
+	}
+
+	await assertCanManageEvent(event, params.userId);
+
+	if (event.hostType !== 'organization' || !event.organizationId) {
+		throw new Error('Only organization events can be promoted.');
+	}
+
+	const organization = await getOrganizationById(event.organizationId);
+
+	if (!organization) {
+		throw new Error('Organization not found.');
+	}
+
+	if (!canCreateOfficialPaidEvents(organization)) {
+		throw new Error('Only verified organizations can promote events.');
+	}
+
+	const durationDays = Math.max(1, Math.min(params.durationDays, 30));
+	const endsAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
+
+	await updateDoc(doc(db, 'events', params.eventId), {
+		isPromoted: true,
+		promotionStatus: 'active',
+		promotionBudget: Math.max(0, params.budget),
+		promotionTargetCity: params.targetCity?.trim() ?? '',
+		promotionTargetSport: params.targetSport ?? null,
+		promotionStartedAt: serverTimestamp(),
+		promotionEndsAt: Timestamp.fromDate(endsAt),
+		updatedAt: serverTimestamp()
+	});
+}
+
+export async function stopEventPromotion(params: {
+	eventId: string;
+	userId: string;
+}) {
+	const event = await getEventById(params.eventId);
+
+	if (!event) {
+		throw new Error('Event not found');
+	}
+
+	await assertCanManageEvent(event, params.userId);
+
+	await updateDoc(doc(db, 'events', params.eventId), {
+		isPromoted: false,
+		promotionStatus: 'ended',
+		updatedAt: serverTimestamp()
 	});
 }

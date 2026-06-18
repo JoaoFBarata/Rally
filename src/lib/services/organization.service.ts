@@ -117,6 +117,19 @@ export async function getOrganizationsForAdmin(userId: string) {
 	})) as Organization[];
 }
 
+export async function getOrganizationsFollowedByUser(userId: string) {
+	const q = query(collection(db, 'organizationFollowers'), where('userId', '==', userId));
+	const snap = await getDocs(q);
+
+	const organizationIds = snap.docs
+		.map((docSnap) => (docSnap.data() as { organizationId?: string }).organizationId)
+		.filter((id): id is string => Boolean(id));
+
+	const organizations = await Promise.all(organizationIds.map((id) => getOrganizationById(id)));
+
+	return organizations.filter((organization): organization is Organization => organization !== null);
+}
+
 export async function assertCanManageOrganization(params: {
 	organizationId: string;
 	userId: string;

@@ -1,3 +1,4 @@
+<!--src/routes/register/organization/+page.svelte-->
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import RallyLogo from '$lib/components/RallyLogo.svelte';
@@ -265,6 +266,12 @@
 					</a>
 				</p>
 			</div>
+			<a
+				href="/"
+				class="mt-6 block text-center text-sm font-semibold text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400"
+			>
+				← Back to home
+			</a>
 		</div>
 	</section>
 </main>

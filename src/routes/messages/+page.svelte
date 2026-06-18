@@ -41,6 +41,11 @@
 		otherUser: UserProfile | null;
 		unreadCount: number;
 		lastInteractionAtMs: number;
+		displayName: string;
+		displaySubtitle: string;
+		displayPhotoURL: string | null;
+		displayHref: string;
+		isOrganizationChat: boolean;
 	};
 
 	let invites = $state<InviteWithEvent[]>([]);
@@ -137,7 +142,26 @@
 						...conversation,
 						otherUser: null,
 						unreadCount,
-						lastInteractionAtMs: getConversationLastInteraction(conversation)
+						lastInteractionAtMs: getConversationLastInteraction(conversation),
+						displayName: conversation.title ?? 'Event group',
+						displaySubtitle: 'Event group chat',
+						displayPhotoURL: conversation.photoURL ?? null,
+						displayHref: `/messages/${conversation.id}`,
+						isOrganizationChat: false
+					};
+				}
+
+				if (conversation.type === 'organization_direct') {
+					return {
+						...conversation,
+						otherUser: null,
+						unreadCount,
+						lastInteractionAtMs: getConversationLastInteraction(conversation),
+						displayName: conversation.organizationName ?? conversation.title ?? 'Organization',
+						displaySubtitle: 'Organization inbox',
+						displayPhotoURL: conversation.organizationLogoURL ?? conversation.photoURL ?? null,
+						displayHref: `/messages/${conversation.id}`,
+						isOrganizationChat: true
 					};
 				}
 
@@ -148,7 +172,12 @@
 					...conversation,
 					otherUser,
 					unreadCount,
-					lastInteractionAtMs: getConversationLastInteraction(conversation)
+					lastInteractionAtMs: getConversationLastInteraction(conversation),
+					displayName: otherUser?.displayName ?? 'Rally user',
+					displaySubtitle: `@${otherUser?.rallyTag ?? 'rally'}`,
+					displayPhotoURL: otherUser?.photoURL ?? null,
+					displayHref: `/messages/${conversation.id}`,
+					isOrganizationChat: false
 				};
 			})
 		);
@@ -157,6 +186,7 @@
 			(a, b) => b.lastInteractionAtMs - a.lastInteractionAtMs
 		);
 	}
+
 	async function updateInvitesWithEvents(userInvites: EventInvite[]) {
 		const invitesWithEvents = await Promise.all(
 			userInvites.map(async (invite) => {
@@ -467,21 +497,26 @@
 					<div class="divide-y divide-slate-100 dark:divide-slate-800">
 						{#each friendRequests.slice(0, 3) as request (request.id)}
 							<div class="flex items-center gap-3 py-4">
-								<UserAvatar
-									displayName={request.fromUser?.displayName}
-									email={request.fromUser?.email}
-									photoURL={request.fromUser?.photoURL}
-									size="md"
-								/>
+								<a
+									href={`/users/${request.fromUserId}`}
+									class="flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-1 transition hover:bg-slate-100 dark:hover:bg-slate-900"
+								>
+									<UserAvatar
+										displayName={request.fromUser?.displayName}
+										email={request.fromUser?.email}
+										photoURL={request.fromUser?.photoURL}
+										size="md"
+									/>
 
-								<div class="min-w-0 flex-1">
-									<p class="truncate font-black">
-										{request.fromUser?.displayName ?? 'Rally user'}
-									</p>
-									<p class="truncate text-sm text-slate-500 dark:text-slate-400">
-										@{request.fromUser?.rallyTag}
-									</p>
-								</div>
+									<div class="min-w-0 flex-1">
+										<p class="truncate font-black">
+											{request.fromUser?.displayName ?? 'Rally user'}
+										</p>
+										<p class="truncate text-sm text-slate-500 dark:text-slate-400">
+											@{request.fromUser?.rallyTag}
+										</p>
+									</div>
+								</a>
 
 								{#if request.status === 'pending'}
 									<div class="flex gap-2">
@@ -531,35 +566,45 @@
 							<button
 								type="button"
 								onclick={() => openConversation(conversation.id)}
-								class="flex w-full items-center gap-3 py-4 text-left transition hover:bg-slate-50 dark:hover:bg-slate-900"
+								class="flex w-full items-center gap-3 rounded-3xl p-3 text-left transition hover:bg-slate-100 dark:hover:bg-slate-800"
 							>
-								<UserAvatar
-									displayName={conversation.type === 'group'
-										? conversation.title
-										: conversation.otherUser?.displayName}
-									email={conversation.otherUser?.email}
-									photoURL={conversation.type === 'group'
-										? conversation.photoURL
-										: conversation.otherUser?.photoURL}
-									size="md"
-								/>
+								<div
+									class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-base font-black text-blue-600 dark:bg-slate-800 dark:text-blue-300"
+								>
+									{#if conversation.displayPhotoURL}
+										<img
+											src={conversation.displayPhotoURL}
+											alt={conversation.displayName}
+											class="h-full w-full object-cover"
+										/>
+									{:else}
+										{conversation.displayName.charAt(0).toUpperCase()}
+									{/if}
+								</div>
 
 								<div class="min-w-0 flex-1">
-									<p class="truncate font-black">
-										{conversation.type === 'group'
-											? conversation.title
-											: conversation.otherUser?.displayName ?? 'Rally user'}
-									</p>
+									<div class="flex items-center gap-2">
+										<p class="truncate font-black text-slate-950 dark:text-slate-50">
+											{conversation.displayName}
+										</p>
 
-									<p class="truncate text-sm text-slate-500 dark:text-slate-400">
-										{conversation.lastMessage ??
-											(conversation.type === 'group' ? 'Event group' : 'No messages yet')}
+										{#if conversation.isOrganizationChat}
+											<span
+												class="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+											>
+												Company
+											</span>
+										{/if}
+									</div>
+
+									<p class="truncate text-xs text-slate-500 dark:text-slate-400">
+										{conversation.lastMessage ?? conversation.displaySubtitle}
 									</p>
 								</div>
 
 								{#if conversation.unreadCount > 0}
 									<span
-										class="flex h-7 min-w-7 items-center justify-center rounded-full bg-blue-600 px-2 text-xs font-black text-white"
+										class="flex min-h-6 min-w-6 items-center justify-center rounded-full bg-blue-600 px-2 text-xs font-black text-white"
 									>
 										{formatUnreadCount(conversation.unreadCount)}
 									</span>

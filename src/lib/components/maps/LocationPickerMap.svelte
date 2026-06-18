@@ -353,7 +353,7 @@
 					<div
 						class="absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900"
 					>
-						{#each suggestions as suggestion}
+						{#each suggestions as suggestion (suggestion.id)}
 							<button
 								type="button"
 								onclick={() => selectSuggestion(suggestion)}

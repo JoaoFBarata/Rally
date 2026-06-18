@@ -17,7 +17,7 @@
 	import { getFriendsForUser, sendFriendRequestByTag } from '$lib/services/social.service';
 	import { getOrCreateDirectConversation } from '$lib/services/chat.service';
 	import { uploadUserProfilePhoto } from '$lib/services/storage.service';
-  //import QRCode from 'qrcode';
+  import QRCode from 'qrcode';
   import { browser } from '$app/environment';
 
 	const availableSports: Sport[] = [
