@@ -6,7 +6,7 @@
     import { resolve } from '$app/paths';
 	import { auth } from '$lib/firebase';
 	import { signOut } from 'firebase/auth';
-	import type { Sport, UserProfile } from '$lib/schema';
+	import type { Sport, SportLevel, UserProfile } from '$lib/schema';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import RallyWordmark from '$lib/components/RallyWordmark.svelte';
 	import {
@@ -40,6 +40,7 @@
 	let city = $state('');
 	let age = $state<string | number>('');
 	let sports = $state<Sport[]>([]);
+	let level = $state<SportLevel>('casual');
 
 	let friendTag = $state('');
 	let loading = $state(true);
@@ -66,6 +67,7 @@
 		city = nextProfile.city ?? '';
 		age = nextProfile.age ? String(nextProfile.age) : '';
 		sports = nextProfile.sports ?? [];
+		level = nextProfile.level ?? 'casual';
 	}
 
 	async function loadProfile() {
@@ -139,6 +141,7 @@
 				bio,
 				city,
 				age: parsedAge,
+				level,
 				sports
 			});
 
