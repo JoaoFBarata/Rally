@@ -405,62 +405,71 @@
 </script>
 
 <section
-	class="mt-8 rounded-[2rem] border border-purple-200 bg-purple-50/40 p-6 shadow-xl shadow-purple-200/50 dark:border-purple-900 dark:bg-purple-950/20 dark:shadow-none"
+	class="mt-8 rounded-[2rem] border border-slate-200 bg-white p-7 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 >
-	<div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-		<div>
-			<p class="text-sm font-black uppercase tracking-[0.25em] text-purple-700 dark:text-purple-300">
-				Tournament
-			</p>
+	<div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-2">
+                <span
+                    class="rounded-full bg-purple-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-purple-700 dark:bg-purple-950 dark:text-purple-300"
+                >
+                    Tournament
+                </span>
 
-			<h2 class="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50">
-				{formatTournamentFormat()}
-			</h2>
+                <span
+                    class="rounded-full bg-slate-100 px-3 py-1 text-xs font-black capitalize text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                >
+                    {event.tournamentStatus?.replaceAll('_', ' ') ?? 'registration open'}
+                </span>
+            </div>
 
-			<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-				{formatRegistrationType()} · {entries.length}/{maxEntries} registered ·
-				{event.tournamentStatus?.replaceAll('_', ' ') ?? 'registration open'}
-			</p>
-		</div>
+            <h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950 dark:text-slate-50">
+                {formatTournamentFormat()}
+            </h2>
 
-		<div class="flex flex-wrap gap-2">
-			<button
-				type="button"
-				onclick={() => (activeTab = 'overview')}
-				class={`rounded-2xl px-4 py-2 text-sm font-black transition ${
-					activeTab === 'overview'
-						? 'bg-purple-600 text-white'
-						: 'bg-white text-slate-700 hover:bg-purple-50 dark:bg-slate-900 dark:text-slate-200'
-				}`}
-			>
-				Overview
-			</button>
+            <p class="mt-2 text-sm font-bold text-slate-500 dark:text-slate-400">
+                {formatRegistrationType()} · {entries.length}/{maxEntries} registered
+            </p>
+        </div>
 
-			<button
-				type="button"
-				onclick={() => (activeTab = 'entries')}
-				class={`rounded-2xl px-4 py-2 text-sm font-black transition ${
-					activeTab === 'entries'
-						? 'bg-purple-600 text-white'
-						: 'bg-white text-slate-700 hover:bg-purple-50 dark:bg-slate-900 dark:text-slate-200'
-				}`}
-			>
-				Entries
-			</button>
+        <div class="flex rounded-2xl bg-slate-100 p-1 dark:bg-slate-800">
+            <button
+                type="button"
+                onclick={() => (activeTab = 'overview')}
+                class={`rounded-xl px-4 py-2 text-sm font-black transition ${
+                    activeTab === 'overview'
+                        ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white'
+                        : 'text-slate-500 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
+                }`}
+            >
+                Overview
+            </button>
 
-			<button
-				type="button"
-				onclick={() => (activeTab = 'bracket')}
-				class={`rounded-2xl px-4 py-2 text-sm font-black transition ${
-					activeTab === 'bracket'
-						? 'bg-purple-600 text-white'
-						: 'bg-white text-slate-700 hover:bg-purple-50 dark:bg-slate-900 dark:text-slate-200'
-				}`}
-			>
-				Bracket
-			</button>
-		</div>
-	</div>
+            <button
+                type="button"
+                onclick={() => (activeTab = 'entries')}
+                class={`rounded-xl px-4 py-2 text-sm font-black transition ${
+                    activeTab === 'entries'
+                        ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white'
+                        : 'text-slate-500 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
+                }`}
+            >
+                Entries
+            </button>
+
+            <button
+                type="button"
+                onclick={() => (activeTab = 'bracket')}
+                class={`rounded-xl px-4 py-2 text-sm font-black transition ${
+                    activeTab === 'bracket'
+                        ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white'
+                        : 'text-slate-500 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
+                }`}
+            >
+                Bracket
+            </button>
+        </div>
+    </div>
 
 	{#if error}
 		<div class="mt-5 rounded-2xl bg-red-50 p-4 text-sm font-bold text-red-700 dark:bg-red-950 dark:text-red-300">
@@ -477,35 +486,43 @@
 	{#if loading}
 		<p class="mt-6 text-sm font-bold text-slate-500 dark:text-slate-400">Loading tournament...</p>
 	{:else if activeTab === 'overview'}
-		<div class="mt-6 grid gap-4 md:grid-cols-4">
-			<div class="rounded-2xl bg-white p-4 dark:bg-slate-900">
-				<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Format</p>
-				<p class="mt-2 font-black capitalize text-slate-950 dark:text-slate-50">
-					{formatTournamentFormat()}
-				</p>
-			</div>
+		<div class="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="rounded-3xl border border-slate-100 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-950">
+                <p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+                    Format
+                </p>
+                <p class="mt-3 text-lg font-black text-slate-950 dark:text-slate-50">
+                    {formatTournamentFormat()}
+                </p>
+            </div>
 
-			<div class="rounded-2xl bg-white p-4 dark:bg-slate-900">
-				<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Registration</p>
-				<p class="mt-2 font-black text-slate-950 dark:text-slate-50">
-					{entries.length}/{maxEntries}
-				</p>
-			</div>
+            <div class="rounded-3xl border border-slate-100 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-950">
+                <p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+                    Registration
+                </p>
+                <p class="mt-3 text-lg font-black text-slate-950 dark:text-slate-50">
+                    {entries.length}/{maxEntries}
+                </p>
+            </div>
 
-			<div class="rounded-2xl bg-white p-4 dark:bg-slate-900">
-				<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Entry cost</p>
-				<p class="mt-2 font-black text-slate-950 dark:text-slate-50">
-					{event.entryFeeType === 'free' ? 'Free' : `€${event.entryFeeAmount ?? 0}`}
-				</p>
-			</div>
+            <div class="rounded-3xl border border-slate-100 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-950">
+                <p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+                    Entry cost
+                </p>
+                <p class="mt-3 text-lg font-black text-slate-950 dark:text-slate-50">
+                    {event.entryFeeType === 'free' ? 'Free' : `€${event.entryFeeAmount ?? 0}`}
+                </p>
+            </div>
 
-			<div class="rounded-2xl bg-white p-4 dark:bg-slate-900">
-				<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Prize</p>
-				<p class="mt-2 font-black text-slate-950 dark:text-slate-50">
-					{event.prizeType === 'none' ? 'No prize' : event.prizeDescription || event.prizeType}
-				</p>
-			</div>
-		</div>
+            <div class="rounded-3xl border border-slate-100 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-950">
+                <p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+                    Prize
+                </p>
+                <p class="mt-3 line-clamp-2 text-lg font-black text-slate-950 dark:text-slate-50">
+                    {event.prizeType === 'none' ? 'No prize' : event.prizeDescription || event.prizeType}
+                </p>
+            </div>
+        </div>
 
 		{#if event.tournamentRules}
 			<div class="mt-5 rounded-2xl bg-white p-5 dark:bg-slate-900">
@@ -517,30 +534,30 @@
 		{/if}
 
 		{#if canManage}
-			<div class="mt-5 flex flex-wrap gap-2">
-				{#if isRegistrationOpen}
-					<button
-						type="button"
-						onclick={handleCloseRegistration}
-						disabled={actionLoading === 'close-registration'}
-						class="rounded-2xl bg-slate-950 px-5 py-3 font-black text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-950"
-					>
-						{actionLoading === 'close-registration' ? 'Closing...' : 'Close registration'}
-					</button>
-				{/if}
+            <div class="mt-6 flex flex-wrap gap-3 border-t border-slate-100 pt-5 dark:border-slate-800">
+                {#if isRegistrationOpen}
+                    <button
+                        type="button"
+                        onclick={handleCloseRegistration}
+                        disabled={actionLoading === 'close-registration'}
+                        class="rounded-2xl border border-slate-200 bg-white px-5 py-3 font-black text-slate-800 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:hover:bg-slate-800"
+                    >
+                        {actionLoading === 'close-registration' ? 'Closing...' : 'Close registration'}
+                    </button>
+                {/if}
 
-				{#if matches.length === 0}
-					<button
-						type="button"
-						onclick={handleGenerateMatches}
-						disabled={actionLoading === 'generate-matches'}
-						class="rounded-2xl bg-purple-600 px-5 py-3 font-black text-white transition hover:bg-purple-700 disabled:opacity-60"
-					>
-						{actionLoading === 'generate-matches' ? 'Generating...' : 'Generate matches'}
-					</button>
-				{/if}
-			</div>
-		{/if}
+                {#if matches.length === 0}
+                    <button
+                        type="button"
+                        onclick={handleGenerateMatches}
+                        disabled={actionLoading === 'generate-matches'}
+                        class="rounded-2xl bg-purple-600 px-5 py-3 font-black text-white shadow-lg shadow-purple-600/20 transition hover:bg-purple-700 disabled:opacity-60"
+                    >
+                        {actionLoading === 'generate-matches' ? 'Generating...' : 'Generate bracket'}
+                    </button>
+                {/if}
+            </div>
+        {/if}
 	{:else if activeTab === 'entries'}
 		<div class="mt-6 grid gap-6 lg:grid-cols-[1fr_0.8fr]">
 			<div class="space-y-3">

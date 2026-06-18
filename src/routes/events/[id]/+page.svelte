@@ -737,91 +737,93 @@
 						{/if}
 					</div>
 				</div>
+				
+				{#if event?.eventKind !== 'tournament'}
+					<div
+						class="mt-8 rounded-4xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+					>
+						<div class="flex items-center justify-between gap-4">
+							<div>
+								<p class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
+									Players
+								</p>
 
-				<div
-					class="mt-8 rounded-4xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
-				>
-					<div class="flex items-center justify-between gap-4">
-						<div>
-							<p class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
-								Players
-							</p>
+								<h2 class="mt-2 text-2xl font-black text-slate-950 dark:text-slate-50">
+									People in this event
+								</h2>
+							</div>
 
-							<h2 class="mt-2 text-2xl font-black text-slate-950 dark:text-slate-50">
-								People in this event
-							</h2>
+							<div class="rounded-2xl bg-blue-50 px-4 py-2 text-center dark:bg-blue-950">
+								<p class="text-lg font-black text-blue-600 dark:text-blue-300">
+									{participants.length}/{event.maxParticipants}
+								</p>
+								<p class="text-xs font-medium text-slate-500 dark:text-slate-400">
+									players
+								</p>
+							</div>
 						</div>
 
-						<div class="rounded-2xl bg-blue-50 px-4 py-2 text-center dark:bg-blue-950">
-							<p class="text-lg font-black text-blue-600 dark:text-blue-300">
-								{participants.length}/{event.maxParticipants}
-							</p>
-							<p class="text-xs font-medium text-slate-500 dark:text-slate-400">
-								players
-							</p>
-						</div>
-					</div>
-
-					{#if participants.length > 0}
-						<div class="mt-5 space-y-3">
-							{#each participants as participant (participant.id)}
-								<div
-									class="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800"
-								>
-									<a
-											href={resolve(`/users/${participant.id}`)}
-											class="flex items-center gap-3 rounded-2xl p-2 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+						{#if participants.length > 0}
+							<div class="mt-5 space-y-3">
+								{#each participants as participant (participant.id)}
+									<div
+										class="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800"
 									>
-											<UserAvatar
-													photoURL={participant.photoURL}
-													displayName={participant.displayName}
-													email={participant.email}
-													size="md"
-											/>
+										<a
+												href={resolve(`/users/${participant.id}`)}
+												class="flex items-center gap-3 rounded-2xl p-2 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+										>
+												<UserAvatar
+														photoURL={participant.photoURL}
+														displayName={participant.displayName}
+														email={participant.email}
+														size="md"
+												/>
 
-											<div class="min-w-0">
-													<p class="truncate font-bold text-slate-950 dark:text-slate-50">
-															{participant.displayName}
-													</p>
-													<p class="truncate text-xs text-slate-500 dark:text-slate-400">
-															@{participant.rallyTag}
-													</p>
-											</div>
-									</a>
+												<div class="min-w-0">
+														<p class="truncate font-bold text-slate-950 dark:text-slate-50">
+																{participant.displayName}
+														</p>
+														<p class="truncate text-xs text-slate-500 dark:text-slate-400">
+																@{participant.rallyTag}
+														</p>
+												</div>
+										</a>
 
-									{#if participant.id === event.creatorId}
-										<span
-											class="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-600 dark:bg-blue-950 dark:text-blue-300"
-										>
-											Host
-										</span>
-									{:else if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
-										<button
-											type="button"
-											onclick={() => handleRemoveParticipant(participant.id)}
-											disabled={actionLoading}
-											class="rounded-full px-4 py-2 text-sm font-black text-red-600 transition hover:bg-red-50 disabled:opacity-60 dark:text-red-400 dark:hover:bg-red-950"
-										>
-											Remove
-										</button>
-									{:else if participant.level}
-										<span
-											class="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300"
-										>
-											{participant.level}
-										</span>
-									{/if}
-								</div>
-							{/each}
-						</div>
-					{:else}
-						<div class="mt-5 rounded-2xl bg-slate-50 p-5 text-center dark:bg-slate-800">
-							<p class="text-sm font-semibold text-slate-500 dark:text-slate-400">
-								No players yet.
-							</p>
-						</div>
-					{/if}
-				</div>
+										{#if participant.id === event.creatorId}
+											<span
+												class="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-600 dark:bg-blue-950 dark:text-blue-300"
+											>
+												Host
+											</span>
+										{:else if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
+											<button
+												type="button"
+												onclick={() => handleRemoveParticipant(participant.id)}
+												disabled={actionLoading}
+												class="rounded-full px-4 py-2 text-sm font-black text-red-600 transition hover:bg-red-50 disabled:opacity-60 dark:text-red-400 dark:hover:bg-red-950"
+											>
+												Remove
+											</button>
+										{:else if participant.level}
+											<span
+												class="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300"
+											>
+												{participant.level}
+											</span>
+										{/if}
+									</div>
+								{/each}
+							</div>
+						{:else}
+							<div class="mt-5 rounded-2xl bg-slate-50 p-5 text-center dark:bg-slate-800">
+								<p class="text-sm font-semibold text-slate-500 dark:text-slate-400">
+									No players yet.
+								</p>
+							</div>
+						{/if}
+					</div>
+				{/if}
 
 				{#if error}
 					<div
@@ -831,6 +833,14 @@
 					</div>
 				{/if}
 			</section>
+
+			{#if event?.eventKind === 'tournament'}
+				<TournamentPanel
+					{event}
+					{currentUserId}
+					canManage={canManageTournament}
+				/>
+			{/if}
 
 			{#if isParticipant && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
 				<section
@@ -930,14 +940,6 @@
 				</section>
 			{/if}
 		</div>
-
-		{#if event?.eventKind === 'tournament'}
-			<TournamentPanel
-				{event}
-				{currentUserId}
-				canManage={canManageTournament}
-			/>
-		{/if}
 
 		<aside class="space-y-6">
 			{#if event?.hostType === 'organization'}
