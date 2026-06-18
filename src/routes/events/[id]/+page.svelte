@@ -6,15 +6,20 @@
 	import { resolve } from '$app/paths';
 	import { auth } from '$lib/firebase';
 	import {
+		PROMOTION_PLANS,
 		cancelEvent,
+		calculatePromotionStats,
 		ensureEventGroupConversation,
 		getEventById,
 		getEventGroupConversationId,
+		getEffectiveEventStatus,
+		isPromotionActive,
 		joinEvent,
 		leaveEvent,
+		promoteEvent,
 		removeParticipantFromEvent,
-		updateEventGroupPhoto,
-    getEffectiveEventStatus,
+		stopEventPromotion,
+		updateEventGroupPhoto
 	} from '$lib/services/event.service';
 	import {
 		clearUserTyping,
@@ -30,7 +35,8 @@
 		ChatConversation,
 		ChatMessage,
 		SportEvent,
-		UserProfile
+		UserProfile,
+		EventPromotionPlan
 	} from '$lib/schema';
   	import { uploadEventGroupPhoto } from '$lib/services/storage.service';
 	import type { Unsubscribe } from 'firebase/firestore';
@@ -55,6 +61,16 @@
 	let unsubscribeGroupConversation: Unsubscribe | null = null;
 	let groupTypingTimeout: ReturnType<typeof setTimeout> | null = null;
 	let groupLastTypingSentAt = 0;
+
+	let showPromoteModal = $state(false);
+	let promoting = $state(false);
+	let stoppingPromotion = $state(false);
+
+	let promotionPlan = $state<EventPromotionPlan>('local');
+	let promotionBudget = $state('15');
+	let promotionDurationDays = $state('7');
+	let promotionTargetCity = $state('');
+
 	let effectiveStatus = $derived.by(() => {
 			return event ? getEffectiveEventStatus(event) : 'draft';
 	});
@@ -93,6 +109,38 @@
 	});
 
 	let contactLoading = $state(false);
+
+	let promotionPlanOptions = $derived(
+		Object.entries(PROMOTION_PLANS) as [
+			EventPromotionPlan,
+			(typeof PROMOTION_PLANS)[EventPromotionPlan]
+		][]
+	);
+
+	let selectedPromotionPlan = $derived(PROMOTION_PLANS[promotionPlan]);
+
+	let promotionImpressionsPreview = $derived.by(() => {
+		const budget = Number(promotionBudget);
+		const cpm = selectedPromotionPlan.cpm;
+
+		if (!budget || !cpm) return 0;
+
+		return Math.floor((budget / cpm) * 1000);
+	});
+
+	let promotionStats = $derived(event ? calculatePromotionStats(event) : null);
+
+	let canPromoteThisEvent = $derived.by(() => {
+		const currentUser = auth.currentUser;
+
+		return (
+			!!currentUser &&
+			!!event &&
+			event.hostType === 'organization' &&
+			!!event.organizationId &&
+			event.creatorId === currentUser.uid
+		);
+	});
 
 	async function contactOrganizer() {
 		const user = auth.currentUser;
@@ -416,41 +464,41 @@
 	}
 
 	async function handleGroupPhotoFileChange(fileEvent: Event) {
-				const currentUser = auth.currentUser;
+		const currentUser = auth.currentUser;
 
-				if (!currentUser || !event) return;
+		if (!currentUser || !event) return;
 
-				const input = fileEvent.target as HTMLInputElement;
-				const file = input.files?.[0];
+		const input = fileEvent.target as HTMLInputElement;
+		const file = input.files?.[0];
 
-				if (!file) return;
+		if (!file) return;
 
-				groupPhotoSaving = true;
-				error = '';
+		groupPhotoSaving = true;
+		error = '';
 
-				try {
-						const uploadedPhoto = await uploadEventGroupPhoto({
-								eventId: event.id,
-								userId: currentUser.uid,
-								file
-						});
+		try {
+				const uploadedPhoto = await uploadEventGroupPhoto({
+						eventId: event.id,
+						userId: currentUser.uid,
+						file
+				});
 
-						await updateEventGroupPhoto({
-								eventId: event.id,
-								userId: currentUser.uid,
-								groupPhotoURL: uploadedPhoto.url,
-								groupPhotoPath: uploadedPhoto.path
-						});
+				await updateEventGroupPhoto({
+						eventId: event.id,
+						userId: currentUser.uid,
+						groupPhotoURL: uploadedPhoto.url,
+						groupPhotoPath: uploadedPhoto.path
+				});
 
-						input.value = '';
-						await reloadEvent();
-				} catch (err) {
-						console.error('Update group photo error:', err);
-						error = err instanceof Error ? err.message : 'Could not update group photo.';
-				} finally {
-						groupPhotoSaving = false;
-				}
+				input.value = '';
+				await reloadEvent();
+		} catch (err) {
+				console.error('Update group photo error:', err);
+				error = err instanceof Error ? err.message : 'Could not update group photo.';
+		} finally {
+				groupPhotoSaving = false;
 		}
+	}
 
 	async function clearCurrentUserGroupTyping() {
 		const currentUser = auth.currentUser;
@@ -496,6 +544,58 @@
 			error = err instanceof Error ? err.message : 'Could not send message.';
 		} finally {
 			groupChatSending = false;
+		}
+	}
+
+	async function handlePromoteEvent() {
+		const user = auth.currentUser;
+
+		if (!user || !event) return;
+
+		promoting = true;
+		error = '';
+
+		try {
+			await promoteEvent({
+				eventId: event.id,
+				userId: user.uid,
+				budget: Number(promotionBudget),
+				durationDays: Number(promotionDurationDays),
+				plan: promotionPlan,
+				targetCity: promotionTargetCity || event.location.name,
+				targetSport: event.sport
+			});
+
+			showPromoteModal = false;
+			await loadEventPage();
+		} catch (err) {
+			console.error('Promote event error:', err);
+			error = err instanceof Error ? err.message : 'Could not promote event.';
+		} finally {
+			promoting = false;
+		}
+	}
+
+	async function handleStopPromotion() {
+		const user = auth.currentUser;
+
+		if (!user || !event) return;
+
+		stoppingPromotion = true;
+		error = '';
+
+		try {
+			await stopEventPromotion({
+				eventId: event.id,
+				userId: user.uid
+			});
+
+			await loadEventPage();
+		} catch (err) {
+			console.error('Stop promotion error:', err);
+			error = err instanceof Error ? err.message : 'Could not stop promotion.';
+		} finally {
+			stoppingPromotion = false;
 		}
 	}
 
@@ -876,6 +976,44 @@
 					>
 						{contactLoading ? 'Opening chat...' : 'Contact organizer'}
 					</button>
+
+					{#if canPromoteThisEvent}
+						{#if isPromotionActive(event)}
+							<div class="mt-4 rounded-2xl bg-blue-50 p-4 dark:bg-blue-950/40">
+								<div class="flex items-center justify-between gap-3">
+									<div>
+										<p class="font-black text-blue-700 dark:text-blue-300">
+											Promotion active
+										</p>
+
+										{#if promotionStats}
+											<p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+												{promotionStats.views} views · {promotionStats.clicks} clicks ·
+												{promotionStats.ctr.toFixed(1)}% CTR
+											</p>
+										{/if}
+									</div>
+
+									<button
+										type="button"
+										onclick={handleStopPromotion}
+										disabled={stoppingPromotion}
+										class="rounded-xl bg-white px-3 py-2 text-xs font-black text-slate-800 transition hover:bg-red-50 hover:text-red-700 disabled:opacity-60 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-red-950 dark:hover:text-red-300"
+									>
+										{stoppingPromotion ? 'Stopping...' : 'Stop'}
+									</button>
+								</div>
+							</div>
+						{:else}
+							<button
+								type="button"
+								onclick={() => (showPromoteModal = true)}
+								class="mt-4 w-full rounded-2xl bg-blue-600 px-5 py-3 font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700"
+							>
+								Promote event
+							</button>
+						{/if}
+					{/if}
 				</div>
 			{/if}
 
@@ -966,5 +1104,126 @@
                 address={event.location.address ?? ''}
 			/>
 		</aside>
+
+		{#if showPromoteModal && event}
+			<div class="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/60 px-5 backdrop-blur-sm">
+				<div
+					class="w-full max-w-2xl rounded-[2rem] bg-white p-6 shadow-2xl dark:bg-slate-900"
+					role="dialog"
+					aria-modal="true"
+				>
+					<div class="flex items-start justify-between gap-4">
+						<div>
+							<p class="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
+								Promote event
+							</p>
+
+							<h2 class="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50">
+								Reach more people
+							</h2>
+
+							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+								Choose a boost plan, budget and duration. This simulates an ads-style campaign.
+							</p>
+						</div>
+
+						<button
+							type="button"
+							onclick={() => (showPromoteModal = false)}
+							class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-xl font-black text-slate-500 transition hover:bg-slate-200 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+							aria-label="Close promote modal"
+						>
+							×
+						</button>
+					</div>
+
+					<div class="mt-6 grid gap-3 md:grid-cols-3">
+						{#each promotionPlanOptions as [plan, config]}
+							<button
+								type="button"
+								onclick={() => (promotionPlan = plan)}
+								class={`rounded-3xl border p-4 text-left transition ${
+									promotionPlan === plan
+										? 'border-blue-500 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/40'
+										: 'border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/40 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-500 dark:hover:bg-slate-800'
+								}`}
+							>
+								<p class="font-black text-slate-950 dark:text-slate-50">
+									{config.label}
+								</p>
+
+								<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+									{config.description}
+								</p>
+
+								<p class="mt-3 text-sm font-black text-blue-600 dark:text-blue-400">
+									€{config.cpm} CPM
+								</p>
+							</button>
+						{/each}
+					</div>
+
+					<div class="mt-6 grid gap-3 md:grid-cols-3">
+						<input
+							bind:value={promotionBudget}
+							type="number"
+							min="1"
+							step="1"
+							class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+							placeholder="Budget (€)"
+						/>
+
+						<select
+							bind:value={promotionDurationDays}
+							class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+						>
+							<option value="3">3 days</option>
+							<option value="7">7 days</option>
+							<option value="14">14 days</option>
+							<option value="30">30 days</option>
+						</select>
+
+						<input
+							bind:value={promotionTargetCity}
+							class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+							placeholder={event.location.name}
+						/>
+					</div>
+
+					<div class="mt-6 rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
+						<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
+							Estimated campaign
+						</p>
+
+						<p class="mt-2 font-black text-slate-950 dark:text-slate-50">
+							≈ {promotionImpressionsPreview} impressions · €{selectedPromotionPlan.cpm} CPM
+						</p>
+
+						<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+							Placement: {selectedPromotionPlan.placement}
+						</p>
+					</div>
+
+					<div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+						<button
+							type="button"
+							onclick={() => (showPromoteModal = false)}
+							class="rounded-2xl border border-slate-200 bg-white px-5 py-3 font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+						>
+							Cancel
+						</button>
+
+						<button
+							type="button"
+							onclick={handlePromoteEvent}
+							disabled={promoting}
+							class="rounded-2xl bg-blue-600 px-5 py-3 font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-60"
+						>
+							{promoting ? 'Starting campaign...' : 'Start promotion'}
+						</button>
+					</div>
+				</div>
+			</div>
+		{/if}
 	</div>
 {/if}

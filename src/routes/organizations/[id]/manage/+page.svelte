@@ -15,8 +15,11 @@
 		updateOrganizationProfile
 	} from '$lib/services/organization.service';
 	import {
+		calculatePromotionStats,
 		getEventsCreatedByOrganization,
-		getUpcomingEvents
+		getUpcomingEvents,
+		isPromotionActive,
+		stopEventPromotion
 	} from '$lib/services/event.service';
 	import { uploadOrganizationLogo } from '$lib/services/storage.service';
 
@@ -51,6 +54,29 @@
 	let upcomingEvents = $derived(getUpcomingEvents(organizationEvents));
 	let pastEvents = $derived(
 		organizationEvents.filter((event) => !upcomingEvents.some((item) => item.id === event.id))
+	);
+
+	let stoppingPromotionId = $state('');
+
+	let activePromotedEvents = $derived(upcomingEvents.filter((event) => isPromotionActive(event)));
+
+	let totalPromotionViews = $derived(
+		organizationEvents.reduce((sum, event) => sum + (event.promotionViews ?? 0), 0)
+	);
+
+	let totalPromotionClicks = $derived(
+		organizationEvents.reduce((sum, event) => sum + (event.promotionClicks ?? 0), 0)
+	);
+
+	let averageCtr = $derived(
+		totalPromotionViews > 0 ? (totalPromotionClicks / totalPromotionViews) * 100 : 0
+	);
+
+	let totalEstimatedSpend = $derived(
+		organizationEvents.reduce((sum, event) => {
+			const stats = calculatePromotionStats(event);
+			return sum + stats.estimatedSpend;
+		}, 0)
 	);
 
 	const organizationTypes: { value: OrganizationType; label: string }[] = [
@@ -251,6 +277,30 @@
 		}
 	}
 
+	async function handleStopPromotion(eventId: string) {
+		const user = auth.currentUser;
+		if (!user) return;
+
+		stoppingPromotionId = eventId;
+		error = '';
+		success = '';
+
+		try {
+			await stopEventPromotion({
+				eventId,
+				userId: user.uid
+			});
+
+			success = 'Promotion stopped.';
+			await loadManagePage(user.uid);
+		} catch (err) {
+			console.error('Stop promotion error:', err);
+			error = err instanceof Error ? err.message : 'Could not stop promotion.';
+		} finally {
+			stoppingPromotionId = '';
+		}
+	}
+
 	onMount(() => {
 		const unsubscribe = onAuthStateChanged(auth, async (user) => {
 			if (!user) {
@@ -384,7 +434,7 @@
 					Promoted
 				</p>
 				<p class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">
-					{organizationEvents.filter((event) => event.isPromoted).length}
+					{activePromotedEvents.length}
 				</p>
 			</div>
 
@@ -421,6 +471,109 @@
 					Open messages
 				</a>
 			</div>
+		</section>
+
+		<section
+			class="mt-8 rounded-[2rem] border border-blue-200 bg-blue-50/60 p-6 shadow-xl shadow-blue-200/50 dark:border-blue-900 dark:bg-blue-950/20 dark:shadow-none"
+		>
+			<div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+				<div>
+					<p class="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
+						Promotions
+					</p>
+
+					<h2 class="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50">
+						Advertising dashboard
+					</h2>
+
+					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+						Track promoted events, impressions, clicks and estimated spend.
+					</p>
+				</div>
+
+				<a
+					href={resolve(`/organizations/${organization.id}/events/create`)}
+					class="rounded-2xl bg-blue-600 px-5 py-3 font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700"
+				>
+					Create event
+				</a>
+			</div>
+
+			<div class="mt-6 grid gap-4 md:grid-cols-4">
+				<div class="rounded-2xl bg-white p-4 dark:bg-slate-900">
+					<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Active</p>
+					<p class="mt-2 text-2xl font-black text-slate-950 dark:text-slate-50">
+						{activePromotedEvents.length}
+					</p>
+				</div>
+
+				<div class="rounded-2xl bg-white p-4 dark:bg-slate-900">
+					<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Views</p>
+					<p class="mt-2 text-2xl font-black text-slate-950 dark:text-slate-50">
+						{totalPromotionViews}
+					</p>
+				</div>
+
+				<div class="rounded-2xl bg-white p-4 dark:bg-slate-900">
+					<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Clicks</p>
+					<p class="mt-2 text-2xl font-black text-slate-950 dark:text-slate-50">
+						{totalPromotionClicks}
+					</p>
+				</div>
+
+				<div class="rounded-2xl bg-white p-4 dark:bg-slate-900">
+					<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">CTR / Spend</p>
+					<p class="mt-2 text-lg font-black text-slate-950 dark:text-slate-50">
+						{averageCtr.toFixed(1)}% · €{totalEstimatedSpend.toFixed(2)}
+					</p>
+				</div>
+			</div>
+
+			{#if activePromotedEvents.length}
+				<div class="mt-6 space-y-3">
+					{#each activePromotedEvents as promotedEvent (promotedEvent.id)}
+						{@const stats = calculatePromotionStats(promotedEvent)}
+
+						<div
+							class="rounded-2xl border border-blue-100 bg-white p-4 dark:border-blue-900 dark:bg-slate-900"
+						>
+							<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+								<div class="min-w-0">
+									<p class="truncate font-black text-slate-950 dark:text-slate-50">
+										{promotedEvent.title}
+									</p>
+
+									<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+										{promotedEvent.promotionPlan ?? 'boost'} · CPM €{promotedEvent.promotionCpm ?? 0}
+										· remaining {stats.remainingImpressions ?? 0} impressions
+									</p>
+								</div>
+
+								<div class="flex flex-wrap gap-2 text-sm font-bold text-slate-500 dark:text-slate-400">
+									<span>{stats.views} views</span>
+									<span>{stats.clicks} clicks</span>
+									<span>{stats.ctr.toFixed(1)}% CTR</span>
+								</div>
+
+								<button
+									type="button"
+									onclick={() => handleStopPromotion(promotedEvent.id)}
+									disabled={stoppingPromotionId === promotedEvent.id}
+									class="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-800 transition hover:border-red-300 hover:bg-red-50 hover:text-red-700 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-red-900 dark:hover:bg-red-950 dark:hover:text-red-300"
+								>
+									{stoppingPromotionId === promotedEvent.id ? 'Stopping...' : 'Stop'}
+								</button>
+							</div>
+						</div>
+					{/each}
+				</div>
+			{:else}
+				<div
+					class="mt-6 rounded-2xl border border-dashed border-blue-200 bg-white/70 p-5 text-sm font-bold text-slate-500 dark:border-blue-900 dark:bg-slate-900/70 dark:text-slate-400"
+				>
+					No active promoted events yet. Open one of your organization events and choose Promote event.
+				</div>
+			{/if}
 		</section>
 
 		<div class="mt-8 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">

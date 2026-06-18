@@ -1,9 +1,34 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import type { EventStatus, SportEvent } from '$lib/schema';
+	import {
+		isPromotionActive,
+		trackEventPromotionClick,
+		trackEventPromotionView
+	} from '$lib/services/event.service';
 
 	let { event } = $props<{
 		event: SportEvent;
 	}>();
+
+	function formatDate(dateValue: unknown) {
+		try {
+			const timestamp = dateValue as { toDate?: () => Date };
+
+			if (timestamp?.toDate) {
+				return timestamp.toDate().toLocaleString('en-GB', {
+					day: '2-digit',
+					month: 'short',
+					hour: '2-digit',
+					minute: '2-digit'
+				});
+			}
+
+			return 'Date not set';
+		} catch {
+			return 'Date not set';
+		}
+	}
 
 	function getEventStartAtMillis() {
 		try {
@@ -18,19 +43,13 @@
 		}
 	}
 
-	function hasEventFinished() {
-		const startAtMs = getEventStartAtMillis();
-
-		if (!startAtMs) return false;
-
-		return startAtMs < Date.now();
-	}
-
 	function getEffectiveStatus(): EventStatus {
 		if (event.status === 'cancelled') return 'cancelled';
 		if (event.status === 'finished') return 'finished';
-		if (hasEventFinished()) return 'finished';
-		if (event.status === 'full') return 'full';
+
+		const startAtMs = getEventStartAtMillis();
+
+		if (startAtMs && startAtMs < Date.now()) return 'finished';
 
 		return event.status;
 	}
@@ -44,16 +63,6 @@
 		if (status === 'open') return 'Open';
 
 		return status;
-	}
-
-	function getStatusDescription() {
-		const status = getEffectiveStatus();
-
-		if (status === 'cancelled') return 'This event was cancelled';
-		if (status === 'finished') return 'This event already happened';
-		if (status === 'full') return 'This event is full';
-
-		return 'Upcoming event';
 	}
 
 	function getStatusClasses() {
@@ -75,58 +84,48 @@
 	}
 
 	function getCardClasses() {
-		const status = getEffectiveStatus();
-
-		if (status === 'cancelled') {
-			return 'border-red-100 bg-red-50/40 opacity-85 hover:border-red-200 hover:bg-red-50 dark:border-red-950 dark:bg-red-950/20 dark:hover:bg-red-950/30';
+		if (isPromotionActive(event)) {
+			return 'border-blue-300 bg-blue-50/40 shadow-blue-200/70 hover:border-blue-500 hover:bg-blue-50 dark:border-blue-900 dark:bg-blue-950/20 dark:shadow-none dark:hover:border-blue-500 dark:hover:bg-blue-950/30';
 		}
 
-		if (status === 'finished') {
-			return 'border-slate-200 bg-slate-50/80 opacity-85 hover:border-slate-300 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900/70 dark:hover:bg-slate-800';
-		}
-
-		if (event.isPromoted) {
-			return 'border-blue-200 bg-blue-50/30 hover:border-blue-400 hover:bg-blue-50 dark:border-blue-900 dark:bg-blue-950/20 dark:hover:bg-blue-950/30';
-		}
-
-		return 'border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/40 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-500 dark:hover:bg-slate-800';
+		return 'border-slate-200 bg-white shadow-slate-200/70 hover:border-blue-300 hover:bg-blue-50/40 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none dark:hover:border-blue-500 dark:hover:bg-slate-800';
 	}
 
-	function formatDate(dateValue: unknown) {
-		try {
-			const timestamp = dateValue as { toDate?: () => Date };
+	function handleClick() {
+		if (!isPromotionActive(event)) return;
 
-			if (timestamp?.toDate) {
-				return timestamp.toDate().toLocaleString('en-GB', {
-					day: '2-digit',
-					month: 'short',
-					hour: '2-digit',
-					minute: '2-digit'
-				});
-			}
-
-			return 'Date not set';
-		} catch {
-			return 'Date not set';
-		}
+		void trackEventPromotionClick(event.id);
 	}
 
-	function isOfficialPaidEvent() {
-		return event.paymentMode === 'official';
-	}
+	onMount(() => {
+		if (!isPromotionActive(event)) return;
 
-	function isOrganizationEvent() {
-		return event.hostType === 'organization';
-	}
+		void trackEventPromotionView(event.id);
+	});
 </script>
 
 <a
 	href={`/events/${event.id}`}
-	class={`block rounded-4xl border p-5 shadow-lg shadow-slate-200/70 transition dark:shadow-none ${getCardClasses()}`}
+	onclick={handleClick}
+	class={`block rounded-4xl border p-5 shadow-lg transition ${getCardClasses()}`}
 >
+	{#if isPromotionActive(event)}
+		<div class="mb-4 flex items-center justify-between gap-3">
+			<span
+				class="rounded-full bg-blue-600 px-3 py-1 text-xs font-black uppercase tracking-wide text-white dark:bg-blue-500"
+			>
+				Promoted
+			</span>
+
+			<span class="text-xs font-bold text-slate-500 dark:text-slate-400">
+				Sponsored event
+			</span>
+		</div>
+	{/if}
+
 	<div class="flex items-start justify-between gap-4">
 		<div class="min-w-0 flex-1">
-			{#if isOrganizationEvent()}
+			{#if event.hostType === 'organization'}
 				<div class="mb-3 flex min-w-0 items-center gap-2">
 					<div
 						class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-xs font-black text-blue-600 dark:bg-slate-800 dark:text-blue-300"
@@ -165,15 +164,7 @@
 					{getStatusLabel()}
 				</span>
 
-				{#if event.isPromoted}
-					<span
-						class="rounded-full bg-blue-600 px-3 py-1 text-xs font-black text-white dark:bg-blue-500"
-					>
-						Promoted
-					</span>
-				{/if}
-
-				{#if isOfficialPaidEvent()}
+				{#if event.paymentMode === 'official'}
 					<span
 						class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
 					>
@@ -193,10 +184,6 @@
 			<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
 				🕒 {formatDate(event.startAt)}
 			</p>
-
-			<p class="mt-2 text-xs font-semibold text-slate-400 dark:text-slate-500">
-				{getStatusDescription()}
-			</p>
 		</div>
 
 		<div class="shrink-0 rounded-2xl bg-blue-50 px-3 py-2 text-center dark:bg-blue-950">
@@ -211,9 +198,17 @@
 	</div>
 
 	<div class="mt-4 flex flex-wrap items-center justify-between gap-2">
-		<span class={`rounded-full px-3 py-1 text-xs font-bold ${getStatusClasses()}`}>
-			{getStatusLabel()}
-		</span>
+		<div class="flex flex-wrap items-center gap-2">
+			<span class={`rounded-full px-3 py-1 text-xs font-bold ${getStatusClasses()}`}>
+				{getStatusLabel()}
+			</span>
+
+			<span
+				class="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold capitalize text-slate-900 dark:bg-slate-800 dark:text-slate-300"
+			>
+				{event.level ?? 'casual'}
+			</span>
+		</div>
 
 		{#if event.pricePerPerson}
 			<span class="text-sm font-medium text-slate-600 dark:text-slate-300">

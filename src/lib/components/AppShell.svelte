@@ -85,7 +85,7 @@
 				icon: '⌖'
 			},
 			{
-				label: 'My events',
+				label: 'Dashboard',
 				href: '/dashboard',
 				icon: '◷'
 			},
