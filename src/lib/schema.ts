@@ -121,6 +121,7 @@ export interface SportEvent {
 	description?: string;
 
 	sport: Sport;
+	customSport?: string;
 	level?: SportLevel;
 	creatorId: string;
 

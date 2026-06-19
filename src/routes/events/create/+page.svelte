@@ -10,6 +10,7 @@
 	let title = $state('');
 	let description = $state('');
 	let sport = $state<Sport>('football');
+	let customSport = $state('');
 	let locationName = $state('');
 	let lat = $state<number | null>(null);
 	let lng = $state<number | null>(null);
@@ -34,6 +35,11 @@
 
 		if (!title || !locationName || !startAt || maxParticipants < 2 || !visibility || !level) {
 			error = 'Please fill in the required fields.';
+			return;
+		}
+
+		if (sport === 'other' && !customSport.trim()) {
+			error = 'No sport added! Please specify to make it easier for others.';
 			return;
 		}
 
@@ -97,9 +103,7 @@
 				Rally
 			</p>
 
-			<h2 class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">
-				Create event
-			</h2>
+			<h2 class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">Create event</h2>
 
 			<p class="mt-2 text-slate-500 dark:text-slate-400">
 				Fill in the event details and start inviting people.
@@ -155,6 +159,14 @@
 						<option value="volleyball">Volleyball</option>
 						<option value="other">Other</option>
 					</select>
+
+					{#if sport === 'other'}
+						<input
+							bind:value={customSport}
+							placeholder="e.g. Climbing, Hockey, Surfing..."
+							class="mt-3 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+						/>
+					{/if}
 				</div>
 				<div>
 					<label for="level" class="text-sm font-bold text-slate-700 dark:text-slate-300">
@@ -275,6 +287,5 @@
 				</button>
 			</form>
 		</div>
-
 	</div>
 </div>

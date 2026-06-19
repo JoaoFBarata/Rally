@@ -247,7 +247,7 @@
 		/>
 
 		<p class="mt-3 text-sm text-slate-400 dark:text-slate-500">
-			Showing {filteredCount} of {DUMMY_EVENTS.length} sample events ·
+			Showing {filteredCount} of {DUMMY_EVENTS.length} events ·
 			<a href="/register" class="font-semibold text-blue-600 hover:underline dark:text-blue-400"
 				>Sign up to create and join events</a
 			>

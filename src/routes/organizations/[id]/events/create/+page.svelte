@@ -13,9 +13,12 @@
 		Sport,
 		SportLevel
 	} from '$lib/schema';
-	import { assertCanManageOrganization, canCreateOfficialPaidEvents } from '$lib/services/organization.service';
+	import {
+		assertCanManageOrganization,
+		canCreateOfficialPaidEvents
+	} from '$lib/services/organization.service';
 	import { createSportEvent, promoteEvent } from '$lib/services/event.service';
-    import LocationPickerMap from '$lib/components/maps/LocationPickerMap.svelte';
+	import LocationPickerMap from '$lib/components/maps/LocationPickerMap.svelte';
 
 	let organization = $state<Organization | null>(null);
 
@@ -26,12 +29,13 @@
 	let title = $state('');
 	let description = $state('');
 	let sport = $state<Sport>('football');
+	let customSport = $state('');
 	let level = $state<SportLevel>('casual');
 
 	let locationName = $state('');
-    let address = $state('');
-    let lat = $state<number | null>(null);
-    let lng = $state<number | null>(null);
+	let address = $state('');
+	let lat = $state<number | null>(null);
+	let lng = $state<number | null>(null);
 
 	let date = $state('');
 	let startTime = $state('');
@@ -146,19 +150,19 @@
 		return end;
 	}
 
-    function getCleanLocationName() {
-        const cleanAddress = address.trim();
+	function getCleanLocationName() {
+		const cleanAddress = address.trim();
 
-        if (locationName.trim()) {
-            return locationName.trim();
-        }
+		if (locationName.trim()) {
+			return locationName.trim();
+		}
 
-        if (cleanAddress.includes(',')) {
-            return cleanAddress.split(',')[0].trim();
-        }
+		if (cleanAddress.includes(',')) {
+			return cleanAddress.split(',')[0].trim();
+		}
 
-        return cleanAddress;
-    }
+		return cleanAddress;
+	}
 
 	function validateForm() {
 		if (!title.trim()) {
@@ -166,8 +170,8 @@
 		}
 
 		if (!address.trim() || lat === null || lng === null) {
-            throw new Error('Choose the event location on the map.');
-        }
+			throw new Error('Choose the event location on the map.');
+		}
 
 		const participants = Number(maxParticipants);
 
@@ -185,6 +189,10 @@
 			if (!total || total <= 0) {
 				throw new Error('Add a valid price for this event.');
 			}
+		}
+
+		if (sport === 'other' && !customSport.trim()) {
+			throw new Error('Please specify the sport.');
 		}
 
 		if (promote && !isVerified) {
@@ -207,24 +215,25 @@
 			const endAt = buildEndDate();
 
 			const createdEvent = await createSportEvent({
-                title: title.trim(),
-                description: description.trim(),
-                sport,
-                level,
-                creatorId: user.uid,
-                hostType: 'organization',
-                organizationId: organization.id,
-                locationName: getCleanLocationName(),
-                address: address.trim(),
-                lat: lat ?? undefined,
-                lng: lng ?? undefined,
-                startAt,
-                endAt,
-                maxParticipants: Number(maxParticipants),
-                visibility,
-                priceTotal: paymentMode === 'none' ? undefined : Number(priceTotal),
-                paymentMode
-            });
+				title: title.trim(),
+				description: description.trim(),
+				sport,
+				customSport: sport === 'other' ? customSport.trim() : undefined,
+				level,
+				creatorId: user.uid,
+				hostType: 'organization',
+				organizationId: organization.id,
+				locationName: getCleanLocationName(),
+				address: address.trim(),
+				lat: lat ?? undefined,
+				lng: lng ?? undefined,
+				startAt,
+				endAt,
+				maxParticipants: Number(maxParticipants),
+				visibility,
+				priceTotal: paymentMode === 'none' ? undefined : Number(priceTotal),
+				paymentMode
+			});
 			if (promote) {
 				await promoteEvent({
 					eventId: createdEvent.id,
@@ -306,7 +315,9 @@
 
 				<div class="min-w-0">
 					<div class="flex flex-wrap items-center gap-2">
-						<h1 class="truncate text-4xl font-black tracking-tight text-slate-950 dark:text-slate-50">
+						<h1
+							class="truncate text-4xl font-black tracking-tight text-slate-950 dark:text-slate-50"
+						>
 							Create organization event
 						</h1>
 
@@ -348,9 +359,7 @@
 				<section
 					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 				>
-					<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">
-						Event type
-					</h2>
+					<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">Event type</h2>
 
 					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
 						Choose how this organization event should appear on Rally.
@@ -366,9 +375,7 @@
 									: 'border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/40 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-500 dark:hover:bg-slate-800'
 							}`}
 						>
-							<p class="font-black text-slate-950 dark:text-slate-50">
-								Free official event
-							</p>
+							<p class="font-black text-slate-950 dark:text-slate-50">Free official event</p>
 							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
 								For open trainings, community activities or brand events.
 							</p>
@@ -383,9 +390,7 @@
 									: 'border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/40 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-500 dark:hover:bg-slate-800'
 							}`}
 						>
-							<p class="font-black text-slate-950 dark:text-slate-50">
-								Training session
-							</p>
+							<p class="font-black text-slate-950 dark:text-slate-50">Training session</p>
 							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
 								Best for clubs, gyms or recurring sports sessions.
 							</p>
@@ -400,9 +405,7 @@
 									: 'border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/40 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-500 dark:hover:bg-slate-800'
 							}`}
 						>
-							<p class="font-black text-slate-950 dark:text-slate-50">
-								Tournament
-							</p>
+							<p class="font-black text-slate-950 dark:text-slate-50">Tournament</p>
 							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
 								For competitions, challenges or structured events.
 							</p>
@@ -419,9 +422,7 @@
 							}`}
 						>
 							<div class="flex items-center justify-between gap-3">
-								<p class="font-black text-slate-950 dark:text-slate-50">
-									Official paid event
-								</p>
+								<p class="font-black text-slate-950 dark:text-slate-50">Official paid event</p>
 
 								{#if !isVerified}
 									<span
@@ -442,9 +443,7 @@
 				<section
 					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 				>
-					<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">
-						Event details
-					</h2>
+					<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">Event details</h2>
 
 					<div class="mt-5 space-y-4">
 						<input
@@ -461,14 +460,24 @@
 						></textarea>
 
 						<div class="grid gap-3 md:grid-cols-3">
-							<select
-								bind:value={sport}
-								class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-							>
-								{#each sports as option}
-									<option value={option.value}>{option.label}</option>
-								{/each}
-							</select>
+							<div class="flex flex-col gap-2">
+								<select
+									bind:value={sport}
+									class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+								>
+									{#each sports as option}
+										<option value={option.value}>{option.label}</option>
+									{/each}
+								</select>
+
+								{#if sport === 'other'}
+									<input
+										bind:value={customSport}
+										placeholder="e.g. Climbing, Skateboarding, Surfing..."
+										class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+									/>
+								{/if}
+							</div>
 
 							<select
 								bind:value={level}
@@ -492,49 +501,47 @@
 				</section>
 
 				<section
-                    class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
-                >
-                    <h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">
-                        Location and schedule
-                    </h2>
+					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+				>
+					<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">
+						Location and schedule
+					</h2>
 
-                    <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                        Search the place or click directly on the map to select the exact event location.
-                    </p>
+					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+						Search the place or click directly on the map to select the exact event location.
+					</p>
 
-                    <div class="mt-5 space-y-5">
-                        <div class="grid gap-3 md:grid-cols-2">
-                            <input
-                                bind:value={date}
-                                type="date"
-                                class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-                            />
+					<div class="mt-5 space-y-5">
+						<div class="grid gap-3 md:grid-cols-2">
+							<input
+								bind:value={date}
+								type="date"
+								class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+							/>
 
-                            <input
-                                bind:value={startTime}
-                                type="time"
-                                class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-                            />
-                        </div>
+							<input
+								bind:value={startTime}
+								type="time"
+								class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+							/>
+						</div>
 
-                        <input
-                            bind:value={endTime}
-                            type="time"
-                            class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-                        />
+						<input
+							bind:value={endTime}
+							type="time"
+							class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+						/>
 
-                        <LocationPickerMap bind:lat bind:lng bind:address />
-                    </div>
-                </section>
+						<LocationPickerMap bind:lat bind:lng bind:address />
+					</div>
+				</section>
 			</div>
 
 			<aside class="space-y-6">
 				<section
 					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 				>
-					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">
-						Visibility
-					</h2>
+					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Visibility</h2>
 
 					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
 						Official organization events are usually public.
@@ -553,9 +560,7 @@
 				<section
 					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 				>
-					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">
-						Monetization
-					</h2>
+					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Monetization</h2>
 
 					<div class="mt-5 space-y-3">
 						<label
@@ -567,9 +572,7 @@
 						>
 							<input bind:group={paymentMode} type="radio" value="none" class="sr-only" />
 							<p class="font-black text-slate-950 dark:text-slate-50">Free</p>
-							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-								No payment required.
-							</p>
+							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">No payment required.</p>
 						</label>
 
 						<label
@@ -588,9 +591,7 @@
 
 						<label
 							class={`block rounded-2xl border p-4 transition ${
-								!isVerified
-									? 'cursor-not-allowed opacity-60'
-									: 'cursor-pointer'
+								!isVerified ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
 							} ${
 								paymentMode === 'official'
 									? 'border-blue-500 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/40'
@@ -605,9 +606,7 @@
 								class="sr-only"
 							/>
 							<div class="flex items-center justify-between gap-3">
-								<p class="font-black text-slate-950 dark:text-slate-50">
-									Official paid event
-								</p>
+								<p class="font-black text-slate-950 dark:text-slate-50">Official paid event</p>
 
 								{#if !isVerified}
 									<span
@@ -646,9 +645,7 @@
 				<section
 					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 				>
-					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">
-						Promotion
-					</h2>
+					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Promotion</h2>
 
 					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
 						Promoted events appear with more visibility in Explore.
@@ -662,9 +659,7 @@
 						}`}
 					>
 						<div>
-							<p class="font-black text-slate-950 dark:text-slate-50">
-								Promote this event
-							</p>
+							<p class="font-black text-slate-950 dark:text-slate-50">Promote this event</p>
 							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
 								{isVerified ? 'Boost this event in Explore.' : 'Requires verified organization.'}
 							</p>
@@ -716,18 +711,12 @@
 				<section
 					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 				>
-					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">
-						Trust & safety
-					</h2>
+					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Trust & safety</h2>
 
 					<div class="mt-4 space-y-3 text-sm text-slate-500 dark:text-slate-400">
-						<p>
-							Official paid events are only available to verified organizations.
-						</p>
+						<p>Official paid events are only available to verified organizations.</p>
 
-						<p>
-							Promoted events are highlighted in Explore and should represent real activities.
-						</p>
+						<p>Promoted events are highlighted in Explore and should represent real activities.</p>
 
 						{#if paymentMode === 'official'}
 							<div
