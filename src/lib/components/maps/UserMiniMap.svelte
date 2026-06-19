@@ -6,6 +6,7 @@
 	import { getVisibleEventsForUser } from '$lib/services/explore.service';
 	import type { SportEvent } from '$lib/schema';
 	import mapboxgl from 'mapbox-gl';
+	import { getUserProfile } from '$lib/services/user.service';
 
 	let { userId = '' }: { userId?: string } = $props();
 
@@ -21,6 +22,62 @@
 	let userLocation = $state<[number, number] | null>(null); // [lng, lat]
 	let allEvents = $state<SportEvent[]>([]);
 	let unsubscribeThemeState: () => void = () => {};
+
+	let creatorProfiles = $state<Record<string, { photoURL?: string | null; displayName?: string }>>({});
+
+	async function loadCreatorProfiles(eventsList: SportEvent[]) {
+		const uniqueCreatorIds = [...new Set(eventsList.map((e) => e.creatorId))];
+		const idsToLoad = uniqueCreatorIds.filter((id) => !creatorProfiles[id]);
+		if (idsToLoad.length === 0) return;
+
+		try {
+			const profiles = await Promise.all(
+				idsToLoad.map(async (id) => {
+					const profile = await getUserProfile(id);
+					return { id, profile };
+				})
+			);
+
+			const newProfiles = { ...creatorProfiles };
+			for (const item of profiles) {
+				if (item.profile) {
+					newProfiles[item.id] = {
+						photoURL: item.profile.photoURL ?? null,
+						displayName: item.profile.displayName
+					};
+				} else {
+					newProfiles[item.id] = {
+						photoURL: null,
+						displayName: 'Unknown'
+					};
+				}
+			}
+			creatorProfiles = newProfiles;
+		} catch (err) {
+			console.error('Failed to load creator profiles for user mini map:', err);
+		}
+	}
+
+	function getSportEmoji(sport: string): string {
+		const emojis: Record<string, string> = {
+			football: '⚽',
+			padel: '🎾',
+			basketball: '🏀',
+			running: '🏃',
+			gym: '🏋️',
+			tennis: '🎾',
+			cycling: '🚴',
+			volleyball: '🏐',
+			other: '🎮'
+		};
+		return emojis[sport.toLowerCase()] || '🏆';
+	}
+
+	$effect(() => {
+		if (nearbyEvents.length > 0) {
+			loadCreatorProfiles(nearbyEvents);
+		}
+	});
 
 	const fallbackCenter: [number, number] = [-9.1393, 38.7223]; // Lisboa
 
@@ -133,7 +190,36 @@
 					</div>
 				`);
 
-			const m = new mapboxgl.Marker({ color: markerColor })
+			const creator = creatorProfiles[event.creatorId];
+			const photoURL = event.groupPhotoURL || creator?.photoURL;
+			const displayName = creator?.displayName;
+			const sportEmoji = getSportEmoji(event.sport);
+
+			const el = document.createElement('div');
+			el.className = 'custom-marker';
+			el.style.cursor = 'pointer';
+
+			let innerHTML = '';
+			if (photoURL) {
+				innerHTML = `<img src="${photoURL}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background-color: #e2e8f0;" referrerpolicy="no-referrer" />`;
+			} else {
+				const initial = (displayName || '?').trim().slice(0, 1).toUpperCase();
+				innerHTML = `<div style="width: 100%; height: 100%; border-radius: 50%; background-color: #dbeafe; color: #2563eb; font-weight: 900; display: flex; align-items: center; justify-content: center; font-size: 13px;">${initial}</div>`;
+			}
+
+			el.innerHTML = `
+				<div style="display: flex; flex-direction: column; align-items: center; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));">
+					<div style="position: relative; width: 32px; height: 32px; border-radius: 50%; background-color: ${markerColor}; display: flex; align-items: center; justify-content: center; padding: 2.5px;">
+						${innerHTML}
+						<div style="position: absolute; top: -4px; right: -4px; width: 15px; height: 15px; border-radius: 50%; background-color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 9px; box-shadow: 0 1px 3px rgba(0,0,0,0.15); border: 0.5px solid #e2e8f0;">
+							${sportEmoji}
+						</div>
+					</div>
+					<div style="width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid ${markerColor}; margin-top: -1px;"></div>
+				</div>
+			`;
+
+			const m = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
 				.setLngLat([coords.lng, coords.lat])
 				.setPopup(popup)
 				.addTo(map);
@@ -291,6 +377,7 @@
 		const events = nearbyEvents;
 		const ready = mapReady;
 		const loc = userLocation;
+		const profiles = creatorProfiles; // Track changes
 
 		if (map && ready && loc) {
 			try {

@@ -22,11 +22,69 @@
 	let mapContainer: HTMLDivElement;
 	let map = $state<mapboxgl.Map | null>(null);
 	let mapReady = $state(false);
+	import { getUserProfile } from '$lib/services/user.service';
+
 	let selectedEvent = $state<SportEvent | null>(null);
 	let markers: mapboxgl.Marker[] = [];
 	let showFilters = $state(false);
 	let selectedSports = $state<Sport[]>([]);
 	let selectedLevels = $state<SportLevel[]>([]);
+
+	let creatorProfiles = $state<Record<string, { photoURL?: string | null; displayName?: string }>>({});
+
+	async function loadCreatorProfiles(eventsList: SportEvent[]) {
+		const uniqueCreatorIds = [...new Set(eventsList.map((e) => e.creatorId))];
+		const idsToLoad = uniqueCreatorIds.filter((id) => !creatorProfiles[id]);
+		if (idsToLoad.length === 0) return;
+
+		try {
+			const profiles = await Promise.all(
+				idsToLoad.map(async (id) => {
+					const profile = await getUserProfile(id);
+					return { id, profile };
+				})
+			);
+
+			const newProfiles = { ...creatorProfiles };
+			for (const item of profiles) {
+				if (item.profile) {
+					newProfiles[item.id] = {
+						photoURL: item.profile.photoURL ?? null,
+						displayName: item.profile.displayName
+					};
+				} else {
+					newProfiles[item.id] = {
+						photoURL: null,
+						displayName: 'Unknown'
+					};
+				}
+			}
+			creatorProfiles = newProfiles;
+		} catch (err) {
+			console.error('Failed to load creator profiles for explore map:', err);
+		}
+	}
+
+	function getSportEmoji(sport: string): string {
+		const emojis: Record<string, string> = {
+			football: '⚽',
+			padel: '🎾',
+			basketball: '🏀',
+			running: '🏃',
+			gym: '🏋️',
+			tennis: '🎾',
+			cycling: '🚴',
+			volleyball: '🏐',
+			other: '🎮'
+		};
+		return emojis[sport.toLowerCase()] || '🏆';
+	}
+
+	$effect(() => {
+		if (events.length > 0) {
+			loadCreatorProfiles(events);
+		}
+	});
 
 	const availableLevels: SportLevel[] = ['beginner', 'casual', 'intermediate', 'advanced'];
 
@@ -156,11 +214,41 @@
 		for (const item of eventsWithCoords) {
 			if (!item.coords) continue;
 
-			const marker = new mapboxgl.Marker({ color: getMarkerColor(item.event) })
+			const markerColor = getMarkerColor(item.event);
+			const creator = creatorProfiles[item.event.creatorId];
+			const photoURL = item.event.groupPhotoURL || creator?.photoURL;
+			const displayName = creator?.displayName;
+			const sportEmoji = getSportEmoji(item.event.sport);
+
+			const el = document.createElement('div');
+			el.className = 'custom-marker';
+			el.style.cursor = 'pointer';
+
+			let innerHTML = '';
+			if (photoURL) {
+				innerHTML = `<img src="${photoURL}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background-color: #e2e8f0;" referrerpolicy="no-referrer" />`;
+			} else {
+				const initial = (displayName || '?').trim().slice(0, 1).toUpperCase();
+				innerHTML = `<div style="width: 100%; height: 100%; border-radius: 50%; background-color: #dbeafe; color: #2563eb; font-weight: 900; display: flex; align-items: center; justify-content: center; font-size: 13px;">${initial}</div>`;
+			}
+
+			el.innerHTML = `
+				<div style="display: flex; flex-direction: column; align-items: center; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));">
+					<div style="position: relative; width: 40px; height: 40px; border-radius: 50%; background-color: ${markerColor}; display: flex; align-items: center; justify-content: center; padding: 2.5px;">
+						${innerHTML}
+						<div style="position: absolute; top: -4px; right: -4px; width: 15px; height: 15px; border-radius: 50%; background-color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 9px; box-shadow: 0 1px 3px rgba(0,0,0,0.15); border: 0.5px solid #e2e8f0;">
+							${sportEmoji}
+						</div>
+					</div>
+					<div style="width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid ${markerColor}; margin-top: -1px;"></div>
+				</div>
+			`;
+
+			const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
 				.setLngLat([item.coords.lng, item.coords.lat])
 				.addTo(map);
 
-			marker.getElement().addEventListener('click', () => {
+			el.addEventListener('click', () => {
 				selectEvent(item.event);
 			});
 
@@ -213,6 +301,7 @@
 	});
 
 	$effect(() => {
+		const profiles = creatorProfiles; // Track changes
 		if (mapReady) {
 			renderMarkers();
 		}
