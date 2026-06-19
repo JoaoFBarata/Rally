@@ -362,28 +362,34 @@
 				</div>
 			</div>
 
-			<div class="flex flex-wrap gap-2">
+			<div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
 				<a
 					href={resolve(`/organizations/${organization.id}`)}
-					class="rounded-2xl bg-slate-100 px-5 py-3 font-black text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+					class="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
 				>
 					Public page
 				</a>
 
 				<a
 					href={resolve(`/organizations/${organization.id}/events/create`)}
-					class="rounded-2xl bg-blue-600 px-5 py-3 font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700"
+					class="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
 				>
 					Create event
+				</a>
+
+				<a
+					href={resolve(`/organizations/${organization.id}/tournaments/create`)}
+					class="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+				>
+					Create tournament
 				</a>
 
 				<button
 					type="button"
 					onclick={handleLogout}
-					disabled={logoutLoading}
-					class="rounded-2xl bg-slate-950 px-5 py-3 font-black text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+					class="rounded-2xl border border-red-100 bg-red-50 px-5 py-3 text-sm font-black text-red-700 transition hover:bg-red-100 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
 				>
-					{logoutLoading ? 'Logging out...' : 'Log out'}
+					Log out
 				</button>
 			</div>
 		</div>
@@ -473,9 +479,7 @@
 			</div>
 		</section>
 
-		<section
-			class="mt-8 rounded-[2rem] border border-blue-200 bg-blue-50/60 p-6 shadow-xl shadow-blue-200/50 dark:border-blue-900 dark:bg-blue-950/20 dark:shadow-none"
-		>
+		<section class="mt-8 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
 			<div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 				<div>
 					<p class="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
@@ -492,10 +496,10 @@
 				</div>
 
 				<a
-					href={resolve(`/organizations/${organization.id}/events/create`)}
-					class="rounded-2xl bg-blue-600 px-5 py-3 font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700"
+					href="#upcoming-events"
+					class="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3 font-black text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
 				>
-					Create event
+					Choose event to promote
 				</a>
 			</div>
 
@@ -743,7 +747,7 @@
 			</section>
 		</div>
 
-		<section class="mt-8">
+		<section id="upcoming-events" class="mt-8 scroll-mt-8">
 			<div class="mb-5 flex items-center justify-between">
 				<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">
 					Upcoming organization events
