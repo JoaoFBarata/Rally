@@ -376,7 +376,7 @@
 					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Nearby activity</h2>
 
 					<div class="mt-5">
-						<UserMiniMap />
+						<UserMiniMap userId={user?.uid} />
 					</div>
 				</div>
 

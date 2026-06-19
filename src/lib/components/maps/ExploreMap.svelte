@@ -8,11 +8,13 @@
 	let {
 		events,
 		currentUserId,
+		friendIds = [],
 		onFilteredCountChange,
 		onSelectedEventChange
 	} = $props<{
 		events: SportEvent[];
 		currentUserId: string;
+		friendIds?: string[];
 		onFilteredCountChange?: (count: number) => void;
 		onSelectedEventChange?: (eventId: string | null) => void;
 	}>();
@@ -126,7 +128,13 @@
 	}
 
 	function getMarkerColor(event: SportEvent) {
-		return event.creatorId === currentUserId ? '#2563eb' : '#dc2626';
+		if (event.creatorId === currentUserId) {
+			return '#2563eb'; // Blue - My events
+		}
+		if (friendIds.includes(event.creatorId)) {
+			return '#ca8a04'; // Yellow - Friends' events
+		}
+		return '#dc2626'; // Red - Public events
 	}
 
 	function renderMarkers() {

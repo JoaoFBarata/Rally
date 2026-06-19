@@ -5,6 +5,7 @@
 	import { resolve } from '$app/paths';
 	import { auth } from '$lib/firebase';
 	import { getVisibleEventsForUser } from '$lib/services/explore.service';
+	import { getFriendsForUser } from '$lib/services/social.service';
 	import type { SportEvent } from '$lib/schema';
 	import ExploreMap from '$lib/components/maps/ExploreMap.svelte';
 	import RallyWordmark from '$lib/components/RallyWordmark.svelte';
@@ -15,6 +16,7 @@
 	let loading = $state(true);
 	let error = $state('');
 	let currentUserId = $state('');
+	let friendIds = $state<string[]>([]);
 	let filteredEventCount = $state(0);
 	let selectedMapEventId = $state<string | null>(null);
 	let promotedEvents = $derived(events.filter((event) => isPromotionActive(event)));
@@ -30,6 +32,9 @@
 		try {
 			events = await getVisibleEventsForUser(currentUser.uid);
 			filteredEventCount = events.length;
+			
+			const friends = await getFriendsForUser(currentUser.uid);
+			friendIds = friends.map((friend) => friend.id).filter(Boolean);
 		} catch (err) {
 			console.error('Explore events error:', err);
 
@@ -68,6 +73,7 @@
 			<ExploreMap
 				events={events}
 				currentUserId={currentUserId}
+				friendIds={friendIds}
 				onFilteredCountChange={(count) => (filteredEventCount = count)}
 				onSelectedEventChange={(eventId) => (selectedMapEventId = eventId)}
 			/>
