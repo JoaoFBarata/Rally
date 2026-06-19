@@ -285,7 +285,7 @@ export async function createSportEvent(params: {
 		title: params.title,
 		description: params.description ?? '',
 		sport: params.sport,
-		customSport: params.sport === 'other' ? (params.customSport ?? '') : undefined,
+		...(params.sport === 'other' ? { customSport: params.customSport ?? '' } : {}),
 		level: params.level ?? 'casual',
 		creatorId: params.creatorId,
 		hostType,

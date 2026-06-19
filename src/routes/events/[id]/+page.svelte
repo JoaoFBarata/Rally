@@ -63,6 +63,38 @@
 	let groupTypingTimeout: ReturnType<typeof setTimeout> | null = null;
 	let groupLastTypingSentAt = 0;
 
+	type ConfirmDialogConfig = {
+		title: string;
+		message: string;
+		confirmLabel: string;
+		danger: boolean;
+		resolve: (value: boolean) => void;
+	};
+
+	let confirmDialog = $state<ConfirmDialogConfig | null>(null);
+
+	function showConfirm(opts: {
+		title: string;
+		message: string;
+		confirmLabel?: string;
+		danger?: boolean;
+	}): Promise<boolean> {
+		return new Promise((resolve) => {
+			confirmDialog = {
+				title: opts.title,
+				message: opts.message,
+				confirmLabel: opts.confirmLabel ?? 'Confirm',
+				danger: opts.danger ?? false,
+				resolve
+			};
+		});
+	}
+
+	function dismissConfirm(result: boolean) {
+		confirmDialog?.resolve(result);
+		confirmDialog = null;
+	}
+
 	let showPromoteModal = $state(false);
 	let promoting = $state(false);
 	let stoppingPromotion = $state(false);
@@ -405,9 +437,14 @@
 
 		if (!currentUser || !event) return;
 
-		const confirmLeave = confirm('Leave this event?');
+		const confirmed = await showConfirm({
+			title: 'Leave this event?',
+			message: 'You will be removed from the participant list. You can rejoin later if there are spots available.',
+			confirmLabel: 'Leave event',
+			danger: true
+		});
 
-		if (!confirmLeave) return;
+		if (!confirmed) return;
 
 		actionLoading = true;
 		error = '';
@@ -428,9 +465,14 @@
 
 		if (!currentUser || !event) return;
 
-		const confirmCancel = confirm('Cancel this event?');
+		const confirmed = await showConfirm({
+			title: 'Cancel this event?',
+			message: `This will permanently cancel "${event.title}" and notify all participants. This cannot be undone.`,
+			confirmLabel: 'Cancel event',
+			danger: true
+		});
 
-		if (!confirmCancel) return;
+		if (!confirmed) return;
 
 		actionLoading = true;
 		error = '';
@@ -451,9 +493,14 @@
 
 		if (!currentUser || !event) return;
 
-		const confirmRemove = confirm('Remove this person from the event?');
+		const confirmed = await showConfirm({
+			title: 'Remove this player?',
+			message: 'They will be removed from the participant list and can rejoin if spots are available.',
+			confirmLabel: 'Remove player',
+			danger: true
+		});
 
-		if (!confirmRemove) return;
+		if (!confirmed) return;
 
 		actionLoading = true;
 		error = '';
@@ -1246,5 +1293,50 @@
 				</div>
 			</div>
 		{/if}
+	</div>
+{/if}
+
+{#if confirmDialog}
+	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+	<div
+		class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 px-4 pb-8 backdrop-blur-sm sm:items-center sm:pb-0"
+		onclick={() => dismissConfirm(false)}
+	>
+		<div
+			class="w-full max-w-sm overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-slate-900"
+			onclick={(e) => e.stopPropagation()}
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="confirm-title"
+		>
+			<div class="p-6">
+				<h2 id="confirm-title" class="text-lg font-black text-slate-950 dark:text-slate-50">
+					{confirmDialog.title}
+				</h2>
+				<p class="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
+					{confirmDialog.message}
+				</p>
+			</div>
+
+			<div class="flex border-t border-slate-100 dark:border-slate-800">
+				<button
+					type="button"
+					onclick={() => dismissConfirm(false)}
+					class="flex-1 py-4 text-sm font-bold text-slate-500 transition hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800"
+				>
+					Keep it
+				</button>
+				<div class="w-px bg-slate-100 dark:bg-slate-800"></div>
+				<button
+					type="button"
+					onclick={() => dismissConfirm(true)}
+					class="flex-1 py-4 text-sm font-bold transition {confirmDialog.danger
+						? 'text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30'
+						: 'text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/30'}"
+				>
+					{confirmDialog.confirmLabel}
+				</button>
+			</div>
+		</div>
 	</div>
 {/if}

@@ -68,11 +68,11 @@ export async function sendFriendRequestByTag(params: {
 	const requestSnap = await getDoc(requestRef);
 	const reverseRequestSnap = await getDoc(reverseRequestRef);
 
-	if (requestSnap.exists()) {
+	if (requestSnap.exists() && requestSnap.data().status === 'pending') {
 		throw new Error('Friend request already sent.');
 	}
 
-	if (reverseRequestSnap.exists()) {
+	if (reverseRequestSnap.exists() && reverseRequestSnap.data().status === 'pending') {
 		throw new Error('This user has already sent you a friend request. Check your messages.');
 	}
 

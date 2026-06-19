@@ -81,7 +81,7 @@
 		{
 			label: 'Organizers',
 			headline: 'Got a game to run?',
-			desc: 'Create events, manage your player list and send invites — done in under two minutes.',
+			desc: 'Create events, manage your player list and send invites, done!',
 			cta: 'Create an event',
 			href: '/register',
 			icon: `<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>`
@@ -89,7 +89,7 @@
 		{
 			label: 'Clubs & Teams',
 			headline: 'Running a club?',
-			desc: 'Manage your community, plan your season and keep every member in sync — at any scale.',
+			desc: 'Manage your community, plan your season and keep every member up to date all on the same platform.',
 			cta: 'Learn more',
 			href: '/register',
 			icon: `<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>`
