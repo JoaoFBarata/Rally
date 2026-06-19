@@ -1,13 +1,7 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { authState } from '$lib/auth.svelte';
-
-	$effect(() => {
-		if (!authState.loading && authState.user) {
-			goto('/dashboard');
-		}
-	});
+	import UserAvatar from '$lib/components/UserAvatar.svelte';
 
 	let contentVisible = $state(false);
 
@@ -46,31 +40,44 @@
 					>
 						Explore
 					</a>
-					<a href="/login" class="text-sm font-semibold text-white/75 transition hover:text-white">
-						Log in
-					</a>
+					{#if !authState.user && !authState.loading}
+						<a href="/login" class="text-sm font-semibold text-white/75 transition hover:text-white">
+							Log in
+						</a>
+					{/if}
 				</div>
 
-				<a
-					href="/register"
-					class="hidden items-center gap-2 rounded-full bg-slate-950/90 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800 sm:inline-flex"
-				>
-					Create account
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						width="13"
-						height="13"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						aria-hidden="true"
+				{#if authState.user}
+					<a href="/dashboard" class="rounded-full transition hover:opacity-80" aria-label="My dashboard">
+						<UserAvatar
+							photoURL={authState.user.photoURL}
+							displayName={authState.user.displayName}
+							email={authState.user.email}
+							size="md"
+						/>
+					</a>
+				{:else}
+					<a
+						href="/register"
+						class="hidden items-center gap-2 rounded-full bg-slate-950/90 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800 sm:inline-flex"
 					>
-						<path d="M7 17L17 7" /><path d="M7 7h10v10" />
-					</svg>
-				</a>
+						Create account
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							width="13"
+							height="13"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.5"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							aria-hidden="true"
+						>
+							<path d="M7 17L17 7" /><path d="M7 7h10v10" />
+						</svg>
+					</a>
+				{/if}
 			</nav>
 
 			<div
@@ -91,26 +98,49 @@
 				</h1>
 
 				<div class="mt-6 flex items-center justify-center gap-3">
-					<a
-						href="/register"
-						class="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-bold text-slate-900 shadow-lg transition hover:bg-white/90"
-					>
-						Get started
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							width="13"
-							height="13"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2.5"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							aria-hidden="true"
+					{#if authState.user}
+						<a
+							href="/dashboard"
+							class="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-bold text-slate-900 shadow-lg transition hover:bg-white/90"
 						>
-							<path d="M7 17L17 7" /><path d="M7 7h10v10" />
-						</svg>
-					</a>
+							Go to dashboard
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								width="13"
+								height="13"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2.5"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								aria-hidden="true"
+							>
+								<path d="M7 17L17 7" /><path d="M7 7h10v10" />
+							</svg>
+						</a>
+					{:else}
+						<a
+							href="/register"
+							class="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-bold text-slate-900 shadow-lg transition hover:bg-white/90"
+						>
+							Get started
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								width="13"
+								height="13"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2.5"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								aria-hidden="true"
+							>
+								<path d="M7 17L17 7" /><path d="M7 7h10v10" />
+							</svg>
+						</a>
+					{/if}
 					<a
 						href="/discover"
 						class="inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/10 px-6 py-3 text-sm font-bold text-white backdrop-blur-sm transition hover:bg-white/20"
@@ -133,7 +163,7 @@
 						5 on 5 Football · Campo Pequeno · Tomorrow 6PM
 					</p>
 					<a
-						href="/register"
+						href="/discover"
 						class="mt-3 inline-flex items-center gap-2 rounded-full border border-white/30 px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-white transition hover:bg-white/10"
 					>
 						Explore event
@@ -194,18 +224,27 @@
 
 		<!-- Mobile CTAs -->
 		<div class="mx-auto mt-10 grid max-w-5xl gap-3 sm:hidden">
-			<a
-				href="/register"
-				class="rounded-2xl bg-blue-600 px-7 py-4 text-center font-bold text-white"
-			>
-				Create account
-			</a>
-			<a
-				href="/login"
-				class="rounded-2xl border border-slate-200 bg-white px-7 py-4 text-center font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-			>
-				Log in
-			</a>
+			{#if authState.user}
+				<a
+					href="/dashboard"
+					class="rounded-2xl bg-blue-600 px-7 py-4 text-center font-bold text-white"
+				>
+					Go to dashboard
+				</a>
+			{:else}
+				<a
+					href="/register"
+					class="rounded-2xl bg-blue-600 px-7 py-4 text-center font-bold text-white"
+				>
+					Create account
+				</a>
+				<a
+					href="/login"
+					class="rounded-2xl border border-slate-200 bg-white px-7 py-4 text-center font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+				>
+					Log in
+				</a>
+			{/if}
 		</div>
 	</section>
 </main>

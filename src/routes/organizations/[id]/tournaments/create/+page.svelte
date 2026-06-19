@@ -275,24 +275,24 @@
 						<input
 							bind:value={title}
 							placeholder="Tournament name"
-							class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+							class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
 						/>
 
 						<textarea
 							bind:value={description}
 							rows="4"
 							placeholder="Describe the tournament, format, requirements..."
-							class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+							class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
 						></textarea>
 
 						<div class="grid gap-3 md:grid-cols-3">
-							<select bind:value={sport} class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50">
+							<select bind:value={sport} class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50">
 								{#each sports as option}
 									<option value={option.value}>{option.label}</option>
 								{/each}
 							</select>
 
-							<select bind:value={level} class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50">
+							<select bind:value={level} class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50">
 								{#each levels as option}
 									<option value={option.value}>{option.label}</option>
 								{/each}
@@ -313,7 +313,7 @@
                                     min="2"
                                     max="64"
                                     placeholder={registrationType === 'team' ? 'Example: 8 teams' : 'Example: 16 players'}
-                                    class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+                                    class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
                                 />
                             </label>
 						</div>
@@ -325,15 +325,15 @@
 
 					<div class="mt-5 space-y-5">
                         <div class="grid gap-3 md:grid-cols-2">
-							<input bind:value={date} type="date" class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50" />
-							<input bind:value={startTime} type="time" class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50" />
+							<input bind:value={date} type="date" class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50" />
+							<input bind:value={startTime} type="time" class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50" />
 						</div>
 
-						<input bind:value={endTime} type="time" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50" />
+						<input bind:value={endTime} type="time" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50" />
 
 						<label class="block">
 							<span class="text-sm font-bold text-slate-500 dark:text-slate-400">Registration deadline</span>
-							<input bind:value={registrationDeadline} type="datetime-local" class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50" />
+							<input bind:value={registrationDeadline} type="datetime-local" class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50" />
 						</label>
 
 						<LocationPickerMap bind:lat bind:lng bind:address />
@@ -347,7 +347,7 @@
 						bind:value={rules}
 						rows="5"
 						placeholder="Tournament rules, tie-breaks, match duration, required equipment..."
-						class="mt-5 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+						class="mt-5 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
 					></textarea>
 				</section>
 			</div>
@@ -393,7 +393,7 @@
                                     min="2"
                                     max="8"
                                     placeholder="Example: 2"
-                                    class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+                                    class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
                                 />
                             </label>
 
@@ -412,7 +412,7 @@
                                     min="2"
                                     max="16"
                                     placeholder="Example: 4"
-                                    class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+                                    class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
                                 />
                             </label>
                         </div>
@@ -450,7 +450,7 @@
                                     type="number"
                                     min="1"
                                     placeholder="Example: 5"
-                                    class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+                                    class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
                                 />
                             </label>
 
@@ -468,7 +468,7 @@
                                     type="number"
                                     min="1"
                                     placeholder="Example: 5"
-                                    class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+                                    class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
                                 />
                             </label>
 
@@ -486,7 +486,7 @@
                                     type="number"
                                     min="1"
                                     placeholder="Example: 8"
-                                    class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+                                    class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
                                 />
                             </label>
 
@@ -502,7 +502,7 @@
 					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Cost and prize</h2>
 
 					<div class="mt-5 space-y-3">
-						<select bind:value={entryFeeType} class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50">
+						<select bind:value={entryFeeType} class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50">
 							<option value="free">Free entry</option>
 							<option value="split">Split cost</option>
 							<option value="paid" disabled={!isVerified}>Paid entry {isVerified ? '' : '(verified only)'}</option>
@@ -524,12 +524,12 @@
                                     min="0"
                                     step="0.01"
                                     placeholder={registrationType === 'team' ? 'Example: 25 €/team' : 'Example: 10 €/player'}
-                                    class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+                                    class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
                                 />
                             </label>
                         {/if}
 
-						<select bind:value={prizeType} class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50">
+						<select bind:value={prizeType} class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50">
 							<option value="none">No prize</option>
 							<option value="trophy">Trophy / medal</option>
 							<option value="product">Product / voucher</option>
@@ -538,7 +538,7 @@
 						</select>
 
 						{#if prizeType !== 'none'}
-							<input bind:value={prizeDescription} placeholder="Prize description" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50" />
+							<input bind:value={prizeDescription} placeholder="Prize description" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50" />
 							<label class="block">
                                 <span class="text-sm font-black text-slate-700 dark:text-slate-200">
                                     Estimated prize value
@@ -554,7 +554,7 @@
                                     min="0"
                                     step="0.01"
                                     placeholder="Example: 100 €"
-                                    class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+                                    class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
                                 />
                             </label>
 						{/if}
