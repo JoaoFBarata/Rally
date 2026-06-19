@@ -7,7 +7,8 @@
 	let {
 		lat = $bindable<number | null>(),
 		lng = $bindable<number | null>(),
-		address = $bindable('')
+		address = $bindable(''),
+		autofillAddress = ''
 	} = $props();
 
 	type MapboxGeocodeFeature = {
@@ -35,6 +36,40 @@
 	let searchLoading = $state(false);
 	let searchError = $state('');
 	let searchTimeout: ReturnType<typeof setTimeout> | null = null;
+
+	$effect(() => {
+		const query = autofillAddress.trim();
+		if (!query) return;
+
+		searchLoading = true;
+		searchError = '';
+
+		const url = new URL('https://api.mapbox.com/search/geocode/v6/forward');
+		url.searchParams.set('q', query);
+		url.searchParams.set('access_token', PUBLIC_MAPBOX_ACCESS_TOKEN);
+		url.searchParams.set('country', 'pt');
+		url.searchParams.set('limit', '1');
+		url.searchParams.set('language', 'en');
+
+		fetch(url)
+			.then((r) => r.json())
+			.then((data) => {
+				const feature = data.features?.[0] as MapboxGeocodeFeature | undefined;
+				if (!feature) return;
+				const coords = getFeatureCoords(feature);
+				if (!coords) return;
+				const resolved = getFeatureAddress(feature) || query;
+				searchQuery = resolved;
+				suggestions = [];
+				return setLocation(coords.lng, coords.lat, resolved);
+			})
+			.catch((err) => {
+				console.error('Autofill geocode error:', err);
+			})
+			.finally(() => {
+				searchLoading = false;
+			});
+	});
 
 	function getFeatureAddress(feature: MapboxGeocodeFeature) {
 		return (
