@@ -3,6 +3,7 @@
 import {
 	addDoc,
 	collection,
+	deleteDoc,
 	doc,
 	getDoc,
 	getDocs,
@@ -37,6 +38,7 @@ import {
 	isOrganizationAdmin
 } from '$lib/services/organization.service';
 import { sendRallySystemMessage } from '$lib/services/chat.service';
+import { getUserProfile } from '$lib/services/user.service';
 
 export const PROMOTION_PLANS: Record<
 	EventPromotionPlan,
@@ -178,7 +180,7 @@ async function syncEventGroupConversation(event: SportEvent) {
 			eventId: event.id,
 			title: event.title,
 			photoURL: event.groupPhotoURL ?? event.organizationLogoURL ?? null,
-			memberIds: getEventGroupMemberIds(event),
+			memberIds: [...new Set([event.creatorId, ...(event.participantIds ?? [])])],
 			updatedAt: serverTimestamp(),
 			createdAt: serverTimestamp()
 		},
@@ -502,6 +504,10 @@ export async function joinEvent(eventId: string, userId: string) {
 		throw new Error('This event has already finished.');
 	}
 
+	if (event.eventKind === 'tournament') {
+		throw new Error('Use tournament registration instead of joining the event directly.');
+	}
+
 	if (event.participantIds.includes(userId)) {
 		await syncEventGroupConversation(event);
 		return;
@@ -795,6 +801,39 @@ async function assertTournamentEvent(eventId: string) {
 	return event;
 }
 
+async function assertPersonalTournamentUser(userId: string) {
+	const profile = await getUserProfile(userId);
+
+	if (!profile) {
+		throw new Error('User profile not found.');
+	}
+
+	if (profile.accountType === 'organization') {
+		throw new Error('Organization accounts cannot register as players.');
+	}
+}
+
+async function syncTournamentParticipantIds(event: SportEvent, participantIds: string[]) {
+	const newStatus: EventStatus =
+		event.status === 'cancelled'
+			? 'cancelled'
+			: participantIds.length >= event.maxParticipants
+				? 'full'
+				: 'open';
+
+	await updateDoc(doc(db, 'events', event.id), {
+		participantIds,
+		status: newStatus,
+		updatedAt: serverTimestamp()
+	});
+
+	await syncEventGroupConversation({
+		...event,
+		participantIds,
+		status: newStatus
+	});
+}
+
 export async function createTournamentEvent(params: {
 	title: string;
 	description?: string;
@@ -929,138 +968,24 @@ export async function createTournamentEvent(params: {
 	return refreshedEvent ?? createdEvent;
 }
 
-export async function getTournamentEntries(eventId: string) {
-	const q = query(getTournamentEntryCollection(), where('eventId', '==', eventId));
-	const snap = await getDocs(q);
-
-	return snap.docs.map((docSnap) => ({
-		id: docSnap.id,
-		...docSnap.data()
-	})) as TournamentEntry[];
-}
-
-export async function getTournamentMatches(eventId: string) {
-	const q = query(getTournamentMatchCollection(), where('eventId', '==', eventId));
-	const snap = await getDocs(q);
-
-	const matches = snap.docs.map((docSnap) => ({
-		id: docSnap.id,
-		...docSnap.data()
-	})) as TournamentMatch[];
-
-	return matches.sort((a, b) => {
-		if (a.roundNumber !== b.roundNumber) return a.roundNumber - b.roundNumber;
-		return (a.groupName ?? '').localeCompare(b.groupName ?? '');
-	});
-}
-
-export async function joinTournamentAsIndividual(params: {
-	eventId: string;
-	userId: string;
-	displayName: string;
-}) {
-	const event = await assertTournamentEvent(params.eventId);
-
-	if (event.tournamentRegistrationType !== 'individual') {
-		throw new Error('This tournament requires team registration.');
-	}
-
-	if (event.tournamentStatus !== 'registration_open') {
-		throw new Error('Tournament registration is not open.');
-	}
-
-	const entries = await getTournamentEntries(params.eventId);
-
-	if (entries.some((entry) => entry.memberIds.includes(params.userId))) {
-		throw new Error('You are already registered.');
-	}
-
-	if ((event.maxTournamentEntries ?? event.maxParticipants) <= entries.length) {
-		throw new Error('Tournament is full.');
-	}
-
-	const entryRef = await addDoc(getTournamentEntryCollection(), {
-		eventId: params.eventId,
-		type: 'individual',
-		name: params.displayName,
-		captainId: params.userId,
-		memberIds: [params.userId],
-		isOpen: false,
-		maxMembers: 1,
-		groupName: null,
-		seed: entries.length + 1,
-		status: 'confirmed',
-		createdAt: serverTimestamp(),
-		updatedAt: serverTimestamp()
-	});
-
-	if (!event.participantIds.includes(params.userId)) {
-		await updateDoc(doc(db, 'events', params.eventId), {
-			participantIds: [...event.participantIds, params.userId],
-			updatedAt: serverTimestamp()
-		});
-	}
-
-	return entryRef.id;
-}
-
-export async function createTournamentTeam(params: {
-	eventId: string;
-	captainId: string;
-	teamName: string;
-	isOpen: boolean;
-}) {
-	const event = await assertTournamentEvent(params.eventId);
-
-	if (event.tournamentRegistrationType !== 'team') {
-		throw new Error('This tournament uses individual registration.');
-	}
-
-	if (event.tournamentStatus !== 'registration_open') {
-		throw new Error('Tournament registration is not open.');
-	}
-
-	const entries = await getTournamentEntries(params.eventId);
-
-	if ((event.maxTournamentEntries ?? 0) <= entries.length) {
-		throw new Error('Tournament is full.');
-	}
-
-	if (entries.some((entry) => entry.memberIds.includes(params.captainId))) {
-		throw new Error('You are already registered in this tournament.');
-	}
-
-	const entryRef = await addDoc(getTournamentEntryCollection(), {
-		eventId: params.eventId,
-		type: 'team',
-		name: params.teamName.trim(),
-		captainId: params.captainId,
-		memberIds: [params.captainId],
-		isOpen: params.isOpen,
-		maxMembers: event.maxTeamSize ?? event.teamSize ?? null,
-		groupName: null,
-		seed: entries.length + 1,
-		status: 'confirmed',
-		createdAt: serverTimestamp(),
-		updatedAt: serverTimestamp()
-	});
-
-	if (!event.participantIds.includes(params.captainId)) {
-		await updateDoc(doc(db, 'events', params.eventId), {
-			participantIds: [...event.participantIds, params.captainId],
-			updatedAt: serverTimestamp()
-		});
-	}
-
-	return entryRef.id;
-}
 
 export async function joinTournamentTeam(params: {
 	eventId: string;
 	teamId: string;
 	userId: string;
+	fromInvite?: boolean;
 }) {
+	await assertPersonalTournamentUser(params.userId);
+
 	const event = await assertTournamentEvent(params.eventId);
+
+	if (event.creatorId === params.userId) {
+		throw new Error('The tournament host cannot register as a player.');
+	}
+
+	if (event.tournamentStatus !== 'registration_open') {
+		throw new Error('Tournament registration is closed.');
+	}
 
 	if (event.tournamentRegistrationType !== 'team') {
 		throw new Error('This tournament uses individual registration.');
@@ -1073,8 +998,14 @@ export async function joinTournamentTeam(params: {
 		throw new Error('Team not found.');
 	}
 
-	if (!team.isOpen) {
+	if (!team.isOpen && !params.fromInvite) {
 		throw new Error('This team is not open to public players.');
+	}
+
+	const existingEntry = entries.find((entry) => entry.memberIds.includes(params.userId));
+
+	if (existingEntry) {
+		throw new Error('You are already registered in this tournament.');
 	}
 
 	if (team.memberIds.includes(params.userId)) {
@@ -1093,10 +1024,7 @@ export async function joinTournamentTeam(params: {
 	});
 
 	if (!event.participantIds.includes(params.userId)) {
-		await updateDoc(doc(db, 'events', params.eventId), {
-			participantIds: [...event.participantIds, params.userId],
-			updatedAt: serverTimestamp()
-		});
+		await syncTournamentParticipantIds(event, [...event.participantIds, params.userId]);
 	}
 }
 
@@ -1143,6 +1071,174 @@ async function createTournamentMatch(params: {
 		createdAt: serverTimestamp(),
 		updatedAt: serverTimestamp()
 	});
+}
+
+
+
+export async function getTournamentEntries(eventId: string) {
+	const q = query(getTournamentEntryCollection(), where('eventId', '==', eventId));
+	const snap = await getDocs(q);
+
+	return snap.docs.map((docSnap) => ({
+		id: docSnap.id,
+		...docSnap.data()
+	})) as TournamentEntry[];
+}
+
+export async function getTournamentMatches(eventId: string) {
+	const q = query(getTournamentMatchCollection(), where('eventId', '==', eventId));
+	const snap = await getDocs(q);
+
+	const matches = snap.docs.map((docSnap) => ({
+		id: docSnap.id,
+		...docSnap.data()
+	})) as TournamentMatch[];
+
+	return matches.sort((a, b) => {
+		if (a.roundNumber !== b.roundNumber) return a.roundNumber - b.roundNumber;
+		return (a.groupName ?? '').localeCompare(b.groupName ?? '');
+	});
+}
+
+export async function joinTournamentAsIndividual(params: {
+	eventId: string;
+	userId: string;
+	displayName: string;
+}) {
+	await assertPersonalTournamentUser(params.userId);
+
+	const event = await assertTournamentEvent(params.eventId);
+
+	if (event.creatorId === params.userId) {
+		throw new Error('The tournament host cannot register as a player.');
+	}
+
+	if (event.tournamentRegistrationType !== 'individual') {
+		throw new Error('This tournament requires team registration.');
+	}
+
+	if (event.tournamentStatus !== 'registration_open') {
+		throw new Error('Tournament registration is not open.');
+	}
+
+	const entries = await getTournamentEntries(params.eventId);
+
+	if (entries.some((entry) => entry.memberIds.includes(params.userId))) {
+		throw new Error('You are already registered.');
+	}
+
+	if ((event.maxTournamentEntries ?? event.maxParticipants) <= entries.length) {
+		throw new Error('Tournament is full.');
+	}
+
+	await addDoc(getTournamentEntryCollection(), {
+		eventId: params.eventId,
+		type: 'individual',
+		name: params.displayName,
+		captainId: params.userId,
+		memberIds: [params.userId],
+		isOpen: false,
+		maxMembers: 1,
+		groupName: null,
+		seed: entries.length + 1,
+		status: 'confirmed',
+		createdAt: serverTimestamp(),
+		updatedAt: serverTimestamp()
+	});
+
+	if (!event.participantIds.includes(params.userId)) {
+		await syncTournamentParticipantIds(event, [...event.participantIds, params.userId]);
+	}
+}
+
+export async function createTournamentTeam(params: {
+	eventId: string;
+	captainId: string;
+	teamName: string;
+	isOpen: boolean;
+}) {
+	await assertPersonalTournamentUser(params.captainId);
+
+	const event = await assertTournamentEvent(params.eventId);
+
+	if (event.creatorId === params.captainId) {
+		throw new Error('The tournament host cannot register as a player.');
+	}
+
+	if (event.tournamentRegistrationType !== 'team') {
+		throw new Error('This tournament uses individual registration.');
+	}
+
+	if (event.tournamentStatus !== 'registration_open') {
+		throw new Error('Tournament registration is not open.');
+	}
+
+	const entries = await getTournamentEntries(params.eventId);
+
+	if ((event.maxTournamentEntries ?? 0) <= entries.length) {
+		throw new Error('Tournament is full.');
+	}
+
+	if (entries.some((entry) => entry.memberIds.includes(params.captainId))) {
+		throw new Error('You are already registered in this tournament.');
+	}
+
+	const entryRef = await addDoc(getTournamentEntryCollection(), {
+		eventId: params.eventId,
+		type: 'team',
+		name: params.teamName.trim(),
+		captainId: params.captainId,
+		memberIds: [params.captainId],
+		isOpen: params.isOpen,
+		maxMembers: event.maxTeamSize ?? event.teamSize ?? null,
+		groupName: null,
+		seed: entries.length + 1,
+		status: 'confirmed',
+		createdAt: serverTimestamp(),
+		updatedAt: serverTimestamp()
+	});
+
+	if (!event.participantIds.includes(params.captainId)) {
+		await syncTournamentParticipantIds(event, [...event.participantIds, params.captainId]);
+	}
+
+	return entryRef.id;
+}
+
+export async function leaveTournament(params: {
+	eventId: string;
+	userId: string;
+}) {
+	const event = await assertTournamentEvent(params.eventId);
+
+	if (event.creatorId === params.userId) {
+		throw new Error('The host cannot leave the tournament. Cancel it instead.');
+	}
+
+	const entries = await getTournamentEntries(params.eventId);
+	const entry = entries.find((item) => item.memberIds.includes(params.userId));
+
+	if (!entry) return;
+
+	if (entry.captainId === params.userId && entry.memberIds.length > 1) {
+		throw new Error('The team captain cannot leave while other players are still in the team.');
+	}
+
+	if (entry.type === 'individual' || entry.memberIds.length === 1) {
+		await deleteDoc(doc(db, 'tournamentEntries', entry.id));
+	} else {
+		await updateDoc(doc(db, 'tournamentEntries', entry.id), {
+			memberIds: entry.memberIds.filter((id) => id !== params.userId),
+			updatedAt: serverTimestamp()
+		});
+	}
+
+	if (event.participantIds.includes(params.userId)) {
+		await syncTournamentParticipantIds(
+			event,
+			event.participantIds.filter((id) => id !== params.userId)
+		);
+	}
 }
 
 export async function generateTournamentMatches(params: {

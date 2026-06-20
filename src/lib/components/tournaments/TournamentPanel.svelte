@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { SportEvent, TournamentEntry, TournamentMatch } from '$lib/schema';
+	import type { SportEvent, TournamentEntry, TournamentMatch, UserProfile } from '$lib/schema';
 	import {
 		closeTournamentRegistration,
 		createTournamentTeam,
@@ -9,9 +9,13 @@
 		getTournamentMatches,
 		joinTournamentAsIndividual,
 		joinTournamentTeam,
-		updateTournamentMatchResult
+		updateTournamentMatchResult,
+        leaveTournament,
+        cancelEvent
 	} from '$lib/services/event.service';
 	import { getUserProfile } from '$lib/services/user.service';
+    import { getFriendsForUser } from '$lib/services/social.service';
+    import { inviteUsersToTournamentTeam } from '$lib/services/invite.service';
 
 	let { event, currentUserId, canManage } = $props<{
 		event: SportEvent;
@@ -31,6 +35,10 @@
 
 	let teamName = $state('');
 	let teamOpen = $state(true);
+
+    let friends = $state<UserProfile[]>([]);
+    let inviteTeamId = $state<string | null>(null);
+    let selectedFriendIds = $state<string[]>([]);
 
 	let matchInputs = $state<
 		Record<
@@ -80,6 +88,19 @@
 			)
 		].sort();
 	});
+
+    let currentUserProfile = $state<UserProfile | null>(null);
+
+	let isOrganizationAccount = $derived(currentUserProfile?.accountType === 'organization');
+	let isTournamentHost = $derived(event.creatorId === currentUserId);
+
+	let canRegisterInTournament = $derived(
+		!isOrganizationAccount && !isTournamentHost && isRegistrationOpen && !userEntry && !isFull
+	);
+
+	function getInvitableFriends(entry: TournamentEntry) {
+		return friends.filter((friend) => !entry.memberIds.includes(friend.id));
+	}
 
 	function formatStage(stage: TournamentMatch['stage']) {
 		if (stage === 'group') return 'Group stage';
@@ -168,6 +189,11 @@
 					scheduledAt: timestampToLocalInput(match.scheduledAt)
 				};
 			}
+
+            if (currentUserId) {
+                currentUserProfile = await getUserProfile(currentUserId);
+                friends = await getFriendsForUser(currentUserId);
+            }
 
 			matchInputs = nextInputs;
 		} catch (err) {
@@ -399,6 +425,93 @@
 		}
 	}
 
+	    function toggleFriendSelection(friendId: string) {
+        if (selectedFriendIds.includes(friendId)) {
+            selectedFriendIds = selectedFriendIds.filter((id) => id !== friendId);
+        } else {
+            selectedFriendIds = [...selectedFriendIds, friendId];
+        }
+    }
+
+    function openInviteFriends(entryId: string) {
+        inviteTeamId = entryId;
+        selectedFriendIds = [];
+    }
+
+    async function handleInviteFriends(entry: TournamentEntry) {
+        if (!currentUserId) return;
+
+        actionLoading = `invite-team-${entry.id}`;
+        error = '';
+        success = '';
+
+        try {
+            if (selectedFriendIds.length === 0) {
+                throw new Error('Choose at least one friend to invite.');
+            }
+
+            await inviteUsersToTournamentTeam({
+                eventId: event.id,
+                teamId: entry.id,
+                teamName: entry.name,
+                fromUserId: currentUserId,
+                toUserIds: selectedFriendIds
+            });
+
+            success = 'Team invites sent.';
+            inviteTeamId = null;
+            selectedFriendIds = [];
+        } catch (err) {
+            console.error('Invite team friends error:', err);
+            error = err instanceof Error ? err.message : 'Could not send team invites.';
+        } finally {
+            actionLoading = '';
+        }
+    }
+
+    async function handleLeaveTournament() {
+        if (!currentUserId) return;
+
+        actionLoading = 'leave-tournament';
+        error = '';
+        success = '';
+
+        try {
+            await leaveTournament({
+                eventId: event.id,
+                userId: currentUserId
+            });
+
+            success = 'You left the tournament.';
+            await loadTournamentData();
+        } catch (err) {
+            console.error('Leave tournament error:', err);
+            error = err instanceof Error ? err.message : 'Could not leave tournament.';
+        } finally {
+            actionLoading = '';
+        }
+    }
+
+    async function handleCancelTournament() {
+        if (!currentUserId) return;
+
+        actionLoading = 'cancel-tournament';
+        error = '';
+        success = '';
+
+        try {
+            await cancelEvent(event.id, currentUserId);
+
+            success = 'Tournament cancelled.';
+        } catch (err) {
+            console.error('Cancel tournament error:', err);
+            error = err instanceof Error ? err.message : 'Could not cancel tournament.';
+        } finally {
+            actionLoading = '';
+        }
+    }
+
+
 	onMount(() => {
 		loadTournamentData();
 	});
@@ -553,9 +666,18 @@
                         disabled={actionLoading === 'generate-matches'}
                         class="rounded-2xl bg-purple-600 px-5 py-3 font-black text-white shadow-lg shadow-purple-600/20 transition hover:bg-purple-700 disabled:opacity-60"
                     >
-                        {actionLoading === 'generate-matches' ? 'Generating...' : 'Generate bracket'}
+                        {actionLoading === 'generate-matches' ? 'Generating...' : 'Generate matches'}
                     </button>
                 {/if}
+
+                <button
+                    type="button"
+                    onclick={handleCancelTournament}
+                    disabled={actionLoading === 'cancel-tournament'}
+                    class="rounded-2xl border border-red-100 bg-red-50 px-5 py-3 font-black text-red-700 transition hover:bg-red-100 disabled:opacity-60 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
+                >
+                    {actionLoading === 'cancel-tournament' ? 'Cancelling...' : 'Cancel tournament'}
+                </button>
             </div>
         {/if}
 	{:else if activeTab === 'entries'}
@@ -577,7 +699,7 @@
 									</p>
 								</div>
 
-								{#if entry.isOpen && !userEntry && isRegistrationOpen}
+								{#if entry.isOpen && !userEntry && isRegistrationOpen && !isOrganizationAccount && !isTournamentHost}
 									<button
 										type="button"
 										onclick={() => handleJoinTeam(entry.id)}
@@ -588,12 +710,75 @@
 									</button>
 								{/if}
 							</div>
+                            {#if entry.type === 'team' && entry.captainId === currentUserId && isRegistrationOpen}
+                                <div class="mt-4 border-t border-slate-100 pt-4 dark:border-slate-800">
+                                    <button
+                                        type="button"
+                                        onclick={() => openInviteFriends(entry.id)}
+                                        class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                                    >
+                                        Invite friends to team
+                                    </button>
+
+                                    {#if inviteTeamId === entry.id}
+                                        <div class="mt-3 rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
+	                                            {#if getInvitableFriends(entry).length === 0}
+	                                                <p class="text-sm font-bold text-slate-500 dark:text-slate-400">
+	                                                    You do not have available friends to invite.
+	                                                </p>
+	                                            {:else}
+	                                                <div class="max-h-48 space-y-2 overflow-y-auto">
+	                                                    {#each getInvitableFriends(entry) as friend (friend.id)}
+                                                        <label class="flex items-center justify-between rounded-xl bg-white px-3 py-2 dark:bg-slate-900">
+                                                            <div class="min-w-0">
+                                                                <p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">
+                                                                    {friend.displayName ?? 'Rally user'}
+                                                                </p>
+
+                                                                <p class="truncate text-xs text-slate-500 dark:text-slate-400">
+                                                                    @{friend.rallyTag ?? 'rally'}
+                                                                </p>
+                                                            </div>
+
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedFriendIds.includes(friend.id)}
+                                                                onchange={() => toggleFriendSelection(friend.id)}
+                                                                class="h-5 w-5"
+                                                            />
+                                                        </label>
+                                                    {/each}
+                                                </div>
+
+                                                <div class="mt-3 flex gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onclick={() => handleInviteFriends(entry)}
+                                                        disabled={actionLoading === `invite-team-${entry.id}`}
+                                                        class="flex-1 rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
+                                                    >
+                                                        {actionLoading === `invite-team-${entry.id}` ? 'Sending...' : 'Send invites'}
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        onclick={() => (inviteTeamId = null)}
+                                                        class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            {/if}
+                                        </div>
+                                    {/if}
+                                </div>
+                            {/if}
 						</div>
 					{/each}
 				{/if}
 			</div>
 
-			{#if isRegistrationOpen && !userEntry && !isFull}
+			{#if canRegisterInTournament}
 				<div class="rounded-2xl bg-white p-5 dark:bg-slate-900">
 					<h3 class="text-lg font-black text-slate-950 dark:text-slate-50">Join tournament</h3>
 
@@ -636,12 +821,24 @@
 						</button>
 					{/if}
 				</div>
+	            {:else if isOrganizationAccount || isTournamentHost}
+	                <div class="rounded-2xl bg-slate-50 p-5 text-sm font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+	                    The tournament host cannot register as a player. Use a personal account that is not hosting this tournament.
+	                </div>
 			{:else if userEntry}
 				<div class="rounded-2xl bg-white p-5 dark:bg-slate-900">
 					<h3 class="text-lg font-black text-slate-950 dark:text-slate-50">Your registration</h3>
 					<p class="mt-2 text-sm font-bold text-slate-500 dark:text-slate-400">
 						You are registered as {userEntry.name}.
 					</p>
+                    <button
+                        type="button"
+                        onclick={handleLeaveTournament}
+                        disabled={actionLoading === 'leave-tournament'}
+                        class="mt-4 w-full rounded-2xl border border-red-100 bg-red-50 px-5 py-3 font-black text-red-700 transition hover:bg-red-100 disabled:opacity-60 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
+                    >
+                        {actionLoading === 'leave-tournament' ? 'Leaving...' : 'Leave tournament'}
+                    </button>
 				</div>
 			{/if}
 		</div>

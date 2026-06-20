@@ -235,8 +235,12 @@ export interface EventInvite {
 	eventId: string;
 	fromUserId: string;
 	toUserId: string;
-	status: InviteStatus;
 
+	inviteType?: 'event' | 'tournament_team';
+	teamId?: string | null;
+	teamName?: string | null;
+
+	status: InviteStatus;
 	createdAt: Timestamp;
 	updatedAt: Timestamp;
 }

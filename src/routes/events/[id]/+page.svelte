@@ -121,19 +121,36 @@
 		return !!currentUser && !!event && event.participantIds.includes(currentUser.uid);
 	});
 
+	let isTournament = $derived(event?.eventKind === 'tournament');
+
+	let canAccessGroupChat = $derived.by(() => {
+		const currentUser = auth.currentUser;
+
+		if (!currentUser || !event) return false;
+
+		return event.creatorId === currentUser.uid || event.participantIds.includes(currentUser.uid);
+	});
+
 	let canJoin = $derived.by(() => {
-        return (
-            !!event &&
-            !isCreator &&
-            !isParticipant &&
-            effectiveStatus !== 'full' &&
-            effectiveStatus !== 'cancelled' &&
-            effectiveStatus !== 'finished'
-        );
-    });
+		return (
+			!!event &&
+			event.eventKind !== 'tournament' &&
+			!isCreator &&
+			!isParticipant &&
+			effectiveStatus !== 'full' &&
+			effectiveStatus !== 'cancelled' &&
+			effectiveStatus !== 'finished'
+		);
+	});
 
 	let canInvite = $derived.by(() => {
-		return !!event && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished' && (isCreator || isParticipant);
+		return (
+			!!event &&
+			event.eventKind !== 'tournament' &&
+			effectiveStatus !== 'cancelled' &&
+			effectiveStatus !== 'finished' &&
+			(isCreator || isParticipant)
+		);
 	});
 
 	let participantById = $derived.by(() => {
@@ -269,7 +286,10 @@
 
 		if (!currentUser) return;
 
-		if (!currentEvent.participantIds.includes(currentUser.uid)) {
+		const canCurrentUserAccessChat =
+			currentEvent.creatorId === currentUser.uid || currentEvent.participantIds.includes(currentUser.uid);
+
+		if (!canCurrentUserAccessChat) {
 			stopGroupMessagesListener();
 			stopGroupConversationListener();
 			stopGroupTypingTimeout();
@@ -408,7 +428,7 @@
 				void notifyEventFinished(loadedEvent);
 			}
 
-			if (loadedEvent.participantIds.includes(currentUser.uid)) {
+			if (loadedEvent.creatorId === currentUser.uid || loadedEvent.participantIds.includes(currentUser.uid)) {
 				await loadGroupMessages(loadedEvent);
 			}
 		} catch (err) {
@@ -582,7 +602,10 @@
 
 		if (!currentUser || !event || !groupMessageText.trim()) return;
 
-		if (!event.participantIds.includes(currentUser.uid)) {
+		const canCurrentUserAccessChat =
+			event.creatorId === currentUser.uid || event.participantIds.includes(currentUser.uid);
+
+		if (!canCurrentUserAccessChat) {
 			error = 'You need to be in this event to send messages.';
 			return;
 		}
@@ -895,7 +918,7 @@
 				/>
 			{/if}
 
-			{#if isParticipant && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
+			{#if canAccessGroupChat && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
 				<section
 					class="rounded-4xl border border-slate-200 bg-white shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 				>
@@ -1091,85 +1114,87 @@
 				</div>
 			{/if}
 
-			<div
-				class="rounded-4xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
-			>
-				<div class="flex items-center justify-between gap-3">
-					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Team status</h2>
+			{#if event?.eventKind != 'tournament'}
+				<div
+					class="rounded-4xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+				>
+					<div class="flex items-center justify-between gap-3">
+						<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Team status</h2>
 
-					{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
-						<button
-							type="button"
-							onclick={handleCancelEvent}
-							disabled={actionLoading}
-							title="Cancel event"
-							aria-label="Cancel event"
-							class="flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-xl font-black text-red-600 transition hover:bg-red-100 disabled:opacity-60 dark:bg-red-950 dark:text-red-300 dark:hover:bg-red-900"
+						{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
+							<button
+								type="button"
+								onclick={handleCancelEvent}
+								disabled={actionLoading}
+								title="Cancel event"
+								aria-label="Cancel event"
+								class="flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-xl font-black text-red-600 transition hover:bg-red-100 disabled:opacity-60 dark:bg-red-950 dark:text-red-300 dark:hover:bg-red-900"
+							>
+								×
+							</button>
+						{:else if isParticipant && !isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
+							<button
+								type="button"
+								onclick={handleLeaveEvent}
+								disabled={actionLoading}
+								title="Leave event"
+								aria-label="Leave event"
+								class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-lg font-black text-slate-600 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-60 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-red-950 dark:hover:text-red-300"
+							>
+								↩
+							</button>
+						{/if}
+					</div>
+
+					<div class="mt-5 rounded-2xl bg-blue-50 p-5 dark:bg-blue-950">
+						<p class="text-4xl font-black text-blue-600 dark:text-blue-300">
+							{event.participantIds.length}/{event.maxParticipants}
+						</p>
+						<p class="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
+							confirmed players
+						</p>
+					</div>
+
+					{#if effectiveStatus === 'cancelled'}
+						<div
+							class="mt-5 rounded-2xl bg-red-50 px-5 py-4 text-center font-bold text-red-700 dark:bg-red-950 dark:text-red-300"
 						>
-							×
-						</button>
-					{:else if isParticipant && !isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
-						<button
-							type="button"
-							onclick={handleLeaveEvent}
-							disabled={actionLoading}
-							title="Leave event"
-							aria-label="Leave event"
-							class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-lg font-black text-slate-600 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-60 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-red-950 dark:hover:text-red-300"
+							This event has been cancelled
+						</div>
+
+					{:else if effectiveStatus === 'finished'}
+						<div
+							class="mt-5 rounded-2xl bg-slate-100 px-5 py-4 text-center font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300"
 						>
-							↩
+							This event has already finished
+						</div>
+						
+					{:else if event.status === 'full'}
+						<div
+							class="mt-5 rounded-2xl bg-slate-100 px-5 py-4 text-center font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300"
+						>
+							Event full
+						</div>
+					{:else if canJoin}
+						<button
+							onclick={handleJoinEvent}
+							disabled={actionLoading}
+							class="mt-5 w-full rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-700 disabled:opacity-60"
+						>
+							{actionLoading ? 'Joining...' : 'Join event'}
 						</button>
 					{/if}
+
+					{#if canInvite}
+						<a
+							href={resolve(`/events/${event.id}/invite`)}
+							class="mt-3 block rounded-2xl border border-slate-200 bg-white px-5 py-3 text-center font-bold text-slate-700 transition hover:border-blue-200 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-500 dark:hover:text-blue-400"
+						>
+							Invite people
+						</a>
+					{/if}
 				</div>
-
-				<div class="mt-5 rounded-2xl bg-blue-50 p-5 dark:bg-blue-950">
-					<p class="text-4xl font-black text-blue-600 dark:text-blue-300">
-						{event.participantIds.length}/{event.maxParticipants}
-					</p>
-					<p class="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
-						confirmed players
-					</p>
-				</div>
-
-				{#if effectiveStatus === 'cancelled'}
-					<div
-						class="mt-5 rounded-2xl bg-red-50 px-5 py-4 text-center font-bold text-red-700 dark:bg-red-950 dark:text-red-300"
-					>
-						This event has been cancelled
-					</div>
-
-                {:else if effectiveStatus === 'finished'}
-                    <div
-                        class="mt-5 rounded-2xl bg-slate-100 px-5 py-4 text-center font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300"
-                    >
-                        This event has already finished
-                    </div>
-					
-				{:else if event.status === 'full'}
-					<div
-						class="mt-5 rounded-2xl bg-slate-100 px-5 py-4 text-center font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300"
-					>
-						Event full
-					</div>
-				{:else if canJoin}
-					<button
-						onclick={handleJoinEvent}
-						disabled={actionLoading}
-						class="mt-5 w-full rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-700 disabled:opacity-60"
-					>
-						{actionLoading ? 'Joining...' : 'Join event'}
-					</button>
-				{/if}
-
-				{#if canInvite}
-					<a
-						href={resolve(`/events/${event.id}/invite`)}
-						class="mt-3 block rounded-2xl border border-slate-200 bg-white px-5 py-3 text-center font-bold text-slate-700 transition hover:border-blue-200 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-500 dark:hover:text-blue-400"
-					>
-						Invite people
-					</a>
-				{/if}
-			</div>
+			{/if}
 
 			<EventMap
                 lat={event.location.lat ?? null}
