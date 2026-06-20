@@ -55,6 +55,10 @@
 			return conversation.title ?? 'Event group';
 		}
 
+		if (conversation.type === 'tournament_team') {
+			return conversation.title ?? 'Tournament team';
+		}
+
 		return otherUser?.displayName ?? 'Rally user';
 	});
 
@@ -71,6 +75,10 @@
 			return 'Event group';
 		}
 
+		if (conversation.type === 'tournament_team') {
+			return 'Private team chat';
+		}
+
 		return `@${otherUser?.rallyTag ?? 'rally'}`;
 	});
 
@@ -81,7 +89,7 @@
 			return conversation.organizationLogoURL ?? conversation.photoURL ?? null;
 		}
 
-		if (conversation.type === 'group') {
+		if (conversation.type === 'group' || conversation.type === 'tournament_team') {
 			return conversation.photoURL ?? null;
 		}
 

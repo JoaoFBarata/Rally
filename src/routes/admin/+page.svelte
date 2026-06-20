@@ -13,7 +13,7 @@
 	} from '$lib/services/organization.service';
 	import type { Organization, OrganizationVerificationRequest } from '$lib/schema';
 
-	const ADMIN_EMAILS = ['duarte.v.ayres@gmail.com'];
+	const ADMIN_EMAILS = ['duarte.v.ayres@gmail.com', 'guilherme.martins.e.silva@gmail.com'];
 
 	type RequestWithOrg = OrganizationVerificationRequest & { organization: Organization | null };
 

@@ -122,6 +122,10 @@ export function getEventGroupConversationId(eventId: string) {
 	return `event_${eventId}`;
 }
 
+export function getTournamentTeamConversationId(teamId: string) {
+	return `tournament_team_${teamId}`;
+}
+
 export function getEventStartAtMillis(event: SportEvent) {
 	const startAt = event.startAt as unknown as { toMillis?: () => number; toDate?: () => Date };
 
@@ -188,6 +192,44 @@ async function syncEventGroupConversation(event: SportEvent) {
 	);
 }
 
+async function syncTournamentTeamConversation(
+	event: SportEvent,
+	entry: TournamentEntry,
+	createIfMissing = true
+) {
+	if (entry.type !== 'team') return;
+
+	const conversationId = getTournamentTeamConversationId(entry.id);
+	const conversationRef = doc(db, 'conversations', conversationId);
+	const conversationData = {
+		id: conversationId,
+		type: 'tournament_team',
+		eventId: event.id,
+		teamId: entry.id,
+		title: entry.name,
+		photoURL: event.organizationLogoURL ?? event.groupPhotoURL ?? null,
+		memberIds: [...new Set(entry.memberIds)],
+		updatedAt: serverTimestamp()
+	};
+
+	if (createIfMissing) {
+		await setDoc(
+			conversationRef,
+			{ ...conversationData, createdAt: serverTimestamp() },
+			{ merge: true }
+		);
+		return;
+	}
+
+	try {
+		await updateDoc(conversationRef, conversationData);
+	} catch (error) {
+		const code = (error as { code?: string }).code;
+		if (code === 'not-found') return;
+		throw error;
+	}
+}
+
 export async function ensureEventGroupConversation(eventId: string) {
 	const event = await getEventById(eventId);
 
@@ -198,6 +240,28 @@ export async function ensureEventGroupConversation(eventId: string) {
 	await syncEventGroupConversation(event);
 
 	return getEventGroupConversationId(eventId);
+}
+
+export async function ensureTournamentTeamConversation(params: {
+	eventId: string;
+	teamId: string;
+	userId: string;
+}) {
+	const event = await assertTournamentEvent(params.eventId);
+	const entries = await getTournamentEntries(params.eventId);
+	const entry = entries.find((item) => item.id === params.teamId && item.type === 'team');
+
+	if (!entry) {
+		throw new Error('Team not found.');
+	}
+
+	if (!entry.memberIds.includes(params.userId)) {
+		throw new Error('Only team members can access this chat.');
+	}
+
+	await syncTournamentTeamConversation(event, entry);
+
+	return getTournamentTeamConversationId(entry.id);
 }
 
 async function assertCanManageEvent(event: SportEvent, userId: string) {
@@ -1023,6 +1087,11 @@ export async function joinTournamentTeam(params: {
 		updatedAt: serverTimestamp()
 	});
 
+	await syncTournamentTeamConversation(event, {
+		...team,
+		memberIds: [...team.memberIds, params.userId]
+	});
+
 	if (!event.participantIds.includes(params.userId)) {
 		await syncTournamentParticipantIds(event, [...event.participantIds, params.userId]);
 	}
@@ -1198,6 +1267,20 @@ export async function createTournamentTeam(params: {
 		updatedAt: serverTimestamp()
 	});
 
+	await syncTournamentTeamConversation(event, {
+		id: entryRef.id,
+		eventId: params.eventId,
+		type: 'team',
+		name: params.teamName.trim(),
+		captainId: params.captainId,
+		memberIds: [params.captainId],
+		isOpen: params.isOpen,
+		maxMembers: event.maxTeamSize ?? event.teamSize ?? null,
+		status: 'confirmed',
+		createdAt: Timestamp.now(),
+		updatedAt: Timestamp.now()
+	});
+
 	if (!event.participantIds.includes(params.captainId)) {
 		await syncTournamentParticipantIds(event, [...event.participantIds, params.captainId]);
 	}
@@ -1226,11 +1309,16 @@ export async function leaveTournament(params: {
 
 	if (entry.type === 'individual' || entry.memberIds.length === 1) {
 		await deleteDoc(doc(db, 'tournamentEntries', entry.id));
+		await syncTournamentTeamConversation(event, { ...entry, memberIds: [] }, false);
 	} else {
+		const memberIds = entry.memberIds.filter((id) => id !== params.userId);
+
 		await updateDoc(doc(db, 'tournamentEntries', entry.id), {
-			memberIds: entry.memberIds.filter((id) => id !== params.userId),
+			memberIds,
 			updatedAt: serverTimestamp()
 		});
+
+		await syncTournamentTeamConversation(event, { ...entry, memberIds }, false);
 	}
 
 	if (event.participantIds.includes(params.userId)) {
@@ -1239,6 +1327,80 @@ export async function leaveTournament(params: {
 			event.participantIds.filter((id) => id !== params.userId)
 		);
 	}
+}
+
+export async function removeTournamentPlayer(params: {
+	eventId: string;
+	entryId: string;
+	playerId: string;
+	userId: string;
+}) {
+	const event = await assertTournamentEvent(params.eventId);
+	await assertCanManageEvent(event, params.userId);
+
+	if (event.tournamentStatus === 'in_progress' || event.tournamentStatus === 'finished') {
+		throw new Error('Players cannot be removed after the tournament has started.');
+	}
+
+	const entries = await getTournamentEntries(params.eventId);
+	const entry = entries.find((item) => item.id === params.entryId);
+
+	if (!entry || !entry.memberIds.includes(params.playerId)) {
+		throw new Error('Player registration not found.');
+	}
+
+	const memberIds = entry.memberIds.filter((id) => id !== params.playerId);
+
+	if (entry.type === 'individual' || memberIds.length === 0) {
+		await deleteDoc(doc(db, 'tournamentEntries', entry.id));
+		await syncTournamentTeamConversation(event, { ...entry, memberIds: [] }, false);
+	} else {
+		const captainId = entry.captainId === params.playerId ? memberIds[0] : entry.captainId;
+
+		await updateDoc(doc(db, 'tournamentEntries', entry.id), {
+			memberIds,
+			captainId: captainId ?? null,
+			updatedAt: serverTimestamp()
+		});
+
+		await syncTournamentTeamConversation(event, { ...entry, memberIds, captainId }, false);
+	}
+
+	if (event.participantIds.includes(params.playerId)) {
+		await syncTournamentParticipantIds(
+			event,
+			event.participantIds.filter((id) => id !== params.playerId)
+		);
+	}
+}
+
+export async function removeTournamentEntry(params: {
+	eventId: string;
+	entryId: string;
+	userId: string;
+}) {
+	const event = await assertTournamentEvent(params.eventId);
+	await assertCanManageEvent(event, params.userId);
+
+	if (event.tournamentStatus === 'in_progress' || event.tournamentStatus === 'finished') {
+		throw new Error('Entries cannot be removed after the tournament has started.');
+	}
+
+	const entries = await getTournamentEntries(params.eventId);
+	const entry = entries.find((item) => item.id === params.entryId);
+
+	if (!entry) {
+		throw new Error('Tournament entry not found.');
+	}
+
+	await deleteDoc(doc(db, 'tournamentEntries', entry.id));
+	await syncTournamentTeamConversation(event, { ...entry, memberIds: [] }, false);
+
+	const removedMemberIds = new Set(entry.memberIds);
+	await syncTournamentParticipantIds(
+		event,
+		event.participantIds.filter((id) => !removedMemberIds.has(id))
+	);
 }
 
 export async function generateTournamentMatches(params: {

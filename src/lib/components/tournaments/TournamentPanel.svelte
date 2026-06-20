@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import type { SportEvent, TournamentEntry, TournamentMatch, UserProfile } from '$lib/schema';
 	import {
 		closeTournamentRegistration,
@@ -7,13 +9,16 @@
 		generateTournamentMatches,
 		getTournamentEntries,
 		getTournamentMatches,
+		ensureTournamentTeamConversation,
 		joinTournamentAsIndividual,
 		joinTournamentTeam,
+		removeTournamentEntry,
+		removeTournamentPlayer,
 		updateTournamentMatchResult,
         leaveTournament,
         cancelEvent
 	} from '$lib/services/event.service';
-	import { getUserProfile } from '$lib/services/user.service';
+	import { getUserProfile, getUserProfilesByIds } from '$lib/services/user.service';
     import { getFriendsForUser } from '$lib/services/social.service';
     import { inviteUsersToTournamentTeam } from '$lib/services/invite.service';
 
@@ -38,7 +43,9 @@
 
     let friends = $state<UserProfile[]>([]);
     let inviteTeamId = $state<string | null>(null);
-    let selectedFriendIds = $state<string[]>([]);
+	let selectedFriendIds = $state<string[]>([]);
+	let memberProfiles = $state<Record<string, UserProfile>>({});
+	let pendingRemovalKey = $state('');
 
 	let matchInputs = $state<
 		Record<
@@ -100,6 +107,10 @@
 
 	function getInvitableFriends(entry: TournamentEntry) {
 		return friends.filter((friend) => !entry.memberIds.includes(friend.id));
+	}
+
+	function getMemberName(userId: string) {
+		return memberProfiles[userId]?.displayName ?? 'Rally player';
 	}
 
 	function formatStage(stage: TournamentMatch['stage']) {
@@ -172,6 +183,11 @@
 
 			entries = loadedEntries;
 			matches = loadedMatches;
+
+			const profiles = await getUserProfilesByIds(
+				loadedEntries.flatMap((entry) => entry.memberIds)
+			);
+			memberProfiles = Object.fromEntries(profiles.map((profile) => [profile.id, profile]));
 
 			const nextInputs: Record<
 				string,
@@ -336,6 +352,79 @@
 		} catch (err) {
 			console.error('Join team error:', err);
 			error = err instanceof Error ? err.message : 'Could not join team.';
+		} finally {
+			actionLoading = '';
+		}
+	}
+
+	async function handleOpenTeamChat(entry: TournamentEntry) {
+		if (!currentUserId) return;
+
+		actionLoading = `team-chat-${entry.id}`;
+		error = '';
+
+		try {
+			const conversationId = await ensureTournamentTeamConversation({
+				eventId: event.id,
+				teamId: entry.id,
+				userId: currentUserId
+			});
+
+			await goto(resolve(`/messages/${conversationId}`));
+		} catch (err) {
+			console.error('Open team chat error:', err);
+			error = err instanceof Error ? err.message : 'Could not open the team chat.';
+		} finally {
+			actionLoading = '';
+		}
+	}
+
+	async function handleRemovePlayer(entry: TournamentEntry, playerId: string) {
+		if (!currentUserId) return;
+
+		actionLoading = `remove-player-${playerId}`;
+		error = '';
+		success = '';
+
+		try {
+			await removeTournamentPlayer({
+				eventId: event.id,
+				entryId: entry.id,
+				playerId,
+				userId: currentUserId
+			});
+
+			pendingRemovalKey = '';
+			success = 'Player removed from the tournament.';
+			await loadTournamentData();
+		} catch (err) {
+			console.error('Remove tournament player error:', err);
+			error = err instanceof Error ? err.message : 'Could not remove the player.';
+		} finally {
+			actionLoading = '';
+		}
+	}
+
+	async function handleRemoveEntry(entry: TournamentEntry) {
+		if (!currentUserId) return;
+
+		actionLoading = `remove-entry-${entry.id}`;
+		error = '';
+		success = '';
+
+		try {
+			await removeTournamentEntry({
+				eventId: event.id,
+				entryId: entry.id,
+				userId: currentUserId
+			});
+
+			pendingRemovalKey = '';
+			success = entry.type === 'team' ? 'Team removed from the tournament.' : 'Player removed from the tournament.';
+			await loadTournamentData();
+		} catch (err) {
+			console.error('Remove tournament entry error:', err);
+			error = err instanceof Error ? err.message : 'Could not remove the entry.';
 		} finally {
 			actionLoading = '';
 		}
@@ -710,7 +799,46 @@
 									</button>
 								{/if}
 							</div>
-                            {#if entry.type === 'team' && entry.captainId === currentUserId && isRegistrationOpen}
+
+							{#if entry.type === 'team'}
+								<div class="mt-3 flex flex-wrap gap-2">
+									{#each entry.memberIds as memberId}
+										<div class="flex items-center gap-2 rounded-full bg-slate-50 py-1.5 pl-3 pr-1.5 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+											<span>{getMemberName(memberId)}{entry.captainId === memberId ? ' · Captain' : ''}</span>
+											{#if canManage && event.tournamentStatus !== 'in_progress' && event.tournamentStatus !== 'finished'}
+												<button
+													type="button"
+													onclick={() => (pendingRemovalKey = `player-${entry.id}-${memberId}`)}
+													class="flex h-6 w-6 items-center justify-center rounded-full text-slate-400 transition hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-950"
+													aria-label={`Remove ${getMemberName(memberId)}`}
+												>
+													×
+												</button>
+											{/if}
+										</div>
+									{/each}
+								</div>
+							{/if}
+
+							{#if canManage && event.tournamentStatus !== 'in_progress' && event.tournamentStatus !== 'finished'}
+								<div class="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+									{#if pendingRemovalKey.startsWith(`player-${entry.id}-`)}
+										{@const playerId = pendingRemovalKey.slice(`player-${entry.id}-`.length)}
+										<span class="text-xs font-bold text-red-600">Remove {getMemberName(playerId)}?</span>
+										<button type="button" onclick={() => handleRemovePlayer(entry, playerId)} disabled={actionLoading === `remove-player-${playerId}`} class="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-black text-white disabled:opacity-60">Confirm</button>
+										<button type="button" onclick={() => (pendingRemovalKey = '')} class="rounded-lg px-3 py-1.5 text-xs font-black text-slate-500">Cancel</button>
+									{:else if pendingRemovalKey === `entry-${entry.id}`}
+										<span class="text-xs font-bold text-red-600">Remove {entry.type === 'team' ? 'this entire team' : entry.name}?</span>
+										<button type="button" onclick={() => handleRemoveEntry(entry)} disabled={actionLoading === `remove-entry-${entry.id}`} class="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-black text-white disabled:opacity-60">Confirm</button>
+										<button type="button" onclick={() => (pendingRemovalKey = '')} class="rounded-lg px-3 py-1.5 text-xs font-black text-slate-500">Cancel</button>
+									{:else}
+										<button type="button" onclick={() => (pendingRemovalKey = `entry-${entry.id}`)} class="text-xs font-black text-red-600 transition hover:text-red-700">
+											{entry.type === 'team' ? 'Remove team' : 'Remove player'}
+										</button>
+									{/if}
+								</div>
+							{/if}
+	                            {#if entry.type === 'team' && entry.captainId === currentUserId && isRegistrationOpen}
                                 <div class="mt-4 border-t border-slate-100 pt-4 dark:border-slate-800">
                                     <button
                                         type="button"
@@ -831,7 +959,17 @@
 					<p class="mt-2 text-sm font-bold text-slate-500 dark:text-slate-400">
 						You are registered as {userEntry.name}.
 					</p>
-                    <button
+					{#if userEntry.type === 'team'}
+						<button
+							type="button"
+							onclick={() => handleOpenTeamChat(userEntry)}
+							disabled={actionLoading === `team-chat-${userEntry.id}`}
+							class="mt-4 w-full rounded-2xl bg-slate-950 px-5 py-3 font-black text-white transition hover:bg-blue-600 disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-blue-400"
+						>
+							{actionLoading === `team-chat-${userEntry.id}` ? 'Opening...' : 'Open team chat'}
+						</button>
+					{/if}
+	                    <button
                         type="button"
                         onclick={handleLeaveTournament}
                         disabled={actionLoading === 'leave-tournament'}

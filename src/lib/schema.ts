@@ -281,9 +281,10 @@ export interface ChatTypingState {
 export interface ChatConversation {
 	id: string;
 	memberIds: string[];
-	type: 'direct' | 'group' | 'organization_direct' | 'rally_system';
+	type: 'direct' | 'group' | 'tournament_team' | 'organization_direct' | 'rally_system';
 
 	eventId?: string;
+	teamId?: string;
 	title?: string;
 	photoURL?: string | null;
 

@@ -20,6 +20,20 @@ service cloud.firestore {
           || request.auth.uid in org.data.adminIds;
     }
 
+		function eventData(eventId) {
+			return get(/databases/$(database)/documents/events/$(eventId)).data;
+		}
+
+		function isEventManager(eventId) {
+			let event = eventData(eventId);
+			return isAuth() && (
+				event.creatorId == request.auth.uid
+				|| (event.hostType == 'organization'
+						&& event.organizationId is string
+						&& isOrgAdmin(event.organizationId))
+			);
+		}
+
     function convData(conversationId) {
       return get(/databases/$(database)/documents/conversations/$(conversationId)).data;
     }
@@ -189,10 +203,13 @@ service cloud.firestore {
       );
 
       allow update: if isAuth() && (
-        request.auth.uid in resource.data.memberIds
-        || resource.data.type == 'rally_system'
-        || (resource.data.type == 'group'
-            && request.auth.uid in request.resource.data.memberIds)
+		request.auth.uid in resource.data.memberIds
+		|| resource.data.type == 'rally_system'
+		|| (resource.data.type == 'group'
+			&& request.auth.uid in request.resource.data.memberIds)
+		|| (resource.data.type == 'tournament_team'
+			&& (request.auth.uid in request.resource.data.memberIds
+				|| isEventManager(resource.data.eventId)))
       );
 
       allow delete: if false;
@@ -230,11 +247,21 @@ service cloud.firestore {
         || request.resource.data.captainId == request.auth.uid
       );
       allow update: if isAuth() && (
-        resource.data.captainId == request.auth.uid
-        || (resource.data.isOpen == true
-            && request.auth.uid in request.resource.data.memberIds)
+		resource.data.captainId == request.auth.uid
+		|| (request.auth.uid in request.resource.data.memberIds
+			&& !(request.auth.uid in resource.data.memberIds)
+			&& request.resource.data.diff(resource.data).affectedKeys()
+				.hasOnly(['memberIds', 'updatedAt']))
+		|| (!(request.auth.uid in request.resource.data.memberIds)
+			&& request.auth.uid in resource.data.memberIds
+			&& request.resource.data.diff(resource.data).affectedKeys()
+				.hasOnly(['memberIds', 'updatedAt']))
+		|| isEventManager(resource.data.eventId)
       );
-      allow delete: if false;
+	  allow delete: if isAuth() && (
+		isEventManager(resource.data.eventId)
+		|| resource.data.captainId == request.auth.uid
+	  );
     }
 
 

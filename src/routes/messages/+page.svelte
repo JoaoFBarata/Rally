@@ -165,6 +165,20 @@
 					};
 				}
 
+				if (conversation.type === 'tournament_team') {
+					return {
+						...conversation,
+						otherUser: null,
+						unreadCount,
+						lastInteractionAtMs: getConversationLastInteraction(conversation),
+						displayName: conversation.title ?? 'Tournament team',
+						displaySubtitle: 'Team chat',
+						displayPhotoURL: conversation.photoURL ?? null,
+						displayHref: `/messages/${conversation.id}`,
+						isOrganizationChat: false
+					};
+				}
+
 				if (conversation.type === 'organization_direct') {
 					return {
 						...conversation,
