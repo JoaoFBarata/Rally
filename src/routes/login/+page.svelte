@@ -40,17 +40,17 @@
 					<ThemeToggle />
 				</div>
 
-				<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
-					Make sports happen
-				</p>
+				<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Make sports happen</p>
 			</div>
 
-			<h1 class="mt-8 text-6xl font-black leading-tight tracking-tight text-slate-950 dark:text-slate-50">
+			<h1
+				class="mt-8 text-6xl font-black leading-tight tracking-tight text-slate-950 dark:text-slate-50"
+			>
 				Welcome back.
 			</h1>
 
 			<p class="mt-5 max-w-lg text-lg leading-8 text-slate-600 dark:text-slate-400">
-				Log in to manage your sports events, invitations, teams and payments.
+				Access your account and manage your events, teams, and more. We’ve missed you!
 			</p>
 		</div>
 
@@ -61,9 +61,7 @@
 					<ThemeToggle />
 				</div>
 
-				<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
-					Make sports happen
-				</p>
+				<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Make sports happen</p>
 			</div>
 
 			<div
@@ -78,9 +76,7 @@
 
 				<div class="my-6 flex items-center gap-3">
 					<div class="h-px flex-1 bg-slate-200 dark:bg-slate-700"></div>
-					<span class="text-xs font-bold uppercase tracking-wide text-slate-400">
-						or
-					</span>
+					<span class="text-xs font-bold uppercase tracking-wide text-slate-400"> or </span>
 					<div class="h-px flex-1 bg-slate-200 dark:bg-slate-700"></div>
 				</div>
 
@@ -138,7 +134,10 @@
 
 				<p class="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
 					Don’t have an account?
-					<a href="/register" class="font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
+					<a
+						href="/register"
+						class="font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+					>
 						Create one
 					</a>
 				</p>

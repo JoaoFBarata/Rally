@@ -283,6 +283,20 @@ export async function rejectOrganizationVerification(params: {
 	}
 }
 
+export async function getPendingVerificationRequests() {
+	const q = query(
+		collection(db, 'organizationVerificationRequests'),
+		where('status', '==', 'pending')
+	);
+	const snap = await getDocs(q);
+	const docs = snap.docs.map((d) => ({ ...d.data(), id: d.id }) as OrganizationVerificationRequest);
+	return docs.sort((a, b) => {
+		const aMs = (a.createdAt as unknown as { toMillis?: () => number })?.toMillis?.() ?? 0;
+		const bMs = (b.createdAt as unknown as { toMillis?: () => number })?.toMillis?.() ?? 0;
+		return aMs - bMs;
+	});
+}
+
 export async function isFollowingOrganization(params: {
 	organizationId: string;
 	userId: string;

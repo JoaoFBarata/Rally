@@ -1,0 +1,393 @@
+<!-- src/routes/admin/+page.svelte -->
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { auth, db } from '$lib/firebase';
+	import { onAuthStateChanged } from 'firebase/auth';
+	import { collection, getCountFromServer, query, where } from 'firebase/firestore';
+	import {
+		approveOrganizationVerification,
+		getOrganizationById,
+		getPendingVerificationRequests,
+		rejectOrganizationVerification
+	} from '$lib/services/organization.service';
+	import type { Organization, OrganizationVerificationRequest } from '$lib/schema';
+
+	const ADMIN_EMAILS = ['duarte.v.ayres@gmail.com'];
+
+	type RequestWithOrg = OrganizationVerificationRequest & { organization: Organization | null };
+
+	let loading = $state(true);
+	let activeTab = $state<'overview' | 'verifications'>('overview');
+
+	let stats = $state({
+		users: 0,
+		organizations: 0,
+		events: { total: 0, open: 0, full: 0, cancelled: 0, finished: 0 },
+		pendingVerifications: 0
+	});
+
+	let verificationRequests = $state<RequestWithOrg[]>([]);
+	let loadingRequests = $state(false);
+	let requestsError = $state('');
+
+	let processingId = $state('');
+	let adminNotes = $state<Record<string, string>>({});
+	let actionError = $state('');
+
+	async function loadStats() {
+		const [usersSnap, orgsSnap, eventsSnap, openSnap, fullSnap, cancelledSnap, finishedSnap, pendingVerSnap] =
+			await Promise.all([
+				getCountFromServer(collection(db, 'users')),
+				getCountFromServer(collection(db, 'organizations')),
+				getCountFromServer(collection(db, 'events')),
+				getCountFromServer(query(collection(db, 'events'), where('status', '==', 'open'))),
+				getCountFromServer(query(collection(db, 'events'), where('status', '==', 'full'))),
+				getCountFromServer(query(collection(db, 'events'), where('status', '==', 'cancelled'))),
+				getCountFromServer(query(collection(db, 'events'), where('status', '==', 'finished'))),
+				getCountFromServer(
+					query(collection(db, 'organizationVerificationRequests'), where('status', '==', 'pending'))
+				)
+			]);
+
+		stats = {
+			users: usersSnap.data().count,
+			organizations: orgsSnap.data().count,
+			events: {
+				total: eventsSnap.data().count,
+				open: openSnap.data().count,
+				full: fullSnap.data().count,
+				cancelled: cancelledSnap.data().count,
+				finished: finishedSnap.data().count
+			},
+			pendingVerifications: pendingVerSnap.data().count
+		};
+	}
+
+	async function loadVerificationRequests() {
+		loadingRequests = true;
+		requestsError = '';
+		try {
+			const requests = await getPendingVerificationRequests();
+			const withOrgs = await Promise.all(
+				requests.map(async (req) => {
+					const org = await getOrganizationById(req.organizationId);
+					return { ...req, organization: org };
+				})
+			);
+			verificationRequests = withOrgs;
+		} catch (e) {
+			requestsError = (e as Error).message;
+		} finally {
+			loadingRequests = false;
+		}
+	}
+
+	async function approve(req: RequestWithOrg) {
+		processingId = req.id;
+		actionError = '';
+		try {
+			await approveOrganizationVerification({
+				organizationId: req.organizationId,
+				requestId: req.id,
+				adminUserId: auth.currentUser!.uid,
+				level: req.requestedLevel,
+				adminNote: adminNotes[req.id] ?? ''
+			});
+			verificationRequests = verificationRequests.filter((r) => r.id !== req.id);
+			stats.pendingVerifications = Math.max(0, stats.pendingVerifications - 1);
+		} catch (e) {
+			actionError = (e as Error).message;
+		} finally {
+			processingId = '';
+		}
+	}
+
+	async function reject(req: RequestWithOrg) {
+		processingId = req.id;
+		actionError = '';
+		try {
+			await rejectOrganizationVerification({
+				organizationId: req.organizationId,
+				requestId: req.id,
+				adminUserId: auth.currentUser!.uid,
+				adminNote: adminNotes[req.id] ?? ''
+			});
+			verificationRequests = verificationRequests.filter((r) => r.id !== req.id);
+			stats.pendingVerifications = Math.max(0, stats.pendingVerifications - 1);
+		} catch (e) {
+			actionError = (e as Error).message;
+		} finally {
+			processingId = '';
+		}
+	}
+
+	function formatDate(ts: unknown) {
+		try {
+			const timestamp = ts as { toDate?: () => Date };
+			if (timestamp?.toDate) {
+				return timestamp.toDate().toLocaleDateString('en-GB', {
+					day: '2-digit',
+					month: 'short',
+					year: 'numeric'
+				});
+			}
+		} catch {}
+		return '—';
+	}
+
+	onMount(() => {
+		const unsub = onAuthStateChanged(auth, async (user) => {
+			if (!user || !ADMIN_EMAILS.includes(user.email ?? '')) {
+				goto('/dashboard');
+				return;
+			}
+			await loadStats();
+			loading = false;
+		});
+		return unsub;
+	});
+
+	$effect(() => {
+		if (activeTab === 'verifications' && verificationRequests.length === 0 && !loadingRequests) {
+			loadVerificationRequests();
+		}
+	});
+</script>
+
+{#if loading}
+	<div class="flex min-h-screen items-center justify-center">
+		<p class="text-slate-500">Loading...</p>
+	</div>
+{:else}
+	<div class="min-h-screen bg-slate-50 dark:bg-slate-950">
+		<!-- Header -->
+		<div class="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+			<div class="mx-auto max-w-6xl px-4 py-5">
+				<div class="flex items-center gap-3">
+					<div
+						class="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-sm font-bold text-white"
+					>
+						A
+					</div>
+					<div>
+						<h1 class="text-lg font-bold text-slate-900 dark:text-white">Rally Admin</h1>
+						<p class="text-xs text-slate-500">Platform management</p>
+					</div>
+				</div>
+
+				<!-- Tabs -->
+				<div class="mt-4 flex gap-1">
+					<button
+						onclick={() => (activeTab = 'overview')}
+						class={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+							activeTab === 'overview'
+								? 'bg-blue-600 text-white'
+								: 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
+						}`}
+					>
+						Overview
+					</button>
+					<button
+						onclick={() => (activeTab = 'verifications')}
+						class={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+							activeTab === 'verifications'
+								? 'bg-blue-600 text-white'
+								: 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
+						}`}
+					>
+						Verifications
+						{#if stats.pendingVerifications > 0}
+							<span
+								class="flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 px-1 text-[10px] font-bold text-white"
+							>
+								{stats.pendingVerifications}
+							</span>
+						{/if}
+					</button>
+				</div>
+			</div>
+		</div>
+
+		<div class="mx-auto max-w-6xl px-4 py-8">
+			<!-- Overview Tab -->
+			{#if activeTab === 'overview'}
+				<div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+					<div
+						class="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"
+					>
+						<p class="text-xs font-medium uppercase tracking-wide text-slate-500">Users</p>
+						<p class="mt-1 text-3xl font-bold text-slate-900 dark:text-white">{stats.users}</p>
+					</div>
+
+					<div
+						class="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"
+					>
+						<p class="text-xs font-medium uppercase tracking-wide text-slate-500">Organizations</p>
+						<p class="mt-1 text-3xl font-bold text-slate-900 dark:text-white">
+							{stats.organizations}
+						</p>
+					</div>
+
+					<div
+						class="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"
+					>
+						<p class="text-xs font-medium uppercase tracking-wide text-slate-500">Events</p>
+						<p class="mt-1 text-3xl font-bold text-slate-900 dark:text-white">
+							{stats.events.total}
+						</p>
+					</div>
+
+					<div
+						class="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"
+					>
+						<p class="text-xs font-medium uppercase tracking-wide text-slate-500">
+							Pending Verifications
+						</p>
+						<p
+							class={`mt-1 text-3xl font-bold ${stats.pendingVerifications > 0 ? 'text-orange-500' : 'text-slate-900 dark:text-white'}`}
+						>
+							{stats.pendingVerifications}
+						</p>
+					</div>
+				</div>
+
+				<!-- Event status breakdown -->
+				<div
+					class="mt-6 rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"
+				>
+					<h2 class="mb-4 text-sm font-semibold text-slate-700 dark:text-slate-300">
+						Events by Status
+					</h2>
+					<div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+						{#each [
+							{ label: 'Open', value: stats.events.open, color: 'text-green-600' },
+							{ label: 'Full', value: stats.events.full, color: 'text-blue-600' },
+							{ label: 'Finished', value: stats.events.finished, color: 'text-slate-500' },
+							{ label: 'Cancelled', value: stats.events.cancelled, color: 'text-red-500' }
+						] as stat}
+							<div class="rounded-lg bg-slate-50 p-4 dark:bg-slate-800">
+								<p class="text-xs text-slate-500">{stat.label}</p>
+								<p class={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
+			<!-- Verifications Tab -->
+			{#if activeTab === 'verifications'}
+				{#if actionError}
+					<div
+						class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400"
+					>
+						{actionError}
+					</div>
+				{/if}
+
+				{#if loadingRequests}
+					<p class="text-slate-500">Loading requests...</p>
+				{:else if requestsError}
+					<div class="rounded-xl border border-red-200 bg-red-50 p-6 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+						Failed to load requests: {requestsError}
+					</div>
+				{:else if verificationRequests.length === 0}
+					<div
+						class="rounded-xl border border-slate-200 bg-white p-12 text-center dark:border-slate-800 dark:bg-slate-900"
+					>
+						<p class="text-slate-500">No pending verification requests</p>
+					</div>
+				{:else}
+					<div class="flex flex-col gap-4">
+						{#each verificationRequests as req (req.id)}
+							<div
+								class="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"
+							>
+								<div class="flex items-start justify-between gap-4">
+									<div class="min-w-0">
+										<div class="flex items-center gap-2">
+											<h3 class="font-semibold text-slate-900 dark:text-white">
+												{req.organization?.name ?? req.organizationId}
+											</h3>
+											<span
+												class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+											>
+												{req.organization?.type?.replace('_', ' ') ?? '—'}
+											</span>
+										</div>
+										<p class="mt-0.5 text-sm text-slate-500">Submitted {formatDate(req.createdAt)}</p>
+									</div>
+									<span
+										class="shrink-0 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+									>
+										{req.requestedLevel} verification
+									</span>
+								</div>
+
+								<!-- Request details -->
+								<dl class="mt-4 grid grid-cols-2 gap-x-8 gap-y-2 text-sm sm:grid-cols-3">
+									{#if req.legalName}
+										<div>
+											<dt class="text-xs text-slate-400">Legal name</dt>
+											<dd class="font-medium text-slate-800 dark:text-slate-200">{req.legalName}</dd>
+										</div>
+									{/if}
+									{#if req.nif}
+										<div>
+											<dt class="text-xs text-slate-400">NIF</dt>
+											<dd class="font-medium text-slate-800 dark:text-slate-200">{req.nif}</dd>
+										</div>
+									{/if}
+									{#if req.website}
+										<div>
+											<dt class="text-xs text-slate-400">Website</dt>
+											<dd class="truncate font-medium text-blue-600 dark:text-blue-400">{req.website}</dd>
+										</div>
+									{/if}
+									{#if req.address}
+										<div class="col-span-2">
+											<dt class="text-xs text-slate-400">Address</dt>
+											<dd class="font-medium text-slate-800 dark:text-slate-200">{req.address}</dd>
+										</div>
+									{/if}
+								</dl>
+
+								{#if req.note}
+									<div class="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+										<span class="text-xs font-medium text-slate-400">Note: </span>{req.note}
+									</div>
+								{/if}
+
+								<!-- Admin note + actions -->
+								<div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+									<textarea
+										bind:value={adminNotes[req.id]}
+										placeholder="Admin note (optional)..."
+										rows="2"
+										class="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+									></textarea>
+									<div class="flex shrink-0 gap-2">
+										<button
+											onclick={() => reject(req)}
+											disabled={processingId === req.id}
+											class="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400"
+										>
+											Reject
+										</button>
+										<button
+											onclick={() => approve(req)}
+											disabled={processingId === req.id}
+											class="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-50"
+										>
+											{processingId === req.id ? 'Processing...' : 'Approve'}
+										</button>
+									</div>
+								</div>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			{/if}
+		</div>
+	</div>
+{/if}
