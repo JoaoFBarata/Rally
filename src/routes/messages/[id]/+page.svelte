@@ -40,9 +40,12 @@
 	let lastTypingSentAt = 0;
 
 	let isOrganizationChat = $derived(conversation?.type === 'organization_direct');
+	let isRallySystemChat = $derived(conversation?.type === 'rally_system');
 
 	let conversationTitle = $derived.by(() => {
 		if (!conversation) return 'Messages';
+
+		if (conversation.type === 'rally_system') return 'Rally';
 
 		if (conversation.type === 'organization_direct') {
 			return conversation.organizationName ?? conversation.title ?? 'Organization';
@@ -57,6 +60,8 @@
 
 	let conversationSubtitle = $derived.by(() => {
 		if (!conversation) return '';
+
+		if (conversation.type === 'rally_system') return 'Activity & event updates';
 
 		if (conversation.type === 'organization_direct') {
 			return 'Organization inbox';
@@ -425,15 +430,28 @@
 		{:else}
 			<div class="flex min-w-0 flex-1 items-center gap-3">
 				<div
-					class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-base font-black text-blue-600 dark:bg-slate-800 dark:text-blue-300"
+					class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full {isRallySystemChat ? 'bg-blue-600 text-white' : 'bg-slate-100 text-blue-600 dark:bg-slate-800 dark:text-blue-300'} text-base font-black"
 				>
-					{conversationTitle.charAt(0).toUpperCase()}
+					{#if isRallySystemChat}
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+							<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+						</svg>
+					{:else}
+						{conversationTitle.charAt(0).toUpperCase()}
+					{/if}
 				</div>
 
 				<div class="min-w-0 flex-1">
-					<h1 class="truncate text-base font-black text-slate-950 dark:text-white">
-						{conversationTitle}
-					</h1>
+					<div class="flex items-center gap-2">
+						<h1 class="truncate text-base font-black text-slate-950 dark:text-white">
+							{conversationTitle}
+						</h1>
+						{#if isRallySystemChat}
+							<span class="shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-black text-white">
+								Official
+							</span>
+						{/if}
+					</div>
 
 					<p class="truncate text-xs text-slate-500 dark:text-slate-400">
 						{conversationSubtitle}
@@ -489,39 +507,50 @@
 			<ChatMessageList
 				messages={messages}
 				currentUserId={auth.currentUser?.uid}
-				getSenderProfile={(senderId) =>
-					conversation?.type === 'group' ? senderProfiles[senderId] : otherUser}
+				getSenderProfile={(senderId) => {
+					if (senderId === 'rally-system') return { id: 'rally-system', displayName: 'Rally', email: null, photoURL: null } as never;
+					if (conversation?.type === 'group') return senderProfiles[senderId];
+					return otherUser;
+				}}
 				typingLabel={typingLabel}
 				showSenderName={conversation?.type === 'group'}
 			/>
 		{/if}
 	</section>
 
-	<form
-		class="border-t border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950"
-		onsubmit={(e) => {
-			e.preventDefault();
-			handleSendMessage();
-		}}
-	>
-		<div
-			class="mx-auto flex max-w-3xl items-center gap-2 rounded-full bg-slate-100 px-3 py-2 dark:bg-slate-900"
-		>
-			<input
-				bind:this={messageInput}
-				bind:value={text}
-				oninput={handleTyping}
-				placeholder="Message..."
-				class="min-w-0 flex-1 border-0 bg-transparent px-2 text-sm text-slate-950 placeholder:text-slate-400 focus:ring-0 dark:text-white"
-			/>
-
-			<button
-				type="submit"
-				disabled={sending || !text.trim()}
-				class="rounded-full bg-blue-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-blue-700 disabled:opacity-50"
-			>
-				{sending ? '...' : 'Send'}
-			</button>
+	{#if isRallySystemChat}
+		<div class="border-t border-slate-100 bg-white px-4 py-3 text-center dark:border-slate-800 dark:bg-slate-950">
+			<p class="text-xs text-slate-400 dark:text-slate-500">
+				This is your Rally activity feed. Updates are sent automatically.
+			</p>
 		</div>
-	</form>
+	{:else}
+		<form
+			class="border-t border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950"
+			onsubmit={(e) => {
+				e.preventDefault();
+				handleSendMessage();
+			}}
+		>
+			<div
+				class="mx-auto flex max-w-3xl items-center gap-2 rounded-full bg-slate-100 px-3 py-2 dark:bg-slate-900"
+			>
+				<input
+					bind:this={messageInput}
+					bind:value={text}
+					oninput={handleTyping}
+					placeholder="Message..."
+					class="min-w-0 flex-1 border-0 bg-transparent px-2 text-sm text-slate-950 placeholder:text-slate-400 focus:ring-0 dark:text-white"
+				/>
+
+				<button
+					type="submit"
+					disabled={sending || !text.trim()}
+					class="rounded-full bg-blue-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-blue-700 disabled:opacity-50"
+				>
+					{sending ? '...' : 'Send'}
+				</button>
+			</div>
+		</form>
+	{/if}
 </main>

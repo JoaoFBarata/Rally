@@ -13,9 +13,11 @@
 		getEventById,
 		getEventGroupConversationId,
 		getEffectiveEventStatus,
+		isEventFinished,
 		isPromotionActive,
 		joinEvent,
 		leaveEvent,
+		notifyEventFinished,
 		promoteEvent,
 		removeParticipantFromEvent,
 		stopEventPromotion,
@@ -401,6 +403,10 @@
 
 			event = loadedEvent;
 			participants = await getUserProfilesByIds(loadedEvent.participantIds ?? []);
+
+			if (isEventFinished(loadedEvent) && loadedEvent.status !== 'finished' && loadedEvent.status !== 'cancelled') {
+				void notifyEventFinished(loadedEvent);
+			}
 
 			if (loadedEvent.participantIds.includes(currentUser.uid)) {
 				await loadGroupMessages(loadedEvent);

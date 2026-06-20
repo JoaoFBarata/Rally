@@ -36,6 +36,7 @@ import {
 	getOrganizationById,
 	isOrganizationAdmin
 } from '$lib/services/organization.service';
+import { sendRallySystemMessage } from '$lib/services/chat.service';
 
 export const PROMOTION_PLANS: Record<
 	EventPromotionPlan,
@@ -583,6 +584,15 @@ export async function cancelEvent(eventId: string, userId: string) {
 		...event,
 		status: 'cancelled'
 	});
+
+	await Promise.all(
+		event.participantIds.map((participantId) =>
+			sendRallySystemMessage(
+				participantId,
+				`The event "${event.title}" has been cancelled.`
+			)
+		)
+	);
 }
 
 export async function removeParticipantFromEvent(params: {
@@ -1294,4 +1304,23 @@ export async function updateTournamentMatchResult(params: {
 		scheduledAt: params.scheduledAt ? Timestamp.fromDate(params.scheduledAt) : (match.scheduledAt ?? null),
 		updatedAt: serverTimestamp()
 	});
+}
+
+export async function notifyEventFinished(event: SportEvent): Promise<void> {
+	if (event.status === 'finished' || event.status === 'cancelled') return;
+	if (!isEventFinished(event)) return;
+
+	await updateDoc(doc(db, 'events', event.id), {
+		status: 'finished',
+		updatedAt: serverTimestamp()
+	});
+
+	await Promise.all(
+		event.participantIds.map((participantId) =>
+			sendRallySystemMessage(
+				participantId,
+				`Your event "${event.title}" has finished. Hope it was a great game!`
+			)
+		)
+	);
 }

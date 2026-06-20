@@ -13,6 +13,7 @@ import {
 	updateUserActiveOrganization
 } from '$lib/services/user.service';
 import { createOrganization } from '$lib/services/organization.service';
+import { sendRallySystemMessage } from '$lib/services/chat.service';
 import type { OrganizationType } from '$lib/schema';
 
 export const authService = {
@@ -30,6 +31,11 @@ export const authService = {
 			photoURL: credential.user.photoURL,
 			accountType: 'personal'
 		});
+
+		await sendRallySystemMessage(
+			credential.user.uid,
+			'Welcome to Rally! You will receive event updates and more through this chat.'
+		);
 
 		return credential.user;
 	},
@@ -80,6 +86,11 @@ export const authService = {
 			organizationId: organization.id,
 			accountType: 'organization'
 		});
+
+		await sendRallySystemMessage(
+			credential.user.uid,
+			'Welcome to Rally! You will receive organization updates and event activity through this chat.'
+		);
 
 		return {
 			user: credential.user,

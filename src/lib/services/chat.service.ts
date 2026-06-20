@@ -353,3 +353,59 @@ export function listenMessagesForConversation(
 		}
 	);
 }
+
+export const RALLY_SYSTEM_SENDER_ID = 'rally-system';
+
+function rallySystemChatIdFor(userId: string) {
+	return `rally_system_${userId}`;
+}
+
+export async function getOrCreateRallySystemChat(userId: string): Promise<string> {
+	const conversationId = rallySystemChatIdFor(userId);
+	const conversationRef = doc(db, 'conversations', conversationId);
+
+	await setDoc(
+		conversationRef,
+		{
+			id: conversationId,
+			type: 'rally_system',
+			memberIds: [userId],
+			title: 'Rally',
+			createdAt: serverTimestamp(),
+			updatedAt: serverTimestamp()
+		},
+		{ merge: true }
+	);
+
+	return conversationId;
+}
+
+export async function sendRallySystemMessage(userId: string, text: string): Promise<void> {
+	const conversationId = await getOrCreateRallySystemChat(userId);
+	const conversationRef = doc(db, 'conversations', conversationId);
+
+	const snap = await getDoc(conversationRef);
+	const data = snap.data() as Partial<ChatConversation>;
+	const currentUnreadCounts = data?.unreadCounts ?? {};
+	const currentUnreadFor = data?.unreadFor ?? [];
+	const cleanText = text.trim();
+
+	await addDoc(collection(db, 'conversations', conversationId, 'messages'), {
+		conversationId,
+		senderId: RALLY_SYSTEM_SENDER_ID,
+		text: cleanText,
+		createdAt: serverTimestamp()
+	});
+
+	await updateDoc(conversationRef, {
+		lastMessage: cleanText,
+		lastSenderId: RALLY_SYSTEM_SENDER_ID,
+		lastMessageAt: serverTimestamp(),
+		updatedAt: serverTimestamp(),
+		unreadFor: [...new Set([...currentUnreadFor, userId])],
+		unreadCounts: {
+			...currentUnreadCounts,
+			[userId]: (currentUnreadCounts[userId] ?? 0) + 1
+		}
+	});
+}

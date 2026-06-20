@@ -137,6 +137,20 @@
 			userConversations.map(async (conversation) => {
 				const unreadCount = conversation.unreadCounts?.[currentUserId] ?? 0;
 
+				if (conversation.type === 'rally_system') {
+					return {
+						...conversation,
+						otherUser: null,
+						unreadCount,
+						lastInteractionAtMs: getConversationLastInteraction(conversation),
+						displayName: 'Rally',
+						displaySubtitle: 'Activity & event updates',
+						displayPhotoURL: null,
+						displayHref: `/messages/${conversation.id}`,
+						isOrganizationChat: false
+					};
+				}
+
 				if (conversation.type === 'group') {
 					return {
 						...conversation,
@@ -182,9 +196,11 @@
 			})
 		);
 
-		conversations = conversationsWithProfiles.sort(
-			(a, b) => b.lastInteractionAtMs - a.lastInteractionAtMs
-		);
+		conversations = conversationsWithProfiles.sort((a, b) => {
+			if (a.type === 'rally_system') return -1;
+			if (b.type === 'rally_system') return 1;
+			return b.lastInteractionAtMs - a.lastInteractionAtMs;
+		});
 	}
 
 	async function updateInvitesWithEvents(userInvites: EventInvite[]) {
@@ -569,9 +585,13 @@
 								class="flex w-full items-center gap-3 rounded-3xl p-3 text-left transition hover:bg-slate-100 dark:hover:bg-slate-800"
 							>
 								<div
-									class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-base font-black text-blue-600 dark:bg-slate-800 dark:text-blue-300"
+									class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full {conversation.type === 'rally_system' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-blue-600 dark:bg-slate-800 dark:text-blue-300'} text-base font-black"
 								>
-									{#if conversation.displayPhotoURL}
+									{#if conversation.type === 'rally_system'}
+										<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+											<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+										</svg>
+									{:else if conversation.displayPhotoURL}
 										<img
 											src={conversation.displayPhotoURL}
 											alt={conversation.displayName}
@@ -588,7 +608,11 @@
 											{conversation.displayName}
 										</p>
 
-										{#if conversation.isOrganizationChat}
+										{#if conversation.type === 'rally_system'}
+											<span class="shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-black text-white">
+												Official
+											</span>
+										{:else if conversation.isOrganizationChat}
 											<span
 												class="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300"
 											>

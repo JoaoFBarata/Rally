@@ -277,7 +277,7 @@ export interface ChatTypingState {
 export interface ChatConversation {
 	id: string;
 	memberIds: string[];
-	type: 'direct' | 'group' | 'organization_direct';
+	type: 'direct' | 'group' | 'organization_direct' | 'rally_system';
 
 	eventId?: string;
 	title?: string;
