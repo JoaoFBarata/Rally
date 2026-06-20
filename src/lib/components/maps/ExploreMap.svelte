@@ -219,8 +219,12 @@
 
 			const markerColor = getMarkerColor(item.event);
 			const creator = creatorProfiles[item.event.creatorId];
-			const photoURL = item.event.groupPhotoURL || creator?.photoURL;
-			const displayName = creator?.displayName;
+			const photoURL =
+				item.event.groupPhotoURL || item.event.organizationLogoURL || creator?.photoURL;
+			const displayName =
+				item.event.hostType === 'organization'
+					? item.event.organizationName || creator?.displayName
+					: creator?.displayName;
 			const sportEmoji = getSportEmoji(item.event.sport);
 
 			const el = document.createElement('div');

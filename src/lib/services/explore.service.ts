@@ -10,7 +10,10 @@ import {
 } from '$lib/services/event.service';
 import { getInvitesForUser } from '$lib/services/invite.service';
 import { getFriendsForUser } from '$lib/services/social.service';
-import { getOrganizationsFollowedByUser } from '$lib/services/organization.service';
+import {
+	getOrganizationById,
+	getOrganizationsFollowedByUser
+} from '$lib/services/organization.service';
 
 function eventFromDoc(docSnap: { id: string; data: () => unknown }) {
 	return {
@@ -64,6 +67,41 @@ function promotedFirst(events: SportEvent[]) {
 	});
 }
 
+async function refreshOrganizationSnapshots(events: SportEvent[]) {
+	const organizationIds = [
+		...new Set(
+			events
+				.filter((event) => event.hostType === 'organization')
+				.map((event) => event.organizationId)
+				.filter((organizationId): organizationId is string => Boolean(organizationId))
+		)
+	];
+
+	const organizations = await Promise.all(
+		organizationIds.map((organizationId) => getOrganizationById(organizationId))
+	);
+	const organizationsById = new Map(
+		organizations
+			.filter((organization) => organization !== null)
+			.map((organization) => [organization.id, organization])
+	);
+
+	return events.map((event) => {
+		if (!event.organizationId) return event;
+
+		const organization = organizationsById.get(event.organizationId);
+		if (!organization) return event;
+
+		return {
+			...event,
+			hostType: 'organization' as const,
+			organizationName: organization.name,
+			organizationLogoURL: organization.logoURL ?? null,
+			organizationVerificationStatus: organization.verificationStatus
+		};
+	});
+}
+
 export async function getPublicEvents() {
 	const eventsById = new Map<string, SportEvent>();
 
@@ -83,7 +121,11 @@ export async function getPublicEvents() {
 		eventsById.set(event.id, event);
 	}
 
-	return promotedFirst(sortEventsByStartDate(Array.from(eventsById.values()).filter(isVisibleInExplore)));
+	const events = await refreshOrganizationSnapshots(
+		Array.from(eventsById.values()).filter(isVisibleInExplore)
+	);
+
+	return promotedFirst(sortEventsByStartDate(events));
 }
 
 export async function getVisibleEventsForUser(userId: string) {
@@ -172,5 +214,9 @@ export async function getVisibleEventsForUser(userId: string) {
 		}
 	}
 
-	return promotedFirst(sortEventsByStartDate(Array.from(eventsById.values()).filter(isVisibleInExplore)));
+	const events = await refreshOrganizationSnapshots(
+		Array.from(eventsById.values()).filter(isVisibleInExplore)
+	);
+
+	return promotedFirst(sortEventsByStartDate(events));
 }
