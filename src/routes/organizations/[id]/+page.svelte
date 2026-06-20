@@ -101,6 +101,10 @@
 
 		try {
 			const organizationIdFromUrl = page.params.id;
+			if (!organizationIdFromUrl) {
+				error = 'Organization ID not found.';
+				return;
+			}
 
 			const loadedOrganization = await getOrganizationById(organizationIdFromUrl);
 

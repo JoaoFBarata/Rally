@@ -7,16 +7,18 @@
 
 	let {
 		events,
-		currentUserId,
+		currentUserId = '',
 		friendIds = [],
 		onFilteredCountChange,
-		onSelectedEventChange
+		onSelectedEventChange,
+		getEventHref = (event: SportEvent) => `/events/${event.id}`
 	} = $props<{
 		events: SportEvent[];
-		currentUserId: string;
+		currentUserId?: string;
 		friendIds?: string[];
 		onFilteredCountChange?: (count: number) => void;
 		onSelectedEventChange?: (eventId: string | null) => void;
+		getEventHref?: (event: SportEvent) => string;
 	}>();
 
 	let mapContainer: HTMLDivElement;
@@ -88,12 +90,13 @@
 
 	const availableLevels: SportLevel[] = ['beginner', 'casual', 'intermediate', 'advanced'];
 
-	let availableSports = $derived.by(() => {
-		return [...new Set(events.map((event) => event.sport))].sort();
+	let availableSports = $derived.by((): Sport[] => {
+		const sports = events.map((event: SportEvent): Sport => event.sport);
+		return [...new Set<Sport>(sports)].sort();
 	});
 
-	let filteredEvents = $derived.by(() => {
-		return events.filter((event) => {
+	let filteredEvents = $derived.by((): SportEvent[] => {
+		return events.filter((event: SportEvent) => {
 			const matchesSport =
 				selectedSports.length === 0 || selectedSports.includes(event.sport);
 
@@ -109,7 +112,7 @@
 	$effect(() => {
 		onFilteredCountChange?.(filteredEvents.length);
 
-		if (selectedEvent && !filteredEvents.some((event) => event.id === selectedEvent?.id)) {
+		if (selectedEvent && !filteredEvents.some((event: SportEvent) => event.id === selectedEvent?.id)) {
 			clearSelectedEvent();
 		}
 	});
@@ -201,11 +204,11 @@
 		clearMarkers();
 
 		const eventsWithCoords = filteredEvents
-			.map((event) => ({
+			.map((event: SportEvent) => ({
 				event,
 				coords: getCoords(event)
 			}))
-			.filter((item) => item.coords !== null);
+			.filter((item): item is { event: SportEvent; coords: { lat: number; lng: number } } => item.coords !== null);
 
 		if (eventsWithCoords.length === 0) return;
 
@@ -515,7 +518,7 @@
 				{/if}
 
 				<a
-					href={`/events/${selectedEvent.id}`}
+					href={getEventHref(selectedEvent)}
 					class="block rounded-2xl bg-blue-600 px-5 py-3 text-center font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700"
 				>
 					View event

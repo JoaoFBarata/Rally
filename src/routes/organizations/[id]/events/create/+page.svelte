@@ -241,6 +241,7 @@
 					userId: user.uid,
 					budget: Number(promotionBudget) || 0,
 					durationDays: Number(promotionDurationDays) || 7,
+					plan: 'local',
 					targetCity: promotionTargetCity,
 					targetSport: promotionTargetSport || null
 				});
@@ -267,6 +268,9 @@
 
 			try {
 				const organizationId = page.params.id;
+				if (!organizationId) {
+					throw new Error('Organization ID not found.');
+				}
 
 				organization = await assertCanManageOrganization({
 					organizationId,

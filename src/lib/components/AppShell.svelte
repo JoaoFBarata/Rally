@@ -130,6 +130,10 @@
 		return count > 9 ? '9+' : String(count);
 	}
 
+	function resolveNavHref(href: string) {
+		return resolve(href as any);
+	}
+
 	$effect(() => {
 		if (loadingProfile || !organizationId) return;
 
@@ -194,7 +198,7 @@
 				<nav class="mt-10 space-y-1">
 					{#each navItems as item (item.href)}
 						<a
-							href={resolve(item.href)}
+							href={resolveNavHref(item.href)}
 							class={`flex items-center text-sm font-semibold transition ${
 								item.primary
 									? 'mb-6 w-fit gap-3 rounded-2xl bg-blue-300 px-3 py-2.5 pr-5 text-slate-800 shadow-none hover:bg-blue-300 hover:text-slate-800 hover:shadow-lg hover:shadow-slate-400/30 dark:bg-blue-950/70 dark:text-blue-300 dark:hover:bg-blue-950/70 dark:hover:text-blue-300 dark:hover:shadow-black/40'
@@ -259,7 +263,7 @@
 		>
 			<div class="mx-auto grid max-w-md grid-cols-5 items-end gap-1">
 				{#each navItems as item (item.href)}
-					<a href={resolve(item.href)} class="flex flex-col items-center justify-end gap-1">
+					<a href={resolveNavHref(item.href)} class="flex flex-col items-center justify-end gap-1">
 						<span
 							class={`relative flex h-9 w-9 items-center justify-center rounded-2xl text-lg ${
 								item.primary

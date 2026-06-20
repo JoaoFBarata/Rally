@@ -12,6 +12,7 @@
 	} = $props();
 
 	type MapboxGeocodeFeature = {
+		id?: string;
 		properties?: {
 			full_address?: string;
 			name_preferred?: string;
@@ -388,7 +389,7 @@
 					<div
 						class="absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900"
 					>
-						{#each suggestions as suggestion (suggestion.id)}
+						{#each suggestions as suggestion, index (suggestion.id ?? `${getFeatureAddress(suggestion)}-${index}`)}
 							<button
 								type="button"
 								onclick={() => selectSuggestion(suggestion)}

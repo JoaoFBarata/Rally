@@ -209,8 +209,13 @@
 			error = '';
 
 			try {
+				const organizationId = page.params.id;
+				if (!organizationId) {
+					throw new Error('Organization ID not found.');
+				}
+
 				organization = await assertCanManageOrganization({
-					organizationId: page.params.id,
+					organizationId,
 					userId: user.uid
 				});
 			} catch (err) {

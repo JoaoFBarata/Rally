@@ -135,6 +135,9 @@
 
 		try {
 			const organizationIdFromUrl = page.params.id;
+			if (!organizationIdFromUrl) {
+				throw new Error('Organization ID not found.');
+			}
 
 			const loadedOrganization = await assertCanManageOrganization({
 				organizationId: organizationIdFromUrl,

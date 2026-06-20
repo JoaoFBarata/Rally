@@ -33,7 +33,7 @@
 	let typingLabel = $state('');
 
 	let messagesContainer = $state<HTMLElement | null>(null);
-	let messageInput: HTMLInputElement;
+	let messageInput = $state<HTMLInputElement>();
 	let unsubscribeMessages: Unsubscribe | null = null;
 	let unsubscribeConversation: Unsubscribe | null = null;
 	let typingTimeout: ReturnType<typeof setTimeout> | null = null;

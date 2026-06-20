@@ -669,57 +669,50 @@
 		</div>
 	{/if}
 
-    {#if showQrModal}
-        <div
-            class="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/60 px-5 backdrop-blur-sm"
-            onclick={() => (showQrModal = false)}
-        >
-            <div
-                class="w-full max-w-sm rounded-[2rem] bg-white p-6 text-center shadow-2xl dark:bg-slate-900"
-                onclick={(event) => event.stopPropagation()}
-            >
-                <div class="flex items-start justify-between gap-4">
-                    <div class="text-left">
-                        <h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">
-                            My QR code
-                        </h2>
-                        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                            Show this QR code to add you on Rally.
-                        </p>
-                    </div>
+	{#if showQrModal}
+		<dialog
+			open
+			class="fixed inset-0 z-[120] m-0 flex h-full w-full max-w-none items-center justify-center border-0 bg-slate-950/60 px-5 backdrop-blur-sm"
+			onclick={(event) => {
+				if (event.target === event.currentTarget) showQrModal = false;
+			}}
+			aria-labelledby="profile-qr-title"
+		>
+			<div class="w-full max-w-sm rounded-[2rem] bg-white p-6 text-center shadow-2xl dark:bg-slate-900">
+				<div class="flex items-start justify-between gap-4">
+					<div class="text-left">
+						<h2 id="profile-qr-title" class="text-2xl font-black text-slate-950 dark:text-slate-50">
+							My QR code
+						</h2>
+						<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+							Show this QR code to add you on Rally.
+						</p>
+					</div>
 
-                    <button
-                        type="button"
-                        onclick={() => (showQrModal = false)}
-                        class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-xl font-black text-slate-500 transition hover:bg-slate-200 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                        aria-label="Close QR code"
-                    >
-                        ×
-                    </button>
-                </div>
+					<button
+						type="button"
+						onclick={() => (showQrModal = false)}
+						class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-xl font-black text-slate-500 transition hover:bg-slate-200 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+						aria-label="Close QR code"
+					>
+						×
+					</button>
+				</div>
 
-                <div class="mt-6 flex justify-center">
-                    <div class="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-inner">
-                        {#if qrCodeDataUrl}
-                            <img
-                                src={qrCodeDataUrl}
-                                alt="Rally friend QR code"
-                                class="h-64 w-64 rounded-2xl"
-                            />
-                        {:else}
-                            <div
-                                class="flex h-64 w-64 items-center justify-center rounded-2xl bg-slate-100 text-sm font-bold text-slate-500"
-                            >
-                                Generating QR...
-                            </div>
-                        {/if}
-                    </div>
-                </div>
+				<div class="mt-6 flex justify-center">
+					<div class="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-inner">
+						{#if qrCodeDataUrl}
+							<img src={qrCodeDataUrl} alt="Rally friend QR code" class="h-64 w-64 rounded-2xl" />
+						{:else}
+							<div class="flex h-64 w-64 items-center justify-center rounded-2xl bg-slate-100 text-sm font-bold text-slate-500">
+								Generating QR...
+							</div>
+						{/if}
+					</div>
+				</div>
 
-                <p class="mt-5 text-sm text-slate-500 dark:text-slate-400">
-                    @{profile?.rallyTag}
-                </p>
-            </div>
-        </div>
-    {/if}
+				<p class="mt-5 text-sm text-slate-500 dark:text-slate-400">@{profile?.rallyTag}</p>
+			</div>
+		</dialog>
+	{/if}
 </main>

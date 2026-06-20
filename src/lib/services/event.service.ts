@@ -46,22 +46,26 @@ export const PROMOTION_PLANS: Record<
 		label: string;
 		description: string;
 		cpm: number;
+		placement: string;
 	}
 > = {
 	local: {
 		label: 'Local Boost',
 		description: 'Best for reaching people near the event city.',
-		cpm: 3
+		cpm: 3,
+		placement: 'Local event discovery'
 	},
 	sport: {
 		label: 'Sport Boost',
 		description: 'Best for reaching people interested in this sport.',
-		cpm: 5
+		cpm: 5,
+		placement: 'Sport discovery results'
 	},
 	featured: {
 		label: 'Featured Boost',
 		description: 'Best for top placement in Explore and promoted sections.',
-		cpm: 8
+		cpm: 8,
+		placement: 'Featured Explore placement'
 	}
 };
 

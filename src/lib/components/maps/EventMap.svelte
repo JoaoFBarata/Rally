@@ -15,7 +15,7 @@
 		address?: string;
 	} = $props();
 
-	let mapContainer: HTMLDivElement;
+	let mapContainer = $state<HTMLDivElement>();
 	let map: Map | null = null;
 	let marker: Marker | null = null;
 

@@ -1328,17 +1328,16 @@
 {/if}
 
 {#if confirmDialog}
-	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-	<div
-		class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 px-4 pb-8 backdrop-blur-sm sm:items-center sm:pb-0"
-		onclick={() => dismissConfirm(false)}
+	<dialog
+		open
+		class="fixed inset-0 z-50 m-0 flex h-full w-full max-w-none items-end justify-center border-0 bg-black/50 px-4 pb-8 backdrop-blur-sm sm:items-center sm:pb-0"
+		onclick={(event) => {
+			if (event.target === event.currentTarget) dismissConfirm(false);
+		}}
+		aria-labelledby="confirm-title"
 	>
 		<div
 			class="w-full max-w-sm overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-slate-900"
-			onclick={(e) => e.stopPropagation()}
-			role="dialog"
-			aria-modal="true"
-			aria-labelledby="confirm-title"
 		>
 			<div class="p-6">
 				<h2 id="confirm-title" class="text-lg font-black text-slate-950 dark:text-slate-50">
@@ -1369,5 +1368,5 @@
 				</button>
 			</div>
 		</div>
-	</div>
+	</dialog>
 {/if}
