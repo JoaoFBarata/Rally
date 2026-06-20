@@ -9,6 +9,7 @@
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import type { UserProfile } from '$lib/schema';
 	import { ensureUserProfile } from '$lib/services/user.service';
+	import { isPlatformAdminEmail } from '$lib/admin';
 	import {
 		notificationState,
 		startNotifications,
@@ -19,6 +20,7 @@
 
 	let profile = $state<UserProfile | null>(null);
 	let loadingProfile = $state(true);
+	let isPlatformAdmin = $state(false);
 
 	let pathname = $derived(page.url.pathname);
 
@@ -32,17 +34,16 @@
 		organizationId ? `/organizations/${organizationId}/manage` : null
 	);
 
-	let organizationPublicHref = $derived(
-		organizationId ? `/organizations/${organizationId}` : null
-	);
+	let organizationPublicHref = $derived(organizationId ? `/organizations/${organizationId}` : null);
 
 	let createEventHref = $derived(
 		organizationId ? `/organizations/${organizationId}/events/create` : '/events/create'
 	);
 
 	let navItems = $derived.by(() => {
+		let items;
 		if (organizationId && organizationManageHref && organizationPublicHref) {
-			return [
+			items = [
 				{
 					label: 'Create event',
 					href: createEventHref,
@@ -70,36 +71,46 @@
 					icon: '✓'
 				}
 			];
+		} else {
+			items = [
+				{
+					label: 'Create event',
+					href: '/events/create',
+					icon: '+',
+					primary: true
+				},
+				{
+					label: 'Explore',
+					href: '/explore',
+					icon: '⌖'
+				},
+				{
+					label: 'Dashboard',
+					href: '/dashboard',
+					icon: '◷'
+				},
+				{
+					label: 'Messages',
+					href: '/messages',
+					icon: '✉'
+				},
+				{
+					label: 'Profile',
+					href: '/profile',
+					icon: '☻'
+				}
+			];
 		}
 
-		return [
-			{
-				label: 'Create event',
-				href: '/events/create',
-				icon: '+',
-				primary: true
-			},
-			{
-				label: 'Explore',
-				href: '/explore',
-				icon: '⌖'
-			},
-			{
-				label: 'Dashboard',
-				href: '/dashboard',
-				icon: '◷'
-			},
-			{
-				label: 'Messages',
-				href: '/messages',
-				icon: '✉'
-			},
-			{
-				label: 'Profile',
-				href: '/profile',
-				icon: '☻'
-			}
-		];
+		if (isPlatformAdmin) {
+			items.push({
+				label: 'Admin',
+				href: '/admin',
+				icon: 'A'
+			});
+		}
+
+		return items;
 	});
 
 	function isActive(href: string) {
@@ -123,7 +134,12 @@
 	}
 
 	function shouldHideNavigation() {
-		return pathname === '/' || pathname === '/login' || pathname.startsWith('/register') || pathname === '/discover';
+		return (
+			pathname === '/' ||
+			pathname === '/login' ||
+			pathname.startsWith('/register') ||
+			pathname === '/discover'
+		);
 	}
 
 	function formatBadge(count: number) {
@@ -149,6 +165,7 @@
 	onMount(() => {
 		const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
 			profile = null;
+			isPlatformAdmin = isPlatformAdminEmail(user?.email);
 			loadingProfile = true;
 
 			if (user) {
@@ -237,9 +254,7 @@
 							{#if item.href === '/messages' && notificationState.total > 0}
 								<span
 									class={`ml-auto flex min-h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-black ${
-										isActive(item.href)
-											? 'bg-white text-blue-600'
-											: 'bg-red-500 text-white'
+										isActive(item.href) ? 'bg-white text-blue-600' : 'bg-red-500 text-white'
 									}`}
 								>
 									{formatBadge(notificationState.total)}
@@ -261,7 +276,9 @@
 		<nav
 			class="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 px-3 py-2 shadow-2xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 md:hidden"
 		>
-			<div class="mx-auto grid max-w-md grid-cols-5 items-end gap-1">
+			<div
+				class={`mx-auto grid max-w-md items-end gap-1 ${navItems.length > 5 ? 'grid-cols-6' : 'grid-cols-5'}`}
+			>
 				{#each navItems as item (item.href)}
 					<a href={resolveNavHref(item.href)} class="flex flex-col items-center justify-end gap-1">
 						<span

@@ -7,8 +7,9 @@
 	import { onAuthStateChanged, signOut } from 'firebase/auth';
 	import { auth } from '$lib/firebase';
 	import { authService } from '$lib/services/auth.service';
-	import type { Organization, OrganizationType, SportEvent, VerificationLevel } from '$lib/schema';
+	import type { Organization, OrganizationType, SportEvent } from '$lib/schema';
 	import EventCard from '$lib/components/EventCard.svelte';
+	import LocationPickerMap from '$lib/components/maps/LocationPickerMap.svelte';
 	import {
 		assertCanManageOrganization,
 		requestOrganizationVerification,
@@ -22,6 +23,10 @@
 		stopEventPromotion
 	} from '$lib/services/event.service';
 	import { uploadOrganizationLogo } from '$lib/services/storage.service';
+	import {
+		subscribeToEventCatalogChanges,
+		subscribeToOrganizationChanges
+	} from '$lib/services/realtime.service';
 
 	let organization = $state<Organization | null>(null);
 	let organizationEvents = $state<SportEvent[]>([]);
@@ -49,7 +54,12 @@
 
 	let legalName = $state('');
 	let verificationNote = $state('');
-	let requestedLevel = $state<VerificationLevel>('legal');
+	let hasPublicVenue = $state(false);
+	let publicVenueName = $state('');
+	let publicVenueAddress = $state('');
+	let publicVenueLat = $state<number | null>(null);
+	let publicVenueLng = $state<number | null>(null);
+	let googleMapsURL = $state('');
 
 	let upcomingEvents = $derived(getUpcomingEvents(organizationEvents));
 	let pastEvents = $derived(
@@ -101,6 +111,25 @@
 		city = nextOrganization.city ?? '';
 		nif = nextOrganization.nif ?? '';
 		legalName = nextOrganization.name;
+		hasPublicVenue = nextOrganization.hasPublicVenue ?? false;
+		publicVenueName = nextOrganization.publicLocation?.name ?? '';
+		publicVenueAddress = nextOrganization.publicLocation?.address ?? '';
+		publicVenueLat = nextOrganization.publicLocation?.lat ?? null;
+		publicVenueLng = nextOrganization.publicLocation?.lng ?? null;
+		googleMapsURL = nextOrganization.publicLocation?.googleMapsURL ?? '';
+	}
+
+	function getPublicLocation() {
+		if (!hasPublicVenue || publicVenueLat === null || publicVenueLng === null) return null;
+		return {
+			name: publicVenueName.trim() || name.trim(),
+			address: publicVenueAddress.trim(),
+			lat: publicVenueLat,
+			lng: publicVenueLng,
+			googleMapsURL: googleMapsURL.trim(),
+			verificationStatus:
+				organization?.publicLocation?.verificationStatus ?? ('unverified' as const)
+		};
 	}
 
 	function verificationLabel() {
@@ -179,7 +208,9 @@
 				city,
 				nif,
 				logoURL: organization.logoURL ?? null,
-				logoPath: organization.logoPath ?? null
+				logoPath: organization.logoPath ?? null,
+				hasPublicVenue,
+				publicLocation: getPublicLocation()
 			});
 
 			success = 'Organization profile updated.';
@@ -256,7 +287,8 @@
 				website,
 				address,
 				note: verificationNote,
-				requestedLevel
+				hasPublicVenue,
+				publicLocation: getPublicLocation()
 			});
 
 			success = 'Verification request sent. Your organization is now pending review.';
@@ -305,16 +337,32 @@
 	}
 
 	onMount(() => {
+		let unsubscribeOrganization = () => {};
+		let unsubscribeEvents = () => {};
 		const unsubscribe = onAuthStateChanged(auth, async (user) => {
+			unsubscribeOrganization();
+			unsubscribeEvents();
 			if (!user) {
 				await goto(resolve('/login'));
 				return;
 			}
 
 			await loadManagePage(user.uid);
+			const organizationId = page.params.id;
+			if (organizationId) {
+				unsubscribeOrganization = subscribeToOrganizationChanges(
+					organizationId,
+					() => void loadManagePage(user.uid)
+				);
+				unsubscribeEvents = subscribeToEventCatalogChanges(() => void loadManagePage(user.uid));
+			}
 		});
 
-		return unsubscribe;
+		return () => {
+			unsubscribe();
+			unsubscribeOrganization();
+			unsubscribeEvents();
+		};
 	});
 </script>
 
@@ -350,7 +398,9 @@
 
 				<div class="min-w-0">
 					<div class="flex flex-wrap items-center gap-2">
-						<h1 class="truncate text-4xl font-black tracking-tight text-slate-950 dark:text-slate-50">
+						<h1
+							class="truncate text-4xl font-black tracking-tight text-slate-950 dark:text-slate-50"
+						>
 							{organization.name}
 						</h1>
 
@@ -417,9 +467,7 @@
 			<div
 				class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 			>
-				<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
-					Followers
-				</p>
+				<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Followers</p>
 				<p class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">
 					{organization.followersCount ?? 0}
 				</p>
@@ -428,9 +476,7 @@
 			<div
 				class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 			>
-				<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
-					Upcoming events
-				</p>
+				<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Upcoming events</p>
 				<p class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">
 					{upcomingEvents.length}
 				</p>
@@ -439,9 +485,7 @@
 			<div
 				class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 			>
-				<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
-					Promoted
-				</p>
+				<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Promoted</p>
 				<p class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">
 					{activePromotedEvents.length}
 				</p>
@@ -450,9 +494,7 @@
 			<div
 				class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 			>
-				<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
-					Inbox
-				</p>
+				<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Inbox</p>
 				<p class="mt-2 text-sm font-black text-slate-950 dark:text-slate-50">
 					Users can contact this organization
 				</p>
@@ -464,9 +506,7 @@
 		>
 			<div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 				<div>
-					<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">
-						Organization inbox
-					</h2>
+					<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">Organization inbox</h2>
 
 					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
 						Users can message this organization from the public page or from events hosted by it.
@@ -482,10 +522,14 @@
 			</div>
 		</section>
 
-		<section class="mt-8 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
+		<section
+			class="mt-8 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+		>
 			<div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 				<div>
-					<p class="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
+					<p
+						class="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400"
+					>
 						Promotions
 					</p>
 
@@ -551,12 +595,15 @@
 									</p>
 
 									<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-										{promotedEvent.promotionPlan ?? 'boost'} · CPM €{promotedEvent.promotionCpm ?? 0}
+										{promotedEvent.promotionPlan ?? 'boost'} · CPM €{promotedEvent.promotionCpm ??
+											0}
 										· remaining {stats.remainingImpressions ?? 0} impressions
 									</p>
 								</div>
 
-								<div class="flex flex-wrap gap-2 text-sm font-bold text-slate-500 dark:text-slate-400">
+								<div
+									class="flex flex-wrap gap-2 text-sm font-bold text-slate-500 dark:text-slate-400"
+								>
 									<span>{stats.views} views</span>
 									<span>{stats.clicks} clicks</span>
 									<span>{stats.ctr.toFixed(1)}% CTR</span>
@@ -571,6 +618,12 @@
 									{stoppingPromotionId === promotedEvent.id ? 'Stopping...' : 'Stop'}
 								</button>
 							</div>
+							<div class="mt-3 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+								<div
+									class="h-full rounded-full bg-blue-600 transition-all"
+									style={`width: ${stats.progress}%`}
+								></div>
+							</div>
 						</div>
 					{/each}
 				</div>
@@ -578,7 +631,8 @@
 				<div
 					class="mt-6 rounded-2xl border border-dashed border-blue-200 bg-white/70 p-5 text-sm font-bold text-slate-500 dark:border-blue-900 dark:bg-slate-900/70 dark:text-slate-400"
 				>
-					No active promoted events yet. Open one of your organization events and choose Promote event.
+					No active promoted events yet. Open one of your organization events and choose Promote
+					event.
 				</div>
 			{/if}
 		</section>
@@ -689,19 +743,15 @@
 			<section
 				class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 			>
-				<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">
-					Verification
-				</h2>
+				<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">Verification centre</h2>
 
 				<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-					Verification is required for official paid events and promoted campaigns. This helps
-					prevent fake paid events and fake venues.
+					Confirm the legal identity of the organization. A public venue is optional and only
+					applies to organizations that own or operate a physical sports space.
 				</p>
 
 				<div class="mt-5 rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
-					<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
-						Current status
-					</p>
+					<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Current status</p>
 					<p class="mt-2 font-black text-slate-950 dark:text-slate-50">
 						{verificationLabel()}
 					</p>
@@ -709,20 +759,50 @@
 
 				{#if organization.verificationStatus !== 'verified'}
 					<div class="mt-5 space-y-3">
+						<div class="rounded-2xl border border-slate-200 p-4 text-sm dark:border-slate-700">
+							<p class="font-black text-slate-950 dark:text-slate-50">Required identity details</p>
+							<p class="mt-1 text-slate-500 dark:text-slate-400">
+								Legal name, NIF and contact email. Website and notes can help the review.
+							</p>
+						</div>
 						<input
 							bind:value={legalName}
 							class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
 							placeholder="Legal name"
 						/>
 
-						<select
-							bind:value={requestedLevel}
-							class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+						<label
+							class="flex cursor-pointer items-start gap-3 rounded-2xl bg-slate-50 p-4 dark:bg-slate-800"
 						>
-							<option value="basic">Basic check</option>
-							<option value="legal">Legal verification</option>
-							<option value="venue">Venue verification</option>
-						</select>
+							<input type="checkbox" bind:checked={hasPublicVenue} class="mt-1 h-4 w-4" />
+							<span>
+								<span class="block font-black text-slate-950 dark:text-slate-50"
+									>This organization operates a public venue</span
+								>
+								<span class="mt-1 block text-sm text-slate-500 dark:text-slate-400"
+									>For courts, gyms, stadiums or other places customers can visit.</span
+								>
+							</span>
+						</label>
+
+						{#if hasPublicVenue}
+							<input
+								bind:value={publicVenueName}
+								class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+								placeholder="Public venue name"
+							/>
+							<LocationPickerMap
+								bind:lat={publicVenueLat}
+								bind:lng={publicVenueLng}
+								bind:address={publicVenueAddress}
+								autofillAddress={address}
+							/>
+							<input
+								bind:value={googleMapsURL}
+								class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+								placeholder="Google Maps link (optional evidence)"
+							/>
+						{/if}
 
 						<textarea
 							bind:value={verificationNote}
@@ -734,10 +814,14 @@
 						<button
 							type="button"
 							onclick={requestVerification}
-							disabled={requesting}
+							disabled={requesting || organization.verificationStatus === 'pending'}
 							class="w-full rounded-2xl bg-slate-950 px-5 py-3 font-black text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
 						>
-							{requesting ? 'Sending...' : 'Request verification'}
+							{requesting
+								? 'Sending...'
+								: organization.verificationStatus === 'pending'
+									? 'Review pending'
+									: 'Request identity verification'}
 						</button>
 					</div>
 				{:else}

@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { browser } from '$app/environment';
+	import { auth } from '$lib/firebase';
 	import type { EventStatus, SportEvent } from '$lib/schema';
 	import {
 		isPromotionActive,
@@ -32,7 +34,10 @@
 
 	function getEventStartAtMillis() {
 		try {
-			const timestamp = event.startAt as unknown as { toDate?: () => Date; toMillis?: () => number };
+			const timestamp = event.startAt as unknown as {
+				toDate?: () => Date;
+				toMillis?: () => number;
+			};
 
 			if (timestamp?.toMillis) return timestamp.toMillis();
 			if (timestamp?.toDate) return timestamp.toDate().getTime();
@@ -93,14 +98,18 @@
 
 	function handleClick() {
 		if (!isPromotionActive(event)) return;
-
-		void trackEventPromotionClick(event.id);
+		const key = `rally:promotion-click:${event.id}`;
+		if (browser && sessionStorage.getItem(key)) return;
+		if (browser) sessionStorage.setItem(key, '1');
+		void trackEventPromotionClick(event.id, auth.currentUser?.uid);
 	}
 
 	onMount(() => {
 		if (!isPromotionActive(event)) return;
-
-		void trackEventPromotionView(event.id);
+		const key = `rally:promotion-view:${event.id}`;
+		if (sessionStorage.getItem(key)) return;
+		sessionStorage.setItem(key, '1');
+		void trackEventPromotionView(event.id, auth.currentUser?.uid);
 	});
 </script>
 
@@ -117,9 +126,7 @@
 				Promoted
 			</span>
 
-			<span class="text-xs font-bold text-slate-500 dark:text-slate-400">
-				Sponsored event
-			</span>
+			<span class="text-xs font-bold text-slate-500 dark:text-slate-400"> Sponsored event </span>
 		</div>
 	{/if}
 
@@ -199,9 +206,7 @@
 				{event.participantIds.length}/{event.maxParticipants}
 			</p>
 
-			<p class="text-xs font-medium text-slate-500 dark:text-slate-400">
-				players
-			</p>
+			<p class="text-xs font-medium text-slate-500 dark:text-slate-400">players</p>
 		</div>
 	</div>
 

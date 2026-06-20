@@ -37,6 +37,15 @@ export type EventPaymentMode = 'none' | 'split' | 'official';
 export type EventPromotionStatus = 'none' | 'active' | 'paused' | 'ended';
 export type EventPromotionPlan = 'local' | 'sport' | 'featured';
 
+export interface OrganizationPublicLocation {
+	name: string;
+	address: string;
+	lat: number;
+	lng: number;
+	googleMapsURL?: string;
+	verificationStatus: VerificationStatus;
+}
+
 export type EventKind = 'standard' | 'tournament';
 
 export type TournamentFormat = 'knockout' | 'groups_playoff' | 'league';
@@ -55,12 +64,7 @@ export type PrizeType = 'none' | 'trophy' | 'product' | 'cash' | 'other';
 
 export type TournamentEntryStatus = 'pending' | 'confirmed' | 'eliminated' | 'winner';
 
-export type TournamentMatchStage =
-	| 'group'
-	| 'knockout'
-	| 'semi_final'
-	| 'final'
-	| 'league';
+export type TournamentMatchStage = 'group' | 'knockout' | 'semi_final' | 'final' | 'league';
 
 export interface UserProfile {
 	id: string;
@@ -75,6 +79,7 @@ export interface UserProfile {
 	rallyTag?: string;
 	bio?: string;
 	city?: string;
+	country?: string;
 	age?: number | null;
 	level?: SportLevel;
 	sports: Sport[];
@@ -98,6 +103,8 @@ export interface Organization {
 	address?: string;
 	city?: string;
 	nif?: string;
+	hasPublicVenue?: boolean;
+	publicLocation?: OrganizationPublicLocation | null;
 
 	verificationStatus: VerificationStatus;
 	verificationLevel: VerificationLevel;
@@ -130,6 +137,8 @@ export interface OrganizationVerificationRequest {
 	nif?: string;
 	website?: string;
 	address?: string;
+	hasPublicVenue?: boolean;
+	publicLocation?: OrganizationPublicLocation | null;
 	note?: string;
 	requestedLevel: VerificationLevel;
 	status: 'pending' | 'approved' | 'rejected';
@@ -191,6 +200,7 @@ export interface SportEvent {
 	promotionImpressionLimit?: number | null;
 
 	promotionTargetCity?: string;
+	promotionTargetCountry?: string;
 	promotionTargetSport?: Sport | null;
 
 	promotionStartedAt?: Timestamp | null;

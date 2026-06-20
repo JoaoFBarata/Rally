@@ -15,6 +15,7 @@ import {
 import { db } from '$lib/firebase';
 import type {
 	Organization,
+	OrganizationPublicLocation,
 	OrganizationType,
 	OrganizationVerificationRequest,
 	VerificationLevel,
@@ -82,6 +83,8 @@ export async function createOrganization(params: {
 		adminIds: [params.ownerId],
 		memberIds: [params.ownerId],
 		followersCount: 0,
+		hasPublicVenue: false,
+		publicLocation: null,
 		createdAt: serverTimestamp(),
 		updatedAt: serverTimestamp()
 	};
@@ -127,7 +130,9 @@ export async function getOrganizationsFollowedByUser(userId: string) {
 
 	const organizations = await Promise.all(organizationIds.map((id) => getOrganizationById(id)));
 
-	return organizations.filter((organization): organization is Organization => organization !== null);
+	return organizations.filter(
+		(organization): organization is Organization => organization !== null
+	);
 }
 
 export async function assertCanManageOrganization(params: {
@@ -158,6 +163,8 @@ export async function updateOrganizationProfile(params: {
 	nif?: string;
 	logoURL?: string | null;
 	logoPath?: string | null;
+	hasPublicVenue?: boolean;
+	publicLocation?: OrganizationPublicLocation | null;
 }) {
 	await assertCanManageOrganization({
 		organizationId: params.organizationId,
@@ -177,6 +184,12 @@ export async function updateOrganizationProfile(params: {
 		nif: params.nif?.trim() ?? '',
 		logoURL: params.logoURL ?? null,
 		logoPath: params.logoPath ?? null,
+		...(params.hasPublicVenue !== undefined
+			? {
+					hasPublicVenue: params.hasPublicVenue,
+					publicLocation: params.hasPublicVenue ? (params.publicLocation ?? null) : null
+				}
+			: {}),
 		updatedAt: serverTimestamp()
 	});
 }
@@ -190,6 +203,8 @@ export async function requestOrganizationVerification(params: {
 	address?: string;
 	note?: string;
 	requestedLevel?: VerificationLevel;
+	hasPublicVenue?: boolean;
+	publicLocation?: OrganizationPublicLocation | null;
 }) {
 	const organization = await assertCanManageOrganization({
 		organizationId: params.organizationId,
@@ -199,6 +214,17 @@ export async function requestOrganizationVerification(params: {
 	if (organization.verificationStatus === 'verified') {
 		throw new Error('This organization is already verified.');
 	}
+	if (!params.legalName.trim() || !(params.nif?.trim() || organization.nif?.trim())) {
+		throw new Error('Legal name and NIF are required for verification.');
+	}
+	if (
+		params.hasPublicVenue &&
+		(!params.publicLocation?.address ||
+			!Number.isFinite(params.publicLocation.lat) ||
+			!Number.isFinite(params.publicLocation.lng))
+	) {
+		throw new Error('Select a valid public venue location on the map.');
+	}
 
 	const requestData = {
 		organizationId: params.organizationId,
@@ -207,6 +233,11 @@ export async function requestOrganizationVerification(params: {
 		nif: params.nif?.trim() ?? organization.nif ?? '',
 		website: params.website?.trim() ?? organization.website ?? '',
 		address: params.address?.trim() ?? organization.address ?? '',
+		hasPublicVenue: params.hasPublicVenue ?? false,
+		publicLocation:
+			params.hasPublicVenue && params.publicLocation
+				? { ...params.publicLocation, verificationStatus: 'pending' as const }
+				: null,
 		note: params.note?.trim() ?? '',
 		requestedLevel: params.requestedLevel ?? 'legal',
 		status: 'pending' as const,
@@ -221,7 +252,12 @@ export async function requestOrganizationVerification(params: {
 
 	await updateDoc(doc(db, 'organizations', params.organizationId), {
 		verificationStatus: 'pending',
-		verificationLevel: params.requestedLevel ?? 'legal',
+		verificationLevel: 'legal',
+		hasPublicVenue: params.hasPublicVenue ?? false,
+		publicLocation:
+			params.hasPublicVenue && params.publicLocation
+				? { ...params.publicLocation, verificationStatus: 'pending' }
+				: null,
 		updatedAt: serverTimestamp()
 	});
 
@@ -240,12 +276,21 @@ export async function approveOrganizationVerification(params: {
 	level?: VerificationLevel;
 	adminNote?: string;
 }) {
+	let verifiedLocation: OrganizationPublicLocation | null | undefined;
+	if (params.requestId) {
+		const requestSnap = await getDoc(doc(db, 'organizationVerificationRequests', params.requestId));
+		const request = requestSnap.data() as OrganizationVerificationRequest | undefined;
+		if (request?.hasPublicVenue && request.publicLocation) {
+			verifiedLocation = { ...request.publicLocation, verificationStatus: 'verified' };
+		}
+	}
 	await updateDoc(doc(db, 'organizations', params.organizationId), {
 		verificationStatus: 'verified',
 		verificationLevel: params.level ?? 'legal',
 		verificationNote: params.adminNote ?? '',
 		verifiedAt: serverTimestamp(),
 		verifiedBy: params.adminUserId,
+		...(verifiedLocation ? { hasPublicVenue: true, publicLocation: verifiedLocation } : {}),
 		updatedAt: serverTimestamp()
 	});
 
@@ -266,9 +311,18 @@ export async function rejectOrganizationVerification(params: {
 	adminUserId: string;
 	adminNote?: string;
 }) {
+	let rejectedLocation: OrganizationPublicLocation | null | undefined;
+	if (params.requestId) {
+		const requestSnap = await getDoc(doc(db, 'organizationVerificationRequests', params.requestId));
+		const request = requestSnap.data() as OrganizationVerificationRequest | undefined;
+		if (request?.hasPublicVenue && request.publicLocation) {
+			rejectedLocation = { ...request.publicLocation, verificationStatus: 'rejected' };
+		}
+	}
 	await updateDoc(doc(db, 'organizations', params.organizationId), {
 		verificationStatus: 'rejected',
 		verificationNote: params.adminNote ?? '',
+		...(rejectedLocation ? { publicLocation: rejectedLocation } : {}),
 		updatedAt: serverTimestamp()
 	});
 
@@ -297,10 +351,7 @@ export async function getPendingVerificationRequests() {
 	});
 }
 
-export async function isFollowingOrganization(params: {
-	organizationId: string;
-	userId: string;
-}) {
+export async function isFollowingOrganization(params: { organizationId: string; userId: string }) {
 	const followerRef = doc(
 		db,
 		'organizationFollowers',
@@ -311,10 +362,7 @@ export async function isFollowingOrganization(params: {
 	return snap.exists();
 }
 
-export async function followOrganization(params: {
-	organizationId: string;
-	userId: string;
-}) {
+export async function followOrganization(params: { organizationId: string; userId: string }) {
 	const followerRef = doc(
 		db,
 		'organizationFollowers',
@@ -337,10 +385,7 @@ export async function followOrganization(params: {
 	});
 }
 
-export async function unfollowOrganization(params: {
-	organizationId: string;
-	userId: string;
-}) {
+export async function unfollowOrganization(params: { organizationId: string; userId: string }) {
 	const followerRef = doc(
 		db,
 		'organizationFollowers',

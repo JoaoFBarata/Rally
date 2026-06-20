@@ -11,6 +11,7 @@
 	import RallyWordmark from '$lib/components/RallyWordmark.svelte';
 	import EventCard from '$lib/components/EventCard.svelte';
 	import { isPromotionActive } from '$lib/services/event.service';
+	import { subscribeToEventCatalogChanges } from '$lib/services/realtime.service';
 
 	let events = $state<SportEvent[]>([]);
 	let loading = $state(true);
@@ -20,34 +21,43 @@
 	let filteredEventCount = $state(0);
 	let selectedMapEventId = $state<string | null>(null);
 	let promotedEvents = $derived(events.filter((event) => isPromotionActive(event)));
+	let refreshing = false;
 
-	onMount(async () => {
-		const currentUser = auth.currentUser;
-		if (!currentUser) {
-			await goto(resolve('/login'));
-			return;
-		}
-		currentUserId = currentUser.uid;
-
+	async function loadExploreData(userId: string) {
+		if (refreshing) return;
+		refreshing = true;
 		try {
-			events = await getVisibleEventsForUser(currentUser.uid);
+			events = await getVisibleEventsForUser(userId);
 			filteredEventCount = events.length;
-			
-			const friends = await getFriendsForUser(currentUser.uid);
+			const friends = await getFriendsForUser(userId);
 			friendIds = friends.map((friend) => friend.id).filter(Boolean);
-		} catch (err) {
-			console.error('Explore events error:', err);
-
-			if (err instanceof Error && err.message.includes('index')) {
-				error = 'Firestore needs an index for this query. Check the console link.';
-			} else if (err instanceof Error) {
-				error = err.message;
-			} else {
-				error = 'Could not load events.';
-			}
 		} finally {
-			loading = false;
+			refreshing = false;
 		}
+	}
+
+	onMount(() => {
+		let unsubscribeEvents = () => {};
+		void (async () => {
+			const currentUser = auth.currentUser;
+			if (!currentUser) {
+				await goto(resolve('/login'));
+				return;
+			}
+			currentUserId = currentUser.uid;
+			try {
+				await loadExploreData(currentUser.uid);
+				unsubscribeEvents = subscribeToEventCatalogChanges(() => {
+					void loadExploreData(currentUser.uid);
+				});
+			} catch (err) {
+				console.error('Explore events error:', err);
+				error = err instanceof Error ? err.message : 'Could not load events.';
+			} finally {
+				loading = false;
+			}
+		})();
+		return () => unsubscribeEvents();
 	});
 </script>
 
@@ -59,7 +69,9 @@
 	</header>
 
 	{#if loading}
-		<section class="rounded-4xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+		<section
+			class="rounded-4xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-700 dark:bg-slate-800"
+		>
 			<p class="text-slate-500">Loading events...</p>
 		</section>
 	{:else if error}
@@ -71,9 +83,9 @@
 			class="relative overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 		>
 			<ExploreMap
-				events={events}
-				currentUserId={currentUserId}
-				friendIds={friendIds}
+				{events}
+				{currentUserId}
+				{friendIds}
 				onFilteredCountChange={(count) => (filteredEventCount = count)}
 				onSelectedEventChange={(eventId) => (selectedMapEventId = eventId)}
 			/>
@@ -85,7 +97,9 @@
 						<section
 							class="rounded-[1.5rem] border border-blue-200 bg-white/95 p-4 shadow-xl shadow-slate-300/40 backdrop-blur dark:border-blue-900 dark:bg-slate-950/95 dark:shadow-none"
 						>
-							<p class="text-xs font-black uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
+							<p
+								class="text-xs font-black uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400"
+							>
 								Promoted
 							</p>
 

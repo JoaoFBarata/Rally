@@ -17,6 +17,10 @@
 		type RelationshipStatus
 	} from '$lib/services/social.service';
 	import { getOrCreateDirectConversation } from '$lib/services/chat.service';
+	import {
+		subscribeToUserActivityChanges,
+		subscribeToUserChanges
+	} from '$lib/services/realtime.service';
 
 	let targetProfile = $state<UserProfile | null>(null);
 	let currentProfile = $state<UserProfile | null>(null);
@@ -74,7 +78,10 @@
 				return;
 			}
 
-			if (loadedTargetProfile.accountType === 'organization' && loadedTargetProfile.activeOrganizationId) {
+			if (
+				loadedTargetProfile.accountType === 'organization' &&
+				loadedTargetProfile.activeOrganizationId
+			) {
 				await goto(resolve(`/organizations/${loadedTargetProfile.activeOrganizationId}`));
 				return;
 			}
@@ -141,10 +148,7 @@
 		error = '';
 
 		try {
-			const conversationId = await getOrCreateDirectConversation(
-				currentUser.uid,
-				targetProfile.id
-			);
+			const conversationId = await getOrCreateDirectConversation(currentUser.uid, targetProfile.id);
 
 			localStorage.setItem(`rally:last-read:${conversationId}`, String(Date.now()));
 			await goto(resolve(`/messages/${conversationId}`));
@@ -157,16 +161,32 @@
 	}
 
 	onMount(() => {
+		let unsubscribeTarget = () => {};
+		let unsubscribeActivity = () => {};
 		const unsubscribe = onAuthStateChanged(auth, async (user) => {
+			unsubscribeTarget();
+			unsubscribeActivity();
 			if (!user) {
 				await goto(resolve('/login'));
 				return;
 			}
 
 			await loadUserPage(user.uid);
+			const targetUserId = page.params.id;
+			if (targetUserId) {
+				unsubscribeTarget = subscribeToUserChanges(targetUserId, () => void loadUserPage(user.uid));
+				unsubscribeActivity = subscribeToUserActivityChanges(
+					user.uid,
+					() => void loadUserPage(user.uid)
+				);
+			}
 		});
 
-		return unsubscribe;
+		return () => {
+			unsubscribe();
+			unsubscribeTarget();
+			unsubscribeActivity();
+		};
 	});
 </script>
 
@@ -257,50 +277,40 @@
 					</div>
 
 					<div class="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                        <div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
-                            <p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
-                                Level
-                            </p>
-                            <p class="mt-2 font-black text-slate-950 dark:text-slate-50">
-                                {formatLevel(targetProfile.level)}
-                            </p>
-                        </div>
+						<div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
+							<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Level</p>
+							<p class="mt-2 font-black text-slate-950 dark:text-slate-50">
+								{formatLevel(targetProfile.level)}
+							</p>
+						</div>
 
-                        <div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
-                            <p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
-                                Age
-                            </p>
-                            <p class="mt-2 font-black text-slate-950 dark:text-slate-50">
-                                {targetProfile.age !== null && targetProfile.age !== undefined
-                                    ? `${targetProfile.age} years`
-                                    : 'Not set'}
-                            </p>
-                        </div>
+						<div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
+							<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Age</p>
+							<p class="mt-2 font-black text-slate-950 dark:text-slate-50">
+								{targetProfile.age !== null && targetProfile.age !== undefined
+									? `${targetProfile.age} years`
+									: 'Not set'}
+							</p>
+						</div>
 
-                        <div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
-                            <p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
-                                City
-                            </p>
-                            <p class="mt-2 font-black text-slate-950 dark:text-slate-50">
-                                {targetProfile.city || 'Not set'}
-                            </p>
-                        </div>
+						<div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
+							<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">City</p>
+							<p class="mt-2 font-black text-slate-950 dark:text-slate-50">
+								{targetProfile.city || 'Not set'}
+							</p>
+						</div>
 
-                        <div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
-                            <p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
-                                Friends
-                            </p>
-                            <p class="mt-2 font-black text-slate-950 dark:text-slate-50">
-                                {friendsCount}
-                            </p>
-                        </div>
-                    </div>
+						<div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
+							<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Friends</p>
+							<p class="mt-2 font-black text-slate-950 dark:text-slate-50">
+								{friendsCount}
+							</p>
+						</div>
+					</div>
 
 					{#if targetProfile.bio}
 						<div class="mt-7">
-							<h2 class="text-lg font-black text-slate-950 dark:text-slate-50">
-								Bio
-							</h2>
+							<h2 class="text-lg font-black text-slate-950 dark:text-slate-50">Bio</h2>
 							<p class="mt-2 leading-relaxed text-slate-600 dark:text-slate-300">
 								{targetProfile.bio}
 							</p>
@@ -308,9 +318,7 @@
 					{/if}
 
 					<div class="mt-7">
-						<h2 class="text-lg font-black text-slate-950 dark:text-slate-50">
-							Sports
-						</h2>
+						<h2 class="text-lg font-black text-slate-950 dark:text-slate-50">Sports</h2>
 
 						{#if targetProfile.sports?.length}
 							<div class="mt-3 flex flex-wrap gap-2">
@@ -323,9 +331,7 @@
 								{/each}
 							</div>
 						{:else}
-							<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-								No sports added yet.
-							</p>
+							<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">No sports added yet.</p>
 						{/if}
 					</div>
 				</div>
@@ -337,9 +343,7 @@
 				>
 					<RallyWordmark size="sm" />
 
-					<h2 class="mt-6 text-xl font-black text-slate-950 dark:text-slate-50">
-						Connection
-					</h2>
+					<h2 class="mt-6 text-xl font-black text-slate-950 dark:text-slate-50">Connection</h2>
 
 					{#if relationship === 'friends'}
 						<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
@@ -379,14 +383,10 @@
 				<section
 					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 				>
-					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">
-						In common
-					</h2>
+					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">In common</h2>
 
 					{#if commonSports.length}
-						<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-							You both like:
-						</p>
+						<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">You both like:</p>
 
 						<div class="mt-4 flex flex-wrap gap-2">
 							{#each commonSports as sport}
@@ -398,9 +398,7 @@
 							{/each}
 						</div>
 					{:else}
-						<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-							No sports in common yet.
-						</p>
+						<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">No sports in common yet.</p>
 					{/if}
 				</section>
 			</aside>

@@ -15,11 +15,12 @@
 		isOrganizationAdmin,
 		unfollowOrganization
 	} from '$lib/services/organization.service';
-	import {
-		getEventsCreatedByOrganization,
-		getUpcomingEvents
-	} from '$lib/services/event.service';
+	import { getEventsCreatedByOrganization, getUpcomingEvents } from '$lib/services/event.service';
 	import { getOrCreateOrganizationConversation } from '$lib/services/chat.service';
+	import {
+		subscribeToEventCatalogChanges,
+		subscribeToOrganizationChanges
+	} from '$lib/services/realtime.service';
 
 	let organization = $state<Organization | null>(null);
 	let events = $state<SportEvent[]>([]);
@@ -173,7 +174,11 @@
 	}
 
 	onMount(() => {
+		let unsubscribeOrganization = () => {};
+		let unsubscribeEvents = () => {};
 		const unsubscribe = onAuthStateChanged(auth, async (user) => {
+			unsubscribeOrganization();
+			unsubscribeEvents();
 			if (!user) {
 				await goto(resolve('/login'));
 				return;
@@ -181,9 +186,21 @@
 
 			currentUserId = user.uid;
 			await loadPage(user.uid);
+			const organizationId = page.params.id;
+			if (organizationId) {
+				unsubscribeOrganization = subscribeToOrganizationChanges(
+					organizationId,
+					() => void loadPage(user.uid)
+				);
+				unsubscribeEvents = subscribeToEventCatalogChanges(() => void loadPage(user.uid));
+			}
 		});
 
-		return unsubscribe;
+		return () => {
+			unsubscribe();
+			unsubscribeOrganization();
+			unsubscribeEvents();
+		};
 	});
 </script>
 
@@ -225,13 +242,13 @@
 
 						<div class="mt-5 min-w-0">
 							<div class="flex flex-wrap items-center gap-2">
-								<h1 class="break-words text-4xl font-black tracking-tight text-slate-950 dark:text-slate-50">
+								<h1
+									class="break-words text-4xl font-black tracking-tight text-slate-950 dark:text-slate-50"
+								>
 									{organization.name}
 								</h1>
 
-								<span
-									class={`rounded-full px-3 py-1 text-xs font-black ${verificationClasses()}`}
-								>
+								<span class={`rounded-full px-3 py-1 text-xs font-black ${verificationClasses()}`}>
 									{verificationLabel()}
 								</span>
 							</div>
@@ -274,27 +291,21 @@
 
 				<div class="mt-7 grid gap-3 md:grid-cols-3">
 					<div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
-						<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
-							Followers
-						</p>
+						<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Followers</p>
 						<p class="mt-2 text-2xl font-black text-slate-950 dark:text-slate-50">
 							{organization.followersCount ?? 0}
 						</p>
 					</div>
 
 					<div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
-						<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
-							Upcoming
-						</p>
+						<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Upcoming</p>
 						<p class="mt-2 text-2xl font-black text-slate-950 dark:text-slate-50">
 							{upcomingEvents.length}
 						</p>
 					</div>
 
 					<div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
-						<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
-							Trust
-						</p>
+						<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Trust</p>
 						<p class="mt-2 font-black text-slate-950 dark:text-slate-50">
 							{verificationLabel()}
 						</p>
@@ -302,15 +313,15 @@
 				</div>
 
 				<div class="mt-8">
-					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">
-						About
-					</h2>
+					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">About</h2>
 
 					<p class="mt-3 leading-relaxed text-slate-600 dark:text-slate-300">
 						{organization.description || 'This organization has not added a description yet.'}
 					</p>
 
-					<div class="mt-5 flex flex-wrap gap-3 text-sm font-bold text-slate-500 dark:text-slate-400">
+					<div
+						class="mt-5 flex flex-wrap gap-3 text-sm font-bold text-slate-500 dark:text-slate-400"
+					>
 						{#if organization.contactEmail}
 							<span>✉ {organization.contactEmail}</span>
 						{/if}
@@ -342,7 +353,9 @@
 			<section class="mt-10">
 				<div class="mb-5 flex items-center justify-between">
 					<div>
-						<p class="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
+						<p
+							class="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400"
+						>
 							Promoted
 						</p>
 
@@ -362,9 +375,7 @@
 
 		<section class="mt-10">
 			<div class="mb-5 flex items-center justify-between">
-				<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">
-					Upcoming events
-				</h2>
+				<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">Upcoming events</h2>
 
 				{#if canManage}
 					<a

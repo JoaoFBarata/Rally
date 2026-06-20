@@ -1,6 +1,6 @@
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '$lib/firebase';
-import type { SportEvent } from '$lib/schema';
+import type { SportEvent, UserProfile } from '$lib/schema';
 import {
 	getEffectiveEventStatus,
 	getEventById,
@@ -14,6 +14,7 @@ import {
 	getOrganizationById,
 	getOrganizationsFollowedByUser
 } from '$lib/services/organization.service';
+import { getUserProfile } from '$lib/services/user.service';
 
 function eventFromDoc(docSnap: { id: string; data: () => unknown }) {
 	return {
@@ -43,25 +44,42 @@ function chunkArray<T>(items: T[], size: number) {
 	return chunks;
 }
 
-function promotedFirst(events: SportEvent[]) {
+function normalizeTarget(value?: string) {
+	return value?.trim().toLocaleLowerCase('pt-PT') ?? '';
+}
+
+function isSamePlace(first?: string, second?: string) {
+	const a = normalizeTarget(first);
+	const b = normalizeTarget(second);
+	return Boolean(a && b && (a.includes(b) || b.includes(a)));
+}
+
+function promotionWeight(event: SportEvent, profile?: UserProfile | null) {
+	if (!isPromotionActive(event)) return 0;
+	const targetCountry = event.promotionTargetCountry?.toUpperCase() || 'PT';
+	const userCountry = profile?.country?.toUpperCase() || 'PT';
+	if (targetCountry !== userCountry) return 0;
+	if (event.promotionPlan === 'featured') return 30;
+	if (event.promotionPlan === 'sport') {
+		if (!profile) return 20;
+		return event.promotionTargetSport && profile?.sports.includes(event.promotionTargetSport)
+			? 20
+			: 0;
+	}
+	if (event.promotionPlan === 'local') {
+		if (!profile) return 10;
+		if (!event.promotionTargetCity) return 10;
+		if (!profile.city) return 5;
+		return isSamePlace(event.promotionTargetCity, profile.city) ? 15 : 0;
+	}
+	return 0;
+}
+
+function promotedFirst(events: SportEvent[], profile?: UserProfile | null) {
 	return [...events].sort((a, b) => {
-		const aPromoted = isPromotionActive(a);
-		const bPromoted = isPromotionActive(b);
-
-		if (aPromoted !== bPromoted) return aPromoted ? -1 : 1;
-
-		if (aPromoted && bPromoted) {
-			const planWeight = {
-				featured: 3,
-				sport: 2,
-				local: 1
-			};
-
-			const aWeight = a.promotionPlan ? planWeight[a.promotionPlan] : 0;
-			const bWeight = b.promotionPlan ? planWeight[b.promotionPlan] : 0;
-
-			if (aWeight !== bWeight) return bWeight - aWeight;
-		}
+		const aWeight = promotionWeight(a, profile);
+		const bWeight = promotionWeight(b, profile);
+		if (aWeight !== bWeight) return bWeight - aWeight;
 
 		return getEventStartAtMillis(a) - getEventStartAtMillis(b);
 	});
@@ -128,7 +146,79 @@ export async function getPublicEvents() {
 	return promotedFirst(sortEventsByStartDate(events));
 }
 
+export async function getPromotedEventsForUser(userId: string, profile: UserProfile, limit = 2) {
+	const promotedEventsQuery = query(collection(db, 'events'), where('isPromoted', '==', true));
+	const promotedEventsSnap = await getDocs(promotedEventsQuery);
+
+	const candidates = promotedEventsSnap.docs
+		.map(eventFromDoc)
+		.filter(isVisibleInExplore)
+		.filter((event) => isPromotionActive(event))
+		.filter((event) => event.visibility === 'public')
+		.filter((event) => event.creatorId !== userId)
+		.filter((event) => event.organizationId !== profile.activeOrganizationId)
+		.filter((event) => !event.participantIds.includes(userId))
+		.filter((event) => promotionWeight(event, profile) > 0);
+
+	const events = await refreshOrganizationSnapshots(candidates);
+
+	return promotedFirst(events, profile).slice(0, Math.max(1, limit));
+}
+
+export function subscribeToPromotedEventsForUser(
+	userId: string,
+	profile: UserProfile,
+	onEvents: (events: SportEvent[]) => void,
+	onError?: (error: Error) => void,
+	limit = 10
+) {
+	const promotedEventsQuery = query(collection(db, 'events'), where('isPromoted', '==', true));
+	let requestVersion = 0;
+	let previousFingerprint = '';
+
+	return onSnapshot(
+		promotedEventsQuery,
+		async (snapshot) => {
+			const fingerprint = JSON.stringify(
+				snapshot.docs.map((eventDoc) => {
+					const event = eventFromDoc(eventDoc);
+					const limit = event.promotionImpressionLimit ?? 0;
+					return {
+						id: event.id,
+						status: event.status,
+						participants: event.participantIds,
+						promotionStatus: event.promotionStatus,
+						plan: event.promotionPlan,
+						country: event.promotionTargetCountry,
+						city: event.promotionTargetCity,
+						sport: event.promotionTargetSport,
+						reachedLimit: limit > 0 && (event.promotionViews ?? 0) >= limit
+					};
+				})
+			);
+			if (fingerprint === previousFingerprint) return;
+			previousFingerprint = fingerprint;
+			const currentVersion = ++requestVersion;
+			const candidates = snapshot.docs
+				.map(eventFromDoc)
+				.filter(isVisibleInExplore)
+				.filter((event) => isPromotionActive(event))
+				.filter((event) => event.visibility === 'public')
+				.filter((event) => event.creatorId !== userId)
+				.filter((event) => event.organizationId !== profile.activeOrganizationId)
+				.filter((event) => !event.participantIds.includes(userId))
+				.filter((event) => promotionWeight(event, profile) > 0);
+
+			const events = await refreshOrganizationSnapshots(candidates);
+			if (currentVersion !== requestVersion) return;
+			onEvents(promotedFirst(events, profile).slice(0, Math.max(1, limit)));
+		},
+		(error) => onError?.(error)
+	);
+}
+
 export async function getVisibleEventsForUser(userId: string) {
+	const profile = await getUserProfile(userId);
 	const eventsById = new Map<string, SportEvent>();
 
 	const myEventsQuery = query(collection(db, 'events'), where('creatorId', '==', userId));
@@ -218,5 +308,5 @@ export async function getVisibleEventsForUser(userId: string) {
 		Array.from(eventsById.values()).filter(isVisibleInExplore)
 	);
 
-	return promotedFirst(sortEventsByStartDate(events));
+	return promotedFirst(sortEventsByStartDate(events), profile);
 }

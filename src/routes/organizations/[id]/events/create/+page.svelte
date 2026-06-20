@@ -17,7 +17,7 @@
 		assertCanManageOrganization,
 		canCreateOfficialPaidEvents
 	} from '$lib/services/organization.service';
-	import { createSportEvent, promoteEvent } from '$lib/services/event.service';
+	import { createSportEvent, PROMOTION_COUNTRIES, promoteEvent } from '$lib/services/event.service';
 	import LocationPickerMap from '$lib/components/maps/LocationPickerMap.svelte';
 
 	let organization = $state<Organization | null>(null);
@@ -52,6 +52,7 @@
 	let promotionBudget = $state('25');
 	let promotionDurationDays = $state('7');
 	let promotionTargetCity = $state('');
+	let promotionTargetCountry = $state('PT');
 	let promotionTargetSport = $state<Sport | ''>('');
 
 	let eventKind = $state<'free' | 'training' | 'tournament' | 'paid' | 'promotion'>('free');
@@ -199,6 +200,9 @@
 		if (promote && !isVerified) {
 			throw new Error('Only verified organizations can promote events.');
 		}
+		if (promote && !promotionTargetCountry) {
+			throw new Error('Choose the country where the campaign should appear.');
+		}
 	}
 
 	async function handleCreateEvent() {
@@ -243,6 +247,7 @@
 					durationDays: Number(promotionDurationDays) || 7,
 					plan: 'local',
 					targetCity: promotionTargetCity,
+					targetCountry: promotionTargetCountry,
 					targetSport: promotionTargetSport || null
 				});
 			}
@@ -543,7 +548,15 @@
 								onclick={() => (autofillAddress = organization!.address ?? '')}
 								class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-blue-700 dark:hover:bg-blue-950/30 dark:hover:text-blue-300"
 							>
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0">
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									class="h-4 w-4 shrink-0"
+								>
 									<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
 									<circle cx="12" cy="10" r="3" />
 								</svg>
@@ -689,6 +702,19 @@
 
 					{#if promote}
 						<div class="mt-5 space-y-3">
+							<label class="block">
+								<span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500"
+									>Target country</span
+								>
+								<select
+									bind:value={promotionTargetCountry}
+									class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+								>
+									{#each PROMOTION_COUNTRIES as country}
+										<option value={country.code}>{country.label}</option>
+									{/each}
+								</select>
+							</label>
 							<input
 								bind:value={promotionBudget}
 								type="number"
@@ -710,7 +736,7 @@
 
 							<input
 								bind:value={promotionTargetCity}
-								placeholder="Target city optional"
+								placeholder="Target city or region (optional)"
 								class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
 							/>
 

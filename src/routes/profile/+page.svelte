@@ -2,8 +2,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-    import { page } from '$app/state';
-    import { resolve } from '$app/paths';
+	import { page } from '$app/state';
+	import { resolve } from '$app/paths';
 	import { auth } from '$lib/firebase';
 	import { signOut } from 'firebase/auth';
 	import type { Sport, SportLevel, UserProfile } from '$lib/schema';
@@ -17,8 +17,13 @@
 	import { getFriendsForUser, sendFriendRequestByTag } from '$lib/services/social.service';
 	import { getOrCreateDirectConversation } from '$lib/services/chat.service';
 	import { uploadUserProfilePhoto } from '$lib/services/storage.service';
-  import QRCode from 'qrcode';
-  import { browser } from '$app/environment';
+	import QRCode from 'qrcode';
+	import { browser } from '$app/environment';
+	import { PROMOTION_COUNTRIES } from '$lib/services/event.service';
+	import {
+		subscribeToUserActivityChanges,
+		subscribeToUserChanges
+	} from '$lib/services/realtime.service';
 
 	const availableSports: Sport[] = [
 		'football',
@@ -38,6 +43,7 @@
 	let displayName = $state('');
 	let bio = $state('');
 	let city = $state('');
+	let country = $state('PT');
 	let age = $state<string | number>('');
 	let sports = $state<Sport[]>([]);
 	let level = $state<SportLevel>('casual');
@@ -51,10 +57,10 @@
 	let editMode = $state(false);
 	let error = $state('');
 	let success = $state('');
-  let qrCodeDataUrl = $state('');
-  let qrCodeLink = $state('');
-  let showQrModal = $state(false);
-		
+	let qrCodeDataUrl = $state('');
+	let qrCodeLink = $state('');
+	let showQrModal = $state(false);
+
 	function sortByDisplayName(a: UserProfile, b: UserProfile) {
 		return (a.displayName ?? '').localeCompare(b.displayName ?? '', undefined, {
 			sensitivity: 'base'
@@ -65,6 +71,7 @@
 		displayName = nextProfile.displayName ?? '';
 		bio = nextProfile.bio ?? '';
 		city = nextProfile.city ?? '';
+		country = nextProfile.country ?? 'PT';
 		age = nextProfile.age ? String(nextProfile.age) : '';
 		sports = nextProfile.sports ?? [];
 		level = nextProfile.level ?? 'casual';
@@ -84,8 +91,8 @@
 		try {
 			profile = await ensureUserProfile(currentUser);
 			resetFormFromProfile(profile);
-      await generateProfileQrCode(profile.id);
-      await handleQrFriendRequestFromUrl();
+			await generateProfileQrCode(profile.id);
+			await handleQrFriendRequestFromUrl();
 
 			const rawFriends = await getFriendsForUser(currentUser.uid);
 			friends = rawFriends.sort(sortByDisplayName);
@@ -121,15 +128,12 @@
 		if (!currentUser) return;
 
 		const cleanAge = String(age ?? '').trim();
-        const parsedAge = cleanAge === '' ? null : Number(cleanAge);
+		const parsedAge = cleanAge === '' ? null : Number(cleanAge);
 
-        if (
-            parsedAge !== null &&
-            (!Number.isInteger(parsedAge) || parsedAge < 13 || parsedAge > 100)
-        ) {
-            error = 'Please enter a valid age between 13 and 100.';
-            return;
-        }
+		if (parsedAge !== null && (!Number.isInteger(parsedAge) || parsedAge < 13 || parsedAge > 100)) {
+			error = 'Please enter a valid age between 13 and 100.';
+			return;
+		}
 
 		saving = true;
 		error = '';
@@ -140,6 +144,7 @@
 				displayName,
 				bio,
 				city,
+				country,
 				age: parsedAge,
 				level,
 				sports
@@ -256,48 +261,56 @@
 		}
 	}
 
-    async function generateProfileQrCode(userId: string) {
-        if (!browser || !profile?.rallyTag) return;
+	async function generateProfileQrCode(userId: string) {
+		if (!browser || !profile?.rallyTag) return;
 
-        const link = `${window.location.origin}/profile?addFriend=${encodeURIComponent(profile.rallyTag)}`;
+		const link = `${window.location.origin}/profile?addFriend=${encodeURIComponent(profile.rallyTag)}`;
 
-        qrCodeLink = link;
-        qrCodeDataUrl = await QRCode.toDataURL(link, {
-            width: 320,
-            margin: 1,
-            color: {
-                dark: '#020617',
-                light: '#ffffff'
-            }
-        });
-    }
+		qrCodeLink = link;
+		qrCodeDataUrl = await QRCode.toDataURL(link, {
+			width: 320,
+			margin: 1,
+			color: {
+				dark: '#020617',
+				light: '#ffffff'
+			}
+		});
+	}
 
-    async function handleQrFriendRequestFromUrl() {
-        const currentUser = auth.currentUser;
+	async function handleQrFriendRequestFromUrl() {
+		const currentUser = auth.currentUser;
 
-        if (!currentUser || !browser) return;
+		if (!currentUser || !browser) return;
 
-        const tagFromQr = page.url.searchParams.get('addFriend');
+		const tagFromQr = page.url.searchParams.get('addFriend');
 
-        if (!tagFromQr) return;
+		if (!tagFromQr) return;
 
-        try {
-            const target = await sendFriendRequestByTag({
-                fromUserId: currentUser.uid,
-                rallyTag: tagFromQr
-            });
+		try {
+			const target = await sendFriendRequestByTag({
+				fromUserId: currentUser.uid,
+				rallyTag: tagFromQr
+			});
 
-            success = `Friend request sent to ${target.displayName}.`;
-            await goto('/profile', { replaceState: true });
-        } catch (err) {
-            console.error('QR friend request error:', err);
-            error = err instanceof Error ? err.message : 'Could not send friend request.';
-            await goto('/profile', { replaceState: true });
-        }
-    }
+			success = `Friend request sent to ${target.displayName}.`;
+			await goto('/profile', { replaceState: true });
+		} catch (err) {
+			console.error('QR friend request error:', err);
+			error = err instanceof Error ? err.message : 'Could not send friend request.';
+			await goto('/profile', { replaceState: true });
+		}
+	}
 
 	onMount(() => {
-		loadProfile();
+		void loadProfile();
+		const userId = auth.currentUser?.uid;
+		if (!userId) return;
+		const unsubscribeUser = subscribeToUserChanges(userId, () => void loadProfile());
+		const unsubscribeActivity = subscribeToUserActivityChanges(userId, () => void loadProfile());
+		return () => {
+			unsubscribeUser();
+			unsubscribeActivity();
+		};
 	});
 </script>
 
@@ -427,6 +440,21 @@
 							</div>
 
 							<div>
+								<label for="country" class="text-sm font-bold text-slate-700 dark:text-slate-300"
+									>Country</label
+								>
+								<select
+									id="country"
+									bind:value={country}
+									class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+								>
+									{#each PROMOTION_COUNTRIES as option}
+										<option value={option.code}>{option.label}</option>
+									{/each}
+								</select>
+							</div>
+
+							<div>
 								<label for="age" class="text-sm font-bold text-slate-700 dark:text-slate-300">
 									Age
 								</label>
@@ -535,9 +563,7 @@
 								{/each}
 							</div>
 						{:else}
-							<p class="mt-2 text-slate-500 dark:text-slate-400">
-								No sports added yet.
-							</p>
+							<p class="mt-2 text-slate-500 dark:text-slate-400">No sports added yet.</p>
 						{/if}
 					</div>
 				{/if}
@@ -545,47 +571,43 @@
 
 			<aside class="space-y-6">
 				<section
-                    class="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
-                >
-                    <div class="flex items-start justify-between gap-4">
-                        <div>
-                            <h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Add friend</h2>
-                            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                                Use a Rally tag or show your QR code.
-                            </p>
-                        </div>
+					class="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+				>
+					<div class="flex items-start justify-between gap-4">
+						<div>
+							<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Add friend</h2>
+							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+								Use a Rally tag or show your QR code.
+							</p>
+						</div>
 
-                        <button
-                            type="button"
-                            onclick={() => (showQrModal = true)}
-                            class="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 transition hover:bg-slate-200 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                            aria-label="Show QR code"
-                            title="Show QR code"
-                        >
-                            <img
-                                src="/qr-code.png"
-                                alt="QR code"
-                                class="h-6 w-6 object-contain dark:invert"
-                            />
-                        </button>
-                    </div>
+						<button
+							type="button"
+							onclick={() => (showQrModal = true)}
+							class="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 transition hover:bg-slate-200 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+							aria-label="Show QR code"
+							title="Show QR code"
+						>
+							<img src="/qr-code.png" alt="QR code" class="h-6 w-6 object-contain dark:invert" />
+						</button>
+					</div>
 
-                    <div class="mt-5 flex gap-2">
-                        <input
-                            bind:value={friendTag}
-                            placeholder="example: joao-8f3a1"
-                            class="min-w-0 flex-1 rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500"
-                        />
+					<div class="mt-5 flex gap-2">
+						<input
+							bind:value={friendTag}
+							placeholder="example: joao-8f3a1"
+							class="min-w-0 flex-1 rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500"
+						/>
 
-                        <button
-                            onclick={handleAddFriend}
-                            disabled={friendLoading || !friendTag}
-                            class="rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-700 disabled:opacity-60"
-                        >
-                            {friendLoading ? 'Sending...' : 'Add'}
-                        </button>
-                    </div>
-                </section>
+						<button
+							onclick={handleAddFriend}
+							disabled={friendLoading || !friendTag}
+							class="rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-700 disabled:opacity-60"
+						>
+							{friendLoading ? 'Sending...' : 'Add'}
+						</button>
+					</div>
+				</section>
 
 				<section
 					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
@@ -616,25 +638,25 @@
 									class="flex items-center justify-between rounded-3xl bg-slate-50 p-4 dark:bg-slate-800"
 								>
 									<a
-                                        href={resolve(`/users/${friend.id}`)}
-                                        class="flex items-center gap-3 rounded-2xl p-2 transition hover:bg-slate-100 dark:hover:bg-slate-800"
-                                    >
-                                        <UserAvatar
-                                            photoURL={friend.photoURL}
-                                            displayName={friend.displayName}
-                                            email={friend.email}
-                                            size="md"
-                                        />
+										href={resolve(`/users/${friend.id}`)}
+										class="flex items-center gap-3 rounded-2xl p-2 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+									>
+										<UserAvatar
+											photoURL={friend.photoURL}
+											displayName={friend.displayName}
+											email={friend.email}
+											size="md"
+										/>
 
-                                        <div class="min-w-0">
-                                            <p class="truncate font-bold text-slate-950 dark:text-slate-50">
-                                                {friend.displayName}
-                                            </p>
-                                            <p class="truncate text-xs text-slate-500 dark:text-slate-400">
-                                                @{friend.rallyTag}
-                                            </p>
-                                        </div>
-                                    </a>
+										<div class="min-w-0">
+											<p class="truncate font-bold text-slate-950 dark:text-slate-50">
+												{friend.displayName}
+											</p>
+											<p class="truncate text-xs text-slate-500 dark:text-slate-400">
+												@{friend.rallyTag}
+											</p>
+										</div>
+									</a>
 
 									<button
 										type="button"
@@ -678,7 +700,9 @@
 			}}
 			aria-labelledby="profile-qr-title"
 		>
-			<div class="w-full max-w-sm rounded-[2rem] bg-white p-6 text-center shadow-2xl dark:bg-slate-900">
+			<div
+				class="w-full max-w-sm rounded-[2rem] bg-white p-6 text-center shadow-2xl dark:bg-slate-900"
+			>
 				<div class="flex items-start justify-between gap-4">
 					<div class="text-left">
 						<h2 id="profile-qr-title" class="text-2xl font-black text-slate-950 dark:text-slate-50">
@@ -704,7 +728,9 @@
 						{#if qrCodeDataUrl}
 							<img src={qrCodeDataUrl} alt="Rally friend QR code" class="h-64 w-64 rounded-2xl" />
 						{:else}
-							<div class="flex h-64 w-64 items-center justify-center rounded-2xl bg-slate-100 text-sm font-bold text-slate-500">
+							<div
+								class="flex h-64 w-64 items-center justify-center rounded-2xl bg-slate-100 text-sm font-bold text-slate-500"
+							>
 								Generating QR...
 							</div>
 						{/if}

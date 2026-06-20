@@ -7,6 +7,7 @@
 	import { auth } from '$lib/firebase';
 	import {
 		PROMOTION_PLANS,
+		PROMOTION_COUNTRIES,
 		cancelEvent,
 		calculatePromotionStats,
 		ensureEventGroupConversation,
@@ -40,7 +41,8 @@
 		UserProfile,
 		EventPromotionPlan
 	} from '$lib/schema';
-  	import { uploadEventGroupPhoto } from '$lib/services/storage.service';
+	import { uploadEventGroupPhoto } from '$lib/services/storage.service';
+	import { subscribeToEventChanges } from '$lib/services/realtime.service';
 	import type { Unsubscribe } from 'firebase/firestore';
 	import ChatMessageList from '$lib/components/chat/ChatMessageList.svelte';
 	import { getTypingLabel } from '$lib/utils/chat-typing.utils';
@@ -105,9 +107,11 @@
 	let promotionBudget = $state('15');
 	let promotionDurationDays = $state('7');
 	let promotionTargetCity = $state('');
+	let promotionTargetCountry = $state('PT');
+	let stopEventListener = () => {};
 
 	let effectiveStatus = $derived.by(() => {
-			return event ? getEffectiveEventStatus(event) : 'draft';
+		return event ? getEffectiveEventStatus(event) : 'draft';
 	});
 	const TYPING_REFRESH_MS = 2000;
 	const TYPING_VISIBLE_MS = 5000;
@@ -154,10 +158,9 @@
 	});
 
 	let participantById = $derived.by(() => {
-		return Object.fromEntries(participants.map((participant) => [participant.id, participant])) as Record<
-			string,
-			UserProfile
-		>;
+		return Object.fromEntries(
+			participants.map((participant) => [participant.id, participant])
+		) as Record<string, UserProfile>;
 	});
 
 	let contactLoading = $state(false);
@@ -287,7 +290,8 @@
 		if (!currentUser) return;
 
 		const canCurrentUserAccessChat =
-			currentEvent.creatorId === currentUser.uid || currentEvent.participantIds.includes(currentUser.uid);
+			currentEvent.creatorId === currentUser.uid ||
+			currentEvent.participantIds.includes(currentUser.uid);
 
 		if (!canCurrentUserAccessChat) {
 			stopGroupMessagesListener();
@@ -424,11 +428,18 @@
 			event = loadedEvent;
 			participants = await getUserProfilesByIds(loadedEvent.participantIds ?? []);
 
-			if (isEventFinished(loadedEvent) && loadedEvent.status !== 'finished' && loadedEvent.status !== 'cancelled') {
+			if (
+				isEventFinished(loadedEvent) &&
+				loadedEvent.status !== 'finished' &&
+				loadedEvent.status !== 'cancelled'
+			) {
 				void notifyEventFinished(loadedEvent);
 			}
 
-			if (loadedEvent.creatorId === currentUser.uid || loadedEvent.participantIds.includes(currentUser.uid)) {
+			if (
+				loadedEvent.creatorId === currentUser.uid ||
+				loadedEvent.participantIds.includes(currentUser.uid)
+			) {
 				await loadGroupMessages(loadedEvent);
 			}
 		} catch (err) {
@@ -465,7 +476,8 @@
 
 		const confirmed = await showConfirm({
 			title: 'Leave this event?',
-			message: 'You will be removed from the participant list. You can rejoin later if there are spots available.',
+			message:
+				'You will be removed from the participant list. You can rejoin later if there are spots available.',
 			confirmLabel: 'Leave event',
 			danger: true
 		});
@@ -521,7 +533,8 @@
 
 		const confirmed = await showConfirm({
 			title: 'Remove this player?',
-			message: 'They will be removed from the participant list and can rejoin if spots are available.',
+			message:
+				'They will be removed from the participant list and can rejoin if spots are available.',
 			confirmLabel: 'Remove player',
 			danger: true
 		});
@@ -561,26 +574,26 @@
 		error = '';
 
 		try {
-				const uploadedPhoto = await uploadEventGroupPhoto({
-						eventId: event.id,
-						userId: currentUser.uid,
-						file
-				});
+			const uploadedPhoto = await uploadEventGroupPhoto({
+				eventId: event.id,
+				userId: currentUser.uid,
+				file
+			});
 
-				await updateEventGroupPhoto({
-						eventId: event.id,
-						userId: currentUser.uid,
-						groupPhotoURL: uploadedPhoto.url,
-						groupPhotoPath: uploadedPhoto.path
-				});
+			await updateEventGroupPhoto({
+				eventId: event.id,
+				userId: currentUser.uid,
+				groupPhotoURL: uploadedPhoto.url,
+				groupPhotoPath: uploadedPhoto.path
+			});
 
-				input.value = '';
-				await reloadEvent();
+			input.value = '';
+			await reloadEvent();
 		} catch (err) {
-				console.error('Update group photo error:', err);
-				error = err instanceof Error ? err.message : 'Could not update group photo.';
+			console.error('Update group photo error:', err);
+			error = err instanceof Error ? err.message : 'Could not update group photo.';
 		} finally {
-				groupPhotoSaving = false;
+			groupPhotoSaving = false;
 		}
 	}
 
@@ -650,6 +663,7 @@
 				durationDays: Number(promotionDurationDays),
 				plan: promotionPlan,
 				targetCity: promotionTargetCity || event.location.name,
+				targetCountry: promotionTargetCountry,
 				targetSport: event.sport
 			});
 
@@ -687,7 +701,9 @@
 	}
 
 	onMount(() => {
-		loadEventPage();
+		void loadEventPage();
+		const eventId = page.params.id;
+		if (eventId) stopEventListener = subscribeToEventChanges(eventId, () => void loadEventPage());
 	});
 
 	onDestroy(() => {
@@ -696,6 +712,7 @@
 		stopGroupMessagesListener();
 		stopGroupConversationListener();
 		stopGroupTypingTimeout();
+		stopEventListener();
 	});
 </script>
 
@@ -757,7 +774,9 @@
 					</div>
 
 					<div class="min-w-0 flex-1">
-						<p class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
+						<p
+							class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400"
+						>
 							{event.sport}
 						</p>
 
@@ -807,20 +826,20 @@
 								€{event.pricePerPerson.toFixed(2)} per person
 							</p>
 						{:else}
-							<p class="mt-2 font-bold text-slate-950 dark:text-slate-50">
-								Free / not defined
-							</p>
+							<p class="mt-2 font-bold text-slate-950 dark:text-slate-50">Free / not defined</p>
 						{/if}
 					</div>
 				</div>
-				
+
 				{#if event?.eventKind !== 'tournament'}
 					<div
 						class="mt-8 rounded-4xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 					>
 						<div class="flex items-center justify-between gap-4">
 							<div>
-								<p class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
+								<p
+									class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400"
+								>
 									Players
 								</p>
 
@@ -833,9 +852,7 @@
 								<p class="text-lg font-black text-blue-600 dark:text-blue-300">
 									{participants.length}/{event.maxParticipants}
 								</p>
-								<p class="text-xs font-medium text-slate-500 dark:text-slate-400">
-									players
-								</p>
+								<p class="text-xs font-medium text-slate-500 dark:text-slate-400">players</p>
 							</div>
 						</div>
 
@@ -846,24 +863,24 @@
 										class="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800"
 									>
 										<a
-												href={resolve(`/users/${participant.id}`)}
-												class="flex items-center gap-3 rounded-2xl p-2 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+											href={resolve(`/users/${participant.id}`)}
+											class="flex items-center gap-3 rounded-2xl p-2 transition hover:bg-slate-100 dark:hover:bg-slate-800"
 										>
-												<UserAvatar
-														photoURL={participant.photoURL}
-														displayName={participant.displayName}
-														email={participant.email}
-														size="md"
-												/>
+											<UserAvatar
+												photoURL={participant.photoURL}
+												displayName={participant.displayName}
+												email={participant.email}
+												size="md"
+											/>
 
-												<div class="min-w-0">
-														<p class="truncate font-bold text-slate-950 dark:text-slate-50">
-																{participant.displayName}
-														</p>
-														<p class="truncate text-xs text-slate-500 dark:text-slate-400">
-																@{participant.rallyTag}
-														</p>
-												</div>
+											<div class="min-w-0">
+												<p class="truncate font-bold text-slate-950 dark:text-slate-50">
+													{participant.displayName}
+												</p>
+												<p class="truncate text-xs text-slate-500 dark:text-slate-400">
+													@{participant.rallyTag}
+												</p>
+											</div>
 										</a>
 
 										{#if participant.id === event.creatorId}
@@ -911,11 +928,7 @@
 			</section>
 
 			{#if event?.eventKind === 'tournament'}
-				<TournamentPanel
-					{event}
-					{currentUserId}
-					canManage={canManageTournament}
-				/>
+				<TournamentPanel {event} {currentUserId} canManage={canManageTournament} />
 			{/if}
 
 			{#if canAccessGroupChat && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
@@ -952,7 +965,9 @@
 						class="h-90 overflow-y-auto bg-slate-50 px-5 py-5 dark:bg-slate-950"
 					>
 						{#if groupChatLoading}
-							<div class="flex h-full items-center justify-center text-sm text-slate-500 dark:text-slate-400">
+							<div
+								class="flex h-full items-center justify-center text-sm text-slate-500 dark:text-slate-400"
+							>
 								Loading group chat...
 							</div>
 						{:else if groupMessages.length === 0}
@@ -968,9 +983,7 @@
 							<div class="flex h-full items-center justify-center text-center">
 								<div>
 									<p class="text-4xl">💬</p>
-									<p class="mt-3 font-black text-slate-700 dark:text-slate-200">
-										No messages yet
-									</p>
+									<p class="mt-3 font-black text-slate-700 dark:text-slate-200">No messages yet</p>
 									<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
 										Send the first message to the event group.
 									</p>
@@ -1059,9 +1072,7 @@
 								{/if}
 							</div>
 
-							<p class="text-xs text-slate-500 dark:text-slate-400">
-								Official organization host
-							</p>
+							<p class="text-xs text-slate-500 dark:text-slate-400">Official organization host</p>
 						</div>
 					</a>
 
@@ -1079,9 +1090,7 @@
 							<div class="mt-4 rounded-2xl bg-blue-50 p-4 dark:bg-blue-950/40">
 								<div class="flex items-center justify-between gap-3">
 									<div>
-										<p class="font-black text-blue-700 dark:text-blue-300">
-											Promotion active
-										</p>
+										<p class="font-black text-blue-700 dark:text-blue-300">Promotion active</p>
 
 										{#if promotionStats}
 											<p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
@@ -1161,14 +1170,12 @@
 						>
 							This event has been cancelled
 						</div>
-
 					{:else if effectiveStatus === 'finished'}
 						<div
 							class="mt-5 rounded-2xl bg-slate-100 px-5 py-4 text-center font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300"
 						>
 							This event has already finished
 						</div>
-						
 					{:else if event.status === 'full'}
 						<div
 							class="mt-5 rounded-2xl bg-slate-100 px-5 py-4 text-center font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300"
@@ -1197,15 +1204,17 @@
 			{/if}
 
 			<EventMap
-                lat={event.location.lat ?? null}
-                lng={event.location.lng ?? null}
-                name={event.location.name}
-                address={event.location.address ?? ''}
+				lat={event.location.lat ?? null}
+				lng={event.location.lng ?? null}
+				name={event.location.name}
+				address={event.location.address ?? ''}
 			/>
 		</aside>
 
 		{#if showPromoteModal && event}
-			<div class="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/60 px-5 backdrop-blur-sm">
+			<div
+				class="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/60 px-5 backdrop-blur-sm"
+			>
 				<div
 					class="w-full max-w-2xl rounded-[2rem] bg-white p-6 shadow-2xl dark:bg-slate-900"
 					role="dialog"
@@ -1213,7 +1222,9 @@
 				>
 					<div class="flex items-start justify-between gap-4">
 						<div>
-							<p class="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
+							<p
+								class="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400"
+							>
 								Promote event
 							</p>
 
@@ -1236,7 +1247,7 @@
 						</button>
 					</div>
 
-					<div class="mt-6 grid gap-3 md:grid-cols-3">
+					<div class="mt-6 grid gap-3 md:grid-cols-2">
 						{#each promotionPlanOptions as [plan, config]}
 							<button
 								type="button"
@@ -1282,10 +1293,20 @@
 							<option value="30">30 days</option>
 						</select>
 
+						<select
+							bind:value={promotionTargetCountry}
+							aria-label="Target country"
+							class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+						>
+							{#each PROMOTION_COUNTRIES as country}
+								<option value={country.code}>{country.label}</option>
+							{/each}
+						</select>
+
 						<input
 							bind:value={promotionTargetCity}
 							class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-							placeholder={event.location.name}
+							placeholder={`City or region (e.g. ${event.location.name})`}
 						/>
 					</div>
 
@@ -1336,9 +1357,7 @@
 		}}
 		aria-labelledby="confirm-title"
 	>
-		<div
-			class="w-full max-w-sm overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-slate-900"
-		>
+		<div class="w-full max-w-sm overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-slate-900">
 			<div class="p-6">
 				<h2 id="confirm-title" class="text-lg font-black text-slate-950 dark:text-slate-50">
 					{confirmDialog.title}

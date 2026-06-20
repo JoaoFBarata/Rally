@@ -4,7 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { auth, db } from '$lib/firebase';
 	import { onAuthStateChanged } from 'firebase/auth';
-	import { collection, getCountFromServer, query, where } from 'firebase/firestore';
+	import { collection, getCountFromServer, onSnapshot, query, where } from 'firebase/firestore';
 	import {
 		approveOrganizationVerification,
 		getOrganizationById,
@@ -12,12 +12,12 @@
 		rejectOrganizationVerification
 	} from '$lib/services/organization.service';
 	import type { Organization, OrganizationVerificationRequest } from '$lib/schema';
-
-	const ADMIN_EMAILS = ['duarte.v.ayres@gmail.com', 'guilherme.martins.e.silva@gmail.com'];
+	import { isPlatformAdminEmail } from '$lib/admin';
 
 	type RequestWithOrg = OrganizationVerificationRequest & { organization: Organization | null };
 
 	let loading = $state(true);
+	let loadError = $state('');
 	let activeTab = $state<'overview' | 'verifications'>('overview');
 
 	let stats = $state({
@@ -36,19 +36,27 @@
 	let actionError = $state('');
 
 	async function loadStats() {
-		const [usersSnap, orgsSnap, eventsSnap, openSnap, fullSnap, cancelledSnap, finishedSnap, pendingVerSnap] =
-			await Promise.all([
-				getCountFromServer(collection(db, 'users')),
-				getCountFromServer(collection(db, 'organizations')),
-				getCountFromServer(collection(db, 'events')),
-				getCountFromServer(query(collection(db, 'events'), where('status', '==', 'open'))),
-				getCountFromServer(query(collection(db, 'events'), where('status', '==', 'full'))),
-				getCountFromServer(query(collection(db, 'events'), where('status', '==', 'cancelled'))),
-				getCountFromServer(query(collection(db, 'events'), where('status', '==', 'finished'))),
-				getCountFromServer(
-					query(collection(db, 'organizationVerificationRequests'), where('status', '==', 'pending'))
-				)
-			]);
+		const [
+			usersSnap,
+			orgsSnap,
+			eventsSnap,
+			openSnap,
+			fullSnap,
+			cancelledSnap,
+			finishedSnap,
+			pendingVerSnap
+		] = await Promise.all([
+			getCountFromServer(collection(db, 'users')),
+			getCountFromServer(collection(db, 'organizations')),
+			getCountFromServer(collection(db, 'events')),
+			getCountFromServer(query(collection(db, 'events'), where('status', '==', 'open'))),
+			getCountFromServer(query(collection(db, 'events'), where('status', '==', 'full'))),
+			getCountFromServer(query(collection(db, 'events'), where('status', '==', 'cancelled'))),
+			getCountFromServer(query(collection(db, 'events'), where('status', '==', 'finished'))),
+			getCountFromServer(
+				query(collection(db, 'organizationVerificationRequests'), where('status', '==', 'pending'))
+			)
+		]);
 
 		stats = {
 			users: usersSnap.data().count,
@@ -137,15 +145,41 @@
 	}
 
 	onMount(() => {
+		let unsubscribeRequests = () => {};
 		const unsub = onAuthStateChanged(auth, async (user) => {
-			if (!user || !ADMIN_EMAILS.includes(user.email ?? '')) {
+			if (!user || !isPlatformAdminEmail(user.email)) {
 				goto('/dashboard');
 				return;
 			}
-			await loadStats();
-			loading = false;
+			try {
+				await loadStats();
+				if (stats.pendingVerifications > 0) activeTab = 'verifications';
+				let initialized = false;
+				unsubscribeRequests = onSnapshot(
+					query(
+						collection(db, 'organizationVerificationRequests'),
+						where('status', '==', 'pending')
+					),
+					() => {
+						if (!initialized) {
+							initialized = true;
+							return;
+						}
+						void loadStats();
+						void loadVerificationRequests();
+					}
+				);
+			} catch (error) {
+				console.error('Admin dashboard load error:', error);
+				loadError = error instanceof Error ? error.message : 'Could not load the admin dashboard.';
+			} finally {
+				loading = false;
+			}
 		});
-		return unsub;
+		return () => {
+			unsub();
+			unsubscribeRequests();
+		};
 	});
 
 	$effect(() => {
@@ -158,6 +192,18 @@
 {#if loading}
 	<div class="flex min-h-screen items-center justify-center">
 		<p class="text-slate-500">Loading...</p>
+	</div>
+{:else if loadError}
+	<div class="mx-auto max-w-2xl px-5 py-16">
+		<div
+			class="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300"
+		>
+			<h1 class="text-xl font-black">Admin access could not be loaded</h1>
+			<p class="mt-2 text-sm">{loadError}</p>
+			<p class="mt-3 text-sm font-bold">
+				Confirm that the updated Firestore Rules have been deployed.
+			</p>
+		</div>
 	</div>
 {:else}
 	<div class="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -260,12 +306,7 @@
 						Events by Status
 					</h2>
 					<div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-						{#each [
-							{ label: 'Open', value: stats.events.open, color: 'text-green-600' },
-							{ label: 'Full', value: stats.events.full, color: 'text-blue-600' },
-							{ label: 'Finished', value: stats.events.finished, color: 'text-slate-500' },
-							{ label: 'Cancelled', value: stats.events.cancelled, color: 'text-red-500' }
-						] as stat}
+						{#each [{ label: 'Open', value: stats.events.open, color: 'text-green-600' }, { label: 'Full', value: stats.events.full, color: 'text-blue-600' }, { label: 'Finished', value: stats.events.finished, color: 'text-slate-500' }, { label: 'Cancelled', value: stats.events.cancelled, color: 'text-red-500' }] as stat}
 							<div class="rounded-lg bg-slate-50 p-4 dark:bg-slate-800">
 								<p class="text-xs text-slate-500">{stat.label}</p>
 								<p class={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
@@ -288,7 +329,9 @@
 				{#if loadingRequests}
 					<p class="text-slate-500">Loading requests...</p>
 				{:else if requestsError}
-					<div class="rounded-xl border border-red-200 bg-red-50 p-6 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+					<div
+						class="rounded-xl border border-red-200 bg-red-50 p-6 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400"
+					>
 						Failed to load requests: {requestsError}
 					</div>
 				{:else if verificationRequests.length === 0}
@@ -315,7 +358,9 @@
 												{req.organization?.type?.replace('_', ' ') ?? '—'}
 											</span>
 										</div>
-										<p class="mt-0.5 text-sm text-slate-500">Submitted {formatDate(req.createdAt)}</p>
+										<p class="mt-0.5 text-sm text-slate-500">
+											Submitted {formatDate(req.createdAt)}
+										</p>
 									</div>
 									<span
 										class="shrink-0 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
@@ -329,7 +374,9 @@
 									{#if req.legalName}
 										<div>
 											<dt class="text-xs text-slate-400">Legal name</dt>
-											<dd class="font-medium text-slate-800 dark:text-slate-200">{req.legalName}</dd>
+											<dd class="font-medium text-slate-800 dark:text-slate-200">
+												{req.legalName}
+											</dd>
 										</div>
 									{/if}
 									{#if req.nif}
@@ -341,7 +388,9 @@
 									{#if req.website}
 										<div>
 											<dt class="text-xs text-slate-400">Website</dt>
-											<dd class="truncate font-medium text-blue-600 dark:text-blue-400">{req.website}</dd>
+											<dd class="truncate font-medium text-blue-600 dark:text-blue-400">
+												{req.website}
+											</dd>
 										</div>
 									{/if}
 									{#if req.address}
@@ -350,10 +399,36 @@
 											<dd class="font-medium text-slate-800 dark:text-slate-200">{req.address}</dd>
 										</div>
 									{/if}
+									{#if req.hasPublicVenue && req.publicLocation}
+										<div
+											class="col-span-2 sm:col-span-3 rounded-lg bg-blue-50 p-3 dark:bg-blue-950/30"
+										>
+											<dt class="text-xs font-medium text-blue-600 dark:text-blue-400">
+												Claimed public venue
+											</dt>
+											<dd class="mt-1 font-medium text-slate-800 dark:text-slate-200">
+												{req.publicLocation.name} · {req.publicLocation.address}
+											</dd>
+											<p class="mt-1 text-xs text-slate-500">
+												Coordinates: {req.publicLocation.lat}, {req.publicLocation.lng}
+											</p>
+											{#if req.publicLocation.googleMapsURL}
+												<a
+													href={req.publicLocation.googleMapsURL}
+													target="_blank"
+													rel="noreferrer"
+													class="mt-2 inline-block text-xs font-bold text-blue-600 hover:underline"
+													>Open Google Maps evidence</a
+												>
+											{/if}
+										</div>
+									{/if}
 								</dl>
 
 								{#if req.note}
-									<div class="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+									<div
+										class="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+									>
 										<span class="text-xs font-medium text-slate-400">Note: </span>{req.note}
 									</div>
 								{/if}

@@ -53,6 +53,7 @@ export async function createUserProfile(params: {
 		rallyTag,
 		bio: '',
 		city: '',
+		country: 'PT',
 		age: null,
 		level: 'casual',
 		sports: params.sports ?? [],
@@ -98,6 +99,7 @@ export async function ensureUserProfile(user: User) {
 		!data.rallyTag ||
 		data.bio === undefined ||
 		data.city === undefined ||
+		data.country === undefined ||
 		data.age === undefined ||
 		data.level === undefined ||
 		data.sports === undefined ||
@@ -109,12 +111,14 @@ export async function ensureUserProfile(user: User) {
 
 	if (needsUpdate) {
 		const rallyTag =
-			data.rallyTag ?? generateRallyTag(data.displayName ?? displayName, data.email ?? email, user.uid);
+			data.rallyTag ??
+			generateRallyTag(data.displayName ?? displayName, data.email ?? email, user.uid);
 
 		await updateDoc(userRef, {
 			rallyTag,
 			bio: data.bio ?? '',
 			city: data.city ?? '',
+			country: data.country ?? 'PT',
 			age: data.age ?? null,
 			level: data.level ?? 'casual',
 			sports: data.sports ?? [],
@@ -179,6 +183,7 @@ export async function updateUserProfileDetails(
 		displayName: string;
 		bio: string;
 		city: string;
+		country: string;
 		age: number | null;
 		level: SportLevel;
 		sports: Sport[];
@@ -188,6 +193,7 @@ export async function updateUserProfileDetails(
 		displayName: params.displayName,
 		bio: params.bio,
 		city: params.city,
+		country: params.country,
 		age: params.age,
 		level: params.level,
 		sports: params.sports,

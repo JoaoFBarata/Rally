@@ -69,14 +69,21 @@ export const PROMOTION_PLANS: Record<
 	}
 };
 
+export const PROMOTION_COUNTRIES = [
+	{ code: 'PT', label: 'Portugal' },
+	{ code: 'ES', label: 'Spain' },
+	{ code: 'FR', label: 'France' },
+	{ code: 'GB', label: 'United Kingdom' },
+	{ code: 'DE', label: 'Germany' },
+	{ code: 'IT', label: 'Italy' },
+	{ code: 'BR', label: 'Brazil' }
+] as const;
+
 export function getPromotionPlanConfig(plan: EventPromotionPlan) {
 	return PROMOTION_PLANS[plan];
 }
 
-export function calculatePromotionImpressionLimit(params: {
-	budget: number;
-	cpm: number;
-}) {
+export function calculatePromotionImpressionLimit(params: { budget: number; cpm: number }) {
 	if (!params.budget || !params.cpm) return 0;
 
 	return Math.floor((params.budget / params.cpm) * 1000);
@@ -90,15 +97,16 @@ export function calculatePromotionStats(event: SportEvent) {
 
 	const ctr = views > 0 ? (clicks / views) * 100 : 0;
 	const estimatedSpend = cpm > 0 ? (views / 1000) * cpm : 0;
-	const remainingImpressions =
-		impressionLimit > 0 ? Math.max(impressionLimit - views, 0) : null;
+	const remainingImpressions = impressionLimit > 0 ? Math.max(impressionLimit - views, 0) : null;
+	const progress = impressionLimit > 0 ? Math.min((views / impressionLimit) * 100, 100) : 0;
 
 	return {
 		views,
 		clicks,
 		ctr,
 		estimatedSpend,
-		remainingImpressions
+		remainingImpressions,
+		progress
 	};
 }
 
@@ -302,7 +310,8 @@ export async function createSportEvent(params: {
 	groupPhotoURL?: string | null;
 }) {
 	const hostType = params.hostType ?? 'user';
-	const paymentMode: EventPaymentMode = params.paymentMode ?? (params.priceTotal ? 'split' : 'none');
+	const paymentMode: EventPaymentMode =
+		params.paymentMode ?? (params.priceTotal ? 'split' : 'none');
 
 	let organizationSnapshot: {
 		organizationId: string | null;
@@ -504,10 +513,7 @@ export async function getEventsCreatedByOrganization(organizationId: string) {
 	for (const chunk of chunkArray(adminIds, 10)) {
 		if (chunk.length === 0) continue;
 
-		const adminEventsQuery = query(
-			collection(db, 'events'),
-			where('creatorId', 'in', chunk)
-		);
+		const adminEventsQuery = query(collection(db, 'events'), where('creatorId', 'in', chunk));
 
 		const adminEventsSnap = await getDocs(adminEventsQuery);
 
@@ -661,10 +667,7 @@ export async function cancelEvent(eventId: string, userId: string) {
 
 	await Promise.all(
 		event.participantIds.map((participantId) =>
-			sendRallySystemMessage(
-				participantId,
-				`The event "${event.title}" has been cancelled.`
-			)
+			sendRallySystemMessage(participantId, `The event "${event.title}" has been cancelled.`)
 		)
 	);
 }
@@ -741,6 +744,7 @@ export async function promoteEvent(params: {
 	durationDays: number;
 	plan: EventPromotionPlan;
 	targetCity?: string;
+	targetCountry?: string;
 	targetSport?: Sport | null;
 }) {
 	const event = await getEventById(params.eventId);
@@ -766,6 +770,10 @@ export async function promoteEvent(params: {
 	}
 
 	const budget = Math.max(1, params.budget);
+	const targetCountry = params.targetCountry?.trim().toUpperCase() || 'PT';
+	if (!PROMOTION_COUNTRIES.some((country) => country.code === targetCountry)) {
+		throw new Error('Choose a supported target country.');
+	}
 	const durationDays = Math.max(1, Math.min(params.durationDays, 30));
 	const planConfig = getPromotionPlanConfig(params.plan);
 	const impressionLimit = calculatePromotionImpressionLimit({
@@ -783,6 +791,7 @@ export async function promoteEvent(params: {
 		promotionCpm: planConfig.cpm,
 		promotionImpressionLimit: impressionLimit,
 		promotionTargetCity: params.targetCity?.trim() ?? '',
+		promotionTargetCountry: targetCountry,
 		promotionTargetSport: params.targetSport ?? null,
 		promotionStartedAt: serverTimestamp(),
 		promotionEndsAt: Timestamp.fromDate(endsAt),
@@ -790,12 +799,14 @@ export async function promoteEvent(params: {
 		promotionClicks: 0,
 		updatedAt: serverTimestamp()
 	});
+
+	void sendRallySystemMessage(
+		params.userId,
+		`Promotion started for "${event.title}". You can follow its views, clicks and spend in the organization dashboard.`
+	).catch((error) => console.error('Promotion notification error:', error));
 }
 
-export async function stopEventPromotion(params: {
-	eventId: string;
-	userId: string;
-}) {
+export async function stopEventPromotion(params: { eventId: string; userId: string }) {
 	const event = await getEventById(params.eventId);
 
 	if (!event) {
@@ -809,12 +820,26 @@ export async function stopEventPromotion(params: {
 		promotionStatus: 'ended',
 		updatedAt: serverTimestamp()
 	});
+
+	void sendRallySystemMessage(
+		params.userId,
+		`Promotion ended for "${event.title}". Its final results remain available in the organization dashboard.`
+	).catch((error) => console.error('Promotion notification error:', error));
 }
 
-export async function trackEventPromotionView(eventId: string) {
+async function isOwnOrganizationPromotion(event: SportEvent, viewerId?: string | null) {
+	if (!viewerId) return false;
+	if (event.creatorId === viewerId) return true;
+	if (!event.organizationId) return false;
+	const organization = await getOrganizationById(event.organizationId);
+	return organization ? isOrganizationAdmin(organization, viewerId) : false;
+}
+
+export async function trackEventPromotionView(eventId: string, viewerId?: string | null) {
 	const event = await getEventById(eventId);
 
 	if (!event || !isPromotionActive(event)) return;
+	if (await isOwnOrganizationPromotion(event, viewerId)) return;
 
 	await updateDoc(doc(db, 'events', eventId), {
 		promotionViews: increment(1),
@@ -822,10 +847,11 @@ export async function trackEventPromotionView(eventId: string) {
 	});
 }
 
-export async function trackEventPromotionClick(eventId: string) {
+export async function trackEventPromotionClick(eventId: string, viewerId?: string | null) {
 	const event = await getEventById(eventId);
 
 	if (!event || !isPromotionActive(event)) return;
+	if (await isOwnOrganizationPromotion(event, viewerId)) return;
 
 	await updateDoc(doc(db, 'events', eventId), {
 		promotionClicks: increment(1),
@@ -982,16 +1008,12 @@ export async function createTournamentEvent(params: {
 				: params.maxEntries,
 		visibility: 'public',
 		priceTotal:
-			params.entryFeeType === 'free'
-				? undefined
-				: (params.entryFeeAmount ?? 0) * params.maxEntries,
+			params.entryFeeType === 'free' ? undefined : (params.entryFeeAmount ?? 0) * params.maxEntries,
 		paymentMode
 	});
 
 	const groupCount =
-		params.format === 'groups_playoff'
-			? Math.max(2, params.groupCount ?? 2)
-			: null;
+		params.format === 'groups_playoff' ? Math.max(2, params.groupCount ?? 2) : null;
 
 	await updateDoc(doc(db, 'events', createdEvent.id), {
 		eventKind: 'tournament',
@@ -1006,10 +1028,7 @@ export async function createTournamentEvent(params: {
 			params.format === 'groups_playoff' && groupCount
 				? Math.ceil(params.maxEntries / groupCount)
 				: null,
-		playoffSpots:
-			params.format === 'groups_playoff'
-				? Math.max(2, params.playoffSpots ?? 4)
-				: null,
+		playoffSpots: params.format === 'groups_playoff' ? Math.max(2, params.playoffSpots ?? 4) : null,
 
 		teamSize: params.teamSize ?? null,
 		minTeamSize: params.minTeamSize ?? params.teamSize ?? null,
@@ -1035,7 +1054,6 @@ export async function createTournamentEvent(params: {
 
 	return refreshedEvent ?? createdEvent;
 }
-
 
 export async function joinTournamentTeam(params: {
 	eventId: string;
@@ -1101,10 +1119,7 @@ export async function joinTournamentTeam(params: {
 	}
 }
 
-export async function closeTournamentRegistration(params: {
-	eventId: string;
-	userId: string;
-}) {
+export async function closeTournamentRegistration(params: { eventId: string; userId: string }) {
 	const event = await assertTournamentEvent(params.eventId);
 
 	await assertCanManageEvent(event, params.userId);
@@ -1145,8 +1160,6 @@ async function createTournamentMatch(params: {
 		updatedAt: serverTimestamp()
 	});
 }
-
-
 
 export async function getTournamentEntries(eventId: string) {
 	const q = query(getTournamentEntryCollection(), where('eventId', '==', eventId));
@@ -1292,10 +1305,7 @@ export async function createTournamentTeam(params: {
 	return entryRef.id;
 }
 
-export async function leaveTournament(params: {
-	eventId: string;
-	userId: string;
-}) {
+export async function leaveTournament(params: { eventId: string; userId: string }) {
 	const event = await assertTournamentEvent(params.eventId);
 
 	if (event.creatorId === params.userId) {
@@ -1407,10 +1417,7 @@ export async function removeTournamentEntry(params: {
 	);
 }
 
-export async function generateTournamentMatches(params: {
-	eventId: string;
-	userId: string;
-}) {
+export async function generateTournamentMatches(params: { eventId: string; userId: string }) {
 	const event = await assertTournamentEvent(params.eventId);
 
 	await assertCanManageEvent(event, params.userId);
@@ -1563,7 +1570,9 @@ export async function updateTournamentMatchResult(params: {
 		winnerEntryId,
 		winnerName,
 		status: 'finished',
-		scheduledAt: params.scheduledAt ? Timestamp.fromDate(params.scheduledAt) : (match.scheduledAt ?? null),
+		scheduledAt: params.scheduledAt
+			? Timestamp.fromDate(params.scheduledAt)
+			: (match.scheduledAt ?? null),
 		updatedAt: serverTimestamp()
 	});
 }
