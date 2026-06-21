@@ -1,6 +1,7 @@
 <!-- src/routes/dashboard/+page.svelte -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { SvelteMap } from 'svelte/reactivity';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { auth } from '$lib/firebase';
@@ -9,7 +10,9 @@
 		getEventsCreatedByUser,
 		getEventsForUser,
 		getUpcomingEvents,
-		sortEventsByStartDate
+		sortEventsByStartDate,
+		isEventFinished,
+		notifyEventFinished
 	} from '$lib/services/event.service';
 	import { getInvitesForUser } from '$lib/services/invite.service';
 	import { ensureUserProfile } from '$lib/services/user.service';
@@ -34,6 +37,15 @@
 	let promotedEvents = $state<SportEvent[]>([]);
 	let error = $state('');
 	let activeTab = $state<'hosting' | 'joined'>('hosting');
+	let showPastEvents = $state(false);
+
+	let hostingEvents = $derived(events.filter((event) => !isEventFinished(event)));
+	let pastHostingEvents = $derived(events.filter((event) => isEventFinished(event)));
+	let currentHostingEvents = $derived(showPastEvents ? pastHostingEvents : hostingEvents);
+
+	let participantEvents = $derived(joinedEvents.filter((event) => !isEventFinished(event)));
+	let pastParticipantEvents = $derived(joinedEvents.filter((event) => isEventFinished(event)));
+	let currentJoinedEvents = $derived(showPastEvents ? pastParticipantEvents : participantEvents);
 
 	let pendingInvites = $derived(invites.filter((i) => i.status === 'pending'));
 	let nextEvent = $derived(getUpcomingEvents(allUserEvents)[0] ?? null);
@@ -70,10 +82,22 @@
 			getEventsForUser(userId),
 			getInvitesForUser(userId)
 		]);
-		const eventsById = new Map<string, SportEvent>();
+		const eventsById = new SvelteMap<string, SportEvent>();
 		for (const event of createdEvents) eventsById.set(event.id, event);
 		for (const event of participantEvents) eventsById.set(event.id, event);
 		allUserEvents = sortEventsByStartDate(Array.from(eventsById.values()));
+
+		// Auto-detect and notify/mark finished events
+		for (const event of allUserEvents) {
+			if (
+				isEventFinished(event) &&
+				event.status !== 'finished' &&
+				event.status !== 'cancelled'
+			) {
+				void notifyEventFinished(event);
+			}
+		}
+
 		events = allUserEvents.filter((event) => event.creatorId === userId);
 		joinedEvents = allUserEvents.filter(
 			(event) => event.creatorId !== userId && event.participantIds.includes(userId)
@@ -364,94 +388,144 @@
 
 				<!-- Your activity -->
 				<div>
-					<div class="mb-4 flex items-center gap-1 border-b border-slate-200 dark:border-slate-800">
-						<button
-							type="button"
-							onclick={() => (activeTab = 'hosting')}
-							class={`relative pb-3 pr-5 text-sm font-bold transition ${
-								activeTab === 'hosting'
-									? 'text-slate-950 dark:text-slate-50'
-									: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
-							}`}
-						>
-							Hosting
-							{#if events.length > 0}
-								<span
-									class="ml-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-								>
-									{events.length}
-								</span>
-							{/if}
-							{#if activeTab === 'hosting'}
-								<span
-									class="absolute bottom-0 left-0 right-5 h-0.5 rounded-full bg-slate-950 dark:bg-white"
-								></span>
-							{/if}
-						</button>
+					<div class="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800">
+						<div class="flex items-center gap-1">
+							<button
+								type="button"
+								onclick={() => (activeTab = 'hosting')}
+								class={`relative pb-3 pr-5 text-sm font-bold transition ${
+									activeTab === 'hosting'
+										? 'text-slate-950 dark:text-slate-50'
+										: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
+								}`}
+							>
+								Hosting
+								{#if currentHostingEvents.length > 0}
+									<span
+										class="ml-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+									>
+										{currentHostingEvents.length}
+									</span>
+								{/if}
+								{#if activeTab === 'hosting'}
+									<span
+										class="absolute bottom-0 left-0 right-5 h-0.5 rounded-full bg-slate-950 dark:bg-white"
+									></span>
+								{/if}
+							</button>
+
+							<button
+								type="button"
+								onclick={() => (activeTab = 'joined')}
+								class={`relative pb-3 pr-5 text-sm font-bold transition ${
+									activeTab === 'joined'
+										? 'text-slate-950 dark:text-slate-50'
+										: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
+								}`}
+							>
+								Joined
+								{#if currentJoinedEvents.length > 0}
+									<span
+										class="ml-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+									>
+										{currentJoinedEvents.length}
+									</span>
+								{/if}
+								{#if activeTab === 'joined'}
+									<span
+										class="absolute bottom-0 left-0 right-5 h-0.5 rounded-full bg-slate-950 dark:bg-white"
+									></span>
+								{/if}
+							</button>
+						</div>
 
 						<button
 							type="button"
-							onclick={() => (activeTab = 'joined')}
-							class={`relative pb-3 pr-5 text-sm font-bold transition ${
-								activeTab === 'joined'
-									? 'text-slate-950 dark:text-slate-50'
-									: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
+							onclick={() => (showPastEvents = !showPastEvents)}
+							class={`mb-3 rounded-full border px-4 py-1.5 text-xs font-bold transition-all duration-200 flex items-center gap-1.5 shadow-sm active:scale-95 ${
+								showPastEvents
+									? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300'
+									: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/80 dark:hover:border-slate-700'
 							}`}
 						>
-							Joined
-							{#if joinedEvents.length > 0}
-								<span
-									class="ml-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+							{#if showPastEvents}
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2.5"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400"
+									aria-hidden="true"
 								>
-									{joinedEvents.length}
-								</span>
-							{/if}
-							{#if activeTab === 'joined'}
-								<span
-									class="absolute bottom-0 left-0 right-5 h-0.5 rounded-full bg-slate-950 dark:bg-white"
-								></span>
+									<path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+									<path d="m9 12 2 2 4-4"/>
+								</svg>
+								View active events
+							{:else}
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2.5"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									class="h-3.5 w-3.5 text-slate-400 dark:text-slate-500"
+									aria-hidden="true"
+								>
+									<circle cx="12" cy="12" r="10"/>
+									<polyline points="12 6 12 12 16 14"/>
+								</svg>
+								View past events
 							{/if}
 						</button>
 					</div>
 
 					{#if activeTab === 'hosting'}
-						{#if events.length === 0}
+						{#if currentHostingEvents.length === 0}
 							<div
 								class="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900"
 							>
-								<p class="text-sm text-slate-500 dark:text-slate-400">No events created yet.</p>
-								<a
-									href={resolve('/events/create')}
-									class="mt-3 inline-flex rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700"
-								>
-									Create your first event
-								</a>
+								<p class="text-sm text-slate-500 dark:text-slate-400">
+									{showPastEvents ? 'No past events found.' : 'No upcoming events created yet.'}
+								</p>
+								{#if !showPastEvents}
+									<a
+										href={resolve('/events/create')}
+										class="mt-3 inline-flex rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700"
+									>
+										Create your first event
+									</a>
+								{/if}
 							</div>
 						{:else}
 							<div class="space-y-3">
-								{#each events as event (event.id)}
+								{#each currentHostingEvents as event (event.id)}
 									<EventCard {event} />
 								{/each}
 							</div>
 						{/if}
 					{:else}
-						{#if joinedEvents.length === 0}
+						{#if currentJoinedEvents.length === 0}
 							<div
 								class="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900"
 							>
 								<p class="text-sm text-slate-500 dark:text-slate-400">
-									You haven't joined any events yet.
+									{showPastEvents ? 'No past joined events found.' : "You haven't joined any upcoming events yet."}
 								</p>
-								<a
-									href={resolve('/explore')}
-									class="mt-3 inline-flex rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700"
-								>
-									Find events near you
-								</a>
+								{#if !showPastEvents}
+									<a
+										href={resolve('/explore')}
+										class="mt-3 inline-flex rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700"
+									>
+										Find events near you
+									</a>
+								{/if}
 							</div>
 						{:else}
 							<div class="space-y-3">
-								{#each joinedEvents as event (event.id)}
+								{#each currentJoinedEvents as event (event.id)}
 									<EventCard {event} />
 								{/each}
 							</div>

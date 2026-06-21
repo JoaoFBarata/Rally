@@ -80,7 +80,7 @@
 		}
 
 		if (status === 'finished') {
-			return 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400';
+			return 'bg-red-100/70 text-red-700 dark:bg-red-900/40 dark:text-red-300';
 		}
 
 		if (status === 'full') {
@@ -91,6 +91,10 @@
 	}
 
 	function getCardClasses() {
+		const status = getEffectiveStatus();
+		if (status === 'finished') {
+			return 'border-red-200 bg-red-50/20 shadow-red-50/50 hover:border-red-300 hover:bg-red-50/30 dark:border-red-950/50 dark:bg-red-950/10 dark:shadow-none dark:hover:border-red-900/60 dark:hover:bg-red-950/20 opacity-75';
+		}
 		if (showPromotion) {
 			return 'border-blue-300 bg-blue-50/40 shadow-blue-200/70 hover:border-blue-500 hover:bg-blue-50 dark:border-blue-900 dark:bg-blue-950/20 dark:shadow-none dark:hover:border-blue-500 dark:hover:bg-blue-950/30';
 		}
