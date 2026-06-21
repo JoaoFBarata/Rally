@@ -208,6 +208,8 @@ export interface SportEvent {
 
 	promotionViews?: number;
 	promotionClicks?: number;
+	/** Client-side audience context; never persisted with the event. */
+	promotionAudienceMatch?: boolean;
 
 	eventKind?: EventKind;
 

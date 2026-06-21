@@ -69,6 +69,9 @@ function promotionWeight(event: SportEvent, profile?: UserProfile | null) {
 	if (event.promotionPlan === 'local') {
 		if (!profile) return 10;
 		if (!event.promotionTargetCity) return 10;
+		// Older campaigns used the venue name as a city fallback. Treat those as country-wide.
+		if (normalizeTarget(event.promotionTargetCity) === normalizeTarget(event.location.name))
+			return 10;
 		if (!profile.city) return 5;
 		return isSamePlace(event.promotionTargetCity, profile.city) ? 15 : 0;
 	}
@@ -136,7 +139,7 @@ export async function getPublicEvents() {
 
 	for (const docSnap of promotedEventsSnap.docs) {
 		const event = eventFromDoc(docSnap);
-		eventsById.set(event.id, event);
+		if (event.visibility === 'public') eventsById.set(event.id, event);
 	}
 
 	const events = await refreshOrganizationSnapshots(
@@ -254,7 +257,7 @@ export async function getVisibleEventsForUser(userId: string) {
 
 	for (const docSnap of promotedEventsSnap.docs) {
 		const event = eventFromDoc(docSnap);
-		eventsById.set(event.id, event);
+		if (event.visibility === 'public') eventsById.set(event.id, event);
 	}
 
 	const invites = await getInvitesForUser(userId);
@@ -308,5 +311,18 @@ export async function getVisibleEventsForUser(userId: string) {
 		Array.from(eventsById.values()).filter(isVisibleInExplore)
 	);
 
-	return promotedFirst(sortEventsByStartDate(events), profile);
+	const contextualEvents = events.map((event) => {
+		const alreadyConnected =
+			event.creatorId === userId ||
+			event.organizationId === profile?.activeOrganizationId ||
+			event.participantIds.includes(userId);
+
+		return {
+			...event,
+			promotionAudienceMatch:
+				!isPromotionActive(event) || (!alreadyConnected && promotionWeight(event, profile) > 0)
+		};
+	});
+
+	return promotedFirst(sortEventsByStartDate(contextualEvents), profile);
 }

@@ -261,7 +261,8 @@
 			const feature = data.features?.[0] as MapboxGeocodeFeature | undefined;
 
 			if (!feature) {
-				searchError = 'Could not find an approximate location. Try a street name, postal code, or click on the map.';
+				searchError =
+					'Could not find an approximate location. Try a street name, postal code, or click on the map.';
 				return;
 			}
 
@@ -339,38 +340,24 @@
 	});
 </script>
 
-<style>
-	:global(.location-picker-map .mapboxgl-canvas) {
-		cursor: crosshair !important;
-	}
-
-	:global(.location-picker-map .mapboxgl-canvas-container.mapboxgl-interactive) {
-		cursor: crosshair !important;
-	}
-
-	:global(.location-picker-map .mapboxgl-canvas-container.mapboxgl-interactive:active) {
-		cursor: crosshair !important;
-	}
-</style>
-
 <div
-	class="location-picker-map overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+	class="location-picker-map min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem]"
 >
-	<div class="border-b border-slate-200 p-5 dark:border-slate-800">
+	<div class="border-b border-slate-200 p-4 dark:border-slate-800 sm:p-5">
 		<p class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
 			Location
 		</p>
 
-		<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">
-			Pick event location
-		</h2>
+		<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">Pick event location</h2>
 
 		<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
 			Search by street, postal code, or click on the map to define the event location.
 		</p>
 	</div>
 
-	<div class="space-y-4 border-b border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-800">
+	<div
+		class="space-y-4 border-b border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800 sm:p-5"
+	>
 		<div>
 			<label for="address-search" class="text-sm font-bold text-slate-700 dark:text-slate-300">
 				Search address
@@ -403,7 +390,7 @@
 			</div>
 		</div>
 
-		<div class="grid gap-3 md:grid-cols-[1fr_auto]">
+		<div class="grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:gap-3">
 			<div>
 				<label for="manual-address" class="text-sm font-bold text-slate-700 dark:text-slate-300">
 					Address
@@ -421,14 +408,16 @@
 				type="button"
 				onclick={useTypedAddress}
 				disabled={searchLoading || !address.trim()}
-				class="self-end rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+				class="self-end rounded-2xl bg-blue-600 px-3 py-3 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 sm:px-5 sm:text-base"
 			>
 				{searchLoading ? 'Searching...' : 'Find on map'}
 			</button>
 		</div>
 
 		{#if searchError}
-			<p class="rounded-2xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:bg-red-950/40 dark:text-red-300">
+			<p
+				class="rounded-2xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:bg-red-950/40 dark:text-red-300"
+			>
 				{searchError}
 			</p>
 		{/if}
@@ -438,10 +427,10 @@
 		</p>
 	</div>
 
-	<div bind:this={mapContainer} class="h-[520px] w-full"></div>
+	<div bind:this={mapContainer} class="h-72 w-full sm:h-96 lg:h-[520px]"></div>
 
 	<div
-		class="grid gap-3 border-t border-slate-200 bg-slate-50 p-5 text-sm dark:border-slate-800 dark:bg-slate-800 md:grid-cols-2"
+		class="grid grid-cols-2 gap-3 border-t border-slate-200 bg-slate-50 p-4 text-xs dark:border-slate-800 dark:bg-slate-800 sm:p-5 sm:text-sm"
 	>
 		<div>
 			<p class="font-bold text-slate-700 dark:text-slate-300">Latitude</p>
@@ -454,3 +443,17 @@
 		</div>
 	</div>
 </div>
+
+<style>
+	:global(.location-picker-map .mapboxgl-canvas) {
+		cursor: crosshair !important;
+	}
+
+	:global(.location-picker-map .mapboxgl-canvas-container.mapboxgl-interactive) {
+		cursor: crosshair !important;
+	}
+
+	:global(.location-picker-map .mapboxgl-canvas-container.mapboxgl-interactive:active) {
+		cursor: crosshair !important;
+	}
+</style>

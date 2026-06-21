@@ -32,7 +32,9 @@
 	let selectedSports = $state<Sport[]>([]);
 	let selectedLevels = $state<SportLevel[]>([]);
 
-	let creatorProfiles = $state<Record<string, { photoURL?: string | null; displayName?: string }>>({});
+	let creatorProfiles = $state<Record<string, { photoURL?: string | null; displayName?: string }>>(
+		{}
+	);
 
 	async function loadCreatorProfiles(eventsList: SportEvent[]) {
 		const uniqueCreatorIds = [...new Set(eventsList.map((e) => e.creatorId))];
@@ -97,13 +99,11 @@
 
 	let filteredEvents = $derived.by((): SportEvent[] => {
 		return events.filter((event: SportEvent) => {
-			const matchesSport =
-				selectedSports.length === 0 || selectedSports.includes(event.sport);
+			const matchesSport = selectedSports.length === 0 || selectedSports.includes(event.sport);
 
 			const eventLevel = event.level ?? 'casual';
 
-			const matchesLevel =
-				selectedLevels.length === 0 || selectedLevels.includes(eventLevel);
+			const matchesLevel = selectedLevels.length === 0 || selectedLevels.includes(eventLevel);
 
 			return matchesSport && matchesLevel;
 		});
@@ -112,7 +112,10 @@
 	$effect(() => {
 		onFilteredCountChange?.(filteredEvents.length);
 
-		if (selectedEvent && !filteredEvents.some((event: SportEvent) => event.id === selectedEvent?.id)) {
+		if (
+			selectedEvent &&
+			!filteredEvents.some((event: SportEvent) => event.id === selectedEvent?.id)
+		) {
 			clearSelectedEvent();
 		}
 	});
@@ -208,7 +211,10 @@
 				event,
 				coords: getCoords(event)
 			}))
-			.filter((item): item is { event: SportEvent; coords: { lat: number; lng: number } } => item.coords !== null);
+			.filter(
+				(item): item is { event: SportEvent; coords: { lat: number; lng: number } } =>
+					item.coords !== null
+			);
 
 		if (eventsWithCoords.length === 0) return;
 
@@ -318,7 +324,10 @@
 <section
 	class="relative overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900"
 >
-	<div bind:this={mapContainer} class="h-[calc(100vh-240px)] min-h-[620px] w-full"></div>
+	<div
+		bind:this={mapContainer}
+		class="h-[calc(100dvh-170px)] min-h-[500px] w-full md:h-[calc(100vh-240px)] md:min-h-[620px]"
+	></div>
 
 	<div
 		class="absolute right-4 bottom-4 z-10 rounded-2xl bg-white/95 p-4 shadow-lg backdrop-blur dark:bg-slate-900/95"
@@ -330,7 +339,11 @@
 			</div>
 		{/if}
 
-		<div class={currentUserId ? 'mt-2 flex items-center gap-2 text-sm' : 'flex items-center gap-2 text-sm'}>
+		<div
+			class={currentUserId
+				? 'mt-2 flex items-center gap-2 text-sm'
+				: 'flex items-center gap-2 text-sm'}
+		>
 			<span class="h-3 w-3 rounded-full bg-red-600"></span>
 			<span>Public events</span>
 		</div>
@@ -387,9 +400,7 @@
 		{#if showFilters}
 			<div class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700">
 				<div>
-					<p class="text-sm font-black text-slate-950 dark:text-slate-50">
-						Sport
-					</p>
+					<p class="text-sm font-black text-slate-950 dark:text-slate-50">Sport</p>
 
 					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
 						Choose which sports appear on the map.
@@ -397,9 +408,7 @@
 				</div>
 
 				{#if availableSports.length === 0}
-					<p class="mt-4 text-sm text-slate-500 dark:text-slate-400">
-						No sports available.
-					</p>
+					<p class="mt-4 text-sm text-slate-500 dark:text-slate-400">No sports available.</p>
 				{:else}
 					<div class="mt-4 flex flex-wrap gap-2">
 						{#each availableSports as sport (sport)}
@@ -420,9 +429,7 @@
 			</div>
 
 			<div class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700">
-				<p class="text-sm font-black text-slate-950 dark:text-slate-50">
-					Level
-				</p>
+				<p class="text-sm font-black text-slate-950 dark:text-slate-50">Level</p>
 
 				<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
 					Choose the difficulty level of the events.
@@ -449,7 +456,7 @@
 
 	{#if selectedEvent}
 		<aside
-			class="absolute left-5 top-5 z-30 w-80 rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-2xl shadow-slate-300/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+			class="absolute inset-x-3 bottom-3 z-30 max-h-[65dvh] overflow-y-auto rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-2xl shadow-slate-300/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none md:inset-x-auto md:bottom-auto md:left-5 md:top-5 md:w-80 md:rounded-[1.75rem] md:p-5"
 		>
 			<div class="flex items-start justify-between gap-4">
 				<div>
@@ -496,24 +503,18 @@
 				</div>
 
 				<div class="rounded-2xl bg-blue-50 p-4 dark:bg-slate-800">
-					<p class="text-xs font-bold uppercase tracking-wide text-blue-500">
-						Players
-					</p>
+					<p class="text-xs font-bold uppercase tracking-wide text-blue-500">Players</p>
 
 					<p class="mt-1 text-2xl font-black text-blue-600">
 						{selectedEvent.participantIds.length}/{selectedEvent.maxParticipants}
 					</p>
 
-					<p class="text-sm font-medium text-slate-500 dark:text-slate-400">
-						confirmed players
-					</p>
+					<p class="text-sm font-medium text-slate-500 dark:text-slate-400">confirmed players</p>
 				</div>
 
 				{#if selectedEvent.pricePerPerson}
 					<div>
-						<p class="text-xs font-bold uppercase tracking-wide text-slate-400">
-							Price
-						</p>
+						<p class="text-xs font-bold uppercase tracking-wide text-slate-400">Price</p>
 
 						<p class="mt-1 font-semibold text-slate-800 dark:text-slate-300">
 							€{selectedEvent.pricePerPerson.toFixed(2)} / person

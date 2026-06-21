@@ -13,6 +13,8 @@
 		event: SportEvent;
 	}>();
 
+	let showPromotion = $derived(isPromotionActive(event) && event.promotionAudienceMatch !== false);
+
 	function formatDate(dateValue: unknown) {
 		try {
 			const timestamp = dateValue as { toDate?: () => Date };
@@ -89,7 +91,7 @@
 	}
 
 	function getCardClasses() {
-		if (isPromotionActive(event)) {
+		if (showPromotion) {
 			return 'border-blue-300 bg-blue-50/40 shadow-blue-200/70 hover:border-blue-500 hover:bg-blue-50 dark:border-blue-900 dark:bg-blue-950/20 dark:shadow-none dark:hover:border-blue-500 dark:hover:bg-blue-950/30';
 		}
 
@@ -97,7 +99,7 @@
 	}
 
 	function handleClick() {
-		if (!isPromotionActive(event)) return;
+		if (!showPromotion) return;
 		const key = `rally:promotion-click:${event.id}`;
 		if (browser && sessionStorage.getItem(key)) return;
 		if (browser) sessionStorage.setItem(key, '1');
@@ -105,7 +107,7 @@
 	}
 
 	onMount(() => {
-		if (!isPromotionActive(event)) return;
+		if (!showPromotion) return;
 		const key = `rally:promotion-view:${event.id}`;
 		if (sessionStorage.getItem(key)) return;
 		sessionStorage.setItem(key, '1');
@@ -118,7 +120,7 @@
 	onclick={handleClick}
 	class={`block rounded-4xl border p-5 shadow-lg transition ${getCardClasses()}`}
 >
-	{#if isPromotionActive(event)}
+	{#if showPromotion}
 		<div class="mb-4 flex items-center justify-between gap-3">
 			<span
 				class="rounded-full bg-blue-600 px-3 py-1 text-xs font-black uppercase tracking-wide text-white dark:bg-blue-500"

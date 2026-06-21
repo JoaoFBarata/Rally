@@ -421,7 +421,7 @@
 </script>
 
 <main
-	class="flex h-[calc(100vh-5rem)] flex-col bg-white text-slate-950 dark:bg-slate-950 dark:text-white md:h-screen"
+	class="flex h-[calc(100dvh-5rem)] flex-col bg-white text-slate-950 dark:bg-slate-950 dark:text-white md:h-screen"
 >
 	<header
 		class="flex items-center gap-3 border-b border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950"

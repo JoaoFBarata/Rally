@@ -113,6 +113,13 @@
 		return items;
 	});
 
+	// Keep the mobile bar usable at five items. Admin replaces the profile/public shortcut when needed.
+	let mobileNavItems = $derived.by(() => {
+		if (navItems.length <= 5) return navItems;
+		const replaceableHref = organizationPublicHref ?? '/profile';
+		return navItems.filter((item) => item.href !== replaceableHref).slice(0, 5);
+	});
+
 	function isActive(href: string) {
 		const cleanHref = href.split('?')[0];
 
@@ -196,7 +203,7 @@
 	{@render children()}
 {:else}
 	<div class="min-h-screen bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
-		<div class="flex min-h-screen">
+		<div class="flex min-h-screen min-w-0 overflow-x-clip">
 			<!-- Desktop sidebar -->
 			<aside
 				class="hidden w-72 border-r border-slate-200 bg-white px-5 py-6 dark:border-slate-800 dark:bg-slate-900 md:block"
@@ -265,8 +272,8 @@
 				</nav>
 			</aside>
 
-			<div class="flex min-w-0 flex-1 flex-col">
-				<main class="min-h-screen pb-24 md:pb-0">
+			<div class="flex min-w-0 flex-1 flex-col overflow-x-clip">
+				<main class="min-h-screen min-w-0 overflow-x-clip pb-28 md:pb-0">
 					{@render children()}
 				</main>
 			</div>
@@ -274,12 +281,10 @@
 
 		<!-- Mobile bottom navigation -->
 		<nav
-			class="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 px-3 py-2 shadow-2xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 md:hidden"
+			class="fixed inset-x-3 bottom-3 z-[100] rounded-3xl border border-slate-200 bg-white px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-2xl shadow-slate-400/30 [transform:translateZ(0)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/50 md:hidden"
 		>
-			<div
-				class={`mx-auto grid max-w-md items-end gap-1 ${navItems.length > 5 ? 'grid-cols-6' : 'grid-cols-5'}`}
-			>
-				{#each navItems as item (item.href)}
+			<div class="mx-auto grid max-w-md grid-cols-5 items-end gap-1">
+				{#each mobileNavItems as item (item.href)}
 					<a href={resolveNavHref(item.href)} class="flex flex-col items-center justify-end gap-1">
 						<span
 							class={`relative flex h-9 w-9 items-center justify-center rounded-2xl text-lg ${
@@ -335,5 +340,11 @@
 				{/each}
 			</div>
 		</nav>
+
+		<div
+			class="fixed right-4 bottom-28 z-[90] rounded-2xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900 md:hidden"
+		>
+			<ThemeToggle />
+		</div>
 	</div>
 {/if}

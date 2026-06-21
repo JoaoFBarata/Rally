@@ -293,7 +293,7 @@
 	});
 </script>
 
-<main class="mx-auto max-w-6xl px-5 py-8">
+<main class="mx-auto w-full max-w-6xl px-4 py-5 sm:px-5 sm:py-8">
 	{#if loading}
 		<section
 			class="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
@@ -326,7 +326,7 @@
 				<div class="min-w-0">
 					<div class="flex flex-wrap items-center gap-2">
 						<h1
-							class="truncate text-4xl font-black tracking-tight text-slate-950 dark:text-slate-50"
+							class="truncate text-2xl font-black tracking-tight text-slate-950 dark:text-slate-50 sm:text-4xl"
 						>
 							Create organization event
 						</h1>
@@ -359,15 +359,15 @@
 		{/if}
 
 		<form
-			class="mt-8 grid gap-6 lg:grid-cols-[1fr_0.75fr]"
+			class="mt-6 grid min-w-0 gap-4 sm:mt-8 sm:gap-6 lg:grid-cols-[1fr_0.75fr]"
 			onsubmit={(event) => {
 				event.preventDefault();
 				handleCreateEvent();
 			}}
 		>
-			<div class="space-y-6">
+			<div class="min-w-0 space-y-4 sm:space-y-6">
 				<section
-					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+					class="rounded-3xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-6"
 				>
 					<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">Event type</h2>
 
@@ -375,18 +375,18 @@
 						Choose how this organization event should appear on Rally.
 					</p>
 
-					<div class="mt-5 grid gap-3 md:grid-cols-2">
+					<div class="mt-4 grid grid-cols-2 gap-2 sm:mt-5 sm:gap-3">
 						<button
 							type="button"
 							onclick={() => setEventKind('free')}
-							class={`rounded-3xl border p-5 text-left transition ${
+							class={`rounded-2xl border p-3 text-left transition sm:rounded-3xl sm:p-5 ${
 								eventKind === 'free'
 									? 'border-blue-500 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/40'
 									: 'border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/40 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-500 dark:hover:bg-slate-800'
 							}`}
 						>
 							<p class="font-black text-slate-950 dark:text-slate-50">Free official event</p>
-							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+							<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">
 								For open trainings, community activities or brand events.
 							</p>
 						</button>
@@ -394,14 +394,14 @@
 						<button
 							type="button"
 							onclick={() => setEventKind('training')}
-							class={`rounded-3xl border p-5 text-left transition ${
+							class={`rounded-2xl border p-3 text-left transition sm:rounded-3xl sm:p-5 ${
 								eventKind === 'training'
 									? 'border-blue-500 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/40'
 									: 'border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/40 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-500 dark:hover:bg-slate-800'
 							}`}
 						>
 							<p class="font-black text-slate-950 dark:text-slate-50">Training session</p>
-							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+							<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">
 								Best for clubs, gyms or recurring sports sessions.
 							</p>
 						</button>
@@ -409,14 +409,14 @@
 						<button
 							type="button"
 							onclick={() => setEventKind('tournament')}
-							class={`rounded-3xl border p-5 text-left transition ${
+							class={`rounded-2xl border p-3 text-left transition sm:rounded-3xl sm:p-5 ${
 								eventKind === 'tournament'
 									? 'border-blue-500 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/40'
 									: 'border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/40 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-500 dark:hover:bg-slate-800'
 							}`}
 						>
 							<p class="font-black text-slate-950 dark:text-slate-50">Tournament</p>
-							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+							<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">
 								For competitions, challenges or structured events.
 							</p>
 						</button>
@@ -425,7 +425,7 @@
 							type="button"
 							onclick={() => isVerified && setEventKind('paid')}
 							disabled={!isVerified}
-							class={`rounded-3xl border p-5 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
+							class={`rounded-2xl border p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-60 sm:rounded-3xl sm:p-5 ${
 								eventKind === 'paid'
 									? 'border-blue-500 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/40'
 									: 'border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/40 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-500 dark:hover:bg-slate-800'
@@ -443,7 +443,7 @@
 								{/if}
 							</div>
 
-							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+							<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">
 								Sell paid spots with Rally payment protection. Requires verification.
 							</p>
 						</button>
@@ -451,7 +451,7 @@
 				</section>
 
 				<section
-					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+					class="rounded-3xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-6"
 				>
 					<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">Event details</h2>
 
@@ -469,7 +469,7 @@
 							class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
 						></textarea>
 
-						<div class="grid gap-3 md:grid-cols-3">
+						<div class="grid grid-cols-2 gap-3 md:grid-cols-3">
 							<div class="flex flex-col gap-2">
 								<select
 									bind:value={sport}
@@ -511,7 +511,7 @@
 				</section>
 
 				<section
-					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+					class="rounded-3xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-6"
 				>
 					<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">
 						Location and schedule
@@ -522,7 +522,7 @@
 					</p>
 
 					<div class="mt-5 space-y-5">
-						<div class="grid gap-3 md:grid-cols-2">
+						<div class="grid grid-cols-2 gap-3">
 							<input
 								bind:value={date}
 								type="date"
@@ -569,9 +569,9 @@
 				</section>
 			</div>
 
-			<aside class="space-y-6">
+			<aside class="grid min-w-0 grid-cols-2 gap-3 lg:block lg:space-y-6">
 				<section
-					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+					class="rounded-2xl border border-slate-200 bg-white p-3 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-6"
 				>
 					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Visibility</h2>
 
@@ -590,7 +590,7 @@
 				</section>
 
 				<section
-					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+					class="col-span-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-6"
 				>
 					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Monetization</h2>
 
@@ -675,7 +675,8 @@
 				</section>
 
 				<section
-					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+					class="rounded-2xl border border-slate-200 bg-white p-3 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-6"
+					class:col-span-2={promote}
 				>
 					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Promotion</h2>
 
@@ -754,7 +755,7 @@
 				</section>
 
 				<section
-					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+					class="rounded-2xl border border-slate-200 bg-white p-3 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-6"
 				>
 					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Trust & safety</h2>
 
@@ -776,7 +777,7 @@
 				<button
 					type="submit"
 					disabled={creating}
-					class="w-full rounded-2xl bg-blue-600 px-5 py-4 font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-60"
+					class="col-span-2 w-full rounded-2xl bg-blue-600 px-5 py-4 font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-60"
 				>
 					{creating ? 'Creating event...' : 'Create organization event'}
 				</button>

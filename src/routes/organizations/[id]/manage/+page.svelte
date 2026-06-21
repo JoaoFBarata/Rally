@@ -366,7 +366,7 @@
 	});
 </script>
 
-<main class="mx-auto max-w-6xl px-5 py-8">
+<main class="mx-auto max-w-6xl px-4 py-5 sm:px-5 sm:py-8">
 	{#if loading}
 		<section
 			class="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
@@ -381,9 +381,9 @@
 		</section>
 	{:else if organization}
 		<div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-			<div class="flex min-w-0 items-center gap-4">
+			<div class="flex min-w-0 items-center gap-3 sm:gap-4">
 				<div
-					class="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-3xl font-black text-blue-600 shadow-lg dark:bg-slate-800 dark:text-blue-300"
+					class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-2xl font-black text-blue-600 shadow-lg dark:bg-slate-800 dark:text-blue-300 sm:h-20 sm:w-20 sm:text-3xl"
 				>
 					{#if organization.logoURL}
 						<img
@@ -399,7 +399,7 @@
 				<div class="min-w-0">
 					<div class="flex flex-wrap items-center gap-2">
 						<h1
-							class="truncate text-4xl font-black tracking-tight text-slate-950 dark:text-slate-50"
+							class="truncate text-3xl font-black tracking-tight text-slate-950 dark:text-slate-50 sm:text-4xl"
 						>
 							{organization.name}
 						</h1>
@@ -415,7 +415,9 @@
 				</div>
 			</div>
 
-			<div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+			<div
+				class="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-3"
+			>
 				<a
 					href={resolve(`/organizations/${organization.id}`)}
 					class="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
@@ -463,9 +465,9 @@
 			</div>
 		{/if}
 
-		<section class="mt-8 grid gap-6 lg:grid-cols-4">
+		<section class="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-6">
 			<div
-				class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+				class="rounded-3xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-6"
 			>
 				<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Followers</p>
 				<p class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">
@@ -474,7 +476,7 @@
 			</div>
 
 			<div
-				class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+				class="rounded-3xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-6"
 			>
 				<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Upcoming events</p>
 				<p class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">
@@ -483,7 +485,7 @@
 			</div>
 
 			<div
-				class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+				class="rounded-3xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-6"
 			>
 				<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Promoted</p>
 				<p class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">
@@ -492,7 +494,7 @@
 			</div>
 
 			<div
-				class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+				class="rounded-3xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-6"
 			>
 				<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Inbox</p>
 				<p class="mt-2 text-sm font-black text-slate-950 dark:text-slate-50">
@@ -550,7 +552,7 @@
 				</a>
 			</div>
 
-			<div class="mt-6 grid gap-4 md:grid-cols-4">
+			<div class="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
 				<div class="rounded-2xl bg-white p-4 dark:bg-slate-900">
 					<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Active</p>
 					<p class="mt-2 text-2xl font-black text-slate-950 dark:text-slate-50">

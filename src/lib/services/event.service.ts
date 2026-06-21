@@ -758,6 +758,9 @@ export async function promoteEvent(params: {
 	if (event.hostType !== 'organization' || !event.organizationId) {
 		throw new Error('Only organization events can be promoted.');
 	}
+	if (event.visibility !== 'public') {
+		throw new Error('Only public events can be promoted.');
+	}
 
 	const organization = await getOrganizationById(event.organizationId);
 

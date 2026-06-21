@@ -20,7 +20,9 @@
 	let friendIds = $state<string[]>([]);
 	let filteredEventCount = $state(0);
 	let selectedMapEventId = $state<string | null>(null);
-	let promotedEvents = $derived(events.filter((event) => isPromotionActive(event)));
+	let promotedEvents = $derived(
+		events.filter((event) => isPromotionActive(event) && event.promotionAudienceMatch !== false)
+	);
 	let refreshing = false;
 
 	async function loadExploreData(userId: string) {
@@ -61,7 +63,7 @@
 	});
 </script>
 
-<main class="mx-auto max-w-[1500px] px-5 py-8">
+<main class="mx-auto max-w-[1500px] px-3 py-5 sm:px-5 sm:py-8">
 	<header class="mb-6">
 		<RallyWordmark size="sm" />
 		<h1 class="mt-2 text-3xl font-bold">Explore</h1>
@@ -91,7 +93,7 @@
 			/>
 			{#if !selectedMapEventId}
 				<div
-					class="pointer-events-none absolute inset-x-4 bottom-4 z-20 md:inset-x-auto md:left-5 md:top-5 md:bottom-auto md:w-80"
+					class="pointer-events-none absolute inset-x-3 bottom-3 z-20 hidden md:block md:inset-x-auto md:left-5 md:top-5 md:bottom-auto md:w-80"
 				>
 					<div class="pointer-events-auto space-y-3">
 						<section
@@ -113,7 +115,7 @@
 						</section>
 
 						{#if promotedEvents.length}
-							<div class="max-h-[420px] space-y-3 overflow-y-auto pr-1">
+							<div class="max-h-[48dvh] space-y-3 overflow-y-auto pr-1 md:max-h-[420px]">
 								{#each promotedEvents.slice(0, 3) as event (event.id)}
 									<EventCard {event} />
 								{/each}
@@ -126,6 +128,36 @@
 							</div>
 						{/if}
 					</div>
+				</div>
+			{/if}
+		</section>
+
+		<section class="mt-4 md:hidden">
+			<div class="mb-3 flex items-end justify-between gap-3">
+				<div>
+					<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">
+						Promoted
+					</p>
+					<h2 class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50">
+						Featured near you
+					</h2>
+				</div>
+				<span class="text-xs font-bold text-slate-400">Sponsored</span>
+			</div>
+
+			{#if promotedEvents.length}
+				<div class="flex snap-x gap-3 overflow-x-auto pb-2">
+					{#each promotedEvents.slice(0, 5) as event (event.id)}
+						<div class="w-[88vw] max-w-sm shrink-0 snap-start">
+							<EventCard {event} />
+						</div>
+					{/each}
+				</div>
+			{:else}
+				<div
+					class="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
+				>
+					No promoted events right now.
 				</div>
 			{/if}
 		</section>

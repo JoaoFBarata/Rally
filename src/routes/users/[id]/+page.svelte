@@ -211,14 +211,14 @@
 			{error}
 		</section>
 	{:else if targetProfile}
-		<div class="mt-8 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
+		<div class="mt-6 grid min-w-0 gap-4 sm:mt-8 lg:grid-cols-[1.25fr_0.75fr] lg:gap-6">
 			<section
 				class="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 			>
-				<div class="h-32 bg-gradient-to-br from-blue-600 via-blue-500 to-sky-400"></div>
+				<div class="h-24 bg-gradient-to-br from-blue-600 via-blue-500 to-sky-400 sm:h-32"></div>
 
-				<div class="-mt-14 px-7 pb-7">
-					<div class="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+				<div class="-mt-14 px-4 pb-5 sm:px-7 sm:pb-7">
+					<div class="flex items-end justify-between gap-3 sm:gap-5">
 						<div class="flex flex-col items-start">
 							<div class="rounded-full bg-white p-1 dark:bg-slate-900">
 								<UserAvatar
@@ -229,7 +229,9 @@
 								/>
 							</div>
 
-							<h1 class="mt-4 text-4xl font-black tracking-tight text-slate-950 dark:text-slate-50">
+							<h1
+								class="mt-3 max-w-[11rem] truncate text-2xl font-black tracking-tight text-slate-950 dark:text-slate-50 sm:mt-4 sm:max-w-none sm:text-4xl"
+							>
 								{targetProfile.displayName}
 							</h1>
 
@@ -238,13 +240,13 @@
 							</p>
 						</div>
 
-						<div class="flex flex-wrap gap-2">
+						<div class="flex shrink-0 flex-wrap justify-end gap-2">
 							{#if relationship === 'friends'}
 								<button
 									type="button"
 									onclick={handleMessage}
 									disabled={actionLoading}
-									class="rounded-2xl bg-blue-600 px-5 py-3 font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-60"
+									class="rounded-xl bg-blue-600 px-3 py-2 text-sm font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-60 sm:rounded-2xl sm:px-5 sm:py-3 sm:text-base"
 								>
 									{actionLoading ? 'Opening...' : 'Message'}
 								</button>
@@ -276,7 +278,7 @@
 						</div>
 					</div>
 
-					<div class="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+					<div class="mt-5 grid grid-cols-2 gap-2 sm:mt-7 sm:gap-3 xl:grid-cols-4">
 						<div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
 							<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Level</p>
 							<p class="mt-2 font-black text-slate-950 dark:text-slate-50">

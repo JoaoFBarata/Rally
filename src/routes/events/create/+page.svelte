@@ -87,7 +87,7 @@
 	}
 </script>
 
-<div class="mx-auto max-w-3xl space-y-4">
+<div class="mx-auto w-full max-w-3xl space-y-4 px-4 py-5 sm:px-5 sm:py-8">
 	<a
 		href={resolve('/dashboard')}
 		class="inline-flex rounded-full bg-blue-100 px-5 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
@@ -96,9 +96,9 @@
 	</a>
 
 	<div
-		class="rounded-4xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+		class="min-w-0 rounded-3xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-4xl sm:p-8"
 	>
-		<div class="mb-8">
+		<div class="mb-5 sm:mb-8">
 			<p class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
 				Rally
 			</p>
@@ -139,50 +139,52 @@
 					/>
 				</div>
 
-				<div>
-					<label for="sport" class="text-sm font-bold text-slate-700 dark:text-slate-300">
-						Sport
-					</label>
+				<div class="grid grid-cols-2 gap-3 sm:gap-5">
+					<div class="min-w-0">
+						<label for="sport" class="text-sm font-bold text-slate-700 dark:text-slate-300">
+							Sport
+						</label>
 
-					<select
-						id="sport"
-						bind:value={sport}
-						class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-					>
-						<option value="football">Football</option>
-						<option value="padel">Padel</option>
-						<option value="basketball">Basketball</option>
-						<option value="running">Running</option>
-						<option value="gym">Gym</option>
-						<option value="tennis">Tennis</option>
-						<option value="cycling">Cycling</option>
-						<option value="volleyball">Volleyball</option>
-						<option value="other">Other</option>
-					</select>
+						<select
+							id="sport"
+							bind:value={sport}
+							class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+						>
+							<option value="football">Football</option>
+							<option value="padel">Padel</option>
+							<option value="basketball">Basketball</option>
+							<option value="running">Running</option>
+							<option value="gym">Gym</option>
+							<option value="tennis">Tennis</option>
+							<option value="cycling">Cycling</option>
+							<option value="volleyball">Volleyball</option>
+							<option value="other">Other</option>
+						</select>
 
-					{#if sport === 'other'}
-						<input
-							bind:value={customSport}
-							placeholder="e.g. Climbing, Hockey, Surfing..."
-							class="mt-3 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-						/>
-					{/if}
-				</div>
-				<div>
-					<label for="level" class="text-sm font-bold text-slate-700 dark:text-slate-300">
-						Event level
-					</label>
+						{#if sport === 'other'}
+							<input
+								bind:value={customSport}
+								placeholder="e.g. Climbing, Hockey, Surfing..."
+								class="mt-3 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+							/>
+						{/if}
+					</div>
+					<div class="min-w-0">
+						<label for="level" class="text-sm font-bold text-slate-700 dark:text-slate-300">
+							Event level
+						</label>
 
-					<select
-						id="level"
-						bind:value={level}
-						class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-					>
-						<option value="beginner">Beginner</option>
-						<option value="casual">Casual</option>
-						<option value="intermediate">Intermediate</option>
-						<option value="advanced">Advanced</option>
-					</select>
+						<select
+							id="level"
+							bind:value={level}
+							class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+						>
+							<option value="beginner">Beginner</option>
+							<option value="casual">Casual</option>
+							<option value="intermediate">Intermediate</option>
+							<option value="advanced">Advanced</option>
+						</select>
+					</div>
 				</div>
 				<div>
 					<label for="description" class="text-sm font-bold text-slate-700 dark:text-slate-300">
@@ -210,8 +212,8 @@
 					/>
 				</div>
 
-				<div class="grid gap-5 md:grid-cols-2">
-					<div>
+				<div class="grid grid-cols-2 gap-3 sm:gap-5">
+					<div class="min-w-0">
 						<label for="startAt" class="text-sm font-bold text-slate-700 dark:text-slate-300">
 							Date and time
 						</label>
@@ -220,11 +222,11 @@
 							id="startAt"
 							type="datetime-local"
 							bind:value={startAt}
-							class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+							class="mt-2 min-w-0 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950 sm:px-4"
 						/>
 					</div>
 
-					<div>
+					<div class="min-w-0">
 						<label
 							for="maxParticipants"
 							class="text-sm font-bold text-slate-700 dark:text-slate-300"
@@ -242,7 +244,7 @@
 					</div>
 				</div>
 
-				<div class="grid gap-5 md:grid-cols-2">
+				<div class="grid grid-cols-2 gap-3 sm:gap-5">
 					<div>
 						<label for="visibility" class="text-sm font-bold text-slate-700 dark:text-slate-300">
 							Visibility
@@ -275,7 +277,7 @@
 						/>
 					</div>
 				</div>
-				<div class="mt-8">
+				<div class="mt-5 sm:mt-8">
 					<LocationPickerMap bind:lat bind:lng bind:address />
 				</div>
 				<button

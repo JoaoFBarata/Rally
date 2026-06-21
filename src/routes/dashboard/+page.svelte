@@ -141,9 +141,9 @@
 		<p class="text-slate-400 dark:text-slate-500">Loading...</p>
 	</div>
 {:else}
-	<div class="mx-auto max-w-6xl px-5 py-8">
+	<div class="mx-auto max-w-6xl px-4 py-5 sm:px-5 sm:py-8">
 		<!-- Header -->
-		<header class="mb-7 flex items-start justify-between gap-4">
+		<header class="mb-7 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 			<div>
 				<p class="text-sm text-slate-400 dark:text-slate-500">{greeting()}</p>
 				<h1 class="mt-0.5 text-2xl font-black text-slate-950 dark:text-slate-50">
@@ -176,10 +176,10 @@
 				</div>
 			</div>
 
-			<div class="flex shrink-0 items-center gap-3">
+			<div class="flex w-full items-center gap-3 sm:w-auto sm:shrink-0">
 				<a
 					href={resolve('/events/create')}
-					class="inline-flex items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700"
+					class="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700 sm:flex-none"
 				>
 					<svg
 						viewBox="0 0 24 24"
@@ -461,10 +461,10 @@
 			</div>
 
 			<!-- Right column -->
-			<div class="space-y-4">
+			<div class="grid grid-cols-2 gap-3 lg:block lg:space-y-4">
 				<!-- Nearby map -->
 				<div
-					class="overflow-hidden rounded-3xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+					class="col-span-2 overflow-hidden rounded-3xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
 				>
 					<div
 						class="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800"
@@ -484,7 +484,7 @@
 				{#if pendingInvites.length > 0}
 					<a
 						href={resolve('/messages')}
-						class="flex items-center justify-between rounded-2xl border border-blue-100 bg-blue-50 p-4 transition hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-950/30 dark:hover:bg-blue-950/50"
+						class="col-span-2 flex items-center justify-between rounded-2xl border border-blue-100 bg-blue-50 p-4 transition hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-950/30 dark:hover:bg-blue-950/50"
 					>
 						<div>
 							<p class="text-sm font-bold text-slate-950 dark:text-slate-50">
@@ -508,7 +508,7 @@
 				{/if}
 
 				<!-- Quick links -->
-				<div class="grid grid-cols-2 gap-2">
+				<div class="col-span-2 grid grid-cols-2 gap-2">
 					<a
 						href={resolve('/explore')}
 						class="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700"

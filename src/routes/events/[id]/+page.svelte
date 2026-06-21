@@ -662,7 +662,7 @@
 				budget: Number(promotionBudget),
 				durationDays: Number(promotionDurationDays),
 				plan: promotionPlan,
-				targetCity: promotionTargetCity || event.location.name,
+				targetCity: promotionTargetCity,
 				targetCountry: promotionTargetCountry,
 				targetSport: event.sport
 			});
@@ -739,7 +739,7 @@
 	<div class="mt-8 grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
 		<div class="space-y-6">
 			<section
-				class="rounded-4xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+				class="rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-4xl sm:p-8"
 			>
 				<div class="flex flex-col gap-5 sm:flex-row sm:items-start">
 					<div class="relative h-20 w-20 shrink-0">
@@ -780,7 +780,9 @@
 							{event.sport}
 						</p>
 
-						<h1 class="mt-3 text-4xl font-black tracking-tight text-slate-950 dark:text-slate-50">
+						<h1
+							class="mt-3 break-words text-3xl font-black tracking-tight text-slate-950 dark:text-slate-50 sm:text-4xl"
+						>
 							{event.title}
 						</h1>
 
@@ -790,7 +792,7 @@
 					</div>
 				</div>
 
-				<div class="mt-8 grid gap-4 md:grid-cols-2">
+				<div class="mt-6 grid grid-cols-2 gap-3 sm:mt-8 sm:gap-4">
 					<div class="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800">
 						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Date and time</p>
 						<p class="mt-2 font-bold text-slate-950 dark:text-slate-50">
@@ -1213,10 +1215,10 @@
 
 		{#if showPromoteModal && event}
 			<div
-				class="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/60 px-5 backdrop-blur-sm"
+				class="fixed inset-0 z-[120] flex items-end justify-center bg-slate-950/60 px-0 backdrop-blur-sm sm:items-center sm:px-5"
 			>
 				<div
-					class="w-full max-w-2xl rounded-[2rem] bg-white p-6 shadow-2xl dark:bg-slate-900"
+					class="max-h-[92dvh] w-full max-w-2xl overflow-y-auto rounded-t-[2rem] bg-white p-5 shadow-2xl dark:bg-slate-900 sm:rounded-[2rem] sm:p-6"
 					role="dialog"
 					aria-modal="true"
 				>

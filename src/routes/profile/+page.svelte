@@ -314,7 +314,7 @@
 	});
 </script>
 
-<main class="mx-auto max-w-6xl px-5 py-6">
+<main class="mx-auto w-full max-w-6xl px-4 py-5 sm:px-5 sm:py-6">
 	<header class="mb-6">
 		<RallyWordmark size="sm" />
 		<h1 class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">Profile</h1>
@@ -346,13 +346,13 @@
 			</div>
 		{/if}
 
-		<div class="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+		<div class="grid min-w-0 gap-4 lg:grid-cols-[1.1fr_0.9fr] lg:gap-6">
 			<section
-				class="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+				class="min-w-0 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:rounded-4xl sm:p-6"
 			>
-				<div class="flex flex-col gap-5 sm:flex-row sm:items-start">
-					<div class="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center">
-						<div class="relative h-21 w-21 shrink-0">
+				<div class="flex min-w-0 items-start justify-between gap-3 sm:gap-5">
+					<div class="flex min-w-0 items-center gap-3 sm:gap-4">
+						<div class="relative h-20 w-20 shrink-0 sm:h-21 sm:w-21">
 							<UserAvatar
 								photoURL={profile.photoURL ?? auth.currentUser?.photoURL ?? null}
 								displayName={profile.displayName}
@@ -375,29 +375,29 @@
 						</div>
 
 						<div class="min-w-0">
-							<h2 class="break-words text-3xl font-black text-slate-950 dark:text-slate-50">
+							<h2 class="truncate text-xl font-black text-slate-950 dark:text-slate-50 sm:text-3xl">
 								{profile.displayName}
 							</h2>
 
-							<p class="truncate text-slate-500 dark:text-slate-400">
+							<p class="truncate text-xs text-slate-500 dark:text-slate-400 sm:text-base">
 								{profile.email}
 							</p>
 
 							<button
 								onclick={copyTag}
-								class="mt-2 max-w-full truncate rounded-full bg-blue-50 px-3 py-1 text-sm font-bold text-blue-700 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+								class="mt-2 max-w-full truncate rounded-full bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900 sm:px-3 sm:text-sm"
 							>
 								@{profile.rallyTag ?? 'creating-tag'} · copy
 							</button>
 						</div>
 					</div>
 
-					<div class="flex gap-2">
+					<div class="flex shrink-0 gap-1 sm:gap-2">
 						{#if editMode}
 							<button
 								type="button"
 								onclick={cancelEdit}
-								class="rounded-full bg-slate-100 px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+								class="rounded-full bg-slate-100 px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 sm:px-4 sm:text-sm"
 							>
 								Cancel
 							</button>
@@ -405,7 +405,7 @@
 							<button
 								type="button"
 								onclick={() => (editMode = true)}
-								class="rounded-full bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-700"
+								class="rounded-full bg-blue-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-blue-700 sm:px-4 sm:text-sm"
 							>
 								Edit profile
 							</button>
@@ -426,7 +426,7 @@
 							/>
 						</div>
 
-						<div class="grid gap-5 md:grid-cols-2">
+						<div class="grid grid-cols-2 gap-3 md:gap-5">
 							<div>
 								<label for="city" class="text-sm font-bold text-slate-700 dark:text-slate-300">
 									City
@@ -512,17 +512,23 @@
 						</button>
 					</div>
 				{:else}
-					<div class="mt-8 grid gap-4 md:grid-cols-2">
-						<div class="rounded-3xl bg-slate-50 p-5 dark:bg-slate-800">
+					<div class="mt-6 grid grid-cols-3 gap-2 sm:mt-8 sm:gap-4">
+						<div
+							class="min-w-0 rounded-2xl bg-slate-50 p-3 dark:bg-slate-800 sm:rounded-3xl sm:p-5"
+						>
 							<p class="text-sm font-bold text-slate-500 dark:text-slate-400">Location</p>
-							<p class="mt-2 font-black text-slate-950 dark:text-slate-50">
+							<p
+								class="mt-2 truncate text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base"
+							>
 								{profile.city || 'Not added yet'}
 							</p>
 						</div>
 
-						<div class="rounded-3xl bg-slate-50 p-5 dark:bg-slate-800">
+						<div
+							class="min-w-0 rounded-2xl bg-slate-50 p-3 dark:bg-slate-800 sm:rounded-3xl sm:p-5"
+						>
 							<p class="text-sm font-bold text-slate-500 dark:text-slate-400">Age</p>
-							<p class="mt-2 font-black text-slate-950 dark:text-slate-50">
+							<p class="mt-2 text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base">
 								{profile.age ? `${profile.age} years old` : 'Not added yet'}
 							</p>
 						</div>
@@ -534,7 +540,9 @@
 							</p>
 						</div> -->
 
-						<div class="rounded-3xl bg-slate-50 p-5 dark:bg-slate-800">
+						<div
+							class="min-w-0 rounded-2xl bg-slate-50 p-3 dark:bg-slate-800 sm:rounded-3xl sm:p-5"
+						>
 							<p class="text-sm font-bold text-slate-500 dark:text-slate-400">Friends</p>
 							<p class="mt-2 font-black text-slate-950 dark:text-slate-50">
 								{friends.length}
@@ -569,9 +577,9 @@
 				{/if}
 			</section>
 
-			<aside class="space-y-6">
+			<aside class="grid min-w-0 grid-cols-2 gap-3 lg:block lg:space-y-6">
 				<section
-					class="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+					class="col-span-2 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6 lg:rounded-4xl"
 				>
 					<div class="flex items-start justify-between gap-4">
 						<div>
@@ -610,7 +618,7 @@
 				</section>
 
 				<section
-					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+					class="col-span-2 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6 lg:rounded-[2rem]"
 				>
 					<div class="flex items-center justify-between">
 						<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Friends</h2>
@@ -639,7 +647,7 @@
 								>
 									<a
 										href={resolve(`/users/${friend.id}`)}
-										class="flex items-center gap-3 rounded-2xl p-2 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+										class="flex min-w-0 flex-1 items-center gap-3 rounded-2xl p-2 transition hover:bg-slate-100 dark:hover:bg-slate-800"
 									>
 										<UserAvatar
 											photoURL={friend.photoURL}
@@ -661,7 +669,7 @@
 									<button
 										type="button"
 										onclick={() => startConversation(friend.id)}
-										class="rounded-full bg-white px-3 py-2 text-sm font-bold text-blue-600 shadow-sm transition hover:bg-blue-600 hover:text-white dark:bg-slate-900 dark:text-blue-400 dark:hover:bg-blue-600 dark:hover:text-white"
+										class="shrink-0 rounded-full bg-white px-3 py-2 text-xs font-bold text-blue-600 shadow-sm transition hover:bg-blue-600 hover:text-white dark:bg-slate-900 dark:text-blue-400 dark:hover:bg-blue-600 dark:hover:text-white sm:text-sm"
 									>
 										Message
 									</button>
@@ -672,7 +680,7 @@
 				</section>
 
 				<section
-					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+					class="col-span-2 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6 lg:rounded-[2rem]"
 				>
 					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Account</h2>
 					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -694,14 +702,14 @@
 	{#if showQrModal}
 		<dialog
 			open
-			class="fixed inset-0 z-[120] m-0 flex h-full w-full max-w-none items-center justify-center border-0 bg-slate-950/60 px-5 backdrop-blur-sm"
+			class="fixed inset-0 z-[120] m-0 flex h-full w-full max-w-none items-end justify-center border-0 bg-slate-950/60 px-0 backdrop-blur-sm sm:items-center sm:px-5"
 			onclick={(event) => {
 				if (event.target === event.currentTarget) showQrModal = false;
 			}}
 			aria-labelledby="profile-qr-title"
 		>
 			<div
-				class="w-full max-w-sm rounded-[2rem] bg-white p-6 text-center shadow-2xl dark:bg-slate-900"
+				class="max-h-[92dvh] w-full max-w-sm overflow-y-auto rounded-t-[2rem] bg-white p-4 text-center shadow-2xl dark:bg-slate-900 sm:rounded-[2rem] sm:p-6"
 			>
 				<div class="flex items-start justify-between gap-4">
 					<div class="text-left">
@@ -724,12 +732,16 @@
 				</div>
 
 				<div class="mt-6 flex justify-center">
-					<div class="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-inner">
+					<div class="rounded-[2rem] border border-slate-200 bg-white p-3 shadow-inner sm:p-4">
 						{#if qrCodeDataUrl}
-							<img src={qrCodeDataUrl} alt="Rally friend QR code" class="h-64 w-64 rounded-2xl" />
+							<img
+								src={qrCodeDataUrl}
+								alt="Rally friend QR code"
+								class="h-56 w-56 rounded-2xl sm:h-64 sm:w-64"
+							/>
 						{:else}
 							<div
-								class="flex h-64 w-64 items-center justify-center rounded-2xl bg-slate-100 text-sm font-bold text-slate-500"
+								class="flex h-56 w-56 items-center justify-center rounded-2xl bg-slate-100 text-sm font-bold text-slate-500 sm:h-64 sm:w-64"
 							>
 								Generating QR...
 							</div>
