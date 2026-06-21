@@ -7,7 +7,10 @@
 	import { onAuthStateChanged } from 'firebase/auth';
 	import { auth } from '$lib/firebase';
 	import LocationPickerMap from '$lib/components/maps/LocationPickerMap.svelte';
-	import { assertCanManageOrganization, canCreateOfficialPaidEvents } from '$lib/services/organization.service';
+	import {
+		assertCanManageOrganization,
+		canCreateOfficialPaidEvents
+	} from '$lib/services/organization.service';
 	import { createTournamentEvent } from '$lib/services/event.service';
 	import type {
 		EntryFeeType,
@@ -255,12 +258,14 @@
 				href={resolve(`/organizations/${organization.id}/manage`)}
 				class="rounded-2xl bg-slate-100 px-5 py-3 font-black text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200"
 			>
-				Back to organization
+				← Back to organization
 			</a>
 		</div>
 
 		{#if error}
-			<div class="mt-6 rounded-2xl bg-red-50 p-4 font-bold text-red-700 dark:bg-red-950 dark:text-red-300">
+			<div
+				class="mt-6 rounded-2xl bg-red-50 p-4 font-bold text-red-700 dark:bg-red-950 dark:text-red-300"
+			>
 				{error}
 			</div>
 		{/if}
@@ -273,7 +278,9 @@
 			}}
 		>
 			<div class="space-y-6">
-				<section class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
+				<section
+					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+				>
 					<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">Tournament details</h2>
 
 					<div class="mt-5 space-y-4">
@@ -291,61 +298,108 @@
 						></textarea>
 
 						<div class="grid gap-3 md:grid-cols-3">
-							<select bind:value={sport} class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50">
+							<select
+								bind:value={sport}
+								class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+							>
 								{#each sports as option}
 									<option value={option.value}>{option.label}</option>
 								{/each}
 							</select>
 
-							<select bind:value={level} class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50">
+							<select
+								bind:value={level}
+								class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+							>
 								{#each levels as option}
 									<option value={option.value}>{option.label}</option>
 								{/each}
 							</select>
 
 							<label class="block">
-                                <span class="text-sm font-black text-slate-700 dark:text-slate-200">
-                                    Max entries
-                                </span>
+								<span class="text-sm font-black text-slate-700 dark:text-slate-200">
+									Max entries
+								</span>
 
-                                <p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
-                                    Maximum number of {registrationType === 'team' ? 'teams' : 'players'} that can register for the tournament.
-                                </p>
+								<p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+									Maximum number of {registrationType === 'team' ? 'teams' : 'players'} that can register
+									for the tournament.
+								</p>
 
-                                <input
-                                    bind:value={maxEntries}
-                                    type="number"
-                                    min="2"
-                                    max="64"
-                                    placeholder={registrationType === 'team' ? 'Example: 8 teams' : 'Example: 16 players'}
-                                    class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-                                />
-                            </label>
+								<input
+									bind:value={maxEntries}
+									type="number"
+									min="2"
+									max="64"
+									placeholder={registrationType === 'team'
+										? 'Example: 8 teams'
+										: 'Example: 16 players'}
+									class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+								/>
+							</label>
 						</div>
 					</div>
 				</section>
 
-				<section class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
-					<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">Location and schedule</h2>
+				<section
+					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+				>
+					<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">
+						Location and schedule
+					</h2>
 
 					<div class="mt-5 space-y-5">
-                        <div class="grid gap-3 md:grid-cols-2">
-							<input bind:value={date} type="date" class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50" />
-							<input bind:value={startTime} type="time" class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50" />
+						<div class="grid grid-cols-2 gap-3">
+							<label class="min-w-0">
+								<span class="text-sm font-bold text-slate-500 dark:text-slate-400"
+									>Tournament date</span
+								>
+								<input
+									bind:value={date}
+									type="date"
+									class="mt-2 min-w-0 w-full rounded-2xl border border-slate-200 bg-slate-50 px-2 py-3 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 sm:px-4 sm:text-base"
+								/>
+							</label>
+
+							<label class="min-w-0">
+								<span class="text-sm font-bold text-slate-500 dark:text-slate-400">Start time</span>
+								<input
+									bind:value={startTime}
+									type="time"
+									class="mt-2 min-w-0 w-full rounded-2xl border border-slate-200 bg-slate-50 px-2 py-3 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 sm:px-4 sm:text-base"
+								/>
+							</label>
 						</div>
 
-						<input bind:value={endTime} type="time" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50" />
+						<label class="block min-w-0">
+							<span class="text-sm font-bold text-slate-500 dark:text-slate-400"
+								>End time (optional)</span
+							>
+							<input
+								bind:value={endTime}
+								type="time"
+								class="mt-2 min-w-0 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+							/>
+						</label>
 
 						<label class="block">
-							<span class="text-sm font-bold text-slate-500 dark:text-slate-400">Registration deadline</span>
-							<input bind:value={registrationDeadline} type="datetime-local" class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50" />
+							<span class="text-sm font-bold text-slate-500 dark:text-slate-400"
+								>Registration deadline</span
+							>
+							<input
+								bind:value={registrationDeadline}
+								type="datetime-local"
+								class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+							/>
 						</label>
 
 						<LocationPickerMap bind:lat bind:lng bind:address />
 					</div>
 				</section>
 
-				<section class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
+				<section
+					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+				>
 					<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">Rules</h2>
 
 					<textarea
@@ -358,210 +412,346 @@
 			</div>
 
 			<aside class="space-y-6">
-				<section class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
+				<section
+					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+				>
 					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Format</h2>
 
 					<div class="mt-5 space-y-3">
-						<label class="block rounded-2xl border p-4">
-							<input bind:group={format} type="radio" value="groups_playoff" />
-							<span class="ml-2 font-black">Groups + Playoffs</span>
-							<p class="mt-1 text-sm text-slate-500">Best for most tournaments.</p>
+						<label
+							class={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${
+								format === 'groups_playoff'
+									? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40'
+									: 'border-slate-200 dark:border-slate-700'
+							}`}
+						>
+							<input bind:group={format} type="radio" value="groups_playoff" class="sr-only" />
+							<span
+								class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-slate-400 dark:border-slate-500"
+							>
+								{#if format === 'groups_playoff'}
+									<span class="h-2.5 w-2.5 rounded-full bg-blue-600 dark:bg-blue-400"></span>
+								{/if}
+							</span>
+							<span>
+								<span class="block font-black">Groups + Playoffs</span>
+								<span class="mt-1 block text-sm text-slate-500 dark:text-slate-400"
+									>Best for most tournaments.</span
+								>
+							</span>
 						</label>
 
-						<label class="block rounded-2xl border p-4">
-							<input bind:group={format} type="radio" value="knockout" />
-							<span class="ml-2 font-black">Knockout / Playoffs</span>
-							<p class="mt-1 text-sm text-slate-500">Direct elimination bracket.</p>
+						<label
+							class={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${
+								format === 'knockout'
+									? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40'
+									: 'border-slate-200 dark:border-slate-700'
+							}`}
+						>
+							<input bind:group={format} type="radio" value="knockout" class="sr-only" />
+							<span
+								class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-slate-400 dark:border-slate-500"
+							>
+								{#if format === 'knockout'}
+									<span class="h-2.5 w-2.5 rounded-full bg-blue-600 dark:bg-blue-400"></span>
+								{/if}
+							</span>
+							<span>
+								<span class="block font-black">Knockout / Playoffs</span>
+								<span class="mt-1 block text-sm text-slate-500 dark:text-slate-400"
+									>Direct elimination bracket.</span
+								>
+							</span>
 						</label>
 
-						<label class="block rounded-2xl border p-4">
-							<input bind:group={format} type="radio" value="league" />
-							<span class="ml-2 font-black">League / Championship</span>
-							<p class="mt-1 text-sm text-slate-500">Everyone plays everyone.</p>
+						<label
+							class={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${
+								format === 'league'
+									? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40'
+									: 'border-slate-200 dark:border-slate-700'
+							}`}
+						>
+							<input bind:group={format} type="radio" value="league" class="sr-only" />
+							<span
+								class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-slate-400 dark:border-slate-500"
+							>
+								{#if format === 'league'}
+									<span class="h-2.5 w-2.5 rounded-full bg-blue-600 dark:bg-blue-400"></span>
+								{/if}
+							</span>
+							<span>
+								<span class="block font-black">League / Championship</span>
+								<span class="mt-1 block text-sm text-slate-500 dark:text-slate-400"
+									>Everyone plays everyone.</span
+								>
+							</span>
 						</label>
 					</div>
 
 					{#if format === 'groups_playoff'}
 						<div class="mt-5 grid gap-3 md:grid-cols-2">
-                            <label class="block">
-                                <span class="text-sm font-black text-slate-700 dark:text-slate-200">
-                                    Number of groups
-                                </span>
+							<label class="block">
+								<span class="text-sm font-black text-slate-700 dark:text-slate-200">
+									Number of groups
+								</span>
 
-                                <p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
-                                    How many groups the tournament will have before the playoff stage.
-                                </p>
+								<p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+									How many groups the tournament will have before the playoff stage.
+								</p>
 
-                                <input
-                                    bind:value={groupCount}
-                                    type="number"
-                                    min="2"
-                                    max="8"
-                                    placeholder="Example: 2"
-                                    class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-                                />
-                            </label>
+								<input
+									bind:value={groupCount}
+									type="number"
+									min="2"
+									max="8"
+									placeholder="Example: 2"
+									class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+								/>
+							</label>
 
-                            <label class="block">
-                                <span class="text-sm font-black text-slate-700 dark:text-slate-200">
-                                    Playoff spots
-                                </span>
+							<label class="block">
+								<span class="text-sm font-black text-slate-700 dark:text-slate-200">
+									Playoff spots
+								</span>
 
-                                <p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
-                                    How many {registrationType === 'team' ? 'teams' : 'players'} qualify from the groups into the knockout stage.
-                                </p>
+								<p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+									How many {registrationType === 'team' ? 'teams' : 'players'} qualify from the groups
+									into the knockout stage.
+								</p>
 
-                                <input
-                                    bind:value={playoffSpots}
-                                    type="number"
-                                    min="2"
-                                    max="16"
-                                    placeholder="Example: 4"
-                                    class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-                                />
-                            </label>
-                        </div>
-					{/if}
-				</section>
-
-				<section class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
-					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Registration</h2>
-
-					<div class="mt-5 space-y-3">
-						<label class="block rounded-2xl border p-4">
-							<input bind:group={registrationType} type="radio" value="team" />
-							<span class="ml-2 font-black">Teams</span>
-						</label>
-
-						<label class="block rounded-2xl border p-4">
-							<input bind:group={registrationType} type="radio" value="individual" />
-							<span class="ml-2 font-black">Individual players</span>
-						</label>
-					</div>
-
-					{#if registrationType === 'team'}
-						<div class="mt-5 grid gap-3">
-                            <label class="block">
-                                <span class="text-sm font-black text-slate-700 dark:text-slate-200">
-                                    Players on field/court
-                                </span>
-
-                                <p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
-                                    Number of players that actively play at the same time. Example: 5 for a 5v5 football tournament.
-                                </p>
-
-                                <input
-                                    bind:value={teamSize}
-                                    type="number"
-                                    min="1"
-                                    placeholder="Example: 5"
-                                    class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-                                />
-                            </label>
-
-                            <label class="block">
-                                <span class="text-sm font-black text-slate-700 dark:text-slate-200">
-                                    Minimum players per team
-                                </span>
-
-                                <p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
-                                    Minimum number of players needed for a team to be accepted in the tournament.
-                                </p>
-
-                                <input
-                                    bind:value={minTeamSize}
-                                    type="number"
-                                    min="1"
-                                    placeholder="Example: 5"
-                                    class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-                                />
-                            </label>
-
-                            <label class="block">
-                                <span class="text-sm font-black text-slate-700 dark:text-slate-200">
-                                    Maximum players per team
-                                </span>
-
-                                <p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
-                                    Maximum squad size, including substitutes. Example: 8 means 5 players plus up to 3 substitutes.
-                                </p>
-
-                                <input
-                                    bind:value={maxTeamSize}
-                                    type="number"
-                                    min="1"
-                                    placeholder="Example: 8"
-                                    class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-                                />
-                            </label>
-
-							<label class="flex items-center justify-between rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
-								<span class="font-black">Allow open teams</span>
-								<input bind:checked={allowOpenTeams} type="checkbox" class="h-5 w-5" />
+								<input
+									bind:value={playoffSpots}
+									type="number"
+									min="2"
+									max="16"
+									placeholder="Example: 4"
+									class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+								/>
 							</label>
 						</div>
 					{/if}
 				</section>
 
-				<section class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
+				<section
+					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+				>
+					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Registration</h2>
+
+					<div class="mt-5 space-y-3">
+						<label
+							class={`flex cursor-pointer items-center gap-3 rounded-2xl border p-4 transition ${
+								registrationType === 'team'
+									? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40'
+									: 'border-slate-200 dark:border-slate-700'
+							}`}
+						>
+							<input bind:group={registrationType} type="radio" value="team" class="sr-only" />
+							<span
+								class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-slate-400 dark:border-slate-500"
+							>
+								{#if registrationType === 'team'}
+									<span class="h-2.5 w-2.5 rounded-full bg-blue-600 dark:bg-blue-400"></span>
+								{/if}
+							</span>
+							<span class="font-black">Teams</span>
+						</label>
+
+						<label
+							class={`flex cursor-pointer items-center gap-3 rounded-2xl border p-4 transition ${
+								registrationType === 'individual'
+									? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40'
+									: 'border-slate-200 dark:border-slate-700'
+							}`}
+						>
+							<input
+								bind:group={registrationType}
+								type="radio"
+								value="individual"
+								class="sr-only"
+							/>
+							<span
+								class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-slate-400 dark:border-slate-500"
+							>
+								{#if registrationType === 'individual'}
+									<span class="h-2.5 w-2.5 rounded-full bg-blue-600 dark:bg-blue-400"></span>
+								{/if}
+							</span>
+							<span class="font-black">Individual players</span>
+						</label>
+					</div>
+
+					{#if registrationType === 'team'}
+						<div class="mt-5 grid gap-3">
+							<label class="block">
+								<span class="text-sm font-black text-slate-700 dark:text-slate-200">
+									Players on field/court
+								</span>
+
+								<p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+									Number of players that actively play at the same time. Example: 5 for a 5v5
+									football tournament.
+								</p>
+
+								<input
+									bind:value={teamSize}
+									type="number"
+									min="1"
+									placeholder="Example: 5"
+									class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+								/>
+							</label>
+
+							<label class="block">
+								<span class="text-sm font-black text-slate-700 dark:text-slate-200">
+									Minimum players per team
+								</span>
+
+								<p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+									Minimum number of players needed for a team to be accepted in the tournament.
+								</p>
+
+								<input
+									bind:value={minTeamSize}
+									type="number"
+									min="1"
+									placeholder="Example: 5"
+									class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+								/>
+							</label>
+
+							<label class="block">
+								<span class="text-sm font-black text-slate-700 dark:text-slate-200">
+									Maximum players per team
+								</span>
+
+								<p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+									Maximum squad size, including substitutes. Example: 8 means 5 players plus up to 3
+									substitutes.
+								</p>
+
+								<input
+									bind:value={maxTeamSize}
+									type="number"
+									min="1"
+									placeholder="Example: 8"
+									class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+								/>
+							</label>
+
+							<label
+								class="flex cursor-pointer items-center justify-between gap-4 rounded-2xl bg-slate-50 p-4 dark:bg-slate-800"
+							>
+								<span>
+									<span class="block font-black text-slate-950 dark:text-slate-50"
+										>Allow open teams</span
+									>
+									<span class="mt-1 block text-xs font-bold text-slate-500 dark:text-slate-400">
+										Players can join teams that have not yet reached the maximum team size.
+									</span>
+								</span>
+								<input bind:checked={allowOpenTeams} type="checkbox" class="sr-only" />
+								<span
+									class={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${
+										allowOpenTeams
+											? 'border-blue-600 bg-blue-600 text-white dark:border-blue-400 dark:bg-blue-400 dark:text-slate-950'
+											: 'border-slate-400 bg-white dark:border-slate-500 dark:bg-slate-900'
+									}`}
+								>
+									{#if allowOpenTeams}
+										<svg viewBox="0 0 20 20" fill="none" class="h-4 w-4" aria-hidden="true">
+											<path
+												d="m4 10 4 4 8-9"
+												stroke="currentColor"
+												stroke-width="2.5"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+											/>
+										</svg>
+									{/if}
+								</span>
+							</label>
+						</div>
+					{/if}
+				</section>
+
+				<section
+					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+				>
 					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Cost and prize</h2>
 
 					<div class="mt-5 space-y-3">
-						<select bind:value={entryFeeType} class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50">
+						<select
+							bind:value={entryFeeType}
+							class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+						>
 							<option value="free">Free entry</option>
 							<option value="split">Split cost</option>
-							<option value="paid" disabled={!isVerified}>Paid entry {isVerified ? '' : '(verified only)'}</option>
+							<option value="paid" disabled={!isVerified}
+								>Paid entry {isVerified ? '' : '(verified only)'}</option
+							>
 						</select>
 
 						{#if entryFeeType !== 'free'}
-                            <label class="block">
-                                <span class="text-sm font-black text-slate-700 dark:text-slate-200">
-                                    Entry fee
-                                </span>
+							<label class="block">
+								<span class="text-sm font-black text-slate-700 dark:text-slate-200">
+									Entry fee
+								</span>
 
-                                <p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
-                                    Amount paid per {registrationType === 'team' ? 'team' : 'player'} to enter the tournament.
-                                </p>
+								<p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+									Amount paid per {registrationType === 'team' ? 'team' : 'player'} to enter the tournament.
+								</p>
 
-                                <input
-                                    bind:value={entryFeeAmount}
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    placeholder={registrationType === 'team' ? 'Example: 25 €/team' : 'Example: 10 €/player'}
-                                    class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-                                />
-                            </label>
-                        {/if}
+								<input
+									bind:value={entryFeeAmount}
+									type="number"
+									min="0"
+									step="0.01"
+									placeholder={registrationType === 'team'
+										? 'Example: 25 €/team'
+										: 'Example: 10 €/player'}
+									class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+								/>
+							</label>
+						{/if}
 
-						<select bind:value={prizeType} class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50">
+						<select
+							bind:value={prizeType}
+							class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+						>
 							<option value="none">No prize</option>
 							<option value="trophy">Trophy / medal</option>
 							<option value="product">Product / voucher</option>
-							<option value="cash" disabled={!isVerified}>Cash prize {isVerified ? '' : '(verified only)'}</option>
+							<option value="cash" disabled={!isVerified}
+								>Cash prize {isVerified ? '' : '(verified only)'}</option
+							>
 							<option value="other">Other prize</option>
 						</select>
 
 						{#if prizeType !== 'none'}
-							<input bind:value={prizeDescription} placeholder="Prize description" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50" />
+							<input
+								bind:value={prizeDescription}
+								placeholder="Prize description"
+								class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+							/>
 							<label class="block">
-                                <span class="text-sm font-black text-slate-700 dark:text-slate-200">
-                                    Estimated prize value
-                                </span>
+								<span class="text-sm font-black text-slate-700 dark:text-slate-200">
+									Estimated prize value
+								</span>
 
-                                <p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
-                                    Approximate value of the prize. This helps users understand how attractive the tournament is.
-                                </p>
+								<p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+									Approximate value of the prize. This helps users understand how attractive the
+									tournament is.
+								</p>
 
-                                <input
-                                    bind:value={prizeValue}
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    placeholder="Example: 100 €"
-                                    class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-                                />
-                            </label>
+								<input
+									bind:value={prizeValue}
+									type="number"
+									min="0"
+									step="0.01"
+									placeholder="Example: 100 €"
+									class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+								/>
+							</label>
 						{/if}
 					</div>
 				</section>

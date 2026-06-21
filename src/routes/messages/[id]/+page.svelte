@@ -29,7 +29,7 @@
 
 	let conversation = $state<ChatConversation | null>(null);
 	let senderProfiles = $state<Record<string, UserProfile>>({});
-	
+
 	let conversationId = $state('');
 	let otherUser = $state<UserProfile | null>(null);
 	let messages = $state<ChatMessage[]>([]);
@@ -148,7 +148,7 @@
 			typingTimeout = null;
 		}
 	}
-	
+
 	function timestampToMillis(value: unknown) {
 		try {
 			const timestamp = value as { toMillis?: () => number; toDate?: () => Date };
@@ -162,7 +162,10 @@
 		}
 	}
 
-	async function updateTypingLabel(currentConversation: ChatConversation | null, currentUserId: string) {
+	async function updateTypingLabel(
+		currentConversation: ChatConversation | null,
+		currentUserId: string
+	) {
 		const previousTypingLabel = typingLabel;
 
 		if (!currentConversation?.typing) {
@@ -207,10 +210,7 @@
 	}
 
 	async function loadGroupMetadata(currentConversation: ChatConversation) {
-		if (
-			currentConversation.type !== 'group' &&
-			currentConversation.type !== 'tournament_team'
-		) {
+		if (currentConversation.type !== 'group' && currentConversation.type !== 'tournament_team') {
 			return;
 		}
 
@@ -264,10 +264,7 @@
 				return;
 			}
 
-			if (
-				loadedConversation.type === 'group' ||
-				loadedConversation.type === 'tournament_team'
-			) {
+			if (loadedConversation.type === 'group' || loadedConversation.type === 'tournament_team') {
 				await loadGroupMetadata(loadedConversation);
 			} else {
 				const otherUserId = loadedConversation.memberIds.find(
@@ -281,15 +278,12 @@
 
 			unsubscribeConversation = listenConversationById(
 				id,
-					(liveConversation) => {
-						conversation = liveConversation;
-						void updateTypingLabel(liveConversation, currentUser.uid);
-						if (
-							liveConversation?.type === 'group' ||
-							liveConversation?.type === 'tournament_team'
-						) {
-							void loadGroupMetadata(liveConversation);
-						}
+				(liveConversation) => {
+					conversation = liveConversation;
+					void updateTypingLabel(liveConversation, currentUser.uid);
+					if (liveConversation?.type === 'group' || liveConversation?.type === 'tournament_team') {
+						void loadGroupMetadata(liveConversation);
+					}
 
 					const hasUnreadForCurrentUser =
 						liveConversation?.unreadFor?.includes(currentUser.uid) ||
@@ -420,9 +414,7 @@
 	});
 </script>
 
-<main
-	class="flex h-[calc(100dvh-5rem)] flex-col bg-white text-slate-950 dark:bg-slate-950 dark:text-white md:h-screen"
->
+<main class="flex h-[100dvh] flex-col bg-white text-slate-950 dark:bg-slate-950 dark:text-white">
 	<header
 		class="flex items-center gap-3 border-b border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950"
 	>
@@ -473,51 +465,71 @@
 					</p>
 				</div>
 			</a>
-			{:else}
-				<button
-					type="button"
-					disabled={!isGroupChat}
-					onclick={() => (showGroupInfo = true)}
-					class={`flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-1 text-left transition ${
-						isGroupChat ? 'hover:bg-slate-100 dark:hover:bg-slate-900' : 'cursor-default'
-					}`}
-				>
+		{:else}
+			<button
+				type="button"
+				disabled={!isGroupChat}
+				onclick={() => (showGroupInfo = true)}
+				class={`flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-1 text-left transition ${
+					isGroupChat ? 'hover:bg-slate-100 dark:hover:bg-slate-900' : 'cursor-default'
+				}`}
+			>
 				<div
-					class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full {isRallySystemChat ? 'bg-blue-600 text-white' : 'bg-slate-100 text-blue-600 dark:bg-slate-800 dark:text-blue-300'} text-base font-black"
+					class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full {isRallySystemChat
+						? 'bg-blue-600 text-white'
+						: 'bg-slate-100 text-blue-600 dark:bg-slate-800 dark:text-blue-300'} text-base font-black"
 				>
 					{#if isRallySystemChat}
-						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
-							<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.5"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="h-5 w-5"
+							aria-hidden="true"
+						>
+							<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
 						</svg>
 					{:else}
 						{conversationTitle.charAt(0).toUpperCase()}
 					{/if}
 				</div>
 
-					<div class="min-w-0 flex-1">
+				<div class="min-w-0 flex-1">
 					<div class="flex items-center gap-2">
 						<h1 class="truncate text-base font-black text-slate-950 dark:text-white">
 							{conversationTitle}
 						</h1>
 						{#if isRallySystemChat}
-							<span class="shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-black text-white">
+							<span
+								class="shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-black text-white"
+							>
 								Official
 							</span>
 						{/if}
 					</div>
 
-						<p class="truncate text-xs text-slate-500 dark:text-slate-400">
-							{conversationSubtitle}
-						</p>
-					</div>
-					{#if isGroupChat}
-						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-5 w-5 shrink-0 text-slate-400" aria-hidden="true">
-							<path d="m9 18 6-6-6-6" />
-						</svg>
-					{/if}
-				</button>
-			{/if}
-		</header>
+					<p class="truncate text-xs text-slate-500 dark:text-slate-400">
+						{conversationSubtitle}
+					</p>
+				</div>
+				{#if isGroupChat}
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						class="h-5 w-5 shrink-0 text-slate-400"
+						aria-hidden="true"
+					>
+						<path d="m9 18 6-6-6-6" />
+					</svg>
+				{/if}
+			</button>
+		{/if}
+	</header>
 
 	{#if showGroupInfo && conversation && isGroupChat}
 		<dialog
@@ -531,19 +543,30 @@
 			}}
 			aria-labelledby="group-info-title"
 		>
-			<section class="w-full max-w-lg overflow-hidden rounded-[2rem] bg-white shadow-2xl dark:bg-slate-900">
+			<section
+				class="w-full max-w-lg overflow-hidden rounded-[2rem] bg-white shadow-2xl dark:bg-slate-900"
+			>
 				<div class="border-b border-slate-100 p-6 dark:border-slate-800">
 					<div class="flex items-start justify-between gap-4">
 						<div class="flex min-w-0 items-center gap-4">
-							<div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-blue-100 text-xl font-black text-blue-600 dark:bg-blue-950 dark:text-blue-300">
+							<div
+								class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-blue-100 text-xl font-black text-blue-600 dark:bg-blue-950 dark:text-blue-300"
+							>
 								{#if conversationPhotoURL}
-									<img src={conversationPhotoURL} alt={conversationTitle} class="h-full w-full object-cover" />
+									<img
+										src={conversationPhotoURL}
+										alt={conversationTitle}
+										class="h-full w-full object-cover"
+									/>
 								{:else}
 									{conversationTitle.charAt(0).toUpperCase()}
 								{/if}
 							</div>
 							<div class="min-w-0">
-								<h2 id="group-info-title" class="truncate text-xl font-black text-slate-950 dark:text-white">
+								<h2
+									id="group-info-title"
+									class="truncate text-xl font-black text-slate-950 dark:text-white"
+								>
 									{conversationTitle}
 								</h2>
 								<p class="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
@@ -553,35 +576,55 @@
 								</p>
 							</div>
 						</div>
-						<button type="button" onclick={() => (showGroupInfo = false)} class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xl font-black text-slate-500 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700" aria-label="Close group information">×</button>
+						<button
+							type="button"
+							onclick={() => (showGroupInfo = false)}
+							class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xl font-black text-slate-500 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+							aria-label="Close group information">×</button
+						>
 					</div>
 
 					{#if conversation.eventId}
-						<a href={resolve(`/events/${conversation.eventId}`)} class="mt-5 inline-flex items-center gap-2 text-sm font-black text-blue-600 transition hover:text-blue-700 dark:text-blue-400">
+						<a
+							href={resolve(`/events/${conversation.eventId}`)}
+							class="mt-5 inline-flex items-center gap-2 text-sm font-black text-blue-600 transition hover:text-blue-700 dark:text-blue-400"
+						>
 							View event details <span aria-hidden="true">→</span>
 						</a>
 					{/if}
 				</div>
 
 				<div class="max-h-[55vh] overflow-y-auto p-4 sm:p-6">
-					<p class="px-2 text-xs font-black uppercase tracking-[0.2em] text-slate-400">
-						Members
-					</p>
+					<p class="px-2 text-xs font-black uppercase tracking-[0.2em] text-slate-400">Members</p>
 					<div class="mt-3 space-y-2">
 						{#each conversation.memberIds as memberId (memberId)}
 							{@const member = senderProfiles[memberId]}
-							<div class="flex items-center gap-3 rounded-2xl px-3 py-2.5 transition hover:bg-slate-50 dark:hover:bg-slate-800/70">
-								<UserAvatar photoURL={member?.photoURL} displayName={member?.displayName} email={member?.email} size="md" />
+							<div
+								class="flex items-center gap-3 rounded-2xl px-3 py-2.5 transition hover:bg-slate-50 dark:hover:bg-slate-800/70"
+							>
+								<UserAvatar
+									photoURL={member?.photoURL}
+									displayName={member?.displayName}
+									email={member?.email}
+									size="md"
+								/>
 								<div class="min-w-0 flex-1">
 									<p class="truncate text-sm font-black text-slate-900 dark:text-white">
-										{member?.displayName ?? 'Rally user'}{memberId === auth.currentUser?.uid ? ' (You)' : ''}
+										{member?.displayName ?? 'Rally user'}{memberId === auth.currentUser?.uid
+											? ' (You)'
+											: ''}
 									</p>
 									{#if member?.rallyTag}
-										<p class="truncate text-xs text-slate-500 dark:text-slate-400">@{member.rallyTag}</p>
+										<p class="truncate text-xs text-slate-500 dark:text-slate-400">
+											@{member.rallyTag}
+										</p>
 									{/if}
 								</div>
 								{#if conversation.type === 'tournament_team' && teamEntry?.captainId === memberId}
-									<span class="shrink-0 rounded-full bg-blue-50 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-blue-700 dark:bg-blue-950 dark:text-blue-300">Captain</span>
+									<span
+										class="shrink-0 rounded-full bg-blue-50 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+										>Captain</span
+									>
 								{/if}
 							</div>
 						{/each}
@@ -591,7 +634,7 @@
 		</dialog>
 	{/if}
 
-		{#if error}
+	{#if error}
 		<div
 			class="mx-5 mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200"
 		>
@@ -614,19 +657,22 @@
 						class="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-2xl font-black text-blue-600 dark:bg-slate-800 dark:text-blue-300"
 					>
 						{#if conversationPhotoURL}
-							<img src={conversationPhotoURL} alt={conversationTitle} class="h-full w-full object-cover" />
+							<img
+								src={conversationPhotoURL}
+								alt={conversationTitle}
+								class="h-full w-full object-cover"
+							/>
 						{:else}
 							{conversationTitle.charAt(0).toUpperCase()}
 						{/if}
 					</div>
 
-					<p class="mt-3 font-bold text-slate-700 dark:text-slate-200">
-						No messages yet
-					</p>
+					<p class="mt-3 font-bold text-slate-700 dark:text-slate-200">No messages yet</p>
 
 					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
 						{#if isOrganizationChat}
-							Send a message to {conversationTitle}. They will receive it in their organization inbox.
+							Send a message to {conversationTitle}. They will receive it in their organization
+							inbox.
 						{:else if isGroupChat}
 							Start the conversation with the group.
 						{:else}
@@ -637,21 +683,29 @@
 			</div>
 		{:else}
 			<ChatMessageList
-				messages={messages}
+				{messages}
 				currentUserId={auth.currentUser?.uid}
 				getSenderProfile={(senderId) => {
-					if (senderId === 'rally-system') return { id: 'rally-system', displayName: 'Rally', email: null, photoURL: null } as never;
-						if (isGroupChat) return senderProfiles[senderId];
-						return otherUser;
-					}}
-					typingLabel={typingLabel}
-					showSenderName={isGroupChat}
+					if (senderId === 'rally-system')
+						return {
+							id: 'rally-system',
+							displayName: 'Rally',
+							email: null,
+							photoURL: null
+						} as never;
+					if (isGroupChat) return senderProfiles[senderId];
+					return otherUser;
+				}}
+				{typingLabel}
+				showSenderName={isGroupChat}
 			/>
 		{/if}
 	</section>
 
 	{#if isRallySystemChat}
-		<div class="border-t border-slate-100 bg-white px-4 py-3 text-center dark:border-slate-800 dark:bg-slate-950">
+		<div
+			class="border-t border-slate-100 bg-white px-4 py-3 text-center dark:border-slate-800 dark:bg-slate-950"
+		>
 			<p class="text-xs text-slate-400 dark:text-slate-500">
 				This is your Rally activity feed. Updates are sent automatically.
 			</p>

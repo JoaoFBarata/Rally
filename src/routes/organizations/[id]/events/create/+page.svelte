@@ -346,7 +346,7 @@
 				href={resolve(`/organizations/${organization.id}/manage`)}
 				class="rounded-2xl bg-slate-100 px-5 py-3 font-black text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
 			>
-				Back to organization
+				← Back to organization
 			</a>
 		</div>
 
@@ -366,9 +366,7 @@
 			}}
 		>
 			<div class="min-w-0 space-y-4 sm:space-y-6">
-				<section
-					class="rounded-3xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-6"
-				>
+				<section class="hidden">
 					<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">Event type</h2>
 
 					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -471,7 +469,12 @@
 
 						<div class="grid grid-cols-2 gap-3 md:grid-cols-3">
 							<div class="flex flex-col gap-2">
+								<label
+									for="organization-event-sport"
+									class="text-xs font-bold uppercase tracking-wide text-slate-500">Sport</label
+								>
 								<select
+									id="organization-event-sport"
 									bind:value={sport}
 									class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
 								>
@@ -489,23 +492,38 @@
 								{/if}
 							</div>
 
-							<select
-								bind:value={level}
-								class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-							>
-								{#each levels as option}
-									<option value={option.value}>{option.label}</option>
-								{/each}
-							</select>
+							<div class="flex min-w-0 flex-col gap-2">
+								<label
+									for="organization-event-level"
+									class="text-xs font-bold uppercase tracking-wide text-slate-500">Level</label
+								>
+								<select
+									id="organization-event-level"
+									bind:value={level}
+									class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+								>
+									{#each levels as option}
+										<option value={option.value}>{option.label}</option>
+									{/each}
+								</select>
+							</div>
 
-							<input
-								bind:value={maxParticipants}
-								type="number"
-								min="2"
-								max="500"
-								placeholder="Max participants"
-								class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-							/>
+							<div class="col-span-2 flex min-w-0 flex-col gap-2 md:col-span-1">
+								<label
+									for="organization-event-capacity"
+									class="text-xs font-bold uppercase tracking-wide text-slate-500"
+									>Maximum participants</label
+								>
+								<input
+									id="organization-event-capacity"
+									bind:value={maxParticipants}
+									type="number"
+									min="2"
+									max="500"
+									placeholder="e.g. 20"
+									class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+								/>
+							</div>
 						</div>
 					</div>
 				</section>
@@ -523,24 +541,35 @@
 
 					<div class="mt-5 space-y-5">
 						<div class="grid grid-cols-2 gap-3">
-							<input
-								bind:value={date}
-								type="date"
-								class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-							/>
+							<label class="min-w-0">
+								<span class="text-sm font-bold text-slate-500 dark:text-slate-400">Event date</span>
+								<input
+									bind:value={date}
+									type="date"
+									class="mt-2 min-w-0 w-full rounded-2xl border border-slate-200 bg-slate-50 px-2 py-3 text-sm text-slate-950 outline-none transition focus:border-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 sm:px-4 sm:text-base"
+								/>
+							</label>
 
-							<input
-								bind:value={startTime}
-								type="time"
-								class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-							/>
+							<label class="min-w-0">
+								<span class="text-sm font-bold text-slate-500 dark:text-slate-400">Start time</span>
+								<input
+									bind:value={startTime}
+									type="time"
+									class="mt-2 min-w-0 w-full rounded-2xl border border-slate-200 bg-slate-50 px-2 py-3 text-sm text-slate-950 outline-none transition focus:border-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 sm:px-4 sm:text-base"
+								/>
+							</label>
 						</div>
 
-						<input
-							bind:value={endTime}
-							type="time"
-							class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-						/>
+						<label class="block min-w-0">
+							<span class="text-sm font-bold text-slate-500 dark:text-slate-400"
+								>End time (optional)</span
+							>
+							<input
+								bind:value={endTime}
+								type="time"
+								class="mt-2 min-w-0 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+							/>
+						</label>
 
 						{#if organization?.address}
 							<button
@@ -592,7 +621,7 @@
 				<section
 					class="col-span-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-6"
 				>
-					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Monetization</h2>
+					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Entry & payment</h2>
 
 					<div class="mt-5 space-y-3">
 						<label
@@ -698,7 +727,12 @@
 							</p>
 						</div>
 
-						<input bind:checked={promote} type="checkbox" disabled={!isVerified} class="h-5 w-5" />
+						<input
+							bind:checked={promote}
+							type="checkbox"
+							disabled={!isVerified}
+							class="h-5 w-5 shrink-0 rounded border-slate-300 text-blue-600 accent-blue-600 checked:bg-blue-600 dark:border-slate-600 dark:bg-slate-900 dark:checked:bg-blue-500"
+						/>
 					</label>
 
 					{#if promote}

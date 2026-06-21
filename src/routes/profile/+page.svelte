@@ -9,6 +9,7 @@
 	import type { Sport, SportLevel, UserProfile } from '$lib/schema';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import RallyWordmark from '$lib/components/RallyWordmark.svelte';
+	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import {
 		ensureUserProfile,
 		updateUserProfileDetails,
@@ -316,7 +317,10 @@
 
 <main class="mx-auto w-full max-w-6xl px-4 py-5 sm:px-5 sm:py-6">
 	<header class="mb-6">
-		<RallyWordmark size="sm" />
+		<div class="flex items-center justify-between gap-3">
+			<RallyWordmark size="sm" />
+			<div class="md:hidden"><ThemeToggle /></div>
+		</div>
 		<h1 class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">Profile</h1>
 		<p class="mt-1 text-slate-500 dark:text-slate-400">
 			Your Rally identity, sports profile and friends.

@@ -10,6 +10,7 @@
 	import type { Organization, OrganizationType, SportEvent } from '$lib/schema';
 	import EventCard from '$lib/components/EventCard.svelte';
 	import LocationPickerMap from '$lib/components/maps/LocationPickerMap.svelte';
+	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import {
 		assertCanManageOrganization,
 		requestOrganizationVerification,
@@ -418,6 +419,7 @@
 			<div
 				class="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-3"
 			>
+				<div class="col-span-2 flex justify-end md:hidden"><ThemeToggle /></div>
 				<a
 					href={resolve(`/organizations/${organization.id}`)}
 					class="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"

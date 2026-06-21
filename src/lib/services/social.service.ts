@@ -2,7 +2,6 @@
 import {
 	collection,
 	doc,
-	getDoc,
 	getDocs,
 	onSnapshot,
 	query,
@@ -26,10 +25,7 @@ function friendRequestIdFor(fromUserId: string, toUserId: string) {
 	return `${fromUserId}_to_${toUserId}`;
 }
 
-export async function sendFriendRequestByTag(params: {
-	fromUserId: string;
-	rallyTag: string;
-}) {
+export async function sendFriendRequestByTag(params: { fromUserId: string; rallyTag: string }) {
 	const fromUser = await getUserProfile(params.fromUserId);
 
 	if (fromUser?.accountType === 'organization') {
@@ -51,30 +47,26 @@ export async function sendFriendRequestByTag(params: {
 		throw new Error('You cannot add yourself as a friend.');
 	}
 
-	const friendshipRef = doc(db, 'friendships', friendshipIdFor(params.fromUserId, targetUser.id));
-	const friendshipSnap = await getDoc(friendshipRef);
+	const relationship = await getRelationshipStatus({
+		currentUserId: params.fromUserId,
+		targetUserId: targetUser.id
+	});
 
-	if (friendshipSnap.exists()) {
+	if (relationship === 'friends') {
 		throw new Error('You are already friends with this user.');
 	}
-
-	const requestRef = doc(db, 'friendRequests', friendRequestIdFor(params.fromUserId, targetUser.id));
-	const reverseRequestRef = doc(
-		db,
-		'friendRequests',
-		friendRequestIdFor(targetUser.id, params.fromUserId)
-	);
-
-	const requestSnap = await getDoc(requestRef);
-	const reverseRequestSnap = await getDoc(reverseRequestRef);
-
-	if (requestSnap.exists() && requestSnap.data().status === 'pending') {
+	if (relationship === 'request_sent') {
 		throw new Error('Friend request already sent.');
 	}
-
-	if (reverseRequestSnap.exists() && reverseRequestSnap.data().status === 'pending') {
+	if (relationship === 'request_received') {
 		throw new Error('This user has already sent you a friend request. Check your messages.');
 	}
+
+	const requestRef = doc(
+		db,
+		'friendRequests',
+		friendRequestIdFor(params.fromUserId, targetUser.id)
+	);
 
 	await setDoc(requestRef, {
 		id: requestRef.id,
@@ -89,10 +81,7 @@ export async function sendFriendRequestByTag(params: {
 }
 
 export async function getFriendRequestsForUser(userId: string) {
-	const q = query(
-		collection(db, 'friendRequests'),
-		where('toUserId', '==', userId)
-	);
+	const q = query(collection(db, 'friendRequests'), where('toUserId', '==', userId));
 
 	const snap = await getDocs(q);
 
@@ -116,7 +105,11 @@ export async function respondToFriendRequest(params: {
 	});
 
 	if (params.status === 'accepted') {
-		const friendshipRef = doc(db, 'friendships', friendshipIdFor(params.fromUserId, params.toUserId));
+		const friendshipRef = doc(
+			db,
+			'friendships',
+			friendshipIdFor(params.fromUserId, params.toUserId)
+		);
 
 		await setDoc(friendshipRef, {
 			id: friendshipRef.id,
@@ -128,10 +121,7 @@ export async function respondToFriendRequest(params: {
 }
 
 export async function getFriendsForUser(userId: string) {
-	const q = query(
-		collection(db, 'friendships'),
-		where('memberIds', 'array-contains', userId)
-	);
+	const q = query(collection(db, 'friendships'), where('memberIds', 'array-contains', userId));
 
 	const snap = await getDocs(q);
 
@@ -176,10 +166,7 @@ export function listenFriendRequestsForUser(
 	);
 }
 
-export async function addFriendByQrCode(params: {
-	fromUserId: string;
-	toUserId: string;
-}) {
+export async function addFriendByQrCode(params: { fromUserId: string; toUserId: string }) {
 	const targetUser = await getUserProfile(params.toUserId);
 
 	if (!targetUser) {
@@ -200,13 +187,19 @@ export async function addFriendByQrCode(params: {
 		throw new Error('Organizations cannot be added as friends. Send them a message instead.');
 	}
 
-	const friendshipRef = doc(db, 'friendships', friendshipIdFor(params.fromUserId, targetUser.id));
-	const friendshipSnap = await getDoc(friendshipRef);
+	const relationship = await getRelationshipStatus({
+		currentUserId: params.fromUserId,
+		targetUserId: targetUser.id
+	});
 
-	if (friendshipSnap.exists()) {
+	if (relationship === 'friends') {
 		return targetUser;
 	}
+	if (relationship === 'request_received') {
+		throw new Error('This user has already sent you a friend request. Check your messages.');
+	}
 
+	const friendshipRef = doc(db, 'friendships', friendshipIdFor(params.fromUserId, targetUser.id));
 	await setDoc(friendshipRef, {
 		id: friendshipRef.id,
 		memberIds: [params.fromUserId, targetUser.id],
@@ -225,40 +218,47 @@ export async function getRelationshipStatus(params: {
 		return 'self';
 	}
 
-	const friendshipRef = doc(
-		db,
-		'friendships',
-		friendshipIdFor(params.currentUserId, params.targetUserId)
+	const friendshipsQuery = query(
+		collection(db, 'friendships'),
+		where('memberIds', 'array-contains', params.currentUserId)
+	);
+	const friendshipSnap = await getDocs(friendshipsQuery);
+	const friendshipExists = friendshipSnap.docs.some((friendshipDoc) =>
+		(friendshipDoc.data().memberIds as string[] | undefined)?.includes(params.targetUserId)
 	);
 
-	const friendshipSnap = await getDoc(friendshipRef);
-
-	if (friendshipSnap.exists()) {
+	if (friendshipExists) {
 		return 'friends';
 	}
 
-	const sentRequestRef = doc(
-		db,
-		'friendRequests',
-		friendRequestIdFor(params.currentUserId, params.targetUserId)
+	const sentRequestsQuery = query(
+		collection(db, 'friendRequests'),
+		where('fromUserId', '==', params.currentUserId)
 	);
-
-	const receivedRequestRef = doc(
-		db,
-		'friendRequests',
-		friendRequestIdFor(params.targetUserId, params.currentUserId)
+	const receivedRequestsQuery = query(
+		collection(db, 'friendRequests'),
+		where('toUserId', '==', params.currentUserId)
 	);
 
 	const [sentSnap, receivedSnap] = await Promise.all([
-		getDoc(sentRequestRef),
-		getDoc(receivedRequestRef)
+		getDocs(sentRequestsQuery),
+		getDocs(receivedRequestsQuery)
 	]);
 
-	if (sentSnap.exists() && sentSnap.data().status === 'pending') {
+	const sentRequestExists = sentSnap.docs.some((requestDoc) => {
+		const request = requestDoc.data();
+		return request.toUserId === params.targetUserId && request.status === 'pending';
+	});
+	const receivedRequestExists = receivedSnap.docs.some((requestDoc) => {
+		const request = requestDoc.data();
+		return request.fromUserId === params.targetUserId && request.status === 'pending';
+	});
+
+	if (sentRequestExists) {
 		return 'request_sent';
 	}
 
-	if (receivedSnap.exists() && receivedSnap.data().status === 'pending') {
+	if (receivedRequestExists) {
 		return 'request_received';
 	}
 

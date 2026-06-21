@@ -11,7 +11,6 @@
 	import RallyWordmark from '$lib/components/RallyWordmark.svelte';
 	import { getUserProfile } from '$lib/services/user.service';
 	import {
-		getFriendsForUser,
 		getRelationshipStatus,
 		sendFriendRequestByTag,
 		type RelationshipStatus
@@ -26,11 +25,11 @@
 	let currentProfile = $state<UserProfile | null>(null);
 	let relationship = $state<RelationshipStatus>('none');
 
-	let friendsCount = $state(0);
 	let loading = $state(true);
 	let actionLoading = $state(false);
 	let error = $state('');
 	let success = $state('');
+	let isOrganizationViewer = $derived(currentProfile?.accountType === 'organization');
 
 	let commonSports = $derived.by(() => {
 		if (!targetProfile || !currentProfile) return [];
@@ -89,19 +88,18 @@
 			targetProfile = loadedTargetProfile;
 			currentProfile = loadedCurrentProfile;
 
-			const [targetFriends, loadedRelationship] = await Promise.all([
-				getFriendsForUser(targetUserId),
-				getRelationshipStatus({
-					currentUserId,
-					targetUserId
-				})
-			]);
+			if (loadedCurrentProfile?.accountType === 'organization') {
+				relationship = 'none';
+				return;
+			}
 
-			friendsCount = targetFriends.length;
-			relationship = loadedRelationship;
+			relationship = await getRelationshipStatus({
+				currentUserId,
+				targetUserId
+			});
 		} catch (err) {
 			console.error('Public user page error:', err);
-			error = err instanceof Error ? err.message : 'Could not load user.';
+			error = 'Some profile information could not be loaded. Please try again.';
 		} finally {
 			loading = false;
 		}
@@ -175,10 +173,12 @@
 			const targetUserId = page.params.id;
 			if (targetUserId) {
 				unsubscribeTarget = subscribeToUserChanges(targetUserId, () => void loadUserPage(user.uid));
-				unsubscribeActivity = subscribeToUserActivityChanges(
-					user.uid,
-					() => void loadUserPage(user.uid)
-				);
+				if (currentProfile?.accountType !== 'organization') {
+					unsubscribeActivity = subscribeToUserActivityChanges(
+						user.uid,
+						() => void loadUserPage(user.uid)
+					);
+				}
 			}
 		});
 
@@ -241,7 +241,13 @@
 						</div>
 
 						<div class="flex shrink-0 flex-wrap justify-end gap-2">
-							{#if relationship === 'friends'}
+							{#if isOrganizationViewer}
+								<span
+									class="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+								>
+									Personal profile
+								</span>
+							{:else if relationship === 'friends'}
 								<button
 									type="button"
 									onclick={handleMessage}
@@ -304,9 +310,7 @@
 
 						<div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
 							<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Friends</p>
-							<p class="mt-2 font-black text-slate-950 dark:text-slate-50">
-								{friendsCount}
-							</p>
+							<p class="mt-2 font-black text-slate-950 dark:text-slate-50">Private</p>
 						</div>
 					</div>
 
@@ -347,7 +351,11 @@
 
 					<h2 class="mt-6 text-xl font-black text-slate-950 dark:text-slate-50">Connection</h2>
 
-					{#if relationship === 'friends'}
+					{#if isOrganizationViewer}
+						<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
+							Organization accounts cannot add personal profiles as friends.
+						</p>
+					{:else if relationship === 'friends'}
 						<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
 							You are already friends on Rally.
 						</p>

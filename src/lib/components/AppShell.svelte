@@ -7,6 +7,8 @@
 	import { onAuthStateChanged } from 'firebase/auth';
 	import RallyLogo from '$lib/components/RallyLogo.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+	import NavIcon from '$lib/components/NavIcon.svelte';
+	import { initTheme } from '$lib/theme.svelte';
 	import type { UserProfile } from '$lib/schema';
 	import { ensureUserProfile } from '$lib/services/user.service';
 	import { isPlatformAdminEmail } from '$lib/admin';
@@ -47,28 +49,28 @@
 				{
 					label: 'Create event',
 					href: createEventHref,
-					icon: '+',
+					icon: 'create',
 					primary: true
 				},
 				{
 					label: 'Explore',
 					href: '/explore',
-					icon: '⌖'
+					icon: 'explore'
 				},
 				{
 					label: 'Organization',
 					href: organizationManageHref,
-					icon: '◆'
+					icon: 'organization'
 				},
 				{
 					label: 'Messages',
 					href: '/messages',
-					icon: '✉'
+					icon: 'messages'
 				},
 				{
 					label: 'Public page',
 					href: organizationPublicHref,
-					icon: '✓'
+					icon: 'public'
 				}
 			];
 		} else {
@@ -76,28 +78,28 @@
 				{
 					label: 'Create event',
 					href: '/events/create',
-					icon: '+',
+					icon: 'create',
 					primary: true
 				},
 				{
 					label: 'Explore',
 					href: '/explore',
-					icon: '⌖'
+					icon: 'explore'
 				},
 				{
 					label: 'Dashboard',
 					href: '/dashboard',
-					icon: '◷'
+					icon: 'dashboard'
 				},
 				{
 					label: 'Messages',
 					href: '/messages',
-					icon: '✉'
+					icon: 'messages'
 				},
 				{
 					label: 'Profile',
 					href: '/profile',
-					icon: '☻'
+					icon: 'profile'
 				}
 			];
 		}
@@ -106,7 +108,7 @@
 			items.push({
 				label: 'Admin',
 				href: '/admin',
-				icon: 'A'
+				icon: 'admin'
 			});
 		}
 
@@ -141,11 +143,17 @@
 	}
 
 	function shouldHideNavigation() {
+		const focusedPage =
+			/^\/messages\/[^/]+$/.test(pathname) ||
+			pathname === '/events/create' ||
+			/^\/organizations\/[^/]+\/(events|tournaments)\/create$/.test(pathname);
+
 		return (
 			pathname === '/' ||
 			pathname === '/login' ||
 			pathname.startsWith('/register') ||
-			pathname === '/discover'
+			pathname === '/discover' ||
+			focusedPage
 		);
 	}
 
@@ -170,6 +178,8 @@
 	});
 
 	onMount(() => {
+		initTheme();
+
 		const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
 			profile = null;
 			isPlatformAdmin = isPlatformAdminEmail(user?.email);
@@ -200,7 +210,9 @@
 </script>
 
 {#if shouldHideNavigation()}
-	{@render children()}
+	<div class="min-h-[100dvh] bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
+		{@render children()}
+	</div>
 {:else}
 	<div class="min-h-screen bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
 		<div class="flex min-h-screen min-w-0 overflow-x-clip">
@@ -238,22 +250,7 @@
 									item.primary ? 'h-7 w-7 text-blue-700 dark:text-blue-200' : 'h-7 w-7 text-lg'
 								}`}
 							>
-								{#if item.primary}
-									<svg
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="2.6"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										class="h-5 w-5"
-									>
-										<path d="M12 5v14" />
-										<path d="M5 12h14" />
-									</svg>
-								{:else}
-									{item.icon}
-								{/if}
+								<NavIcon name={item.icon} />
 							</span>
 
 							<span>{item.label}</span>
@@ -297,22 +294,7 @@
 										: 'text-slate-400 dark:text-slate-500'
 							}`}
 						>
-							{#if item.primary}
-								<svg
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2.6"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									class="h-5 w-5"
-								>
-									<path d="M12 5v14" />
-									<path d="M5 12h14" />
-								</svg>
-							{:else}
-								{item.icon}
-							{/if}
+							<NavIcon name={item.icon} />
 
 							{#if item.href === '/messages' && notificationState.total > 0}
 								<span
@@ -324,6 +306,7 @@
 						</span>
 
 						<span
+							class:hidden={item.primary}
 							class={`text-[11px] font-medium ${
 								item.primary
 									? isActive(item.href)
@@ -340,11 +323,5 @@
 				{/each}
 			</div>
 		</nav>
-
-		<div
-			class="fixed right-4 bottom-28 z-[90] rounded-2xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900 md:hidden"
-		>
-			<ThemeToggle />
-		</div>
 	</div>
 {/if}
