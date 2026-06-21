@@ -1,13 +1,8 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import ExploreMap from '$lib/components/maps/ExploreMap.svelte';
+	import { getPublicEvents } from '$lib/services/explore.service';
 	import type { Sport, SportEvent, SportLevel } from '$lib/schema';
-
-	type PreviewEvent = Omit<SportEvent, 'startAt' | 'createdAt' | 'updatedAt'> & {
-		startAt: null;
-		createdAt: null;
-		updatedAt: null;
-		displayDate: string;
-	};
 
 	const sportIcons: Record<Sport, string> = {
 		football: '⚽',
@@ -28,137 +23,40 @@
 		advanced: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300'
 	};
 
-	const DUMMY_EVENTS: PreviewEvent[] = [
-		{
-			id: 'demo-football-1',
-			title: '5-a-side Football',
-			sport: 'football',
-			level: 'casual',
-			creatorId: 'demo',
-			description: 'Casual 5-a-side at the Jamor fields. Boots required.',
-			location: {
-				name: 'Centro Desportivo Nacional do Jamor',
-				address: 'Cruz Quebrada, Oeiras',
-				lat: 38.7051,
-				lng: -9.2375
-			},
-			maxParticipants: 10,
-			participantIds: ['a', 'b', 'c', 'd', 'e', 'f'],
-			visibility: 'public',
-			status: 'open',
-			displayDate: 'Tomorrow, 6:00 PM',
-			startAt: null,
-			createdAt: null,
-			updatedAt: null
-		},
-		{
-			id: 'demo-running-1',
-			title: 'Morning Park Run',
-			sport: 'running',
-			level: 'beginner',
-			creatorId: 'demo',
-			description: 'Easy 5 km loop around Parque das Nações. All paces welcome.',
-			location: {
-				name: 'Parque das Nações',
-				address: 'Parque das Nações, Lisboa',
-				lat: 38.7639,
-				lng: -9.0966
-			},
-			maxParticipants: 20,
-			participantIds: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'],
-			visibility: 'public',
-			status: 'open',
-			displayDate: 'Saturday, 8:30 AM',
-			startAt: null,
-			createdAt: null,
-			updatedAt: null
-		},
-		{
-			id: 'demo-tennis-1',
-			title: 'Mixed Doubles Tennis',
-			sport: 'tennis',
-			level: 'intermediate',
-			creatorId: 'demo',
-			description: 'Looking for a doubles partner for a friendly match at the Estoril club.',
-			location: {
-				name: 'Clube de Ténis do Estoril',
-				address: 'Estoril, Cascais',
-				lat: 38.7023,
-				lng: -9.3913
-			},
-			maxParticipants: 4,
-			participantIds: ['a', 'b'],
-			visibility: 'public',
-			status: 'open',
-			displayDate: 'Sunday, 10:00 AM',
-			startAt: null,
-			createdAt: null,
-			updatedAt: null
-		},
-		{
-			id: 'demo-volleyball-1',
-			title: 'Beach Volleyball',
-			sport: 'volleyball',
-			level: 'casual',
-			creatorId: 'demo',
-			description: 'Beach volleyball at Carcavelos. Bring sunscreen and a good attitude!',
-			location: {
-				name: 'Praia de Carcavelos',
-				address: 'Carcavelos, Cascais',
-				lat: 38.6878,
-				lng: -9.334
-			},
-			maxParticipants: 12,
-			participantIds: ['a', 'b', 'c', 'd', 'e'],
-			visibility: 'public',
-			status: 'open',
-			displayDate: 'Saturday, 3:00 PM',
-			startAt: null,
-			createdAt: null,
-			updatedAt: null
-		},
-		{
-			id: 'demo-padel-1',
-			title: 'Padel Doubles',
-			sport: 'padel',
-			level: 'intermediate',
-			creatorId: 'demo',
-			description: 'Friendly padel doubles. Need two more players to complete the court.',
-			location: { name: 'Padel Oeiras', address: 'Oeiras, Lisboa', lat: 38.697, lng: -9.3115 },
-			maxParticipants: 4,
-			participantIds: ['a', 'b'],
-			visibility: 'public',
-			status: 'open',
-			displayDate: 'Friday, 7:00 PM',
-			startAt: null,
-			createdAt: null,
-			updatedAt: null
-		},
-		{
-			id: 'demo-basketball-1',
-			title: '3-on-3 Basketball',
-			sport: 'basketball',
-			level: 'casual',
-			creatorId: 'demo',
-			description: 'Pick-up 3v3 at Parque Eduardo VII outdoor courts.',
-			location: {
-				name: 'Parque Eduardo VII',
-				address: 'Marquês de Pombal, Lisboa',
-				lat: 38.7264,
-				lng: -9.1503
-			},
-			maxParticipants: 6,
-			participantIds: ['a', 'b', 'c', 'd'],
-			visibility: 'public',
-			status: 'open',
-			displayDate: 'Wednesday, 5:30 PM',
-			startAt: null,
-			createdAt: null,
-			updatedAt: null
-		}
-	];
+	let events = $state<SportEvent[]>([]);
+	let loading = $state(true);
+	let loadError = $state('');
+	let filteredCount = $state(0);
 
-	let filteredCount = $state(DUMMY_EVENTS.length);
+	function formatDate(startAt: unknown): string {
+		try {
+			const ts = startAt as { toDate?: () => Date };
+			if (ts?.toDate) {
+				return ts.toDate().toLocaleString('en-GB', {
+					weekday: 'short',
+					day: '2-digit',
+					month: 'short',
+					hour: '2-digit',
+					minute: '2-digit'
+				});
+			}
+		} catch {
+			// fall through
+		}
+		return 'Date TBD';
+	}
+
+	onMount(async () => {
+		try {
+			events = await getPublicEvents();
+			filteredCount = events.length;
+		} catch (err) {
+			console.error('Discover events error:', err);
+			loadError = err instanceof Error ? err.message : 'Could not load events.';
+		} finally {
+			loading = false;
+		}
+	});
 </script>
 
 <div class="min-h-screen bg-white dark:bg-slate-950">
@@ -240,106 +138,139 @@
 
 	<!-- Map -->
 	<div class="mx-auto max-w-6xl px-5">
-		<ExploreMap
-			events={DUMMY_EVENTS as unknown as SportEvent[]}
-			onFilteredCountChange={(n) => (filteredCount = n)}
-			getEventHref={() => '/register'}
-		/>
-
-		<p class="mt-3 text-sm text-slate-400 dark:text-slate-500">
-			Showing {filteredCount} of {DUMMY_EVENTS.length} events ·
-			<a href="/register" class="font-semibold text-blue-600 hover:underline dark:text-blue-400"
-				>Sign up to create and join events</a
+		{#if loading}
+			<div
+				class="flex h-96 items-center justify-center rounded-3xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900"
 			>
-		</p>
+				<p class="text-slate-400 dark:text-slate-500">Loading events...</p>
+			</div>
+		{:else if loadError}
+			<div
+				class="flex h-48 items-center justify-center rounded-3xl border border-red-200 bg-red-50 p-6 text-center text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
+			>
+				{loadError}
+			</div>
+		{:else}
+			<ExploreMap
+				{events}
+				onFilteredCountChange={(n) => (filteredCount = n)}
+				getEventHref={() => '/register'}
+			/>
+
+			<p class="mt-3 text-sm text-slate-400 dark:text-slate-500">
+				Showing {filteredCount} of {events.length} events ·
+				<a
+					href="/register"
+					class="font-semibold text-blue-600 hover:underline dark:text-blue-400"
+				>Sign up to create and join events</a>
+			</p>
+		{/if}
 	</div>
 
 	<!-- Popular events -->
 	<div class="mx-auto max-w-6xl px-5 pb-8 pt-12">
 		<h2 class="text-2xl font-black text-slate-900 dark:text-white">Popular events</h2>
-		<p class="mt-1 text-sm text-slate-500 dark:text-slate-400"></p>
+		<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Open events happening soon.</p>
 
-		<div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-			{#each DUMMY_EVENTS as event (event.id)}
-				<div
-					class="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
-				>
-					<div class="flex items-start justify-between gap-3">
-						<span class="text-2xl">{sportIcons[event.sport]}</span>
-						<span
-							class={`rounded-full px-3 py-1 text-xs font-bold capitalize ${levelColors[event.level ?? 'casual']}`}
-						>
-							{event.level ?? 'casual'}
-						</span>
-					</div>
-
-					<h3 class="mt-3 font-bold text-slate-900 dark:text-white">{event.title}</h3>
-
-					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400 line-clamp-2">
-						{event.description}
-					</p>
-
-					<div class="mt-4 space-y-2 text-sm text-slate-600 dark:text-slate-400">
-						<div class="flex items-center gap-2">
-							<svg
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="2"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								class="h-4 w-4 shrink-0 text-slate-400"
-							>
-								<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-								<circle cx="12" cy="10" r="3" />
-							</svg>
-							<span class="truncate">{event.location.name}</span>
-						</div>
-
-						<div class="flex items-center gap-2">
-							<svg
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="2"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								class="h-4 w-4 shrink-0 text-slate-400"
-							>
-								<circle cx="12" cy="12" r="10" />
-								<polyline points="12 6 12 12 16 14" />
-							</svg>
-							<span>{event.displayDate}</span>
-						</div>
-
-						<div class="flex items-center gap-2">
-							<svg
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="2"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								class="h-4 w-4 shrink-0 text-slate-400"
-							>
-								<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-								<circle cx="9" cy="7" r="4" />
-								<path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-								<path d="M16 3.13a4 4 0 0 1 0 7.75" />
-							</svg>
-							<span>{event.participantIds.length}/{event.maxParticipants} players</span>
-						</div>
-					</div>
-
-					<a
-						href="/register"
-						class="mt-5 block rounded-xl bg-slate-100 px-4 py-2.5 text-center text-sm font-bold text-slate-700 transition hover:bg-blue-600 hover:text-white dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-blue-600 dark:hover:text-white"
+		{#if loading}
+			<div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+				{#each { length: 6 } as _, i (i)}
+					<div
+						class="h-52 animate-pulse rounded-2xl border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-800"
+					></div>
+				{/each}
+			</div>
+		{:else if events.length === 0}
+			<div
+				class="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
+			>
+				No public events right now. Be the first to create one!
+			</div>
+		{:else}
+			<div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+				{#each events.slice(0, 9) as event (event.id)}
+					<div
+						class="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
 					>
-						Join event
-					</a>
-				</div>
-			{/each}
-		</div>
+						<div class="flex items-start justify-between gap-3">
+							<span class="text-2xl">{sportIcons[event.sport] ?? '🏅'}</span>
+							<span
+								class={`rounded-full px-3 py-1 text-xs font-bold capitalize ${levelColors[event.level ?? 'casual']}`}
+							>
+								{event.level ?? 'casual'}
+							</span>
+						</div>
+
+						<h3 class="mt-3 font-bold text-slate-900 dark:text-white">{event.title}</h3>
+
+						{#if event.description}
+							<p class="mt-1 line-clamp-2 text-sm text-slate-500 dark:text-slate-400">
+								{event.description}
+							</p>
+						{/if}
+
+						<div class="mt-4 space-y-2 text-sm text-slate-600 dark:text-slate-400">
+							<div class="flex items-center gap-2">
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									class="h-4 w-4 shrink-0 text-slate-400"
+								>
+									<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+									<circle cx="12" cy="10" r="3" />
+								</svg>
+								<span class="truncate">{event.location.name}</span>
+							</div>
+
+							<div class="flex items-center gap-2">
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									class="h-4 w-4 shrink-0 text-slate-400"
+								>
+									<circle cx="12" cy="12" r="10" />
+									<polyline points="12 6 12 12 16 14" />
+								</svg>
+								<span>{formatDate(event.startAt)}</span>
+							</div>
+
+							<div class="flex items-center gap-2">
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									class="h-4 w-4 shrink-0 text-slate-400"
+								>
+									<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+									<circle cx="9" cy="7" r="4" />
+									<path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+									<path d="M16 3.13a4 4 0 0 1 0 7.75" />
+								</svg>
+								<span>{event.participantIds.length}/{event.maxParticipants} players</span>
+							</div>
+						</div>
+
+						<a
+							href="/register"
+							class="mt-5 block rounded-xl bg-slate-100 px-4 py-2.5 text-center text-sm font-bold text-slate-700 transition hover:bg-blue-600 hover:text-white dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-blue-600 dark:hover:text-white"
+						>
+							Sign up to join
+						</a>
+					</div>
+				{/each}
+			</div>
+		{/if}
 	</div>
 
 	<!-- CTA banner -->

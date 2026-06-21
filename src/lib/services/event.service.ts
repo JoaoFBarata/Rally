@@ -443,6 +443,65 @@ export async function createSportEvent(params: {
 	return createdEvent;
 }
 
+export async function updateSportEvent(params: {
+	eventId: string;
+	userId: string;
+	title: string;
+	description?: string;
+	sport: Sport;
+	customSport?: string;
+	level?: SportLevel;
+	locationName: string;
+	address?: string;
+	lat?: number | null;
+	lng?: number | null;
+	startAt: Date;
+	maxParticipants: number;
+	visibility: EventVisibility;
+	priceTotal?: number | null;
+}): Promise<void> {
+	const event = await getEventById(params.eventId);
+
+	if (!event) throw new Error('Event not found.');
+	if (event.creatorId !== params.userId) throw new Error('Only the creator can edit this event.');
+
+	const status = getEffectiveEventStatus(event);
+	if (status === 'cancelled') throw new Error('Cancelled events cannot be edited.');
+	if (status === 'finished') throw new Error('Finished events cannot be edited.');
+
+	if (params.maxParticipants < event.participantIds.length) {
+		throw new Error(
+			`Max participants cannot be less than the current number of participants (${event.participantIds.length}).`
+		);
+	}
+
+	const pricePerPerson =
+		params.priceTotal && params.maxParticipants > 0
+			? params.priceTotal / params.maxParticipants
+			: null;
+
+	await updateDoc(doc(db, 'events', params.eventId), {
+		title: params.title,
+		description: params.description ?? '',
+		sport: params.sport,
+		customSport: params.sport === 'other' ? (params.customSport ?? '') : null,
+		level: params.level ?? 'casual',
+		location: {
+			name: params.locationName,
+			address: params.address ?? '',
+			lat: params.lat ?? null,
+			lng: params.lng ?? null
+		},
+		startAt: Timestamp.fromDate(params.startAt),
+		maxParticipants: params.maxParticipants,
+		visibility: params.visibility,
+		priceTotal: params.priceTotal ?? null,
+		pricePerPerson,
+		paymentMode: params.priceTotal ? 'split' : ('none' satisfies EventPaymentMode),
+		updatedAt: serverTimestamp()
+	});
+}
+
 export async function getEventById(eventId: string) {
 	const eventRef = doc(db, 'events', eventId);
 	const snap = await getDoc(eventRef);

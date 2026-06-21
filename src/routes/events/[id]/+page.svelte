@@ -1202,6 +1202,15 @@
 							Invite people
 						</a>
 					{/if}
+
+					{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
+						<a
+							href={resolve(`/events/${event.id}/edit`)}
+							class="mt-3 block rounded-2xl border border-slate-200 bg-white px-5 py-3 text-center font-bold text-slate-700 transition hover:border-blue-200 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-500 dark:hover:text-blue-400"
+						>
+							Edit event
+						</a>
+					{/if}
 				</div>
 			{/if}
 
