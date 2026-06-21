@@ -261,42 +261,6 @@
 					</a>
 				</div>
 			</div>
-
-			<!-- Demo event card -->
-			<div
-				class="absolute bottom-10 right-8 hidden w-60 overflow-hidden rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md sm:block"
-			>
-				<div
-					class="flex h-28 items-center justify-center bg-gradient-to-br from-blue-500 to-blue-700"
-				>
-					<span class="text-5xl" aria-hidden="true">⚽</span>
-				</div>
-				<div class="p-4">
-					<p class="text-sm font-bold leading-snug text-white">
-						5 on 5 Football · Campo Pequeno · Tomorrow 6PM
-					</p>
-					<a
-						href="/discover"
-						class="mt-3 inline-flex items-center gap-2 rounded-full border border-white/30 px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-white transition hover:bg-white/10"
-					>
-						Explore event
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							width="11"
-							height="11"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2.5"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							aria-hidden="true"
-						>
-							<path d="M7 17L17 7" /><path d="M7 7h10v10" />
-						</svg>
-					</a>
-				</div>
-			</div>
 		</div>
 	</section>
 

@@ -161,8 +161,94 @@
 </script>
 
 {#if loading}
-	<div class="flex min-h-[70vh] items-center justify-center">
-		<p class="text-slate-400 dark:text-slate-500">Loading...</p>
+	<div class="mx-auto max-w-6xl animate-pulse px-4 py-5 sm:px-5 sm:py-8">
+		<!-- Header -->
+		<div class="mb-7 flex items-start justify-between">
+			<div>
+				<div class="h-3 w-20 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+				<div class="mt-2 h-7 w-44 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+				<div class="mt-3 flex gap-4">
+					<div class="h-3 w-24 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+					<div class="h-3 w-16 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+				</div>
+			</div>
+			<div class="flex items-center gap-3">
+				<div class="h-10 w-32 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+				<div class="h-10 w-10 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+			</div>
+		</div>
+
+		<div class="grid gap-6 lg:grid-cols-[1fr_300px]">
+			<!-- Left column -->
+			<div class="space-y-5">
+				<!-- Next up card -->
+				<div class="rounded-3xl bg-blue-50 p-6 dark:bg-blue-950/20">
+					<div class="h-3 w-16 rounded-full bg-blue-100 dark:bg-blue-900/50"></div>
+					<div class="mt-3 h-6 w-2/3 rounded-full bg-blue-100 dark:bg-blue-900/50"></div>
+					<div class="mt-3 flex gap-5">
+						<div class="h-3 w-28 rounded-full bg-blue-100 dark:bg-blue-900/50"></div>
+						<div class="h-3 w-24 rounded-full bg-blue-100 dark:bg-blue-900/50"></div>
+					</div>
+					<div class="mt-4 flex items-center gap-3">
+						<div class="h-1.5 flex-1 rounded-full bg-blue-100 dark:bg-blue-900/50"></div>
+						<div class="h-3 w-20 shrink-0 rounded-full bg-blue-100 dark:bg-blue-900/50"></div>
+					</div>
+				</div>
+
+				<!-- Sponsored section -->
+				<div class="rounded-3xl border border-slate-200 p-5 dark:border-slate-800">
+					<div class="mb-4 flex items-end justify-between">
+						<div class="space-y-2">
+							<div class="h-3 w-20 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+							<div class="h-5 w-48 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+						</div>
+						<div class="h-3 w-14 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+					</div>
+					<div class="h-28 rounded-2xl bg-slate-100 dark:bg-slate-800"></div>
+				</div>
+
+				<!-- Tabs + event card skeletons -->
+				<div>
+					<div class="mb-4 flex gap-6 border-b border-slate-200 pb-3 dark:border-slate-800">
+						<div class="h-4 w-16 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+						<div class="h-4 w-14 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+					</div>
+					<div class="space-y-3">
+						{#each [0, 1, 2] as _}
+							<div class="rounded-4xl border border-slate-200 p-5 dark:border-slate-800">
+								<div class="flex items-start justify-between gap-4">
+									<div class="min-w-0 flex-1 space-y-2.5">
+										<div class="h-3 w-12 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+										<div class="h-5 w-3/4 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+										<div class="h-3 w-40 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+										<div class="h-3 w-32 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+									</div>
+									<div class="h-14 w-14 shrink-0 rounded-2xl bg-slate-100 dark:bg-slate-800"></div>
+								</div>
+								<div class="mt-4">
+									<div class="h-6 w-20 rounded-full bg-slate-100 dark:bg-slate-800"></div>
+								</div>
+							</div>
+						{/each}
+					</div>
+				</div>
+			</div>
+
+			<!-- Right sidebar -->
+			<div class="space-y-4">
+				<div class="overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-800">
+					<div class="flex justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+						<div class="h-3 w-16 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+						<div class="h-3 w-12 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+					</div>
+					<div class="h-44 bg-slate-100 dark:bg-slate-800"></div>
+				</div>
+				<div class="grid grid-cols-2 gap-2">
+					<div class="h-20 rounded-2xl border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-800"></div>
+					<div class="h-20 rounded-2xl border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-800"></div>
+				</div>
+			</div>
+		</div>
 	</div>
 {:else}
 	<div class="mx-auto max-w-6xl px-4 py-5 sm:px-5 sm:py-8">

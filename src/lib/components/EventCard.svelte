@@ -122,8 +122,16 @@
 <a
 	href={`/events/${event.id}`}
 	onclick={handleClick}
-	class={`block rounded-4xl border p-5 shadow-lg transition ${getCardClasses()}`}
+	class={`block overflow-hidden rounded-4xl border shadow-lg transition ${getCardClasses()}`}
 >
+	{#if event.groupPhotoURL}
+		<img
+			src={event.groupPhotoURL}
+			alt={event.title}
+			class="h-40 w-full object-cover"
+		/>
+	{/if}
+	<div class="p-5">
 	{#if showPromotion}
 		<div class="mb-4 flex items-center justify-between gap-3">
 			<span
@@ -228,5 +236,6 @@
 				€{event.pricePerPerson.toFixed(2)} / person
 			</span>
 		{/if}
+	</div>
 	</div>
 </a>

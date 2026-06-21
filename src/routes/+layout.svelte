@@ -28,8 +28,8 @@
 </script>
 
 {#if authState.loading}
-	<div class="flex min-h-screen items-center justify-center bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
-		A carregar...
+	<div class="flex min-h-screen items-center justify-center bg-white dark:bg-slate-950">
+		<div class="h-10 w-10 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600 dark:border-slate-800 dark:border-t-blue-400"></div>
 	</div>
 {:else}
 	<AppShell>
