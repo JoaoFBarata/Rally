@@ -213,17 +213,11 @@
 	</div>
 
 	<div class="mt-4 flex flex-wrap items-center justify-between gap-2">
-		<div class="flex flex-wrap items-center gap-2">
-			<span class={`rounded-full px-3 py-1 text-xs font-bold ${getStatusClasses()}`}>
-				{getStatusLabel()}
-			</span>
-
-			<span
-				class="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold capitalize text-slate-900 dark:bg-slate-800 dark:text-slate-300"
-			>
-				{event.level ?? 'casual'}
-			</span>
-		</div>
+		<span
+			class="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold capitalize text-slate-900 dark:bg-slate-800 dark:text-slate-300"
+		>
+			{event.level ?? 'casual'}
+		</span>
 
 		{#if event.pricePerPerson}
 			<span class="text-sm font-medium text-slate-600 dark:text-slate-300">

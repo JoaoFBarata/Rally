@@ -147,6 +147,24 @@ export function getEventStartAtMillis(event: SportEvent) {
 	return 0;
 }
 
+function formatEventDate(startAt: unknown): string {
+	try {
+		const ts = startAt as { toDate?: () => Date };
+		if (ts?.toDate) {
+			return ts.toDate().toLocaleString('en-GB', {
+				weekday: 'short',
+				day: '2-digit',
+				month: 'short',
+				hour: '2-digit',
+				minute: '2-digit'
+			});
+		}
+	} catch {
+		// fall through
+	}
+	return '';
+}
+
 export function isEventFinished(event: SportEvent) {
 	if (event.status === 'finished') return true;
 	if (event.status === 'cancelled') return false;
@@ -607,6 +625,11 @@ export async function joinEvent(eventId: string, userId: string) {
 		participantIds: newParticipantIds,
 		status: newStatus
 	});
+
+	void sendRallySystemMessage(
+		userId,
+		`You joined "${event.title}" on ${formatEventDate(event.startAt)} at ${event.location.name}.`
+	).catch((err) => console.error('Join notification error:', err));
 }
 
 export async function leaveEvent(eventId: string, userId: string) {
@@ -644,6 +667,11 @@ export async function leaveEvent(eventId: string, userId: string) {
 		participantIds: newParticipantIds,
 		status: newStatus
 	});
+
+	void sendRallySystemMessage(
+		userId,
+		`You left "${event.title}".`
+	).catch((err) => console.error('Leave notification error:', err));
 }
 
 export async function cancelEvent(eventId: string, userId: string) {
@@ -709,6 +737,11 @@ export async function removeParticipantFromEvent(params: {
 		participantIds: newParticipantIds,
 		status: newStatus
 	});
+
+	void sendRallySystemMessage(
+		params.participantId,
+		`You were removed from "${event.title}" by the host.`
+	).catch((err) => console.error('Remove participant notification error:', err));
 }
 
 export async function updateEventGroupPhoto(params: {
