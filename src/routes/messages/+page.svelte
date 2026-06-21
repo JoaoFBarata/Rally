@@ -4,7 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { auth } from '$lib/firebase';
 	import { listenInvitesForUser, respondToInvite } from '$lib/services/invite.service';
-	import { getEventById } from '$lib/services/event.service';
+	import { getEventById, getEffectiveEventStatus } from '$lib/services/event.service';
 	import RallyWordmark from '$lib/components/RallyWordmark.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import {
@@ -46,12 +46,17 @@
 		displayPhotoURL: string | null;
 		displayHref: string;
 		isOrganizationChat: boolean;
+		isFinishedEvent: boolean;
 	};
 
 	let invites = $state<InviteWithEvent[]>([]);
 	let friendRequests = $state<FriendRequestWithProfile[]>([]);
 	let conversations = $state<ConversationWithProfile[]>([]);
 	let friends = $state<UserProfile[]>([]);
+	let showFinishedChats = $state(false);
+
+	let activeConversations = $derived(conversations.filter((c) => !c.isFinishedEvent));
+	let finishedEventConversations = $derived(conversations.filter((c) => c.isFinishedEvent));
 
 	let loading = $state(true);
 	let actionLoading = $state('');
@@ -210,11 +215,38 @@
 			})
 		);
 
-		conversations = conversationsWithProfiles.sort((a, b) => {
-			if (a.type === 'rally_system') return -1;
-			if (b.type === 'rally_system') return 1;
-			return b.lastInteractionAtMs - a.lastInteractionAtMs;
-		});
+		const eventIds = [
+			...new Set(
+				conversationsWithProfiles
+					.filter((c) => (c.type === 'group' || c.type === 'tournament_team') && c.eventId)
+					.map((c) => c.eventId!)
+			)
+		];
+
+		const fetchedEvents = await Promise.all(eventIds.map((id) => getEventById(id)));
+		const eventStatusMap = new Map<string, boolean>();
+		for (let i = 0; i < eventIds.length; i++) {
+			const ev = fetchedEvents[i];
+			if (ev) {
+				const status = getEffectiveEventStatus(ev);
+				eventStatusMap.set(eventIds[i], status === 'finished' || status === 'cancelled');
+			}
+		}
+
+		conversations = conversationsWithProfiles
+			.map((c) => ({
+				...c,
+				isFinishedEvent:
+					(c.type === 'group' || c.type === 'tournament_team') && c.eventId
+						? (eventStatusMap.get(c.eventId) ?? false)
+						: false
+			}))
+			.sort((a, b) => {
+				if (a.type === 'rally_system') return -1;
+				if (b.type === 'rally_system') return 1;
+				if (a.isFinishedEvent !== b.isFinishedEvent) return a.isFinishedEvent ? 1 : -1;
+				return b.lastInteractionAtMs - a.lastInteractionAtMs;
+			});
 	}
 
 	async function updateInvitesWithEvents(userInvites: EventInvite[]) {
@@ -592,7 +624,7 @@
 					</p>
 				{:else}
 					<div class="divide-y divide-slate-100 dark:divide-slate-800">
-						{#each conversations as conversation (conversation.id)}
+						{#each activeConversations as conversation (conversation.id)}
 							<button
 								type="button"
 								onclick={() => openConversation(conversation.id)}
@@ -649,6 +681,74 @@
 								{/if}
 							</button>
 						{/each}
+
+						{#if finishedEventConversations.length > 0}
+							<button
+								type="button"
+								onclick={() => (showFinishedChats = !showFinishedChats)}
+								class="flex w-full items-center gap-2 py-3 text-left"
+							>
+								<span class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
+									Finished events
+								</span>
+								<span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+									{finishedEventConversations.length}
+								</span>
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2.5"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									class="ml-auto h-4 w-4 text-slate-400 transition-transform duration-200 dark:text-slate-500 {showFinishedChats ? 'rotate-180' : ''}"
+									aria-hidden="true"
+								>
+									<path d="M6 9l6 6 6-6" />
+								</svg>
+							</button>
+
+							{#if showFinishedChats}
+								{#each finishedEventConversations as conversation (conversation.id)}
+									<button
+										type="button"
+										onclick={() => openConversation(conversation.id)}
+										class="flex w-full items-center gap-3 rounded-3xl p-3 text-left opacity-60 transition hover:bg-slate-100 hover:opacity-100 dark:hover:bg-slate-800"
+									>
+										<div
+											class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 text-base font-black"
+										>
+											{#if conversation.displayPhotoURL}
+												<img
+													src={conversation.displayPhotoURL}
+													alt={conversation.displayName}
+													class="h-full w-full object-cover grayscale"
+												/>
+											{:else}
+												{conversation.displayName.charAt(0).toUpperCase()}
+											{/if}
+										</div>
+
+										<div class="min-w-0 flex-1">
+											<p class="truncate font-black text-slate-950 dark:text-slate-50">
+												{conversation.displayName}
+											</p>
+											<p class="truncate text-xs text-slate-500 dark:text-slate-400">
+												{conversation.lastMessage ?? conversation.displaySubtitle}
+											</p>
+										</div>
+
+										{#if conversation.unreadCount > 0}
+											<span
+												class="flex min-h-6 min-w-6 items-center justify-center rounded-full bg-slate-400 px-2 text-xs font-black text-white dark:bg-slate-600"
+											>
+												{formatUnreadCount(conversation.unreadCount)}
+											</span>
+										{/if}
+									</button>
+								{/each}
+							{/if}
+						{/if}
 					</div>
 				{/if}
 			</section>
