@@ -58,6 +58,12 @@
 			return;
 		}
 
+		const startAt = new Date(`${startDate}T${startTime}`);
+		if (isNaN(startAt.getTime()) || startAt <= new Date()) {
+			error = 'The event must be scheduled in the future.';
+			return;
+		}
+
 		if (sport === 'other' && !customSport.trim()) {
 			error = 'No sport added! Please specify to make it easier for others.';
 			return;
@@ -86,7 +92,7 @@
 				lat,
 				lng,
 				address,
-				startAt: new Date(`${startDate}T${startTime}`),
+				startAt,
 				maxParticipants,
 				visibility,
 				priceTotal: priceTotal ?? undefined
@@ -270,6 +276,7 @@
 							id="startDate"
 							type="date"
 							bind:value={startDate}
+							min={new Date().toISOString().split('T')[0]}
 							class="mt-2 w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950 sm:px-4"
 						/>
 					</div>
