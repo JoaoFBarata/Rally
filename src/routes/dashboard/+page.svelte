@@ -89,11 +89,7 @@
 
 		// Auto-detect and notify/mark finished events
 		for (const event of allUserEvents) {
-			if (
-				isEventFinished(event) &&
-				event.status !== 'finished' &&
-				event.status !== 'cancelled'
-			) {
+			if (isEventFinished(event) && event.status !== 'finished' && event.status !== 'cancelled') {
 				void notifyEventFinished(event);
 			}
 		}
@@ -237,15 +233,21 @@
 			<!-- Right sidebar -->
 			<div class="space-y-4">
 				<div class="overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-800">
-					<div class="flex justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+					<div
+						class="flex justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800"
+					>
 						<div class="h-3 w-16 rounded-full bg-slate-200 dark:bg-slate-800"></div>
 						<div class="h-3 w-12 rounded-full bg-slate-200 dark:bg-slate-800"></div>
 					</div>
 					<div class="h-44 bg-slate-100 dark:bg-slate-800"></div>
 				</div>
 				<div class="grid grid-cols-2 gap-2">
-					<div class="h-20 rounded-2xl border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-800"></div>
-					<div class="h-20 rounded-2xl border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-800"></div>
+					<div
+						class="h-20 rounded-2xl border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-800"
+					></div>
+					<div
+						class="h-20 rounded-2xl border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-800"
+					></div>
 				</div>
 			</div>
 		</div>
@@ -474,7 +476,9 @@
 
 				<!-- Your activity -->
 				<div>
-					<div class="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800">
+					<div
+						class="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800"
+					>
 						<div class="flex items-center gap-1">
 							<button
 								type="button"
@@ -545,8 +549,10 @@
 									class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400"
 									aria-hidden="true"
 								>
-									<path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
-									<path d="m9 12 2 2 4-4"/>
+									<path
+										d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"
+									/>
+									<path d="m9 12 2 2 4-4" />
 								</svg>
 								View active events
 							{:else}
@@ -560,8 +566,8 @@
 									class="h-3.5 w-3.5 text-slate-400 dark:text-slate-500"
 									aria-hidden="true"
 								>
-									<circle cx="12" cy="12" r="10"/>
-									<polyline points="12 6 12 12 16 14"/>
+									<circle cx="12" cy="12" r="10" />
+									<polyline points="12 6 12 12 16 14" />
 								</svg>
 								View past events
 							{/if}
@@ -598,7 +604,9 @@
 								class="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900"
 							>
 								<p class="text-sm text-slate-500 dark:text-slate-400">
-									{showPastEvents ? 'No past joined events found.' : "You haven't joined any upcoming events yet."}
+									{showPastEvents
+										? 'No past joined events found.'
+										: "You haven't joined any upcoming events yet."}
 								</p>
 								{#if !showPastEvents}
 									<a
