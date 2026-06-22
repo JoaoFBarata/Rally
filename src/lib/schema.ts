@@ -386,6 +386,8 @@ export interface TournamentMatch {
 	awayScore?: number | null;
 	winnerEntryId?: string | null;
 	winnerName?: string | null;
+	nextMatchId?: string | null;
+	nextMatchSlot?: 'home' | 'away' | null;
 
 	status: 'scheduled' | 'finished';
 

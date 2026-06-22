@@ -15,6 +15,7 @@
 		joinTournamentTeam,
 		removeTournamentEntry,
 		removeTournamentPlayer,
+		syncTournamentBracketProgress,
 		updateTournamentMatchResult,
 		leaveTournament,
 		cancelEvent
@@ -22,6 +23,7 @@
 	import { getUserProfile, getUserProfilesByIds } from '$lib/services/user.service';
 	import { getFriendsForUser } from '$lib/services/social.service';
 	import { inviteUsersToTournamentTeam } from '$lib/services/invite.service';
+	import UserAvatar from '$lib/components/UserAvatar.svelte';
 
 	let { event, currentUserId, canManage } = $props<{
 		event: SportEvent;
@@ -33,6 +35,7 @@
 	let error = $state('');
 	let success = $state('');
 	let actionLoading = $state('');
+	let syncingBracket = false;
 
 	let entries = $state<TournamentEntry[]>([]);
 	let matches = $state<TournamentMatch[]>([]);
@@ -87,6 +90,35 @@
 			.filter((section) => section.matches.length > 0);
 	});
 
+	let preliminarySections = $derived(
+		matchSections.filter((section) => section.stage === 'group' || section.stage === 'league')
+	);
+
+	let eliminationRounds = $derived.by(() => {
+		const eliminationMatches = matches.filter(
+			(match) =>
+				match.stage === 'knockout' || match.stage === 'semi_final' || match.stage === 'final'
+		);
+		const roundNumbers = [...new Set(eliminationMatches.map((match) => match.roundNumber))].sort(
+			(a, b) => a - b
+		);
+
+		return roundNumbers.map((roundNumber) => {
+			const roundMatches = eliminationMatches.filter((match) => match.roundNumber === roundNumber);
+			const stage = roundMatches[0]?.stage ?? 'knockout';
+			return {
+				roundNumber,
+				title:
+					stage === 'final'
+						? 'Final'
+						: stage === 'semi_final'
+							? 'Semi-finals'
+							: `Round ${roundNumber}`,
+				matches: roundMatches
+			};
+		});
+	});
+
 	let groupNames = $derived.by(() => {
 		return [
 			...new Set(
@@ -101,6 +133,19 @@
 
 	let isOrganizationAccount = $derived(currentUserProfile?.accountType === 'organization');
 	let isTournamentHost = $derived(event.creatorId === currentUserId);
+	let championEntry = $derived.by(() => {
+		const markedWinner = entries.find((entry) => entry.status === 'winner');
+		if (markedWinner) return markedWinner;
+		const finalWinnerId = [...matches]
+			.reverse()
+			.find((match) => match.stage === 'final' && match.winnerEntryId)?.winnerEntryId;
+		return entries.find((entry) => entry.id === finalWinnerId) ?? null;
+	});
+	let championProfile = $derived(
+		championEntry
+			? (memberProfiles[championEntry.captainId ?? championEntry.memberIds[0]] ?? null)
+			: null
+	);
 
 	let canRegisterInTournament = $derived(
 		!isOrganizationAccount && !isTournamentHost && isRegistrationOpen && !userEntry && !isFull
@@ -112,6 +157,21 @@
 
 	function getMemberName(userId: string) {
 		return memberProfiles[userId]?.displayName ?? 'Rally player';
+	}
+
+	function getMatchProfile(entryId: string | null | undefined) {
+		if (!entryId) return null;
+		const entry = entries.find((item) => item.id === entryId);
+		if (!entry || entry.type !== 'individual') return null;
+		return memberProfiles[entry.memberIds[0]] ?? null;
+	}
+
+	function isByeMatch(match: TournamentMatch) {
+		return (
+			Boolean(match.homeEntryId) !== Boolean(match.awayEntryId) ||
+			match.homeName.toUpperCase() === 'BYE' ||
+			match.awayName.toUpperCase() === 'BYE'
+		);
 	}
 
 	function formatStage(stage: TournamentMatch['stage']) {
@@ -177,6 +237,15 @@
 		error = '';
 
 		try {
+			if (canManage && currentUserId && !syncingBracket) {
+				syncingBracket = true;
+				try {
+					await syncTournamentBracketProgress({ eventId: event.id, userId: currentUserId });
+				} finally {
+					syncingBracket = false;
+				}
+			}
+
 			const [loadedEntries, loadedMatches] = await Promise.all([
 				getTournamentEntries(event.id),
 				getTournamentMatches(event.id)
@@ -610,8 +679,168 @@
 	});
 </script>
 
+{#snippet matchCard(match: TournamentMatch, roundTitle: string, compact = false)}
+	<div
+		class={`rounded-2xl border shadow-sm transition ${compact ? 'p-2.5 sm:p-3' : 'p-4'} ${
+			match.status === 'finished'
+				? 'border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-950/30'
+				: 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800'
+		}`}
+	>
+		<div class={`flex items-center justify-between ${compact ? 'gap-1.5' : 'gap-3'}`}>
+			<p
+				class={`${compact ? 'text-[9px]' : 'text-[10px]'} font-black uppercase tracking-[0.2em] text-slate-400`}
+			>
+				{match.groupName ? `Group ${match.groupName}` : roundTitle}
+			</p>
+			<p
+				class={`${compact ? 'text-[9px]' : 'text-[10px]'} font-bold text-slate-500 dark:text-slate-400`}
+			>
+				{formatTimestamp(match.scheduledAt)}
+			</p>
+		</div>
+
+		<div
+			class={`${compact ? 'mt-2' : 'mt-3'} overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700`}
+		>
+			<div
+				class={`flex items-center ${compact ? 'min-h-10 gap-1.5 px-2 py-1.5' : 'min-h-12 gap-2 px-3 py-2'} ${
+					match.winnerName === match.homeName && match.status === 'finished'
+						? 'bg-purple-600 text-white'
+						: 'bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-200'
+				}`}
+			>
+				{#if getMatchProfile(match.homeEntryId) && compact}
+					<img
+						src={getMatchProfile(match.homeEntryId)?.photoURL ?? ''}
+						alt={match.homeName}
+						referrerpolicy="no-referrer"
+						class="h-7 w-7 shrink-0 rounded-full bg-slate-100 object-cover dark:bg-slate-800"
+					/>
+				{:else if getMatchProfile(match.homeEntryId)}
+					<UserAvatar
+						photoURL={getMatchProfile(match.homeEntryId)?.photoURL}
+						displayName={match.homeName}
+						size="sm"
+					/>
+				{:else}
+					<span
+						class={`flex shrink-0 items-center justify-center rounded-full bg-slate-100 font-black text-slate-500 dark:bg-slate-800 dark:text-slate-300 ${compact ? 'h-7 w-7 text-[10px]' : 'h-9 w-9 text-xs'}`}
+					>
+						{match.homeName.slice(0, 1).toUpperCase()}
+					</span>
+				{/if}
+				<span class={`min-w-0 flex-1 truncate font-black ${compact ? 'text-xs' : 'text-sm'}`}
+					>{match.homeName}</span
+				>
+				<span class={`${compact ? 'text-base' : 'text-lg'} font-black`}
+					>{scoreValue(match.homeScore) || '–'}</span
+				>
+			</div>
+
+			<div
+				class={`flex items-center border-t border-slate-200 dark:border-slate-700 ${compact ? 'min-h-10 gap-1.5 px-2 py-1.5' : 'min-h-12 gap-2 px-3 py-2'} ${
+					match.winnerName === match.awayName && match.status === 'finished'
+						? 'bg-purple-600 text-white'
+						: 'bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-200'
+				}`}
+			>
+				{#if getMatchProfile(match.awayEntryId) && compact}
+					<img
+						src={getMatchProfile(match.awayEntryId)?.photoURL ?? ''}
+						alt={match.awayName}
+						referrerpolicy="no-referrer"
+						class="h-7 w-7 shrink-0 rounded-full bg-slate-100 object-cover dark:bg-slate-800"
+					/>
+				{:else if getMatchProfile(match.awayEntryId)}
+					<UserAvatar
+						photoURL={getMatchProfile(match.awayEntryId)?.photoURL}
+						displayName={match.awayName}
+						size="sm"
+					/>
+				{:else}
+					<span
+						class={`flex shrink-0 items-center justify-center rounded-full bg-slate-100 font-black text-slate-500 dark:bg-slate-800 dark:text-slate-300 ${compact ? 'h-7 w-7 text-[10px]' : 'h-9 w-9 text-xs'}`}
+					>
+						{match.awayName.slice(0, 1).toUpperCase()}
+					</span>
+				{/if}
+				<span class={`min-w-0 flex-1 truncate font-black ${compact ? 'text-xs' : 'text-sm'}`}
+					>{match.awayName}</span
+				>
+				<span class={`${compact ? 'text-base' : 'text-lg'} font-black`}
+					>{scoreValue(match.awayScore) || '–'}</span
+				>
+			</div>
+		</div>
+
+		{#if match.winnerName}
+			<p class="mt-3 text-xs font-black text-purple-700 dark:text-purple-300">
+				Advanced: {match.winnerName}
+			</p>
+		{/if}
+
+		{#if canManage && isByeMatch(match) && match.status === 'finished'}
+			<div
+				class="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-center text-xs font-black text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+			>
+				Advanced by BYE
+			</div>
+		{:else if canManage}
+			<details class="group mt-3 border-t border-slate-200 pt-3 dark:border-slate-700">
+				<summary
+					class="cursor-pointer list-none rounded-xl bg-slate-100 px-3 py-2 text-center text-xs font-black text-slate-600 transition hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-700"
+				>
+					<span class="group-open:hidden">Edit result</span>
+					<span class="hidden group-open:inline">Close editor</span>
+				</summary>
+				<div class="mt-2 grid gap-2">
+					<input
+						bind:value={matchInputs[match.id].scheduledAt}
+						type="datetime-local"
+						aria-label={`Schedule ${match.homeName} versus ${match.awayName}`}
+						class="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
+					/>
+					<div class="grid grid-cols-2 gap-2">
+						<input
+							bind:value={matchInputs[match.id].homeScore}
+							type="number"
+							min="0"
+							placeholder={match.homeName}
+							aria-label={`${match.homeName} score`}
+							class="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
+						/>
+						<input
+							bind:value={matchInputs[match.id].awayScore}
+							type="number"
+							min="0"
+							placeholder={match.awayName}
+							aria-label={`${match.awayName} score`}
+							class="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
+						/>
+					</div>
+					<button
+						type="button"
+						onclick={() => handleSaveMatch(match)}
+						disabled={actionLoading === `match-${match.id}` ||
+							!match.homeEntryId ||
+							!match.awayEntryId}
+						class="rounded-xl bg-purple-600 px-4 py-2 text-sm font-black text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+					>
+						{!match.homeEntryId || !match.awayEntryId
+							? 'Awaiting participants'
+							: actionLoading === `match-${match.id}`
+								? 'Saving...'
+								: 'Save result'}
+					</button>
+				</div>
+			</details>
+		{/if}
+	</div>
+{/snippet}
+
 <section
-	class="mt-8 rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-7"
+	class="mt-8 w-full min-w-0 max-w-full overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/70 [contain:inline-size] dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-7"
 >
 	<div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
 		<div class="min-w-0">
@@ -1047,7 +1276,7 @@
 			{/if}
 		</div>
 	{:else}
-		<div class="mt-6 space-y-6">
+		<div class="mt-6 min-w-0 max-w-full space-y-6 overflow-hidden">
 			{#if groupNames.length > 0}
 				<div class="grid gap-4 md:grid-cols-2">
 					{#each groupNames as groupName}
@@ -1103,105 +1332,142 @@
 					Matches have not been generated yet.
 				</div>
 			{:else}
-				<div class="grid gap-4 xl:grid-cols-3">
-					{#each matchSections as section}
-						<section class="rounded-2xl bg-white p-5 dark:bg-slate-900">
-							<h3 class="text-lg font-black text-slate-950 dark:text-slate-50">
-								{section.title}
-							</h3>
-
-							<div class="mt-4 space-y-3">
-								{#each section.matches as match (match.id)}
-									<div
-										class={`rounded-2xl border p-4 ${
-											match.status === 'finished'
-												? 'border-purple-200 bg-purple-50 dark:border-purple-900 dark:bg-purple-950/30'
-												: 'border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-800'
-										}`}
+				{#if championEntry}
+					<div
+						class="min-w-0 overflow-hidden rounded-3xl border border-amber-300 bg-gradient-to-br from-amber-50 via-white to-purple-50 p-4 shadow-lg shadow-amber-200/40 dark:border-amber-700 dark:from-amber-950/50 dark:via-slate-900 dark:to-purple-950/40 dark:shadow-none sm:p-6"
+					>
+						<div class="flex min-w-0 flex-col items-center text-center sm:flex-row sm:text-left">
+							<div
+								class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-400 text-white shadow-lg shadow-amber-400/30 sm:h-16 sm:w-16"
+							>
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="1.8"
+									class="h-9 w-9"
+									aria-hidden="true"
+								>
+									<path d="M8 4h8v4a4 4 0 0 1-8 0V4Z" />
+									<path
+										d="M8 6H5v1a4 4 0 0 0 4 4M16 6h3v1a4 4 0 0 1-4 4M12 12v4M8 20h8M9 16h6v4H9z"
+									/>
+								</svg>
+							</div>
+							<div class="mt-4 min-w-0 max-w-full sm:ml-5 sm:mt-0">
+								<p
+									class="text-xs font-black uppercase tracking-[0.25em] text-amber-600 dark:text-amber-400"
+								>
+									Tournament champion
+								</p>
+								<div
+									class="mt-2 flex min-w-0 max-w-full items-center justify-center gap-3 sm:justify-start"
+								>
+									{#if championProfile}
+										<UserAvatar
+											photoURL={championProfile.photoURL}
+											displayName={championProfile.displayName}
+											size="lg"
+										/>
+									{/if}
+									<h3
+										class="min-w-0 break-words text-xl font-black text-slate-950 dark:text-white sm:text-2xl"
 									>
-										<div class="flex items-center justify-between gap-3">
-											<p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
-												{match.groupName ? `Group ${match.groupName}` : section.title}
-											</p>
+										{championEntry.name}
+									</h3>
+								</div>
+							</div>
+						</div>
+					</div>
+				{/if}
 
-											<p class="text-xs font-bold text-slate-500 dark:text-slate-400">
-												{formatTimestamp(match.scheduledAt)}
-											</p>
-										</div>
+				{#if preliminarySections.length > 0}
+					<div class="grid gap-4 lg:grid-cols-2">
+						{#each preliminarySections as section}
+							<section class="rounded-3xl bg-slate-50 p-5 dark:bg-slate-950">
+								<h3 class="text-lg font-black text-slate-950 dark:text-slate-50">
+									{section.title}
+								</h3>
+								<div class="mt-4 grid gap-3 sm:grid-cols-2">
+									{#each section.matches as match (match.id)}
+										{@render matchCard(match, section.title)}
+									{/each}
+								</div>
+							</section>
+						{/each}
+					</div>
+				{/if}
 
-										<div class="mt-3 space-y-2">
-											<div
-												class={`flex items-center justify-between rounded-xl px-3 py-2 ${
-													match.winnerName === match.homeName
-														? 'bg-purple-600 text-white'
-														: 'bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-200'
-												}`}
+				{#if eliminationRounds.length > 0}
+					<section
+						class="w-full min-w-0 max-w-full overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950"
+					>
+						<div class="border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+							<h3 class="text-xl font-black text-slate-950 dark:text-white">
+								Championship bracket
+							</h3>
+							<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">
+								Winners advance from left to right towards the final.
+							</p>
+							<p class="mt-2 text-xs font-black text-purple-600 dark:text-purple-400 sm:hidden">
+								Scroll sideways to see the next rounds.
+							</p>
+						</div>
+						<div class="bracket-scroll max-h-[68dvh] p-2 sm:max-h-[75dvh] sm:p-5">
+							<div class="bracket-track flex items-stretch gap-4 sm:gap-8">
+								{#each eliminationRounds as round, roundIndex}
+									<div class="flex w-52 shrink-0 flex-col sm:w-72">
+										<div class="mb-4 flex items-center justify-between">
+											<h4 class="font-black text-slate-950 dark:text-white">{round.title}</h4>
+											<span
+												class="rounded-full bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:bg-slate-900"
+												>{round.matches.length}
+												{round.matches.length === 1 ? 'match' : 'matches'}</span
 											>
-												<span class="font-black">{match.homeName}</span>
-												<span class="font-black">{scoreValue(match.homeScore)}</span>
-											</div>
-
-											<div
-												class={`flex items-center justify-between rounded-xl px-3 py-2 ${
-													match.winnerName === match.awayName
-														? 'bg-purple-600 text-white'
-														: 'bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-200'
-												}`}
-											>
-												<span class="font-black">{match.awayName}</span>
-												<span class="font-black">{scoreValue(match.awayScore)}</span>
-											</div>
 										</div>
-
-										{#if match.winnerName}
-											<p class="mt-3 text-sm font-black text-purple-700 dark:text-purple-300">
-												Winner: {match.winnerName}
-											</p>
-										{/if}
-
-										{#if canManage}
-											<div class="mt-4 grid gap-2">
-												<input
-													bind:value={matchInputs[match.id].scheduledAt}
-													type="datetime-local"
-													class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
-												/>
-
-												<div class="grid grid-cols-2 gap-2">
-													<input
-														bind:value={matchInputs[match.id].homeScore}
-														type="number"
-														min="0"
-														placeholder="Home"
-														class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
-													/>
-
-													<input
-														bind:value={matchInputs[match.id].awayScore}
-														type="number"
-														min="0"
-														placeholder="Away"
-														class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
-													/>
+										<div class="flex flex-1 flex-col justify-around gap-5">
+											{#each round.matches as match (match.id)}
+												<div class="relative">
+													{@render matchCard(match, round.title, true)}
+													{#if roundIndex < eliminationRounds.length - 1}
+														<span
+															class="absolute left-full top-1/2 h-px w-5 bg-slate-300 dark:bg-slate-700 sm:w-8"
+														></span>
+													{/if}
 												</div>
-
-												<button
-													type="button"
-													onclick={() => handleSaveMatch(match)}
-													disabled={actionLoading === `match-${match.id}`}
-													class="rounded-xl bg-purple-600 px-4 py-2 text-sm font-black text-white transition hover:bg-purple-700 disabled:opacity-60"
-												>
-													{actionLoading === `match-${match.id}` ? 'Saving...' : 'Save result'}
-												</button>
-											</div>
-										{/if}
+											{/each}
+										</div>
 									</div>
 								{/each}
 							</div>
-						</section>
-					{/each}
-				</div>
+						</div>
+					</section>
+				{/if}
 			{/if}
 		</div>
 	{/if}
 </section>
+
+<style>
+	.bracket-scroll {
+		width: 100%;
+		min-width: 0;
+		max-width: 100%;
+		overflow-x: auto;
+		overflow-y: auto;
+		overscroll-behavior: contain;
+		-webkit-overflow-scrolling: touch;
+		touch-action: pan-x pan-y;
+	}
+
+	.bracket-track {
+		width: max-content;
+		min-width: 100%;
+	}
+
+	@media (max-width: 639px) {
+		.bracket-scroll {
+			max-width: calc(100vw - 3rem);
+		}
+	}
+</style>
