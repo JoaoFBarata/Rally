@@ -9,8 +9,9 @@
 		trackEventPromotionView
 	} from '$lib/services/event.service';
 
-	let { event } = $props<{
+	let { event, showImage = true } = $props<{
 		event: SportEvent;
+		showImage?: boolean;
 	}>();
 
 	let showPromotion = $derived(isPromotionActive(event) && event.promotionAudienceMatch !== false);
@@ -124,118 +125,114 @@
 	onclick={handleClick}
 	class={`block overflow-hidden rounded-4xl border shadow-lg transition ${getCardClasses()}`}
 >
-	{#if event.groupPhotoURL}
-		<img
-			src={event.groupPhotoURL}
-			alt={event.title}
-			class="h-40 w-full object-cover"
-		/>
+	{#if showImage && event.groupPhotoURL}
+		<img src={event.groupPhotoURL} alt={event.title} class="h-40 w-full object-cover" />
 	{/if}
 	<div class="p-5">
-	{#if showPromotion}
-		<div class="mb-4 flex items-center justify-between gap-3">
-			<span
-				class="rounded-full bg-blue-600 px-3 py-1 text-xs font-black uppercase tracking-wide text-white dark:bg-blue-500"
-			>
-				Promoted
-			</span>
+		{#if showPromotion}
+			<div class="mb-4 flex items-center justify-between gap-3">
+				<span
+					class="rounded-full bg-blue-600 px-3 py-1 text-xs font-black uppercase tracking-wide text-white dark:bg-blue-500"
+				>
+					Promoted
+				</span>
 
-			<span class="text-xs font-bold text-slate-500 dark:text-slate-400"> Sponsored event </span>
-		</div>
-	{/if}
+				<span class="text-xs font-bold text-slate-500 dark:text-slate-400"> Sponsored event </span>
+			</div>
+		{/if}
 
-	<div class="flex items-start justify-between gap-4">
-		<div class="min-w-0 flex-1">
-			{#if event.hostType === 'organization'}
-				<div class="mb-3 flex min-w-0 items-center gap-2">
-					<div
-						class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-xs font-black text-blue-600 dark:bg-slate-800 dark:text-blue-300"
-					>
-						{#if event.organizationLogoURL}
-							<img
-								src={event.organizationLogoURL}
-								alt={event.organizationName ?? 'Organization'}
-								class="h-full w-full object-cover"
-							/>
-						{:else}
-							{event.organizationName?.charAt(0).toUpperCase() ?? 'O'}
+		<div class="flex items-start justify-between gap-4">
+			<div class="min-w-0 flex-1">
+				{#if event.hostType === 'organization'}
+					<div class="mb-3 flex min-w-0 items-center gap-2">
+						<div
+							class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-xs font-black text-blue-600 dark:bg-slate-800 dark:text-blue-300"
+						>
+							{#if event.organizationLogoURL}
+								<img
+									src={event.organizationLogoURL}
+									alt={event.organizationName ?? 'Organization'}
+									class="h-full w-full object-cover"
+								/>
+							{:else}
+								{event.organizationName?.charAt(0).toUpperCase() ?? 'O'}
+							{/if}
+						</div>
+
+						<p class="truncate text-xs font-black text-slate-500 dark:text-slate-400">
+							Hosted by {event.organizationName ?? 'Organization'}
+						</p>
+
+						{#if event.organizationVerificationStatus === 'verified'}
+							<span
+								class="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+							>
+								Verified
+							</span>
 						{/if}
 					</div>
+				{/if}
 
-					<p class="truncate text-xs font-black text-slate-500 dark:text-slate-400">
-						Hosted by {event.organizationName ?? 'Organization'}
+				<div class="flex flex-wrap items-center gap-2">
+					<p class="text-sm font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400">
+						{event.sport}
 					</p>
 
-					{#if event.organizationVerificationStatus === 'verified'}
+					<span class={`rounded-full px-3 py-1 text-xs font-black ${getStatusClasses()}`}>
+						{getStatusLabel()}
+					</span>
+
+					{#if event.eventKind === 'tournament'}
 						<span
-							class="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+							class="rounded-full bg-purple-50 px-3 py-1 text-xs font-black text-purple-700 dark:bg-purple-950 dark:text-purple-300"
 						>
-							Verified
+							Tournament
+						</span>
+					{/if}
+
+					{#if event.paymentMode === 'official'}
+						<span
+							class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+						>
+							Protected payment
 						</span>
 					{/if}
 				</div>
-			{/if}
 
-			<div class="flex flex-wrap items-center gap-2">
-				<p class="text-sm font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400">
-					{event.sport}
+				<h3 class="mt-2 truncate text-xl font-black text-slate-950 dark:text-slate-50">
+					{event.title}
+				</h3>
+
+				<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
+					📍 {event.location.name}
 				</p>
 
-				<span class={`rounded-full px-3 py-1 text-xs font-black ${getStatusClasses()}`}>
-					{getStatusLabel()}
-				</span>
-
-				{#if event.eventKind === 'tournament'}
-					<span
-						class="rounded-full bg-purple-50 px-3 py-1 text-xs font-black text-purple-700 dark:bg-purple-950 dark:text-purple-300"
-					>
-						Tournament
-					</span>
-				{/if}
-
-				{#if event.paymentMode === 'official'}
-					<span
-						class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-					>
-						Protected payment
-					</span>
-				{/if}
+				<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+					🕒 {formatDate(event.startAt)}
+				</p>
 			</div>
 
-			<h3 class="mt-2 truncate text-xl font-black text-slate-950 dark:text-slate-50">
-				{event.title}
-			</h3>
+			<div class="shrink-0 rounded-2xl bg-blue-50 px-3 py-2 text-center dark:bg-blue-950">
+				<p class="text-sm font-black text-blue-600 dark:text-blue-300">
+					{event.participantIds.length}/{event.maxParticipants}
+				</p>
 
-			<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-				📍 {event.location.name}
-			</p>
-
-			<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-				🕒 {formatDate(event.startAt)}
-			</p>
+				<p class="text-xs font-medium text-slate-500 dark:text-slate-400">players</p>
+			</div>
 		</div>
 
-		<div class="shrink-0 rounded-2xl bg-blue-50 px-3 py-2 text-center dark:bg-blue-950">
-			<p class="text-sm font-black text-blue-600 dark:text-blue-300">
-				{event.participantIds.length}/{event.maxParticipants}
-			</p>
-
-			<p class="text-xs font-medium text-slate-500 dark:text-slate-400">players</p>
-		</div>
-	</div>
-
-	<div class="mt-4 flex flex-wrap items-center justify-between gap-2">
-		<span
-			class="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold capitalize text-slate-900 dark:bg-slate-800 dark:text-slate-300"
-		>
-			{event.level ?? 'casual'}
-		</span>
-
-		{#if event.pricePerPerson}
-			<span class="text-sm font-medium text-slate-600 dark:text-slate-300">
-				€{event.pricePerPerson.toFixed(2)} / person
+		<div class="mt-4 flex flex-wrap items-center justify-between gap-2">
+			<span
+				class="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold capitalize text-slate-900 dark:bg-slate-800 dark:text-slate-300"
+			>
+				{event.level ?? 'casual'}
 			</span>
-		{/if}
-	</div>
+
+			{#if event.pricePerPerson}
+				<span class="text-sm font-medium text-slate-600 dark:text-slate-300">
+					€{event.pricePerPerson.toFixed(2)} / person
+				</span>
+			{/if}
+		</div>
 	</div>
 </a>

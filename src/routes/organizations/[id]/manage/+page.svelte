@@ -875,7 +875,7 @@
 
 				<div class="grid gap-4 lg:grid-cols-2">
 					{#each pastEvents as event (event.id)}
-						<EventCard {event} />
+						<EventCard {event} showImage={false} />
 					{/each}
 				</div>
 			</section>

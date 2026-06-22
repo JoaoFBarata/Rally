@@ -594,7 +594,7 @@
 						{:else}
 							<div class="space-y-3">
 								{#each currentHostingEvents as event (event.id)}
-									<EventCard {event} />
+									<EventCard {event} showImage={!showPastEvents} />
 								{/each}
 							</div>
 						{/if}
@@ -620,7 +620,7 @@
 						{:else}
 							<div class="space-y-3">
 								{#each currentJoinedEvents as event (event.id)}
-									<EventCard {event} />
+									<EventCard {event} showImage={!showPastEvents} />
 								{/each}
 							</div>
 						{/if}
