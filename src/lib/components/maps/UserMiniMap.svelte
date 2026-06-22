@@ -1,6 +1,6 @@
 <!-- src/lib/components/maps/UserMiniMap.svelte -->
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, mount, unmount } from 'svelte';
 	import { themeState } from '$lib/theme.svelte';
 	import { PUBLIC_MAPBOX_ACCESS_TOKEN } from '$env/static/public';
 	import { getVisibleEventsForUser } from '$lib/services/explore.service';
@@ -8,6 +8,7 @@
 	import mapboxgl from 'mapbox-gl';
 	import MapboxWorker from 'mapbox-gl/dist/mapbox-gl-csp-worker?worker';
 	import { getUserProfile } from '$lib/services/user.service';
+	import Marker from './Marker.svelte';
 
 	let { userId = '' }: { userId?: string } = $props();
 
@@ -19,6 +20,7 @@
 	let map: mapboxgl.Map | null = null;
 	let marker: mapboxgl.Marker | null = null;
 	let eventMarkers: mapboxgl.Marker[] = [];
+	let svelteMarkers: any[] = [];
 	let mapReady = $state(false);
 	let userLocation = $state<[number, number] | null>(null); // [lng, lat]
 	let allEvents = $state<SportEvent[]>([]);
@@ -172,6 +174,11 @@
 			m.remove();
 		}
 		eventMarkers = [];
+
+		for (const comp of svelteMarkers) {
+            unmount(comp);
+        }
+        svelteMarkers = [];
 	}
 
 	function renderEventMarkers() {
@@ -182,8 +189,6 @@
 			const coords = getCoords(event);
 			if (!coords) continue;
 
-			const markerColor = event.creatorId === userId ? '#2563eb' : '#dc2626';
-
 			const popup = new mapboxgl.Popup({ offset: 10 }).setHTML(`
 					<div class="p-2 font-sans text-slate-900 min-w-[150px]">
 						<p class="text-xs font-bold uppercase tracking-wider text-blue-600">${event.sport}</p>
@@ -193,34 +198,26 @@
 					</div>
 				`);
 
-			const creator = creatorProfiles[event.creatorId];
-			const photoURL = event.groupPhotoURL || creator?.photoURL;
-			const displayName = creator?.displayName;
-			const sportEmoji = getSportEmoji(event.sport);
+            // Get your photo URL (using your previously commented logic)
+            const creator = creatorProfiles[event.creatorId];
+            const photoURL = event.groupPhotoURL || event.organizationLogoURL || creator?.photoURL || '';
 
-			const el = document.createElement('div');
-			el.className = 'custom-marker';
-			el.style.cursor = 'pointer';
+            // 3. Create a wrapper element for Mapbox
+            const el = document.createElement('div');
+            el.className = 'custom-marker';
+            el.style.cursor = 'pointer';
 
-			let innerHTML = '';
-			if (photoURL) {
-				innerHTML = `<img src="${photoURL}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background-color: #e2e8f0;" referrerpolicy="no-referrer" />`;
-			} else {
-				const initial = (displayName || '?').trim().slice(0, 1).toUpperCase();
-				innerHTML = `<div style="width: 100%; height: 100%; border-radius: 50%; background-color: #dbeafe; color: #2563eb; font-weight: 900; display: flex; align-items: center; justify-content: center; font-size: 13px;">${initial}</div>`;
-			}
-
-			el.innerHTML = `
-				<div style="display: flex; flex-direction: column; align-items: center; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));">
-					<div style="position: relative; width: 32px; height: 32px; border-radius: 50%; background-color: ${markerColor}; display: flex; align-items: center; justify-content: center; padding: 2.5px;">
-						${innerHTML}
-						<div style="position: absolute; top: -4px; right: -4px; width: 15px; height: 15px; border-radius: 50%; background-color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 9px; box-shadow: 0 1px 3px rgba(0,0,0,0.15); border: 0.5px solid #e2e8f0;">
-							${sportEmoji}
-						</div>
-					</div>
-					<div style="width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid ${markerColor}; margin-top: -1px;"></div>
-				</div>
-			`;
+            // 4. Mount the Svelte 5 component to the wrapper element
+            const markerComponent = mount(Marker, {
+                target: el,
+                props: {
+                    profile_url: photoURL,
+					sport: event.sport,
+                    n_confirmed_attendees: event.participantIds?.length || 0,
+                    max_occupancy: event.maxParticipants || 0
+                }
+            });
+            svelteMarkers.push(markerComponent);
 
 			const m = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
 				.setLngLat([coords.lng, coords.lat])
@@ -397,7 +394,7 @@
 </script>
 
 <div
-	class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"
+	class="overflow-hidden border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"
 >
 	<div bind:this={mapContainer} class="h-72 w-full"></div>
 

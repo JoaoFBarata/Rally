@@ -1,20 +1,21 @@
 <script lang="ts">
-    const { profile_url, sport, n_confirmed_attendees, max_occupancy } = $props();
+    // TODO: Add linear scaling for marker size based on map zoom level
+    const { profile_url, sport, n_confirmed_attendees, max_occupancy, marker_scale = 0.6 } = $props();
 </script>
-<div id="marker" class="w-[8vw]">
-    <div id="marker-icon-wrapper" class="relative w-full h-[8vw]">
+<div id="marker" class="w-[calc(var(--marker-scale)*8vw)]" style="--marker-scale: {marker_scale}">
+    <div id="marker-icon-wrapper" class="relative w-full h-[calc(var(--marker-scale)*8vw)]">
         <div id="marker-icon" class="w-full h-full">
-            <div id="outer-marker-icon" class="w-full h-full border-4 border-solid border-[#00B4D8FF] rounded-full">
-                <img class="h-full w-full rounded-full p-[0.19rem]" id="inner-marker-icon" src={profile_url} alt="">
+            <div id="outer-marker-icon" class="w-full h-full border-[calc(var(--marker-scale)*4px)] border-solid border-[#00B4D8FF] rounded-full">
+                <img class="h-full w-full rounded-full p-[calc(var(--marker-scale)*0.19rem)]" id="inner-marker-icon" src={profile_url} alt="">
             </div>
         </div>
         <div id="marker-stats-wrapper">
-            <div id="marker-occupation-wrapper" class="absolute bottom-0 left-0 w-[2.58vw] h-[2.58vw] rounded-full border-3 border-solid border-[#ff595eFF] bg-[#fdfdfdFF]">
+            <div id="marker-occupation-wrapper" class="absolute bottom-0 left-0 w-[calc(var(--marker-scale)*2.58vw)] h-[calc(var(--marker-scale)*2.58vw)] rounded-full border-[calc(var(--marker-scale)*3px)] border-solid border-[#ff595eFF] bg-[#fdfdfdFF] flex flex-row items-center justify-between">
                 <div class="flex items-center justify-center w-[50%] h-full">
-                    <h3 class="ml-[0.12vw] mb-[0.8vh] text-[0.7rem] font-bold">{n_confirmed_attendees}</h3>
+                    <h3 class="ml-[calc(var(--marker-scale)*0.12vw)] mb-[calc(var(--marker-scale)*0.8vh)] text-[calc(var(--marker-scale)*0.7rem)] text-black font-bold">{n_confirmed_attendees}</h3>
                 </div>
-                <div class="absolute -top-0.5 right-[-3.2px] w-fit h-[2.55vw] flex justify-center items-center">
-                    <h3 class="absolute text-white font-bold text-[0.7rem] mt-[0.8vh] ml-[0.3vw]">{max_occupancy}</h3>
+                <div class="absolute top-[-calc(var(--marker-scale)*2px)] right-[-calc(var(--marker-scale)*3.2px)] w-full h-[calc(var(--marker-scale)*2.55vw)] flex justify-center items-center">
+                    <h3 class="absolute text-white font-bold text-[calc(var(--marker-scale)*0.7rem)] mt-[calc(var(--marker-scale)*0.8vh)] ml-[calc(var(--marker-scale)*0.3vw)]">{max_occupancy}</h3>
                     <svg class="w-full h-full" xmlns="http://www.w3.org/2000/svg" viewBox="983.115 653.223 26.885 35.777" style="-webkit-print-color-adjust::exact" xmlns:xlink="http://www.w3.org/1999/xlink" fill="none" version="1.1">
                         <g id="shape-0acc1649-b424-80f6-8008-2c18c5851849">
                             <defs></defs>
@@ -25,13 +26,13 @@
                     </svg>
                 </div>
             </div>
-            <div id="marker-sport-wrapper" class="absolute bottom-0 right-0 w-[3.13vw] h-[3.13vw] rounded-full border-3 border-solid border-[#0065fdFF] bg-[#fdfdfdFF] flex justify-center items-center">
-                <img src="{sport}_icon.png" alt="" class="p-[0.45vw]">
+            <div id="marker-sport-wrapper" class="absolute bottom-0 right-0 w-[calc(var(--marker-scale)*3.13vw)] h-[calc(var(--marker-scale)*3.13vw)] rounded-full border-[calc(var(--marker-scale)*3px)] border-solid border-[#0065fdFF] bg-[#fdfdfdFF] flex justify-center items-center">
+                <img src="{sport}_icon.png" alt="" class="p-[calc(var(--marker-scale)*0.45vw)]">
             </div>
         </div>
     </div>
     <div id="marker-pin-wrapper" class="w-full flex flex-col items-center justify-center">
-        <div id="marker-pin-connector" class="h-[2.84vh] w-[0.01px] border-2 border-solid border-[#0065fdFF] z-1 rounded-b-sm"></div>
-        <div id="marker-pin" class="w-[1.19vw] h-[1.19vw] mt-[-0.65vw] rounded-full bg-[#fdfdfdFF] border-3 border-solid border-[#0065fdFF]"></div>
+        <div id="marker-pin-connector" class="h-[calc(var(--marker-scale)*2.84vh)] w-[0.01px] border-[calc(var(--marker-scale)*2px)] border-solid border-[#0065fdFF] z-1 rounded-b-[calc(var(--marker-scale)*4px)]"></div>
+        <div id="marker-pin" class="w-[calc(var(--marker-scale)*1.19vw)] h-[calc(var(--marker-scale)*1.19vw)] mt-[-calc(var(--marker-scale)*0.65vw)] rounded-full bg-[#fdfdfdFF] border-[calc(var(--marker-scale)*3px)] border-solid border-[#0065fdFF]"></div>
     </div>
 </div>
