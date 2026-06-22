@@ -117,9 +117,27 @@
 
 	// Keep the mobile bar usable at five items. Admin replaces the profile/public shortcut when needed.
 	let mobileNavItems = $derived.by(() => {
-		if (navItems.length <= 5) return navItems;
-		const replaceableHref = organizationPublicHref ?? '/profile';
-		return navItems.filter((item) => item.href !== replaceableHref).slice(0, 5);
+		let filtered = navItems;
+		if (navItems.length > 5) {
+			const replaceableHref = organizationPublicHref ?? '/profile';
+			filtered = navItems.filter((item) => item.href !== replaceableHref);
+		}
+
+		// Reorganize so the primary item (Create event) is in the middle (index 2)
+		const primaryItem = filtered.find((item) => item.primary);
+		const secondaryItems = filtered.filter((item) => !item.primary);
+
+		if (primaryItem && secondaryItems.length === 4) {
+			return [
+				secondaryItems[0],
+				secondaryItems[1],
+				primaryItem,
+				secondaryItems[2],
+				secondaryItems[3]
+			];
+		}
+
+		return filtered.slice(0, 5);
 	});
 
 	function isActive(href: string) {
@@ -284,14 +302,14 @@
 				{#each mobileNavItems as item (item.href)}
 					<a href={resolveNavHref(item.href)} class="flex flex-col items-center justify-end gap-1">
 						<span
-							class={`relative flex h-9 w-9 items-center justify-center rounded-2xl text-lg ${
+							class={`relative flex items-center justify-center text-lg transition-all ${
 								item.primary
-									? isActive(item.href)
-										? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-										: 'bg-blue-50 text-blue-600 shadow-sm dark:bg-blue-950 dark:text-blue-300'
-									: isActive(item.href)
-										? 'bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400'
-										: 'text-slate-400 dark:text-slate-500'
+									? 'h-11 w-11 -translate-y-2 rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/35 hover:bg-blue-700 active:scale-95'
+									: `h-9 w-9 rounded-2xl ${
+											isActive(item.href)
+												? 'bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400'
+												: 'text-slate-400 dark:text-slate-500'
+										}`
 							}`}
 						>
 							<NavIcon name={item.icon} />
@@ -308,13 +326,9 @@
 						<span
 							class:hidden={item.primary}
 							class={`text-[11px] font-medium ${
-								item.primary
-									? isActive(item.href)
-										? 'text-blue-600 dark:text-blue-400'
-										: 'text-blue-600 dark:text-blue-300'
-									: isActive(item.href)
-										? 'text-blue-600 dark:text-blue-400'
-										: 'text-slate-400 dark:text-slate-500'
+								isActive(item.href)
+									? 'text-blue-600 dark:text-blue-400'
+									: 'text-slate-400 dark:text-slate-500'
 							}`}
 						>
 							{item.label}
