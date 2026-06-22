@@ -736,8 +736,8 @@
 		{error}
 	</div>
 {:else if event}
-	<div class="mt-8 grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
-		<div class="space-y-6">
+	<div class="mt-8 grid min-w-0 max-w-full gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)]">
+		<div class="min-w-0 max-w-full space-y-6">
 			<section
 				class="rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-4xl sm:p-8"
 			>

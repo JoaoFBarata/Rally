@@ -727,10 +727,9 @@ export async function leaveEvent(eventId: string, userId: string) {
 		status: newStatus
 	});
 
-	void sendRallySystemMessage(
-		userId,
-		`You left "${event.title}".`
-	).catch((err) => console.error('Leave notification error:', err));
+	void sendRallySystemMessage(userId, `You left "${event.title}".`).catch((err) =>
+		console.error('Leave notification error:', err)
+	);
 }
 
 export async function cancelEvent(eventId: string, userId: string) {
@@ -1235,6 +1234,8 @@ async function createTournamentMatch(params: {
 	homeName: string;
 	awayName: string;
 	scheduledAt?: Date | null;
+	nextMatchId?: string | null;
+	nextMatchSlot?: 'home' | 'away' | null;
 }) {
 	return addDoc(getTournamentMatchCollection(), {
 		eventId: params.eventId,
@@ -1249,6 +1250,8 @@ async function createTournamentMatch(params: {
 		awayScore: null,
 		winnerEntryId: null,
 		winnerName: null,
+		nextMatchId: params.nextMatchId ?? null,
+		nextMatchSlot: params.nextMatchSlot ?? null,
 		status: 'scheduled',
 		scheduledAt: params.scheduledAt ? Timestamp.fromDate(params.scheduledAt) : null,
 		createdAt: serverTimestamp(),
@@ -1277,7 +1280,12 @@ export async function getTournamentMatches(eventId: string) {
 
 	return matches.sort((a, b) => {
 		if (a.roundNumber !== b.roundNumber) return a.roundNumber - b.roundNumber;
-		return (a.groupName ?? '').localeCompare(b.groupName ?? '');
+		const groupOrder = (a.groupName ?? '').localeCompare(b.groupName ?? '');
+		if (groupOrder !== 0) return groupOrder;
+		const aCreatedAt = (a.createdAt as { toMillis?: () => number })?.toMillis?.() ?? 0;
+		const bCreatedAt = (b.createdAt as { toMillis?: () => number })?.toMillis?.() ?? 0;
+		if (aCreatedAt !== bCreatedAt) return aCreatedAt - bCreatedAt;
+		return a.id.localeCompare(b.id);
 	});
 }
 
@@ -1602,16 +1610,79 @@ export async function generateTournamentMatches(params: { eventId: string; userI
 			awayName: 'Winner semi-final 2'
 		});
 	} else {
-		for (let i = 0; i < entries.length; i += 2) {
-			await createTournamentMatch({
-				eventId: params.eventId,
-				stage: entries.length <= 4 ? 'semi_final' : 'knockout',
-				roundNumber: 1,
-				homeEntryId: entries[i].id,
-				awayEntryId: entries[i + 1]?.id ?? null,
-				homeName: entries[i].name,
-				awayName: entries[i + 1]?.name ?? 'BYE'
+		const bracketSize = 2 ** Math.ceil(Math.log2(entries.length));
+		const roundCount = Math.log2(bracketSize);
+		const rounds: Array<
+			Array<{ id: string; homeEntryId: string | null; awayEntryId: string | null }>
+		> = [];
+		let nextRound: Array<{ id: string }> = [];
+		let entryIndex = 0;
+		const firstRoundMatchCount = bracketSize / 2;
+		const pairedMatches = entries.length - firstRoundMatchCount;
+
+		for (let roundNumber = roundCount; roundNumber >= 1; roundNumber -= 1) {
+			const matchCount = 2 ** (roundCount - roundNumber);
+			const currentRound: Array<{
+				id: string;
+				homeEntryId: string | null;
+				awayEntryId: string | null;
+			}> = [];
+
+			for (let index = 0; index < matchCount; index += 1) {
+				const isFirstRound = roundNumber === 1;
+				const homeEntry = isFirstRound ? (entries[entryIndex++] ?? null) : null;
+				const awayEntry =
+					isFirstRound && index < pairedMatches ? (entries[entryIndex++] ?? null) : null;
+				const stage: TournamentMatch['stage'] =
+					roundNumber === roundCount
+						? 'final'
+						: roundNumber === roundCount - 1
+							? 'semi_final'
+							: 'knockout';
+				const nextMatch = nextRound[Math.floor(index / 2)] ?? null;
+				const matchRef = await createTournamentMatch({
+					eventId: params.eventId,
+					stage,
+					roundNumber,
+					homeEntryId: homeEntry?.id ?? null,
+					awayEntryId: awayEntry?.id ?? null,
+					homeName: homeEntry?.name ?? `Winner match ${index * 2 + 1}`,
+					awayName: awayEntry?.name ?? (isFirstRound ? 'BYE' : `Winner match ${index * 2 + 2}`),
+					nextMatchId: nextMatch?.id ?? null,
+					nextMatchSlot: nextMatch ? (index % 2 === 0 ? 'home' : 'away') : null
+				});
+
+				currentRound.push({
+					id: matchRef.id,
+					homeEntryId: homeEntry?.id ?? null,
+					awayEntryId: awayEntry?.id ?? null
+				});
+			}
+
+			rounds[roundNumber - 1] = currentRound;
+			nextRound = currentRound;
+		}
+
+		for (let index = 0; index < rounds[0].length; index += 1) {
+			const firstRoundMatch = rounds[0][index];
+			if (!firstRoundMatch.homeEntryId || firstRoundMatch.awayEntryId) continue;
+
+			const entry = entries.find((item) => item.id === firstRoundMatch.homeEntryId);
+			const nextMatch = rounds[1]?.[Math.floor(index / 2)];
+			await updateDoc(doc(db, 'tournamentMatches', firstRoundMatch.id), {
+				winnerEntryId: entry?.id ?? null,
+				winnerName: entry?.name ?? null,
+				status: 'finished',
+				updatedAt: serverTimestamp()
 			});
+			if (entry && nextMatch) {
+				const slot = index % 2 === 0 ? 'home' : 'away';
+				await updateDoc(doc(db, 'tournamentMatches', nextMatch.id), {
+					[`${slot}EntryId`]: entry.id,
+					[`${slot}Name`]: entry.name,
+					updatedAt: serverTimestamp()
+				});
+			}
 		}
 	}
 
@@ -1619,6 +1690,199 @@ export async function generateTournamentMatches(params: { eventId: string; userI
 		tournamentStatus: 'in_progress',
 		updatedAt: serverTimestamp()
 	});
+}
+
+function isEliminationStage(stage: TournamentMatch['stage']) {
+	return stage === 'knockout' || stage === 'semi_final' || stage === 'final';
+}
+
+async function finishTournament(eventId: string, winnerEntryId: string | null) {
+	await updateDoc(doc(db, 'events', eventId), {
+		tournamentStatus: 'finished',
+		updatedAt: serverTimestamp()
+	});
+
+	if (!winnerEntryId) return;
+
+	const entries = await getTournamentEntries(eventId);
+	await Promise.all(
+		entries.map((entry) =>
+			updateDoc(doc(db, 'tournamentEntries', entry.id), {
+				status: entry.id === winnerEntryId ? 'winner' : 'eliminated',
+				updatedAt: serverTimestamp()
+			})
+		)
+	);
+}
+
+async function syncGroupPlayoffQualifiers(eventId: string) {
+	const matches = await getTournamentMatches(eventId);
+	const groupMatches = matches.filter((match) => match.stage === 'group');
+	if (groupMatches.length === 0 || groupMatches.some((match) => match.status !== 'finished'))
+		return;
+
+	const entries = await getTournamentEntries(eventId);
+	const groupNames = [
+		...new Set(groupMatches.map((match) => match.groupName).filter(Boolean))
+	] as string[];
+	if (groupNames.length < 2) return;
+
+	function rankGroup(groupName: string) {
+		const rows = entries
+			.filter((entry) => entry.groupName === groupName)
+			.map((entry) => ({ entry, points: 0, difference: 0, scored: 0 }));
+		const byId = new Map(rows.map((row) => [row.entry.id, row]));
+
+		for (const match of groupMatches.filter((item) => item.groupName === groupName)) {
+			const home = match.homeEntryId ? byId.get(match.homeEntryId) : null;
+			const away = match.awayEntryId ? byId.get(match.awayEntryId) : null;
+			if (!home || !away) continue;
+			const homeScore = match.homeScore ?? 0;
+			const awayScore = match.awayScore ?? 0;
+			home.difference += homeScore - awayScore;
+			away.difference += awayScore - homeScore;
+			home.scored += homeScore;
+			away.scored += awayScore;
+			if (homeScore > awayScore) home.points += 3;
+			else if (awayScore > homeScore) away.points += 3;
+			else {
+				home.points += 1;
+				away.points += 1;
+			}
+		}
+
+		return rows.sort(
+			(a, b) => b.points - a.points || b.difference - a.difference || b.scored - a.scored
+		);
+	}
+
+	const groupA = rankGroup(groupNames[0]);
+	const groupB = rankGroup(groupNames[1]);
+	const semiFinals = matches.filter((match) => match.stage === 'semi_final');
+	const pairings = [
+		[groupA[0]?.entry, groupB[1]?.entry],
+		[groupB[0]?.entry, groupA[1]?.entry]
+	];
+
+	await Promise.all(
+		semiFinals.slice(0, 2).map((match, index) => {
+			const [home, away] = pairings[index];
+			if (!home || !away) return Promise.resolve();
+			return updateDoc(doc(db, 'tournamentMatches', match.id), {
+				homeEntryId: home.id,
+				homeName: home.name,
+				awayEntryId: away.id,
+				awayName: away.name,
+				updatedAt: serverTimestamp()
+			});
+		})
+	);
+}
+
+async function findOrCreateNextEliminationMatch(match: TournamentMatch) {
+	let matches = await getTournamentMatches(match.eventId);
+	const currentRound = matches.filter(
+		(item) => item.roundNumber === match.roundNumber && isEliminationStage(item.stage)
+	);
+	const currentIndex = currentRound.findIndex((item) => item.id === match.id);
+
+	if (match.nextMatchId) {
+		const linked = matches.find((item) => item.id === match.nextMatchId);
+		if (linked) return { match: linked, slot: match.nextMatchSlot ?? 'home', terminal: false };
+	}
+
+	let nextRound = matches.filter(
+		(item) => item.roundNumber === match.roundNumber + 1 && isEliminationStage(item.stage)
+	);
+
+	if (nextRound.length === 0 && currentRound.length > 1) {
+		const nextCount = Math.ceil(currentRound.length / 2);
+		const nextStage: TournamentMatch['stage'] =
+			nextCount === 1 ? 'final' : nextCount === 2 ? 'semi_final' : 'knockout';
+		for (let index = 0; index < nextCount; index += 1) {
+			await createTournamentMatch({
+				eventId: match.eventId,
+				stage: nextStage,
+				roundNumber: match.roundNumber + 1,
+				homeName: `Winner match ${index * 2 + 1}`,
+				awayName: `Winner match ${index * 2 + 2}`
+			});
+		}
+		matches = await getTournamentMatches(match.eventId);
+		nextRound = matches.filter(
+			(item) => item.roundNumber === match.roundNumber + 1 && isEliminationStage(item.stage)
+		);
+	}
+
+	if (nextRound.length === 0) return { match: null, slot: null, terminal: true };
+
+	return {
+		match: nextRound[Math.floor(Math.max(0, currentIndex) / 2)] ?? null,
+		slot: currentIndex % 2 === 0 ? ('home' as const) : ('away' as const),
+		terminal: false
+	};
+}
+
+export async function syncTournamentBracketProgress(params: { eventId: string; userId: string }) {
+	const event = await assertTournamentEvent(params.eventId);
+	await assertCanManageEvent(event, params.userId);
+
+	const initialMatches = await getTournamentMatches(params.eventId);
+	const eliminationMatches = initialMatches.filter((match) => isEliminationStage(match.stage));
+	let tournamentFinished = event.tournamentStatus === 'finished';
+
+	for (const originalMatch of eliminationMatches) {
+		let match = originalMatch;
+		const hasHome = Boolean(match.homeEntryId);
+		const hasAway = Boolean(match.awayEntryId);
+
+		if (match.status !== 'finished' && hasHome !== hasAway) {
+			const winnerEntryId = hasHome ? (match.homeEntryId ?? null) : (match.awayEntryId ?? null);
+			const winnerName = hasHome ? match.homeName : match.awayName;
+			await updateDoc(doc(db, 'tournamentMatches', match.id), {
+				winnerEntryId,
+				winnerName,
+				status: 'finished',
+				updatedAt: serverTimestamp()
+			});
+			match = { ...match, winnerEntryId, winnerName, status: 'finished' };
+		}
+
+		if (match.status !== 'finished' || !match.winnerEntryId || !match.winnerName) continue;
+
+		const progression = await findOrCreateNextEliminationMatch(match);
+		if (progression.terminal || !progression.match) {
+			if (!tournamentFinished) {
+				await finishTournament(match.eventId, match.winnerEntryId);
+				tournamentFinished = true;
+			}
+			continue;
+		}
+
+		const slot = progression.slot ?? 'home';
+		const currentEntryId =
+			slot === 'home' ? progression.match.homeEntryId : progression.match.awayEntryId;
+		if (currentEntryId !== match.winnerEntryId) {
+			await updateDoc(doc(db, 'tournamentMatches', progression.match.id), {
+				[`${slot}EntryId`]: match.winnerEntryId,
+				[`${slot}Name`]: match.winnerName,
+				homeScore: null,
+				awayScore: null,
+				winnerEntryId: null,
+				winnerName: null,
+				status: 'scheduled',
+				updatedAt: serverTimestamp()
+			});
+		}
+
+		if (match.nextMatchId !== progression.match.id || match.nextMatchSlot !== slot) {
+			await updateDoc(doc(db, 'tournamentMatches', match.id), {
+				nextMatchId: progression.match.id,
+				nextMatchSlot: slot,
+				updatedAt: serverTimestamp()
+			});
+		}
+	}
 }
 
 export async function updateTournamentMatchResult(params: {
@@ -1646,6 +1910,19 @@ export async function updateTournamentMatchResult(params: {
 
 	await assertCanManageEvent(event, params.userId);
 
+	if (isEliminationStage(match.stage) && params.homeScore === params.awayScore) {
+		throw new Error('Elimination matches need a winner. Add the tie-break result to the score.');
+	}
+	if (
+		isEliminationStage(match.stage) &&
+		(!match.homeEntryId ||
+			!match.awayEntryId ||
+			match.homeName === 'BYE' ||
+			match.awayName === 'BYE')
+	) {
+		throw new Error('Both participants must be known before saving this result.');
+	}
+
 	let winnerName = params.winnerName ?? null;
 	let winnerEntryId = params.winnerEntryId ?? null;
 
@@ -1668,6 +1945,81 @@ export async function updateTournamentMatchResult(params: {
 		scheduledAt: params.scheduledAt
 			? Timestamp.fromDate(params.scheduledAt)
 			: (match.scheduledAt ?? null),
+		updatedAt: serverTimestamp()
+	});
+
+	if (match.stage === 'group') {
+		await syncGroupPlayoffQualifiers(match.eventId);
+		return;
+	}
+
+	if (match.stage === 'league') {
+		const leagueMatches = await getTournamentMatches(match.eventId);
+		const allFinished = leagueMatches
+			.filter((item) => item.stage === 'league')
+			.every((item) => item.id === match.id || item.status === 'finished');
+		if (allFinished) {
+			const entries = await getTournamentEntries(match.eventId);
+			const points = new Map(entries.map((entry) => [entry.id, 0]));
+			for (const item of leagueMatches.filter((candidate) => candidate.stage === 'league')) {
+				const homeScore = item.id === match.id ? params.homeScore : (item.homeScore ?? 0);
+				const awayScore = item.id === match.id ? params.awayScore : (item.awayScore ?? 0);
+				if (!item.homeEntryId || !item.awayEntryId) continue;
+				if (homeScore > awayScore)
+					points.set(item.homeEntryId, (points.get(item.homeEntryId) ?? 0) + 3);
+				else if (awayScore > homeScore)
+					points.set(item.awayEntryId, (points.get(item.awayEntryId) ?? 0) + 3);
+				else {
+					points.set(item.homeEntryId, (points.get(item.homeEntryId) ?? 0) + 1);
+					points.set(item.awayEntryId, (points.get(item.awayEntryId) ?? 0) + 1);
+				}
+			}
+			const winner = [...points.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+			await finishTournament(match.eventId, winner);
+		}
+		return;
+	}
+
+	const progression = await findOrCreateNextEliminationMatch({
+		...match,
+		winnerEntryId,
+		winnerName,
+		status: 'finished'
+	});
+	if (progression.terminal || !progression.match) {
+		await finishTournament(match.eventId, winnerEntryId);
+		return;
+	}
+	if (event.tournamentStatus === 'finished') {
+		const entries = await getTournamentEntries(match.eventId);
+		await Promise.all([
+			updateDoc(doc(db, 'events', match.eventId), {
+				tournamentStatus: 'in_progress',
+				updatedAt: serverTimestamp()
+			}),
+			...entries.map((entry) =>
+				updateDoc(doc(db, 'tournamentEntries', entry.id), {
+					status: 'confirmed',
+					updatedAt: serverTimestamp()
+				})
+			)
+		]);
+	}
+
+	const slot = progression.slot ?? 'home';
+	await updateDoc(doc(db, 'tournamentMatches', progression.match.id), {
+		[`${slot}EntryId`]: winnerEntryId,
+		[`${slot}Name`]: winnerName,
+		homeScore: null,
+		awayScore: null,
+		winnerEntryId: null,
+		winnerName: null,
+		status: 'scheduled',
+		updatedAt: serverTimestamp()
+	});
+	await updateDoc(matchRef, {
+		nextMatchId: progression.match.id,
+		nextMatchSlot: slot,
 		updatedAt: serverTimestamp()
 	});
 }
