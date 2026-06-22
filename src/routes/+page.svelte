@@ -402,7 +402,9 @@
 						class="flex flex-col gap-8 p-8 sm:flex-row sm:items-center"
 					>
 						<div class="flex-1">
-							<p class="text-[11px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">
+							<p
+								class="text-[11px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400"
+							>
 								{personas[activePersona].label}
 							</p>
 							<h3 class="mt-2 text-2xl font-black text-slate-950 dark:text-white">
@@ -724,7 +726,7 @@
 						href="/dashboard"
 						class="inline-flex items-center gap-2 rounded-full bg-white px-7 py-3.5 font-bold text-blue-600 transition hover:bg-blue-50"
 					>
-						Go to my dashboard
+						Start your journey
 						<svg
 							viewBox="0 0 24 24"
 							fill="none"
