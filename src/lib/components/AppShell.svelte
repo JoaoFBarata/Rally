@@ -10,13 +10,16 @@
 	import NavIcon from '$lib/components/NavIcon.svelte';
 	import { initTheme } from '$lib/theme.svelte';
 	import type { UserProfile } from '$lib/schema';
-	import { ensureUserProfile } from '$lib/services/user.service';
+	import { ensureUserProfile, saveUserFcmToken } from '$lib/services/user.service';
 	import { isPlatformAdminEmail } from '$lib/admin';
 	import {
 		notificationState,
 		startNotifications,
 		stopNotifications
 	} from '$lib/notifications.svelte';
+	import ToastContainer from '$lib/components/ToastContainer.svelte';
+	import { Capacitor } from '@capacitor/core';
+	import { PushNotifications } from '@capacitor/push-notifications';
 
 	let { children } = $props();
 
@@ -195,6 +198,56 @@
 		}
 	});
 
+	async function registerPushNotifications(userId: string) {
+		if (!Capacitor.isNativePlatform()) {
+			return;
+		}
+
+		try {
+			let permStatus = await PushNotifications.checkPermissions();
+
+			if (permStatus.receive === 'prompt') {
+				permStatus = await PushNotifications.requestPermissions();
+			}
+
+			if (permStatus.receive !== 'granted') {
+				console.warn('Push notification permission not granted:', permStatus.receive);
+				return;
+			}
+
+			await PushNotifications.removeAllListeners();
+
+			await PushNotifications.addListener('registration', async (token) => {
+				console.log('Push registration success, token:', token.value);
+				try {
+					await saveUserFcmToken(userId, token.value);
+				} catch (err) {
+					console.error('Error saving FCM token to Firestore:', err);
+				}
+			});
+
+			await PushNotifications.addListener('registrationError', (error: any) => {
+				console.error('Error on push registration:', JSON.stringify(error));
+			});
+
+			await PushNotifications.addListener('pushNotificationReceived', (notification) => {
+				console.log('Push notification received in foreground:', notification);
+			});
+
+			await PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+				console.log('Push notification action performed:', notification);
+				const data = notification.notification.data;
+				if (data && data.path) {
+					goto(resolve(data.path));
+				}
+			});
+
+			await PushNotifications.register();
+		} catch (err) {
+			console.error('Failed to register push notifications:', err);
+		}
+	}
+
 	onMount(() => {
 		initTheme();
 
@@ -205,6 +258,7 @@
 
 			if (user) {
 				startNotifications(user.uid);
+				registerPushNotifications(user.uid);
 
 				try {
 					profile = await ensureUserProfile(user);
@@ -216,6 +270,9 @@
 				}
 			} else {
 				stopNotifications();
+				if (Capacitor.isNativePlatform()) {
+					PushNotifications.removeAllListeners();
+				}
 				loadingProfile = false;
 			}
 		});
@@ -223,6 +280,9 @@
 		return () => {
 			unsubscribeAuth();
 			stopNotifications();
+			if (Capacitor.isNativePlatform()) {
+				PushNotifications.removeAllListeners();
+			}
 		};
 	});
 </script>
@@ -337,5 +397,6 @@
 				{/each}
 			</div>
 		</nav>
+		<ToastContainer />
 	</div>
 {/if}

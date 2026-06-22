@@ -4,6 +4,7 @@ import {
 	GoogleAuthProvider,
 	signInWithEmailAndPassword,
 	signInWithPopup,
+	signInWithCredential,
 	signOut,
 	updateProfile
 } from 'firebase/auth';
@@ -12,6 +13,9 @@ import {
 	ensureUserProfile,
 	updateUserActiveOrganization
 } from '$lib/services/user.service';
+import { Capacitor } from '@capacitor/core';
+import { GoogleSignIn } from '@capawesome/capacitor-google-sign-in';
+import { PUBLIC_GOOGLE_CLIENT_ID } from '$env/static/public';
 import { createOrganization } from '$lib/services/organization.service';
 import { sendRallySystemMessage } from '$lib/services/chat.service';
 import type { OrganizationType } from '$lib/schema';
@@ -107,17 +111,34 @@ export const authService = {
 	},
 
 	async signInWithGoogle() {
-		const provider = new GoogleAuthProvider();
+		if (Capacitor.isNativePlatform()) {
+			await GoogleSignIn.initialize({
+				clientId: PUBLIC_GOOGLE_CLIENT_ID
+			});
 
-		provider.setCustomParameters({
-			prompt: 'select_account'
-		});
+			const result = await GoogleSignIn.signIn();
+			if (!result.idToken) {
+				throw new Error('No idToken returned from Google Sign-In');
+			}
 
-		const result = await signInWithPopup(auth, provider);
+			const credential = GoogleAuthProvider.credential(result.idToken);
+			const userCredential = await signInWithCredential(auth, credential);
 
-		await ensureUserProfile(result.user);
+			await ensureUserProfile(userCredential.user);
+			return userCredential.user;
+		} else {
+			const provider = new GoogleAuthProvider();
 
-		return result.user;
+			provider.setCustomParameters({
+				prompt: 'select_account'
+			});
+
+			const result = await signInWithPopup(auth, provider);
+
+			await ensureUserProfile(result.user);
+
+			return result.user;
+		}
 	},
 
 	async logout() {

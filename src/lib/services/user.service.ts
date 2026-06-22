@@ -1,4 +1,5 @@
 import {
+	arrayUnion,
 	collection,
 	doc,
 	getDoc,
@@ -221,6 +222,13 @@ export async function updateUserActiveOrganization(params: {
 	await updateDoc(doc(db, 'users', params.userId), {
 		activeOrganizationId: params.organizationId,
 		accountType: params.accountType ?? (params.organizationId ? 'organization' : 'personal'),
+		updatedAt: serverTimestamp()
+	});
+}
+
+export async function saveUserFcmToken(userId: string, token: string) {
+	await updateDoc(doc(db, 'users', userId), {
+		fcmTokens: arrayUnion(token),
 		updatedAt: serverTimestamp()
 	});
 }

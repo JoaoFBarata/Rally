@@ -1,4 +1,4 @@
-package com.example.app;
+package adc.fct.rally;
 
 import com.getcapacitor.BridgeActivity;
 
