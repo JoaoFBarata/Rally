@@ -6,7 +6,6 @@
 	import { getVisibleEventsForUser } from '$lib/services/explore.service';
 	import type { SportEvent } from '$lib/schema';
 	import mapboxgl from 'mapbox-gl';
-	// @ts-expect-error - Vite handles ?worker imports dynamically
 	import MapboxWorker from 'mapbox-gl/dist/mapbox-gl-csp-worker?worker';
 	import { getUserProfile } from '$lib/services/user.service';
 
@@ -16,7 +15,7 @@
 	let status = $state('Getting your location...');
 	let radiusKm = $state(20);
 	let showRadiusMenu = $state(false);
-	
+
 	let map: mapboxgl.Map | null = null;
 	let marker: mapboxgl.Marker | null = null;
 	let eventMarkers: mapboxgl.Marker[] = [];
@@ -25,7 +24,9 @@
 	let allEvents = $state<SportEvent[]>([]);
 	let unsubscribeThemeState: () => void = () => {};
 
-	let creatorProfiles = $state<Record<string, { photoURL?: string | null; displayName?: string }>>({});
+	let creatorProfiles = $state<Record<string, { photoURL?: string | null; displayName?: string }>>(
+		{}
+	);
 
 	async function loadCreatorProfiles(eventsList: SportEvent[]) {
 		const uniqueCreatorIds = [...new Set(eventsList.map((e) => e.creatorId))];
@@ -419,7 +420,12 @@
 				onclick={() => (showRadiusMenu = !showRadiusMenu)}
 			>
 				<span>Radius: {radiusKm} km</span>
-				<svg class="h-3.5 w-3.5 text-slate-400 transition" class:rotate-180={showRadiusMenu} viewBox="0 0 20 20" fill="currentColor">
+				<svg
+					class="h-3.5 w-3.5 text-slate-400 transition"
+					class:rotate-180={showRadiusMenu}
+					viewBox="0 0 20 20"
+					fill="currentColor"
+				>
 					<path
 						fill-rule="evenodd"
 						d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
@@ -432,14 +438,19 @@
 				<div
 					class="absolute right-0 bottom-full z-30 mb-2 w-32 origin-bottom-right rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl shadow-slate-200/80 outline-none dark:border-slate-700 dark:bg-slate-900 dark:shadow-none"
 				>
-					<p class="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+					<p
+						class="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500"
+					>
 						Select Radius
 					</p>
 					<div class="mt-1 space-y-0.5">
 						{#each [5, 10, 20, 50, 100] as r}
 							<button
 								type="button"
-								class="w-full rounded-xl px-2.5 py-1.5 text-left text-xs font-bold transition hover:bg-slate-100 dark:hover:bg-slate-800 {radiusKm === r ? 'text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/30' : 'text-slate-700 dark:text-slate-300'}"
+								class="w-full rounded-xl px-2.5 py-1.5 text-left text-xs font-bold transition hover:bg-slate-100 dark:hover:bg-slate-800 {radiusKm ===
+								r
+									? 'text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/30'
+									: 'text-slate-700 dark:text-slate-300'}"
 								onclick={() => {
 									radiusKm = r;
 									showRadiusMenu = false;
@@ -459,7 +470,9 @@
 	:global(.mapboxgl-popup-content) {
 		border-radius: 1.25rem !important;
 		padding: 12px 14px 10px 14px !important;
-		box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+		box-shadow:
+			0 10px 25px -5px rgba(0, 0, 0, 0.1),
+			0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
 		border: 1px solid rgba(226, 232, 240, 0.8) !important;
 	}
 	:global(.dark .mapboxgl-popup-content) {

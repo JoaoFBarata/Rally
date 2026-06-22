@@ -62,10 +62,15 @@
 
 	async function handleSave() {
 		error = '';
+		const eventId = page.params.id;
 
 		const currentUser = auth.currentUser;
 		if (!currentUser) {
 			await goto(resolve('/login'));
+			return;
+		}
+		if (!eventId) {
+			error = 'Event not found.';
 			return;
 		}
 
@@ -93,7 +98,7 @@
 
 		try {
 			await updateSportEvent({
-				eventId: page.params.id,
+				eventId,
 				userId: currentUser.uid,
 				title,
 				description,
@@ -110,7 +115,7 @@
 				priceTotal
 			});
 
-			await goto(resolve(`/events/${page.params.id}`));
+			await goto(resolve(`/events/${eventId}`));
 		} catch (err) {
 			console.error('Update event error:', err);
 			error = err instanceof Error ? err.message : 'Could not update event.';
@@ -128,6 +133,11 @@
 		}
 
 		const eventId = page.params.id;
+		if (!eventId) {
+			loadError = 'Event not found.';
+			loadingEvent = false;
+			return;
+		}
 
 		try {
 			const loaded = await getEventById(eventId);
@@ -183,7 +193,9 @@
 				</p>
 				<h2 class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">Edit event</h2>
 				<p class="mt-2 text-slate-500 dark:text-slate-400">
-					Update the details for <span class="font-bold text-slate-700 dark:text-slate-200">{event.title}</span>.
+					Update the details for <span class="font-bold text-slate-700 dark:text-slate-200"
+						>{event.title}</span
+					>.
 				</p>
 			</div>
 
@@ -297,7 +309,10 @@
 					</div>
 
 					<div>
-						<label for="maxParticipants" class="text-sm font-bold text-slate-700 dark:text-slate-300">
+						<label
+							for="maxParticipants"
+							class="text-sm font-bold text-slate-700 dark:text-slate-300"
+						>
 							Max participants
 						</label>
 						<input

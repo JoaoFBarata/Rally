@@ -15,7 +15,7 @@ import {
 } from '$lib/services/user.service';
 import { Capacitor } from '@capacitor/core';
 import { GoogleSignIn } from '@capawesome/capacitor-google-sign-in';
-import { PUBLIC_GOOGLE_CLIENT_ID } from '$env/static/public';
+import { env } from '$env/dynamic/public';
 import { createOrganization } from '$lib/services/organization.service';
 import { sendRallySystemMessage } from '$lib/services/chat.service';
 import type { OrganizationType } from '$lib/schema';
@@ -112,8 +112,13 @@ export const authService = {
 
 	async signInWithGoogle() {
 		if (Capacitor.isNativePlatform()) {
+			const clientId = env.PUBLIC_GOOGLE_CLIENT_ID;
+			if (!clientId) {
+				throw new Error('Google Sign-In is not configured for the native app.');
+			}
+
 			await GoogleSignIn.initialize({
-				clientId: PUBLIC_GOOGLE_CLIENT_ID
+				clientId
 			});
 
 			const result = await GoogleSignIn.signIn();

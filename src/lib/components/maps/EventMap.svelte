@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	// @ts-expect-error - Vite handles ?worker imports dynamically
 	import MapboxWorker from 'mapbox-gl/dist/mapbox-gl-csp-worker?worker';
 	import { PUBLIC_MAPBOX_ACCESS_TOKEN } from '$env/static/public';
 	import type { Map, Marker } from 'mapbox-gl';
@@ -22,10 +21,7 @@
 	let marker: Marker | null = null;
 
 	const hasLocation = $derived(
-		typeof lat === 'number' &&
-			typeof lng === 'number' &&
-			!Number.isNaN(lat) &&
-			!Number.isNaN(lng)
+		typeof lat === 'number' && typeof lng === 'number' && !Number.isNaN(lat) && !Number.isNaN(lng)
 	);
 
 	onMount(() => {
@@ -94,22 +90,20 @@
 				{address}
 			</p>
 		{:else}
-			<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-				Approximate event location.
-			</p>
+			<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Approximate event location.</p>
 		{/if}
 	</div>
 
 	{#if hasLocation}
 		<div bind:this={mapContainer} class="h-72 w-full"></div>
 	{:else}
-		<div class="flex h-72 items-center justify-center bg-slate-50 p-6 text-center dark:bg-slate-800">
+		<div
+			class="flex h-72 items-center justify-center bg-slate-50 p-6 text-center dark:bg-slate-800"
+		>
 			<div>
 				<p class="text-5xl">📍</p>
 
-				<p class="mt-3 font-bold text-slate-950 dark:text-slate-50">
-					No location selected
-				</p>
+				<p class="mt-3 font-bold text-slate-950 dark:text-slate-50">No location selected</p>
 
 				<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
 					This event does not have map coordinates yet.
