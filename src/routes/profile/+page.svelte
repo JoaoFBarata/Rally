@@ -760,28 +760,28 @@
 					{/if}
 
 					<!-- Recent transactions -->
+					{#if pointTransactions.length > 0}
 					<div class="p-4 sm:p-6">
-						{#if pointTransactions.length > 0}
-							<p class="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-								Recent activity
-							</p>
-							<div class="space-y-2">
-								{#each pointTransactions as tx (tx.id)}
-									<div class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800">
-										<div class="min-w-0">
-											<p class="truncate text-sm font-bold text-slate-900 dark:text-slate-50">
-												{tx.eventTitle}
-											</p>
+						<p class="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+							Recent activity
+						</p>
+						<div class="space-y-2">
+							{#each pointTransactions as tx (tx.id)}
+								<div class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800">
+									<div class="min-w-0">
+										<p class="truncate text-sm font-bold text-slate-900 dark:text-slate-50">
+											{tx.eventTitle}
+										</p>
 											<p class="truncate text-xs text-slate-500 dark:text-slate-400">
 												{tx.venueName}
 											</p>
 										</div>
 										<span class="ml-3 shrink-0 font-black text-yellow-500">+{tx.amount}</span>
-									</div>
-								{/each}
-							</div>
-						{/if}
+								</div>
+							{/each}
+						</div>
 					</div>
+					{/if}
 				</section>
 
 				<section

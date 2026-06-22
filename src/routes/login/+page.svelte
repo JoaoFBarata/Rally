@@ -40,7 +40,7 @@
 					<ThemeToggle />
 				</div>
 
-				<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Make sports happen</p>
+				<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Find your game.</p>
 			</div>
 
 			<h1
@@ -61,7 +61,7 @@
 					<ThemeToggle />
 				</div>
 
-				<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Make sports happen</p>
+				<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Find your game.</p>
 			</div>
 
 			<div
