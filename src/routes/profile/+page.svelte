@@ -25,6 +25,11 @@
 		subscribeToUserActivityChanges,
 		subscribeToUserChanges
 	} from '$lib/services/realtime.service';
+	import {
+		getUserPointTransactions,
+		RALLY_POINTS_CONFIG
+	} from '$lib/services/points.service';
+	import type { RallyPointTransaction } from '$lib/schema';
 
 	const availableSports: Sport[] = [
 		'football',
@@ -61,6 +66,8 @@
 	let qrCodeDataUrl = $state('');
 	let qrCodeLink = $state('');
 	let showQrModal = $state(false);
+	let pointTransactions = $state<RallyPointTransaction[]>([]);
+	let showPointsBreakdown = $state(false);
 
 	function sortByDisplayName(a: UserProfile, b: UserProfile) {
 		return (a.displayName ?? '').localeCompare(b.displayName ?? '', undefined, {
@@ -97,6 +104,8 @@
 
 			const rawFriends = await getFriendsForUser(currentUser.uid);
 			friends = rawFriends.sort(sortByDisplayName);
+
+			pointTransactions = await getUserPointTransactions(currentUser.uid, 5);
 		} catch (err) {
 			console.error('Profile load error:', err);
 			error = err instanceof Error ? err.message : 'Could not load profile.';
@@ -681,6 +690,98 @@
 							{/each}
 						</div>
 					{/if}
+				</section>
+
+				<!-- ─── Rally Points ─── -->
+				<section
+					class="col-span-2 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:rounded-[2rem]"
+				>
+					<!-- Header gradient bar -->
+					<div class="bg-gradient-to-r from-slate-900 to-slate-800 p-4 sm:p-6">
+						<div class="flex items-center justify-between gap-3">
+							<div class="flex items-center gap-2.5">
+								<svg
+									viewBox="0 0 24 24"
+									fill="currentColor"
+									class="h-5 w-5 text-yellow-400"
+									aria-hidden="true"
+								>
+									<polygon
+										points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
+									/>
+								</svg>
+								<h2 class="text-lg font-black text-white">Rally Points</h2>
+							</div>
+
+							<button
+								type="button"
+								onclick={() => (showPointsBreakdown = !showPointsBreakdown)}
+								class="rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/70 transition hover:bg-white/20 hover:text-white"
+							>
+								{showPointsBreakdown ? 'Hide' : 'How it works'}
+							</button>
+						</div>
+
+						<p class="mt-3 text-4xl font-black text-white">
+							{(profile.rallyPointsTotal ?? 0).toLocaleString()}
+							<span class="text-base font-semibold text-white/50">pts</span>
+						</p>
+
+						{#if (profile.rallyPointsTotal ?? 0) === 0}
+							<p class="mt-1 text-sm text-white/50">
+								Play at a Rally Verified venue to start earning.
+							</p>
+						{:else}
+							<p class="mt-1 text-sm text-white/50">Your total Rally Points balance.</p>
+						{/if}
+					</div>
+
+					<!-- How it works breakdown (collapsible) -->
+					{#if showPointsBreakdown}
+						<div class="border-b border-slate-100 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/60 sm:px-6">
+							<p class="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+								Earn per event at a Verified venue
+							</p>
+							<div class="space-y-2 text-sm">
+								{#each [
+									{ label: 'Participating', pts: RALLY_POINTS_CONFIG.BASE_PARTICIPATION },
+									{ label: 'First visit to venue', pts: RALLY_POINTS_CONFIG.FIRST_VENUE_BONUS },
+									{ label: `Per other player (max ${RALLY_POINTS_CONFIG.PER_PARTICIPANT_CAP})`, pts: RALLY_POINTS_CONFIG.PER_PARTICIPANT },
+									{ label: 'Organising the event', pts: RALLY_POINTS_CONFIG.ORGANIZER_BONUS },
+									{ label: 'Event at full capacity', pts: RALLY_POINTS_CONFIG.FULL_EVENT_BONUS }
+								] as row}
+									<div class="flex items-center justify-between">
+										<span class="text-slate-600 dark:text-slate-400">{row.label}</span>
+										<span class="font-bold text-slate-900 dark:text-slate-50">+{row.pts} pts</span>
+									</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
+
+					<!-- Recent transactions -->
+					<div class="p-4 sm:p-6">
+						{#if pointTransactions.length > 0}
+							<p class="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+								Recent activity
+							</p>
+							<div class="space-y-2">
+								{#each pointTransactions as tx (tx.id)}
+									<div class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800">
+										<div class="min-w-0">
+											<p class="truncate text-sm font-bold text-slate-900 dark:text-slate-50">
+												{tx.eventTitle}
+											</p>
+											<p class="truncate text-xs text-slate-500 dark:text-slate-400">
+												{tx.venueName}
+											</p>
+										</div>
+										<span class="ml-3 shrink-0 font-black text-yellow-500">+{tx.amount}</span>
+									</div>
+								{/each}
+							</div>
+						{/if}
+					</div>
 				</section>
 
 				<section

@@ -84,8 +84,28 @@ export interface UserProfile {
 	level?: SportLevel;
 	sports: Sport[];
 
+	rallyPointsTotal?: number;
+
 	createdAt: Timestamp;
 	updatedAt: Timestamp;
+}
+
+export interface RallyPointTransaction {
+	id: string;
+	userId: string;
+	eventId: string;
+	venueOrganizationId: string;
+	venueName: string;
+	eventTitle: string;
+	amount: number;
+	breakdown: {
+		base: number;
+		firstVenueBonus: number;
+		participantBonus: number;
+		organizerBonus: number;
+		fullEventBonus: number;
+	};
+	createdAt: Timestamp;
 }
 
 export interface Organization {

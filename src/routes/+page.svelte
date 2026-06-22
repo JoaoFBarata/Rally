@@ -54,6 +54,37 @@
 		}
 	];
 
+	const badges = [
+		{
+			label: 'Android Compatible',
+			icon: `<rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>`
+		},
+		{
+			label: '100% Free',
+			icon: `<polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>`
+		},
+		{
+			label: 'Firebase Secured',
+			icon: `<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>`
+		},
+		{
+			label: '12+ Sports',
+			icon: `<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>`
+		},
+		{
+			label: 'No Credit Card',
+			icon: `<rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/>`
+		},
+		{
+			label: 'Instant Setup',
+			icon: `<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>`
+		},
+		{
+			label: 'Open Community',
+			icon: `<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>`
+		}
+	];
+
 	const sports = [
 		'Football',
 		'Padel',
@@ -206,7 +237,7 @@
 				<h1
 					class="mx-auto mt-3 max-w-lg text-2xl font-bold leading-snug text-white drop-shadow md:text-3xl"
 				>
-					Find players. Make sports happen.
+					Find your game.
 				</h1>
 
 				<div class="mt-6 flex items-center justify-center gap-3">
@@ -264,6 +295,32 @@
 		</div>
 	</section>
 
+	<!-- ─── MARQUEE BADGES ──────────────────────────────────────────────── -->
+	<div
+		class="overflow-hidden border-y border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-950"
+	>
+		<div class="marquee-track flex items-center py-4">
+			{#each [...badges, ...badges] as badge}
+				<div class="flex shrink-0 items-center gap-2.5 px-8 text-slate-600 dark:text-slate-400">
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.75"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400"
+						aria-hidden="true"
+					>
+						{@html badge.icon}
+					</svg>
+					<span class="whitespace-nowrap text-sm font-semibold">{badge.label}</span>
+				</div>
+				<span class="h-4 w-px shrink-0 bg-slate-200 dark:bg-slate-700" aria-hidden="true"></span>
+			{/each}
+		</div>
+	</div>
+
 	<!-- ─── STATS STRIP ──────────────────────────────────────────────────── -->
 	<section class="border-b border-slate-100 bg-white py-12 dark:border-slate-800 dark:bg-slate-950">
 		<div class="mx-auto flex max-w-4xl flex-wrap items-center justify-center gap-10 px-8 sm:gap-16">
@@ -282,52 +339,6 @@
 		</div>
 	</section>
 
-	<!-- ─── FEATURES ─────────────────────────────────────────────────────── -->
-	<section class="bg-slate-50 px-8 py-20 dark:bg-slate-900/50">
-		<div class="mx-auto max-w-5xl">
-			<div use:reveal>
-				<p class="text-xs font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">
-					What Rally does
-				</p>
-				<h2 class="mt-2 max-w-md text-3xl font-black leading-tight text-slate-950 dark:text-white">
-					Everything you need to become more active
-				</h2>
-			</div>
-
-			<div class="mt-12 grid gap-6 sm:grid-cols-3">
-				{#each features as feature, i}
-					<div
-						use:reveal={{ delay: i * 100 }}
-						class="rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"
-					>
-						<div
-							class="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-950/50"
-						>
-							<svg
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="1.75"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								class="h-5 w-5 text-blue-600 dark:text-blue-400"
-								aria-hidden="true"
-							>
-								{@html feature.icon}
-							</svg>
-						</div>
-						<h3 class="mt-4 text-base font-black text-slate-950 dark:text-white">
-							{feature.title}
-						</h3>
-						<p class="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-							{feature.desc}
-						</p>
-					</div>
-				{/each}
-			</div>
-		</div>
-	</section>
-
 	<!-- ─── WHO IS RALLY FOR ─────────────────────────────────────────────── -->
 	<section class="bg-white px-8 py-20 dark:bg-slate-950">
 		<div class="mx-auto max-w-5xl">
@@ -336,7 +347,7 @@
 					Who is it for?
 				</p>
 				<h2 class="mt-2 text-3xl font-black text-slate-950 dark:text-white">
-					Rally is built for everyone
+					Rally is built for <span class="text-blue-600 dark:text-blue-400">everyone</span>
 				</h2>
 			</div>
 
@@ -436,6 +447,93 @@
 		</div>
 	</section>
 
+	<!-- ─── RALLY POINTS ────────────────────────────────────────────────── -->
+	<section class="relative overflow-hidden bg-slate-950 px-8 py-24">
+		<!-- Background glow -->
+		<div
+			class="pointer-events-none absolute inset-0 flex items-center justify-center"
+			aria-hidden="true"
+		>
+			<div class="h-[500px] w-[500px] rounded-full bg-blue-600/10 blur-[120px]"></div>
+		</div>
+
+		<div class="relative mx-auto max-w-5xl">
+			<div use:reveal class="text-center">
+				<span
+					class="inline-flex items-center gap-2 rounded-full border border-yellow-400/30 bg-yellow-400/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-yellow-400"
+				>
+					<svg viewBox="0 0 24 24" fill="currentColor" class="h-3.5 w-3.5" aria-hidden="true">
+						<polygon
+							points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
+						/>
+					</svg>
+					Rally Points
+				</span>
+				<h2 class="mt-4 text-4xl font-black leading-tight text-white md:text-5xl">
+					Play more. Earn more.
+				</h2>
+				<p class="mx-auto mt-4 max-w-xl text-lg text-slate-400">
+					Join events at <span class="font-semibold text-white">Rally Verified</span> partner venues and
+					earn points with every game. You can then redeem them for discounts, free sessions, and exclusive
+					perks.
+				</p>
+			</div>
+
+			<!-- Steps -->
+			<div class="mt-14 grid gap-4 sm:grid-cols-3">
+				{#each [{ step: '01', title: 'Play at a Verified venue', desc: 'Create or join an event at any Rally Verified partner location near you.', icon: `<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>` }, { step: '02', title: 'Earn Rally Points', desc: 'Points are credited automatically after your event. The more you play, the more you earn.', icon: `<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>` }, { step: '03', title: 'Redeem for rewards', desc: 'Unlock discounts, day passes, and exclusive perks at Rally partner venues.', icon: `<polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>` }] as item, i}
+					<div
+						use:reveal={{ delay: i * 100 }}
+						class="rounded-2xl border border-white/10 bg-white/5 p-6 text-left"
+					>
+						<div class="flex items-start justify-between">
+							<svg
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="1.75"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								class="h-6 w-6 text-yellow-400"
+								aria-hidden="true"
+							>
+								{@html item.icon}
+							</svg>
+							<span class="text-3xl font-black text-white/10">{item.step}</span>
+						</div>
+						<h3 class="mt-4 font-black text-white">{item.title}</h3>
+						<p class="mt-1.5 text-sm leading-relaxed text-slate-400">{item.desc}</p>
+					</div>
+				{/each}
+			</div>
+
+			<!-- Verified badge callout -->
+			<div use:reveal={{ delay: 300 }} class="mt-8 flex items-center justify-center gap-3">
+				<div
+					class="inline-flex items-center gap-2.5 rounded-full border border-blue-500/30 bg-blue-500/10 px-5 py-2.5"
+				>
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="h-4 w-4 text-blue-400"
+						aria-hidden="true"
+					>
+						<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><polyline
+							points="9 12 11 14 15 10"
+						/>
+					</svg>
+					<span class="text-sm font-semibold text-blue-300">
+						Rally Points only apply at Rally Verified partner venues
+					</span>
+				</div>
+			</div>
+		</div>
+	</section>
+
 	<!-- ─── SPORTS GRID ──────────────────────────────────────────────────── -->
 	<section class="overflow-hidden bg-white px-8 py-20 dark:bg-slate-950">
 		<div class="mx-auto max-w-5xl">
@@ -471,7 +569,21 @@
 	</section>
 
 	<!-- ─── ORGANIZATION CTA ─────────────────────────────────────────────── -->
-	<section class="bg-slate-950 px-8 py-24 dark:bg-slate-900">
+	<section class="relative overflow-hidden bg-slate-950 px-8 py-24 dark:bg-slate-900">
+		<!-- Floating emoji decorations -->
+		<img
+			src="/emoji-clipboard.png"
+			alt=""
+			aria-hidden="true"
+			class="pointer-events-none absolute -left-4 top-1/2 w-32 -translate-y-1/2 -rotate-12 opacity-90 drop-shadow-2xl md:-left-2 md:w-40"
+		/>
+		<img
+			src="/emoji-soccer-ball.png"
+			alt=""
+			aria-hidden="true"
+			class="pointer-events-none absolute -right-4 bottom-16 w-28 rotate-12 opacity-90 drop-shadow-2xl md:-right-2 md:w-36"
+		/>
+
 		<div class="mx-auto max-w-3xl text-center">
 			<div use:reveal>
 				<p class="text-xs font-bold uppercase tracking-widest text-blue-400">For organizations</p>
@@ -582,7 +694,7 @@
 		</div>
 	</section>
 
-	<!-- Mobile CTAs (replaces the old mobile section) -->
+	<!-- ─── MOBILE CTAs ─────────────────────────────────────────────────── -->
 	<div
 		class="border-t border-slate-200 bg-white px-8 py-6 dark:border-slate-800 dark:bg-slate-950 sm:hidden"
 	>
@@ -611,3 +723,23 @@
 		{/if}
 	</div>
 </main>
+
+<style>
+	@keyframes marquee {
+		from {
+			transform: translateX(0);
+		}
+		to {
+			transform: translateX(-50%);
+		}
+	}
+
+	.marquee-track {
+		width: max-content;
+		animation: marquee 28s linear infinite;
+	}
+
+	.marquee-track:hover {
+		animation-play-state: paused;
+	}
+</style>
