@@ -3,10 +3,18 @@
 	import { fade } from 'svelte/transition';
 	import { authState } from '$lib/auth.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
+	import { Capacitor } from '@capacitor/core';
+	import { goto } from '$app/navigation';
 
 	let contentVisible = $state(false);
 	let activePersona = $state(0);
 	let activeStep = $state(0);
+
+	$effect(() => {
+		if (!authState.loading && authState.user && Capacitor.isNativePlatform()) {
+			goto('/dashboard', { replaceState: true });
+		}
+	});
 
 	onMount(() => {
 		const t = setTimeout(() => (contentVisible = true), 1000);
