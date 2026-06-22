@@ -10,22 +10,14 @@
             </div>
         </div>
         <div id="marker-stats-wrapper">
-            <div id="marker-occupation-wrapper" class="absolute bottom-0 left-0 w-[calc(var(--marker-scale)*2.58vw)] h-[calc(var(--marker-scale)*2.58vw)] rounded-full border-[calc(var(--marker-scale)*3px)] border-solid border-[#ff595eFF] bg-[#fdfdfdFF] flex flex-row items-center justify-between">
-                <div class="w-[50%] pl-[calc(var(--marker-scale)*0.3vw)] pb-[calc(var(--marker-scale)*0.8vh)]">
-                    <h3 class="text-[calc(var(--marker-scale)*0.7rem)] text-black font-bold">{n_confirmed_attendees}</h3>
-                </div>
-                <div class="relative m-[calc(var(--marker-scale)*-3px)]" style="width: calc(100%+{6*marker_scale}px); height: calc(100%+{6*marker_scale}px)">
-                    <div class="absolute w-full h-full pt-[calc(var(--marker-scale)*0.5vh)] pl-[35%]">
+            <div id="marker-occupation-wrapper" class="absolute bottom-0 left-0 w-[calc(var(--marker-scale)*2.58vw)] h-[calc(var(--marker-scale)*2.58vw)] rounded-full p-[calc(var(--marker-scale)*3px)] bg-linear-115 from-[#ff595eFF] from-50% to-[#00B4D8FF] to-50%">
+                <div class="w-full h-full bg-linear-115 from-[#fdfdfdFF] from-50% to-[#00B4D8FF] to-50% flex flex-row items-center justify-between px-[calc(var(--marker-scale)*0.1vw)] rounded-full">
+                    <div class="mb-[calc(var(--marker-scale)*0.7vh)]">
+                        <h3 class="text-[calc(var(--marker-scale)*0.7rem)] text-black font-bold">{n_confirmed_attendees}</h3>
+                    </div>
+                    <div class="mt-[calc(var(--marker-scale)*1.3vh)]">
                         <h3 class="text-white font-bold text-[calc(var(--marker-scale)*0.7rem)]">{max_occupancy}</h3>
                     </div>
-                    <svg class="w-full h-full" xmlns="http://www.w3.org/2000/svg" viewBox="983.115 653.223 26.885 35.777" style="-webkit-print-color-adjust::exact" xmlns:xlink="http://www.w3.org/1999/xlink" fill="none" version="1.1">
-                        <g id="shape-0acc1649-b424-80f6-8008-2c18c5851849">
-                            <defs></defs>
-                            <g class="fills" id="fills-0acc1649-b424-80f6-8008-2c18c5851849">
-                                <path d="M998.1232299804688,653.2227783203125C1005.0663452148438,655.88916015625,1010,662.6229248046875,1010,670.5C1010,680.71044921875,1001.71044921875,689,991.5,689C988.4822998046875,689,985.63232421875,688.27587890625,983.1146240234375,686.9921264648438L998.1232299804688,653.2227783203125" style="fill:#00B4D8;fill-opacity:1"></path>
-                            </g>
-                        </g>
-                    </svg>
                 </div>
             </div>
             <div id="marker-sport-wrapper" class="absolute bottom-0 right-0 w-[calc(var(--marker-scale)*3.13vw)] h-[calc(var(--marker-scale)*3.13vw)] rounded-full border-[calc(var(--marker-scale)*3px)] border-solid border-[#0065fdFF] bg-[#fdfdfdFF] flex justify-center items-center">
