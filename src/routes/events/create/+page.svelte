@@ -15,7 +15,8 @@
 	let lat = $state<number | null>(null);
 	let lng = $state<number | null>(null);
 	let address = $state('');
-	let startAt = $state('');
+	let startDate = $state('');
+	let startTime = $state('');
 	let maxParticipants = $state(10);
 	let visibility = $state<EventVisibility>('private');
 	let priceTotal = $state<number | null>(null);
@@ -33,7 +34,7 @@
 			return;
 		}
 
-		if (!title || !locationName || !startAt || maxParticipants < 2 || !visibility || !level) {
+		if (!title || !locationName || !startDate || !startTime || maxParticipants < 2 || !visibility || !level) {
 			error = 'Please fill in the required fields.';
 			return;
 		}
@@ -66,7 +67,7 @@
 				lat,
 				lng,
 				address,
-				startAt: new Date(startAt),
+				startAt: new Date(`${startDate}T${startTime}`),
 				maxParticipants,
 				visibility,
 				priceTotal: priceTotal ?? undefined
@@ -99,10 +100,6 @@
 		class="min-w-0 rounded-3xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-4xl sm:p-8"
 	>
 		<div class="mb-5 sm:mb-8">
-			<p class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
-				Rally
-			</p>
-
 			<h2 class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">Create event</h2>
 
 			<p class="mt-2 text-slate-500 dark:text-slate-400">
@@ -212,17 +209,30 @@
 					/>
 				</div>
 
-				<div class="grid grid-cols-2 gap-3 sm:gap-5">
+				<div class="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-5">
 					<div class="min-w-0">
-						<label for="startAt" class="text-sm font-bold text-slate-700 dark:text-slate-300">
-							Date and time
+						<label for="startDate" class="text-sm font-bold text-slate-700 dark:text-slate-300">
+							Date
 						</label>
 
 						<input
-							id="startAt"
-							type="datetime-local"
-							bind:value={startAt}
-							class="mt-2 min-w-0 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950 sm:px-4"
+							id="startDate"
+							type="date"
+							bind:value={startDate}
+							class="mt-2 w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950 sm:px-4"
+						/>
+					</div>
+
+					<div class="min-w-0">
+						<label for="startTime" class="text-sm font-bold text-slate-700 dark:text-slate-300">
+							Time
+						</label>
+
+						<input
+							id="startTime"
+							type="time"
+							bind:value={startTime}
+							class="mt-2 w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950 sm:px-4"
 						/>
 					</div>
 
