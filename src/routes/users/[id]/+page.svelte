@@ -6,7 +6,7 @@
 	import { resolve } from '$app/paths';
 	import { onAuthStateChanged } from 'firebase/auth';
 	import { auth } from '$lib/firebase';
-	import type { Sport, UserProfile } from '$lib/schema';
+	import type { Sport, SportEvent, UserProfile } from '$lib/schema';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import RallyWordmark from '$lib/components/RallyWordmark.svelte';
 	import { getUserProfile } from '$lib/services/user.service';
@@ -16,6 +16,8 @@
 		type RelationshipStatus
 	} from '$lib/services/social.service';
 	import { getOrCreateDirectConversation } from '$lib/services/chat.service';
+	import { getEventsCreatedByUser, getEventsForUser } from '$lib/services/event.service';
+	import EventCard from '$lib/components/EventCard.svelte';
 	import {
 		subscribeToUserActivityChanges,
 		subscribeToUserChanges
@@ -24,6 +26,9 @@
 	let targetProfile = $state<UserProfile | null>(null);
 	let currentProfile = $state<UserProfile | null>(null);
 	let relationship = $state<RelationshipStatus>('none');
+
+	let hostedEvents = $state<SportEvent[]>([]);
+	let participatedEvents = $state<SportEvent[]>([]);
 
 	let loading = $state(true);
 	let actionLoading = $state(false);
@@ -49,8 +54,27 @@
 		return level.charAt(0).toUpperCase() + level.slice(1);
 	}
 
-	async function loadUserPage(currentUserId: string) {
-		loading = true;
+	function getEventStartMs(event: SportEvent): number {
+		const ts = event.startAt as unknown as { toMillis?: () => number; toDate?: () => Date };
+		return ts?.toMillis?.() ?? ts?.toDate?.()?.getTime() ?? 0;
+	}
+
+	function isEventActive(event: SportEvent): boolean {
+		if (event.status === 'cancelled' || event.status === 'finished') return false;
+		const startMs = getEventStartMs(event);
+		return startMs === 0 || startMs >= Date.now();
+	}
+
+	function sortEventsByStatusThenDate(events: SportEvent[]): SportEvent[] {
+		return [...events].sort((a, b) => {
+			const diff = (isEventActive(a) ? 0 : 1) - (isEventActive(b) ? 0 : 1);
+			if (diff !== 0) return diff;
+			return getEventStartMs(a) - getEventStartMs(b);
+		});
+	}
+
+	async function loadUserPage(currentUserId: string, showLoading = true) {
+		if (showLoading) loading = true;
 		error = '';
 		success = '';
 
@@ -67,10 +91,13 @@
 				return;
 			}
 
-			const [loadedTargetProfile, loadedCurrentProfile] = await Promise.all([
-				getUserProfile(targetUserId),
-				getUserProfile(currentUserId)
-			]);
+			const [loadedTargetProfile, loadedCurrentProfile, allHosted, allParticipated] =
+				await Promise.all([
+					getUserProfile(targetUserId),
+					getUserProfile(currentUserId),
+					getEventsCreatedByUser(targetUserId),
+					getEventsForUser(targetUserId)
+				]);
 
 			if (!loadedTargetProfile) {
 				error = 'User not found.';
@@ -87,6 +114,11 @@
 
 			targetProfile = loadedTargetProfile;
 			currentProfile = loadedCurrentProfile;
+
+			hostedEvents = sortEventsByStatusThenDate(allHosted.filter((e) => e.visibility === 'public'));
+			participatedEvents = sortEventsByStatusThenDate(
+				allParticipated.filter((e) => e.visibility === 'public' && e.creatorId !== targetUserId)
+			);
 
 			if (loadedCurrentProfile?.accountType === 'organization') {
 				relationship = 'none';
@@ -172,11 +204,14 @@
 			await loadUserPage(user.uid);
 			const targetUserId = page.params.id;
 			if (targetUserId) {
-				unsubscribeTarget = subscribeToUserChanges(targetUserId, () => void loadUserPage(user.uid));
+				unsubscribeTarget = subscribeToUserChanges(
+					targetUserId,
+					() => void loadUserPage(user.uid, false)
+				);
 				if (currentProfile?.accountType !== 'organization') {
 					unsubscribeActivity = subscribeToUserActivityChanges(
 						user.uid,
-						() => void loadUserPage(user.uid)
+						() => void loadUserPage(user.uid, false)
 					);
 				}
 			}
@@ -248,6 +283,12 @@
 									Personal profile
 								</span>
 							{:else if relationship === 'friends'}
+								<span
+									class="rounded-xl bg-slate-100 px-3 py-2 text-sm font-black text-slate-500 sm:rounded-2xl sm:px-5 sm:py-3 sm:text-base dark:bg-slate-800 dark:text-slate-400"
+								>
+									Friends
+								</span>
+
 								<button
 									type="button"
 									onclick={handleMessage}
@@ -262,7 +303,7 @@
 									disabled
 									class="rounded-2xl bg-slate-100 px-5 py-3 font-black text-slate-500 dark:bg-slate-800 dark:text-slate-400"
 								>
-									Request sent
+									Request Pending
 								</button>
 							{:else if relationship === 'request_received'}
 								<a
@@ -347,52 +388,6 @@
 				<section
 					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 				>
-					<RallyWordmark size="sm" />
-
-					<h2 class="mt-6 text-xl font-black text-slate-950 dark:text-slate-50">Connection</h2>
-
-					{#if isOrganizationViewer}
-						<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-							Organization accounts cannot add personal profiles as friends.
-						</p>
-					{:else if relationship === 'friends'}
-						<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-							You are already friends on Rally.
-						</p>
-					{:else if relationship === 'request_sent'}
-						<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-							Your friend request is waiting for a response.
-						</p>
-					{:else if relationship === 'request_received'}
-						<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-							This user has already sent you a friend request.
-						</p>
-					{:else}
-						<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-							Add this user as a friend to start messaging and joining events together.
-						</p>
-					{/if}
-
-					{#if success}
-						<div
-							class="mt-5 rounded-2xl bg-green-50 p-4 text-sm font-bold text-green-700 dark:bg-green-950 dark:text-green-300"
-						>
-							{success}
-						</div>
-					{/if}
-
-					{#if error}
-						<div
-							class="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
-						>
-							{error}
-						</div>
-					{/if}
-				</section>
-
-				<section
-					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
-				>
 					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">In common</h2>
 
 					{#if commonSports.length}
@@ -413,5 +408,31 @@
 				</section>
 			</aside>
 		</div>
+
+		{#if hostedEvents.length > 0}
+			<section class="mt-4 sm:mt-6">
+				<h2 class="mb-4 text-xl font-black text-slate-950 dark:text-slate-50">Hosted events</h2>
+
+				<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+					{#each hostedEvents as event}
+						<EventCard {event} />
+					{/each}
+				</div>
+			</section>
+		{/if}
+
+		{#if participatedEvents.length > 0}
+			<section class="mt-4 sm:mt-6">
+				<h2 class="mb-4 text-xl font-black text-slate-950 dark:text-slate-50">
+					Events participated in
+				</h2>
+
+				<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+					{#each participatedEvents as event}
+						<EventCard {event} />
+					{/each}
+				</div>
+			</section>
+		{/if}
 	{/if}
 </main>
