@@ -282,12 +282,6 @@
 								>
 									Personal profile
 								</span>
-							{:else if relationship === 'friends'}
-								<span
-									class="rounded-xl bg-slate-100 px-3 py-2 text-sm font-black text-slate-500 sm:rounded-2xl sm:px-5 sm:py-3 sm:text-base dark:bg-slate-800 dark:text-slate-400"
-								>
-									Friends
-								</span>
 
 								<button
 									type="button"

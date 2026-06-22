@@ -1,9 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { fade } from 'svelte/transition';
 	import { authState } from '$lib/auth.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 
 	let contentVisible = $state(false);
+	let activePersona = $state(0);
+	let activeStep = $state(0);
 
 	onMount(() => {
 		const t = setTimeout(() => (contentVisible = true), 1000);
@@ -142,6 +145,27 @@
 			num: '03',
 			title: 'Play together',
 			desc: 'Confirm your roster, coordinate with your friends and show up, well handle the rest.'
+		}
+	];
+
+	const rallyPointsSteps = [
+		{
+			step: '01',
+			title: 'Play at a Verified venue',
+			desc: 'Create or join an event at any Rally Verified partner location near you.',
+			icon: `<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>`
+		},
+		{
+			step: '02',
+			title: 'Earn Rally Points',
+			desc: 'Points are credited automatically after your event. The more you play, the more you earn.',
+			icon: `<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>`
+		},
+		{
+			step: '03',
+			title: 'Redeem for rewards',
+			desc: 'Unlock discounts, day passes, and exclusive perks at Rally partner venues.',
+			icon: `<polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>`
 		}
 	];
 </script>
@@ -341,7 +365,7 @@
 
 	<!-- ─── WHO IS RALLY FOR ─────────────────────────────────────────────── -->
 	<section class="bg-white px-8 py-20 dark:bg-slate-950">
-		<div class="mx-auto max-w-5xl">
+		<div class="mx-auto max-w-4xl">
 			<div use:reveal class="text-center">
 				<p class="text-xs font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">
 					Who is it for?
@@ -351,14 +375,65 @@
 				</h2>
 			</div>
 
-			<div class="mt-12 grid gap-6 sm:grid-cols-3">
+			<!-- Tab switcher -->
+			<div use:reveal={{ delay: 100 }} class="mt-10 flex flex-wrap justify-center gap-2">
 				{#each personas as persona, i}
-					<div
-						use:reveal={{ delay: i * 100 }}
-						class="group flex flex-col rounded-3xl border border-slate-200 bg-slate-50 p-6 transition hover:border-blue-200 hover:bg-blue-50/50 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-900 dark:hover:bg-blue-950/20"
+					<button
+						onclick={() => (activePersona = i)}
+						class={`rounded-full px-5 py-2 text-sm font-bold transition-all ${
+							activePersona === i
+								? 'bg-blue-600 text-white shadow-sm'
+								: 'border border-slate-200 text-slate-500 hover:border-blue-300 hover:text-blue-600 dark:border-slate-700 dark:text-slate-400 dark:hover:border-blue-600 dark:hover:text-blue-400'
+						}`}
 					>
-						<span
-							class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-slate-200/60 dark:bg-slate-800 dark:ring-slate-700"
+						{persona.label}
+					</button>
+				{/each}
+			</div>
+
+			<!-- Active persona panel -->
+			<div
+				use:reveal={{ delay: 200 }}
+				class="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900"
+			>
+				{#key activePersona}
+					<div
+						transition:fade={{ duration: 150 }}
+						class="flex flex-col gap-8 p-8 sm:flex-row sm:items-center"
+					>
+						<div class="flex-1">
+							<p
+								class="text-[11px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400"
+							>
+								{personas[activePersona].label}
+							</p>
+							<h3 class="mt-2 text-2xl font-black text-slate-950 dark:text-white">
+								{personas[activePersona].headline}
+							</h3>
+							<p class="mt-3 leading-relaxed text-slate-500 dark:text-slate-400">
+								{personas[activePersona].desc}
+							</p>
+							<a
+								href={personas[activePersona].href}
+								class="mt-6 inline-flex items-center gap-2 rounded-full bg-blue-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-blue-500"
+							>
+								{personas[activePersona].cta}
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2.5"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									class="h-3.5 w-3.5"
+									aria-hidden="true"
+								>
+									<path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
+								</svg>
+							</a>
+						</div>
+						<div
+							class="flex h-24 w-24 shrink-0 items-center justify-center self-start rounded-2xl bg-blue-600/10 dark:bg-blue-900/30 sm:self-auto"
 						>
 							<svg
 								viewBox="0 0 24 24"
@@ -367,52 +442,21 @@
 								stroke-width="1.75"
 								stroke-linecap="round"
 								stroke-linejoin="round"
-								class="h-5 w-5 text-blue-600 dark:text-blue-400"
+								class="h-10 w-10 text-blue-600 dark:text-blue-400"
 								aria-hidden="true"
 							>
-								{@html persona.icon}
+								{@html personas[activePersona].icon}
 							</svg>
-						</span>
-
-						<p
-							class="mt-4 text-[11px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400"
-						>
-							{persona.label}
-						</p>
-						<h3 class="mt-1 text-lg font-black text-slate-950 dark:text-white">
-							{persona.headline}
-						</h3>
-						<p class="mt-2 flex-1 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-							{persona.desc}
-						</p>
-
-						<a
-							href={persona.href}
-							class="mt-5 inline-flex items-center gap-1.5 text-sm font-bold text-blue-600 transition group-hover:gap-2.5 dark:text-blue-400"
-						>
-							{persona.cta}
-							<svg
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="2.5"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								class="h-3.5 w-3.5"
-								aria-hidden="true"
-							>
-								<path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
-							</svg>
-						</a>
+						</div>
 					</div>
-				{/each}
+				{/key}
 			</div>
 		</div>
 	</section>
 
 	<!-- ─── HOW IT WORKS ─────────────────────────────────────────────────── -->
 	<section class="bg-slate-50 px-8 py-20 dark:bg-slate-900/50">
-		<div class="mx-auto max-w-5xl">
+		<div class="mx-auto max-w-4xl">
 			<div use:reveal class="text-center">
 				<p class="text-xs font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">
 					How it works
@@ -422,21 +466,18 @@
 				</h2>
 			</div>
 
-			<div class="mt-12 grid gap-6 sm:grid-cols-3">
+			<div class="mt-12">
 				{#each steps as step, i}
-					<div use:reveal={{ delay: i * 100 }} class="relative">
-						{#if i < steps.length - 1}
-							<div
-								class="absolute left-10 top-6 hidden h-0.5 w-[calc(100%+1.5rem)] bg-slate-200 dark:bg-slate-800 sm:block"
-								aria-hidden="true"
-							></div>
-						{/if}
-
-						<div
-							class="relative z-10 rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"
+					<div
+						use:reveal={{ delay: i * 100 }}
+						class={`flex items-baseline gap-8 border-t border-slate-200 py-8 dark:border-slate-800 ${i === steps.length - 1 ? 'border-b' : ''}`}
+					>
+						<span
+							class="w-10 shrink-0 text-3xl font-black tabular-nums text-blue-600 dark:text-blue-400"
+							>{step.num}</span
 						>
-							<p class="text-3xl font-black text-blue-600 dark:text-blue-400">{step.num}</p>
-							<h3 class="mt-3 font-black text-slate-950 dark:text-white">{step.title}</h3>
+						<div>
+							<h3 class="font-black text-slate-950 dark:text-white">{step.title}</h3>
 							<p class="mt-1 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
 								{step.desc}
 							</p>
@@ -479,14 +520,35 @@
 				</p>
 			</div>
 
-			<!-- Steps -->
-			<div class="mt-14 grid gap-4 sm:grid-cols-3">
-				{#each [{ step: '01', title: 'Play at a Verified venue', desc: 'Create or join an event at any Rally Verified partner location near you.', icon: `<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>` }, { step: '02', title: 'Earn Rally Points', desc: 'Points are credited automatically after your event. The more you play, the more you earn.', icon: `<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>` }, { step: '03', title: 'Redeem for rewards', desc: 'Unlock discounts, day passes, and exclusive perks at Rally partner venues.', icon: `<polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>` }] as item, i}
-					<div
-						use:reveal={{ delay: i * 100 }}
-						class="rounded-2xl border border-white/10 bg-white/5 p-6 text-left"
-					>
-						<div class="flex items-start justify-between">
+			<!-- Steps: interactive left nav + right content panel -->
+			<div use:reveal={{ delay: 100 }} class="mt-14 grid gap-4 sm:grid-cols-[1fr_1.5fr]">
+				<!-- Left: step selector -->
+				<div class="flex flex-col gap-2">
+					{#each rallyPointsSteps as item, i}
+						<button
+							onclick={() => (activeStep = i)}
+							class={`flex items-center gap-4 rounded-2xl border p-4 text-left transition-all ${
+								activeStep === i
+									? 'border-yellow-400/30 bg-yellow-400/10'
+									: 'border-white/5 bg-white/5 hover:border-white/10 hover:bg-white/8'
+							}`}
+						>
+							<span
+								class={`text-2xl font-black transition-colors ${activeStep === i ? 'text-yellow-400' : 'text-white/20'}`}
+								>{item.step}</span
+							>
+							<span
+								class={`font-bold transition-colors ${activeStep === i ? 'text-white' : 'text-slate-400'}`}
+								>{item.title}</span
+							>
+						</button>
+					{/each}
+				</div>
+
+				<!-- Right: content panel -->
+				<div class="rounded-2xl border border-white/10 bg-white/5 p-8">
+					{#key activeStep}
+						<div transition:fade={{ duration: 150 }}>
 							<svg
 								viewBox="0 0 24 24"
 								fill="none"
@@ -494,17 +556,20 @@
 								stroke-width="1.75"
 								stroke-linecap="round"
 								stroke-linejoin="round"
-								class="h-6 w-6 text-yellow-400"
+								class="h-8 w-8 text-yellow-400"
 								aria-hidden="true"
 							>
-								{@html item.icon}
+								{@html rallyPointsSteps[activeStep].icon}
 							</svg>
-							<span class="text-3xl font-black text-white/10">{item.step}</span>
+							<h3 class="mt-4 text-xl font-black text-white">
+								{rallyPointsSteps[activeStep].title}
+							</h3>
+							<p class="mt-2 leading-relaxed text-slate-400">
+								{rallyPointsSteps[activeStep].desc}
+							</p>
 						</div>
-						<h3 class="mt-4 font-black text-white">{item.title}</h3>
-						<p class="mt-1.5 text-sm leading-relaxed text-slate-400">{item.desc}</p>
-					</div>
-				{/each}
+					{/key}
+				</div>
 			</div>
 
 			<!-- Verified badge callout -->
@@ -623,18 +688,29 @@
 				</div>
 			</div>
 
-			<!-- 3 org features below CTA -->
-			<div class="mt-14 grid gap-4 sm:grid-cols-3">
-				{#each [{ title: 'Event management', desc: 'Create and manage events for your whole club in one dashboard.' }, { title: 'Member coordination', desc: 'Keep track of who is showing up and when, allowing you to plan accordingly.' }, { title: 'Tournament tools', desc: 'Run brackets, leagues and competitions with built-in tournament support.' }] as item, i}
-					<div
-						use:reveal={{ delay: i * 80 }}
-						class="rounded-2xl border border-white/10 bg-white/5 p-5 text-left"
-					>
-						<p class="font-bold text-white">{item.title}</p>
-						<p class="mt-1.5 text-sm text-slate-400">{item.desc}</p>
-					</div>
+			<!-- Org features as inline checklist -->
+			<ul
+				use:reveal={{ delay: 200 }}
+				class="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-10"
+			>
+				{#each ['Event management', 'Member coordination', 'Tournament tools'] as feature}
+					<li class="flex items-center gap-2 text-sm font-semibold text-slate-300">
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.5"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="h-4 w-4 shrink-0 text-blue-400"
+							aria-hidden="true"
+						>
+							<polyline points="20 6 9 17 4 12" />
+						</svg>
+						{feature}
+					</li>
 				{/each}
-			</div>
+			</ul>
 		</div>
 	</section>
 
@@ -650,7 +726,7 @@
 						href="/dashboard"
 						class="inline-flex items-center gap-2 rounded-full bg-white px-7 py-3.5 font-bold text-blue-600 transition hover:bg-blue-50"
 					>
-						Go to my dashboard
+						Start your journey
 						<svg
 							viewBox="0 0 24 24"
 							fill="none"

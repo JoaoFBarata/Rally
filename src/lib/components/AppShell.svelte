@@ -85,14 +85,14 @@
 					primary: true
 				},
 				{
+					label: 'Home',
+					href: '/dashboard',
+					icon: 'dashboard'
+				},
+				{
 					label: 'Explore',
 					href: '/explore',
 					icon: 'explore'
-				},
-				{
-					label: 'Dashboard',
-					href: '/dashboard',
-					icon: 'dashboard'
 				},
 				{
 					label: 'Messages',
@@ -300,12 +300,12 @@
 			>
 				<div>
 					<div class="flex items-center justify-between gap-3">
-						<RallyLogo size="sm" href={organizationManageHref ?? '/dashboard'} />
+						<RallyLogo size="sm" href={organizationManageHref ?? '/'} />
 						<ThemeToggle />
 					</div>
 
 					<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
-						{organizationId ? 'Manage official sports experiences' : 'Make sports happen'}
+						{organizationId ? 'Manage official sports experiences' : 'Find your game.'}
 					</p>
 				</div>
 
