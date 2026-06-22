@@ -11,11 +11,13 @@
         </div>
         <div id="marker-stats-wrapper">
             <div id="marker-occupation-wrapper" class="absolute bottom-0 left-0 w-[calc(var(--marker-scale)*2.58vw)] h-[calc(var(--marker-scale)*2.58vw)] rounded-full border-[calc(var(--marker-scale)*3px)] border-solid border-[#ff595eFF] bg-[#fdfdfdFF] flex flex-row items-center justify-between">
-                <div class="flex items-center justify-center w-[50%] h-full">
-                    <h3 class="ml-[calc(var(--marker-scale)*0.12vw)] mb-[calc(var(--marker-scale)*0.8vh)] text-[calc(var(--marker-scale)*0.7rem)] text-black font-bold">{n_confirmed_attendees}</h3>
+                <div class="w-[50%] pl-[calc(var(--marker-scale)*0.3vw)] pb-[calc(var(--marker-scale)*0.8vh)]">
+                    <h3 class="text-[calc(var(--marker-scale)*0.7rem)] text-black font-bold">{n_confirmed_attendees}</h3>
                 </div>
-                <div class="absolute top-[-calc(var(--marker-scale)*2px)] right-[-calc(var(--marker-scale)*3.2px)] w-full h-[calc(var(--marker-scale)*2.55vw)] flex justify-center items-center">
-                    <h3 class="absolute text-white font-bold text-[calc(var(--marker-scale)*0.7rem)] mt-[calc(var(--marker-scale)*0.8vh)] ml-[calc(var(--marker-scale)*0.3vw)]">{max_occupancy}</h3>
+                <div class="relative m-[calc(var(--marker-scale)*-3px)]" style="width: calc(100%+{6*marker_scale}px); height: calc(100%+{6*marker_scale}px)">
+                    <div class="absolute w-full h-full pt-[calc(var(--marker-scale)*0.5vh)] pl-[35%]">
+                        <h3 class="text-white font-bold text-[calc(var(--marker-scale)*0.7rem)]">{max_occupancy}</h3>
+                    </div>
                     <svg class="w-full h-full" xmlns="http://www.w3.org/2000/svg" viewBox="983.115 653.223 26.885 35.777" style="-webkit-print-color-adjust::exact" xmlns:xlink="http://www.w3.org/1999/xlink" fill="none" version="1.1">
                         <g id="shape-0acc1649-b424-80f6-8008-2c18c5851849">
                             <defs></defs>
@@ -32,7 +34,7 @@
         </div>
     </div>
     <div id="marker-pin-wrapper" class="w-full flex flex-col items-center justify-center">
-        <div id="marker-pin-connector" class="h-[calc(var(--marker-scale)*2.84vh)] w-[0.01px] border-[calc(var(--marker-scale)*2px)] border-solid border-[#0065fdFF] z-1 rounded-b-[calc(var(--marker-scale)*4px)]"></div>
+        <div id="marker-pin-connector" class="h-[calc(var(--marker-scale)*2.84vh)] w-[0.01px] mb-[calc(var(--marker-scale)*-1.3vh)] border-[calc(var(--marker-scale)*2px)] border-solid border-[#0065fdFF] z-1 rounded-b-[calc(var(--marker-scale)*4px)]"></div>
         <div id="marker-pin" class="w-[calc(var(--marker-scale)*1.19vw)] h-[calc(var(--marker-scale)*1.19vw)] mt-[-calc(var(--marker-scale)*0.65vw)] rounded-full bg-[#fdfdfdFF] border-[calc(var(--marker-scale)*3px)] border-solid border-[#0065fdFF]"></div>
     </div>
 </div>
