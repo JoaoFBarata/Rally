@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	// @ts-expect-error - Vite handles ?worker imports dynamically
+	import MapboxWorker from 'mapbox-gl/dist/mapbox-gl-csp-worker?worker';
 	import { PUBLIC_MAPBOX_ACCESS_TOKEN } from '$env/static/public';
 	import type { Map, Marker } from 'mapbox-gl';
 
@@ -41,6 +43,7 @@
 
 			if (cancelled) return;
 
+			(mapboxgl.default as any).workerClass = MapboxWorker;
 			mapboxgl.default.accessToken = PUBLIC_MAPBOX_ACCESS_TOKEN;
 
 			map = new mapboxgl.default.Map({

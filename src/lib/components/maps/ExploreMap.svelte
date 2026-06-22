@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import mapboxgl from 'mapbox-gl';
+	// @ts-expect-error - Vite handles ?worker imports dynamically
+	import MapboxWorker from 'mapbox-gl/dist/mapbox-gl-csp-worker?worker';
 	import { PUBLIC_MAPBOX_ACCESS_TOKEN } from '$env/static/public';
 	import type { Sport, SportEvent, SportLevel } from '$lib/schema';
 	import { themeState } from '$lib/theme.svelte';
@@ -276,6 +278,7 @@
 	}
 
 	onMount(() => {
+		(mapboxgl as any).workerClass = MapboxWorker;
 		mapboxgl.accessToken = PUBLIC_MAPBOX_ACCESS_TOKEN;
 
 		map = new mapboxgl.Map({

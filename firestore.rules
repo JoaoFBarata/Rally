@@ -63,6 +63,13 @@ service cloud.firestore {
       allow create: if isMe(userId) && request.resource.data.id == userId;
       allow update: if isMe(userId);
       allow delete: if false;
+
+      match /pointTransactions/{transactionId} {
+        allow read: if isMe(userId);
+        allow create: if isMe(userId);
+        allow update: if false;
+        allow delete: if false;
+      }
     }
 
 

@@ -6,6 +6,8 @@
 	import { getVisibleEventsForUser } from '$lib/services/explore.service';
 	import type { SportEvent } from '$lib/schema';
 	import mapboxgl from 'mapbox-gl';
+	// @ts-expect-error - Vite handles ?worker imports dynamically
+	import MapboxWorker from 'mapbox-gl/dist/mapbox-gl-csp-worker?worker';
 	import { getUserProfile } from '$lib/services/user.service';
 
 	let { userId = '' }: { userId?: string } = $props();
@@ -297,6 +299,8 @@
 	}
 
 	async function createMap(center: [number, number], isFallback = false) {
+		if (!mapContainer) return;
+		(mapboxgl as any).workerClass = MapboxWorker;
 		mapboxgl.accessToken = PUBLIC_MAPBOX_ACCESS_TOKEN;
 
 		map = new mapboxgl.Map({
