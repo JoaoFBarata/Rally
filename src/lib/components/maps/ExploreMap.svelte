@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, mount, unmount } from 'svelte';
 	import mapboxgl from 'mapbox-gl';
 	import MapboxWorker from 'mapbox-gl/dist/mapbox-gl-csp-worker?worker';
 	import { PUBLIC_MAPBOX_ACCESS_TOKEN } from '$env/static/public';
@@ -26,9 +26,11 @@
 	let map = $state<mapboxgl.Map | null>(null);
 	let mapReady = $state(false);
 	import { getUserProfile } from '$lib/services/user.service';
+	import Marker from './Marker.svelte';
 
 	let selectedEvent = $state<SportEvent | null>(null);
 	let markers: mapboxgl.Marker[] = [];
+	let svelteMarkers: any[] = [];
 	let showFilters = $state(false);
 	let selectedSports = $state<Sport[]>([]);
 	let selectedLevels = $state<SportLevel[]>([]);
@@ -171,8 +173,12 @@
 		for (const marker of markers) {
 			marker.remove();
 		}
-
 		markers = [];
+
+		for (const comp of svelteMarkers) {
+            unmount(comp);
+        }
+        svelteMarkers = [];
 	}
 
 	function selectEvent(event: SportEvent) {
@@ -224,51 +230,39 @@
 		for (const item of eventsWithCoords) {
 			if (!item.coords) continue;
 
-			const markerColor = getMarkerColor(item.event);
-			const creator = creatorProfiles[item.event.creatorId];
-			const photoURL =
-				item.event.groupPhotoURL || item.event.organizationLogoURL || creator?.photoURL;
-			const displayName =
-				item.event.hostType === 'organization'
-					? item.event.organizationName || creator?.displayName
-					: creator?.displayName;
-			const sportEmoji = getSportEmoji(item.event.sport);
+			 // Get your photo URL (using your previously commented logic)
+            const creator = creatorProfiles[item.event.creatorId];
+            const photoURL = item.event.groupPhotoURL || item.event.organizationLogoURL || creator?.photoURL || '';
 
-			const el = document.createElement('div');
-			el.className = 'custom-marker';
-			el.style.cursor = 'pointer';
+            // 3. Create a wrapper element for Mapbox
+            const el = document.createElement('div');
+            el.className = 'custom-marker';
+            el.style.cursor = 'pointer';
 
-			let innerHTML = '';
-			if (photoURL) {
-				innerHTML = `<img src="${photoURL}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background-color: #e2e8f0;" referrerpolicy="no-referrer" />`;
-			} else {
-				const initial = (displayName || '?').trim().slice(0, 1).toUpperCase();
-				innerHTML = `<div style="width: 100%; height: 100%; border-radius: 50%; background-color: #dbeafe; color: #2563eb; font-weight: 900; display: flex; align-items: center; justify-content: center; font-size: 13px;">${initial}</div>`;
-			}
+            // 4. Mount the Svelte 5 component to the wrapper element
+            const markerComponent = mount(Marker, {
+                target: el,
+                props: {
+                    profile_url: photoURL,
+					sport: item.event.sport,
+                    n_confirmed_attendees: item.event.participantIds?.length || 0,
+                    max_occupancy: item.event.maxParticipants || 0
+                }
+            });
+            svelteMarkers.push(markerComponent);
 
-			el.innerHTML = `
-				<div style="display: flex; flex-direction: column; align-items: center; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));">
-					<div style="position: relative; width: 40px; height: 40px; border-radius: 50%; background-color: ${markerColor}; display: flex; align-items: center; justify-content: center; padding: 2.5px;">
-						${innerHTML}
-						<div style="position: absolute; top: -4px; right: -4px; width: 15px; height: 15px; border-radius: 50%; background-color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 9px; box-shadow: 0 1px 3px rgba(0,0,0,0.15); border: 0.5px solid #e2e8f0;">
-							${sportEmoji}
-						</div>
-					</div>
-					<div style="width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid ${markerColor}; margin-top: -1px;"></div>
-				</div>
-			`;
+            // 5. Add event listener to the wrapper and add it to Mapbox
+            el.addEventListener('click', () => {
+                selectEvent(item.event);
+            });
 
-			const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
-				.setLngLat([item.coords.lng, item.coords.lat])
-				.addTo(map);
+            const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+                .setLngLat([item.coords.lng, item.coords.lat])
+                .addTo(map);
 
-			el.addEventListener('click', () => {
-				selectEvent(item.event);
-			});
-
-			markers.push(marker);
-			bounds.extend([item.coords.lng, item.coords.lat]);
-		}
+            markers.push(marker);
+            bounds.extend([item.coords.lng, item.coords.lat]);
+        }
 
 		map.fitBounds(bounds, {
 			padding: 80,
