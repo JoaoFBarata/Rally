@@ -13,7 +13,7 @@
             <div id="marker-occupation-wrapper" class="absolute bottom-0 left-0 w-[calc(var(--marker-scale)*2.58vw)] h-[calc(var(--marker-scale)*2.58vw)] rounded-full p-[calc(var(--marker-scale)*5px)] bg-linear-115 from-[#ff595eFF] from-50% to-[#00B4D8FF] to-50%">
                 <div class="w-full h-full bg-linear-115 from-[#fdfdfdFF] from-50% to-[#00B4D8FF] to-50% flex flex-row items-center justify-between px-[calc(var(--marker-scale)*0.2vw)] rounded-full">
                     <div class="mb-[calc(var(--marker-scale)*0.6vh)]">
-                        <h3 class="text-[calc(var(--marker-scale)*1.3rem)] text-black font-bold">{n_confirmed_attendees}1</h3>
+                        <h3 class="text-[calc(var(--marker-scale)*1.3rem)] text-black font-bold">{n_confirmed_attendees}</h3>
                     </div>
                     <div class="mt-[calc(var(--marker-scale)*1.7vh)]">
                         <h3 class="text-white font-bold text-[calc(var(--marker-scale)*1.3rem)]">{max_occupancy}</h3>
