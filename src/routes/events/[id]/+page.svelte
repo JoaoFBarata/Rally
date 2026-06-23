@@ -720,7 +720,7 @@
 	href={resolve('/dashboard')}
 	class="inline-flex rounded-full bg-blue-50 px-5 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
 >
-	← Back to dashboard
+	← Back
 </a>
 
 {#if loading}

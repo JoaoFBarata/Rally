@@ -3,6 +3,8 @@
 	import ExploreMap from '$lib/components/maps/ExploreMap.svelte';
 	import { getPublicEvents } from '$lib/services/explore.service';
 	import type { Sport, SportEvent, SportLevel } from '$lib/schema';
+	import { authState } from '$lib/auth.svelte';
+	import UserAvatar from '$lib/components/UserAvatar.svelte';
 
 	const sportIcons: Record<Sport, string> = {
 		football: '⚽',
@@ -64,65 +66,57 @@
 	<nav
 		class="flex items-center justify-between border-b border-slate-100 bg-white px-6 py-4 dark:border-slate-800 dark:bg-slate-950"
 	>
-		<div class="flex items-center gap-3">
-			<a
-				href="/"
-				class="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
-				aria-label="Back to home"
-			>
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2.2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					class="h-4 w-4"
-				>
-					<path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
-				</svg>
-			</a>
-			<a href="/">
-				<img
-					src="/rally-logo-black.png"
-					alt="Rally"
-					class="h-8 w-auto object-contain dark:hidden"
-				/>
-				<img
-					src="/rally-logo-white.png"
-					alt="Rally"
-					class="hidden h-8 w-auto object-contain dark:block"
-				/>
-			</a>
-		</div>
+		<a href="/">
+			<img
+				src="/rally-logo-black.png"
+				alt="Rally"
+				class="h-8 w-auto object-contain dark:hidden"
+			/>
+			<img
+				src="/rally-logo-white.png"
+				alt="Rally"
+				class="hidden h-8 w-auto object-contain dark:block"
+			/>
+		</a>
 
 		<div class="flex items-center gap-3">
-			<a
-				href="/login"
-				class="text-sm font-semibold text-slate-600 transition hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
-			>
-				Sign in
-			</a>
-			<a
-				href="/register"
-				class="inline-flex items-center gap-2 rounded-full bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-700"
-			>
-				Get started
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					width="12"
-					height="12"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					aria-hidden="true"
+			{#if authState.user}
+				<a href="/dashboard" class="rounded-full transition hover:opacity-80" aria-label="Go to dashboard">
+					<UserAvatar
+						displayName={authState.user.displayName}
+						email={authState.user.email}
+						photoURL={authState.user.photoURL}
+						size="md"
+					/>
+				</a>
+			{:else}
+				<a
+					href="/login"
+					class="text-sm font-semibold text-slate-600 transition hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
 				>
-					<path d="M7 17L17 7" /><path d="M7 7h10v10" />
-				</svg>
-			</a>
+					Sign in
+				</a>
+				<a
+					href="/register"
+					class="inline-flex items-center gap-2 rounded-full bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-700"
+				>
+					Get started
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="12"
+						height="12"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+					>
+						<path d="M7 17L17 7" /><path d="M7 7h10v10" />
+					</svg>
+				</a>
+			{/if}
 		</div>
 	</nav>
 

@@ -27,6 +27,8 @@
 	let loading = $state(false);
 	let error = $state('');
 
+	const todayStr = new Date().toLocaleDateString('en-CA');
+
 	let showInviteModal = $state(false);
 	let createdEventId = $state('');
 	let createdEventTitle = $state('');
@@ -57,7 +59,6 @@
 			error = 'Please fill in the required fields.';
 			return;
 		}
-
 		const startAt = new Date(`${startDate}T${startTime}`);
 		if (isNaN(startAt.getTime()) || startAt <= new Date()) {
 			error = 'The event must be scheduled in the future.';
@@ -150,7 +151,7 @@
 		href={resolve('/dashboard')}
 		class="inline-flex rounded-full bg-blue-100 px-5 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
 	>
-		← Back to dashboard
+		← Back
 	</a>
 
 	<div
@@ -276,7 +277,7 @@
 							id="startDate"
 							type="date"
 							bind:value={startDate}
-							min={new Date().toISOString().split('T')[0]}
+							min={todayStr}
 							class="mt-2 w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950 sm:px-4"
 						/>
 					</div>
@@ -362,12 +363,10 @@
 
 {#if showInviteModal}
 	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-		<button
-			type="button"
-			aria-label="Close event creation"
+		<div
 			class="absolute inset-0 bg-black/40 backdrop-blur-sm"
 			onclick={() => goto(resolve('/dashboard'))}
-		></button>
+		></div>
 
 		<div
 			class="relative w-full max-w-md rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900"
