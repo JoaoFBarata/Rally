@@ -144,48 +144,11 @@ export async function sendMessage(params: {
 		throw new Error('Conversation not found.');
 	}
 
-	const conversationData = conversationSnap.data() as ChatConversation;
-
-	const receivers = conversationData.memberIds.filter(
-		(memberId) => memberId !== params.senderId
-	);
-
-	const currentUnreadFor = conversationData.unreadFor ?? [];
-	const nextUnreadFor = [
-		...new Set([
-			...currentUnreadFor.filter((memberId) => memberId !== params.senderId),
-			...receivers
-		])
-	];
-
-	const currentUnreadCounts = conversationData.unreadCounts ?? {};
-	const nextUnreadCounts = { ...currentUnreadCounts };
-
-	for (const receiverId of receivers) {
-		nextUnreadCounts[receiverId] = (nextUnreadCounts[receiverId] ?? 0) + 1;
-	}
-
-	nextUnreadCounts[params.senderId] = 0;
-
-	const currentTyping = conversationData.typing ?? {};
-	const nextTyping = { ...currentTyping };
-	delete nextTyping[params.senderId];
-
 	await addDoc(collection(db, 'conversations', params.conversationId, 'messages'), {
 		conversationId: params.conversationId,
 		senderId: params.senderId,
 		text: cleanText,
 		createdAt: serverTimestamp()
-	});
-
-	await updateDoc(conversationRef, {
-		lastMessage: cleanText,
-		lastSenderId: params.senderId,
-		lastMessageAt: serverTimestamp(),
-		updatedAt: serverTimestamp(),
-		unreadFor: nextUnreadFor,
-		unreadCounts: nextUnreadCounts,
-		typing: nextTyping
 	});
 }
 
@@ -382,12 +345,6 @@ export async function getOrCreateRallySystemChat(userId: string): Promise<string
 
 export async function sendRallySystemMessage(userId: string, text: string): Promise<void> {
 	const conversationId = await getOrCreateRallySystemChat(userId);
-	const conversationRef = doc(db, 'conversations', conversationId);
-
-	const snap = await getDoc(conversationRef);
-	const data = snap.data() as Partial<ChatConversation>;
-	const currentUnreadCounts = data?.unreadCounts ?? {};
-	const currentUnreadFor = data?.unreadFor ?? [];
 	const cleanText = text.trim();
 
 	await addDoc(collection(db, 'conversations', conversationId, 'messages'), {
@@ -395,17 +352,5 @@ export async function sendRallySystemMessage(userId: string, text: string): Prom
 		senderId: RALLY_SYSTEM_SENDER_ID,
 		text: cleanText,
 		createdAt: serverTimestamp()
-	});
-
-	await updateDoc(conversationRef, {
-		lastMessage: cleanText,
-		lastSenderId: RALLY_SYSTEM_SENDER_ID,
-		lastMessageAt: serverTimestamp(),
-		updatedAt: serverTimestamp(),
-		unreadFor: [...new Set([...currentUnreadFor, userId])],
-		unreadCounts: {
-			...currentUnreadCounts,
-			[userId]: (currentUnreadCounts[userId] ?? 0) + 1
-		}
 	});
 }

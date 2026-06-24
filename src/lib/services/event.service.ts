@@ -750,12 +750,6 @@ export async function cancelEvent(eventId: string, userId: string) {
 		...event,
 		status: 'cancelled'
 	});
-
-	await Promise.all(
-		event.participantIds.map((participantId) =>
-			sendRallySystemMessage(participantId, `The event "${event.title}" has been cancelled.`)
-		)
-	);
 }
 
 export async function removeParticipantFromEvent(params: {
@@ -2032,13 +2026,4 @@ export async function notifyEventFinished(event: SportEvent): Promise<void> {
 		status: 'finished',
 		updatedAt: serverTimestamp()
 	});
-
-	await Promise.all(
-		event.participantIds.map((participantId) =>
-			sendRallySystemMessage(
-				participantId,
-				`Your event "${event.title}" has finished. Hope it was a great game!`
-			)
-		)
-	);
 }

@@ -227,8 +227,12 @@ export async function updateUserActiveOrganization(params: {
 }
 
 export async function saveUserFcmToken(userId: string, token: string) {
-	await updateDoc(doc(db, 'users', userId), {
-		fcmTokens: arrayUnion(token),
-		updatedAt: serverTimestamp()
-	});
+	await setDoc(
+		doc(db, 'users', userId),
+		{
+			fcmTokens: arrayUnion(token),
+			updatedAt: serverTimestamp()
+		},
+		{ merge: true }
+	);
 }

@@ -206,7 +206,7 @@
 		try {
 			let permStatus = await PushNotifications.checkPermissions();
 
-			if (permStatus.receive === 'prompt') {
+			if (permStatus.receive === 'prompt' || permStatus.receive === 'prompt-with-rationale') {
 				permStatus = await PushNotifications.requestPermissions();
 			}
 
@@ -214,6 +214,17 @@
 				console.warn('Push notification permission not granted:', permStatus.receive);
 				return;
 			}
+
+			// Create default notification channel for Android background notifications
+			await PushNotifications.createChannel({
+				id: 'rally_default_channel',
+				name: 'Default',
+				description: 'Default notification channel',
+				importance: 5, // IMPORTANCE_HIGH (value 5)
+				visibility: 1, // VISIBILITY_PUBLIC (value 1)
+				lights: true,
+				vibration: true
+			});
 
 			await PushNotifications.removeAllListeners();
 
@@ -258,10 +269,10 @@
 
 			if (user) {
 				startNotifications(user.uid);
-				registerPushNotifications(user.uid);
 
 				try {
 					profile = await ensureUserProfile(user);
+					registerPushNotifications(user.uid);
 				} catch (err) {
 					console.error('Load shell profile error:', err);
 					profile = null;
