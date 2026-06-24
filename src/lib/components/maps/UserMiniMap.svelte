@@ -314,6 +314,20 @@
 			interactive: true
 		});
 
+		const updateZoomScale = () => {
+			if (!map) return;
+			const zoom = map.getZoom();
+			const minZoom = 7;
+			const maxZoom = 13;
+			let scale = 1.0;
+			if (zoom < maxZoom) {
+				scale = Math.max(0.35, 0.35 + (0.65 * (zoom - minZoom)) / (maxZoom - minZoom));
+			}
+			map.getContainer().style.setProperty('--map-zoom-scale', scale.toFixed(3));
+		};
+
+		map.on('zoom', updateZoomScale);
+
 		unsubscribeThemeState = themeState.subscribe((state) => {
 			const lPreset = state ? 'night' : 'day';
 			if (map) {
@@ -332,6 +346,7 @@
 		map.on('load', () => {
 			mapReady = true;
 			map?.resize();
+			updateZoomScale();
 		});
 
 		userLocation = center;
