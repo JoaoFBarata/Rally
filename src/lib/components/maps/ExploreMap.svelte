@@ -287,20 +287,6 @@
 			zoom: 10
 		});
 
-		const updateZoomScale = () => {
-			if (!map) return;
-			const zoom = map.getZoom();
-			const minZoom = 7;
-			const maxZoom = 10;
-			let scale = 1.0;
-			if (zoom < maxZoom) {
-				scale = Math.max(0.35, 0.35 + (0.65 * (zoom - minZoom)) / (maxZoom - minZoom));
-			}
-			map.getContainer().style.setProperty('--map-zoom-scale', scale.toFixed(3));
-		};
-
-		map.on('zoom', updateZoomScale);
-
 		const unsubscribeThemeState = themeState.subscribe((state) => {
 			const lightPreset = state ? 'night' : 'day';
 
@@ -314,7 +300,6 @@
 		map.on('load', () => {
 			mapReady = true;
 			map?.resize();
-			updateZoomScale();
 			renderMarkers();
 		});
 
