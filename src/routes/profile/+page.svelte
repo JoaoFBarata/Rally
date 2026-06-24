@@ -50,7 +50,6 @@
 	let age = $state<string | number>('');
 	let sports = $state<Sport[]>([]);
 
-
 	let friendTag = $state('');
 	let loading = $state(true);
 	let saving = $state(false);
@@ -516,8 +515,6 @@
 							</p>
 						</div>
 
-
-
 						<div
 							class="min-w-0 rounded-2xl bg-slate-50 p-3 dark:bg-slate-800 sm:rounded-3xl sm:p-5"
 						>
@@ -618,7 +615,7 @@
 							</p>
 						</div>
 					{:else}
-						<div class="mt-5 space-y-3">
+						<div class="mt-5 max-h-[24rem] space-y-3 overflow-y-auto pr-1">
 							{#each friends as friend (friend.id)}
 								<div
 									class="flex items-center justify-between rounded-3xl bg-slate-50 p-4 dark:bg-slate-800"

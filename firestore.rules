@@ -227,7 +227,7 @@ service cloud.firestore {
       allow read:   if isAuth() && request.auth.uid in resource.data.memberIds;
       allow create: if isAuth() && request.auth.uid in request.resource.data.memberIds;
       allow update: if false;
-      allow delete: if false;
+      allow delete: if isAuth() && request.auth.uid in resource.data.memberIds;
     }
 
 
@@ -283,7 +283,26 @@ service cloud.firestore {
           || convData(conversationId).type == 'rally_system'
         );
 
-        allow update: if false;
+        allow update: if isAuth()
+          && isConvMember(conversationId)
+          && resource.data.senderId == request.auth.uid
+          && request.resource.data.senderId == resource.data.senderId
+          && request.resource.data.conversationId == resource.data.conversationId
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'text',
+            'imageURL',
+            'imagePath',
+            'imageName',
+            'imageContentType',
+            'attachmentURL',
+            'attachmentPath',
+            'attachmentName',
+            'attachmentContentType',
+            'editedAt',
+            'deletedAt',
+            'deletedBy'
+          ]);
         allow delete: if false;
       }
     }

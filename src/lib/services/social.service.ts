@@ -1,6 +1,7 @@
 //C:\Users\henri\Fct3Ano\ADC\Rally\src\lib\services\social.service.ts
 import {
 	collection,
+	deleteDoc,
 	doc,
 	getDocs,
 	onSnapshot,
@@ -138,6 +139,20 @@ export async function getFriendsForUser(userId: string) {
 
 	return friends.filter(Boolean) as UserProfile[];
 }
+
+export async function removeFriend(params: { currentUserId: string; friendId: string }) {
+	if (params.currentUserId === params.friendId) {
+		throw new Error('You cannot remove yourself.');
+	}
+
+	const friendshipRef = doc(
+		db,
+		'friendships',
+		friendshipIdFor(params.currentUserId, params.friendId)
+	);
+	await deleteDoc(friendshipRef);
+}
+
 export function listenFriendRequestsForUser(
 	userId: string,
 	callback: (requests: FriendRequest[]) => void,

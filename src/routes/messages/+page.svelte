@@ -2,6 +2,7 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { browser } from '$app/environment';
 	import { auth } from '$lib/firebase';
 	import { listenInvitesForUser, respondToInvite } from '$lib/services/invite.service';
 	import { getEventById, getEffectiveEventStatus } from '$lib/services/event.service';
@@ -13,7 +14,9 @@
 		respondToFriendRequest
 	} from '$lib/services/social.service';
 	import {
+		clearConversationForUser,
 		getOrCreateDirectConversation,
+		hideConversationForUser,
 		listenConversationsForUser,
 		markConversationAsRead
 	} from '$lib/services/chat.service';
@@ -54,9 +57,16 @@
 	let conversations = $state<ConversationWithProfile[]>([]);
 	let friends = $state<UserProfile[]>([]);
 	let showFinishedChats = $state(false);
+	let openConversationMenuId = $state('');
+	let pinnedConversationIds = $state<string[]>([]);
+	let mutedConversationIds = $state<string[]>([]);
 
-	let activeConversations = $derived(conversations.filter((c) => !c.isFinishedEvent));
-	let finishedEventConversations = $derived(conversations.filter((c) => c.isFinishedEvent));
+	let activeConversations = $derived(
+		sortConversationPins(conversations.filter((c) => !c.isFinishedEvent))
+	);
+	let finishedEventConversations = $derived(
+		sortConversationPins(conversations.filter((c) => c.isFinishedEvent))
+	);
 
 	let loading = $state(true);
 	let actionLoading = $state('');
@@ -64,6 +74,18 @@
 	let unsubscribeConversations: Unsubscribe | null = null;
 	let unsubscribeInvites: Unsubscribe | null = null;
 	let unsubscribeFriendRequests: Unsubscribe | null = null;
+	let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+	let longPressOpenedConversationId = '';
+
+	function sortConversationPins(items: ConversationWithProfile[]) {
+		return [...items].sort((a, b) => {
+			const pinDiff =
+				(pinnedConversationIds.includes(b.id) ? 1 : 0) -
+				(pinnedConversationIds.includes(a.id) ? 1 : 0);
+			if (pinDiff !== 0) return pinDiff;
+			return b.lastInteractionAtMs - a.lastInteractionAtMs;
+		});
+	}
 
 	function stopConversationsListener() {
 		if (unsubscribeConversations) {
@@ -85,6 +107,71 @@
 			unsubscribeFriendRequests = null;
 		}
 	}
+
+	function saveConversationPrefs() {
+		if (!browser) return;
+		localStorage.setItem('rally:pinned-conversations', JSON.stringify(pinnedConversationIds));
+		localStorage.setItem('rally:muted-conversations', JSON.stringify(mutedConversationIds));
+	}
+
+	function loadConversationPrefs() {
+		if (!browser) return;
+
+		try {
+			pinnedConversationIds = JSON.parse(
+				localStorage.getItem('rally:pinned-conversations') ?? '[]'
+			);
+			mutedConversationIds = JSON.parse(localStorage.getItem('rally:muted-conversations') ?? '[]');
+		} catch {
+			pinnedConversationIds = [];
+			mutedConversationIds = [];
+		}
+	}
+
+	function toggleConversationPin(conversationId: string) {
+		pinnedConversationIds = pinnedConversationIds.includes(conversationId)
+			? pinnedConversationIds.filter((id) => id !== conversationId)
+			: [conversationId, ...pinnedConversationIds];
+		saveConversationPrefs();
+		openConversationMenuId = '';
+	}
+
+	function toggleConversationMute(conversationId: string) {
+		mutedConversationIds = mutedConversationIds.includes(conversationId)
+			? mutedConversationIds.filter((id) => id !== conversationId)
+			: [conversationId, ...mutedConversationIds];
+		saveConversationPrefs();
+		openConversationMenuId = '';
+	}
+
+	function openConversationMenu(conversationId: string) {
+		openConversationMenuId = openConversationMenuId === conversationId ? '' : conversationId;
+	}
+
+	function showConversationMenu(conversationId: string) {
+		openConversationMenuId = conversationId;
+	}
+
+	function startLongPress(conversationId: string) {
+		clearLongPress();
+		longPressOpenedConversationId = '';
+		longPressTimer = setTimeout(() => {
+			showConversationMenu(conversationId);
+			longPressOpenedConversationId = conversationId;
+			longPressTimer = null;
+		}, 450);
+	}
+
+	function clearLongPress() {
+		if (longPressTimer) {
+			clearTimeout(longPressTimer);
+			longPressTimer = null;
+		}
+	}
+
+	function finishLongPress() {
+		clearLongPress();
+	}
 	function timestampToMillis(value: unknown) {
 		try {
 			const timestamp = value as { toDate?: () => Date };
@@ -102,7 +189,13 @@
 		);
 	}
 
+	function isConversationClearedForUser(conversation: ChatConversation, userId: string) {
+		const clearedAt = conversation.clearedFor?.[userId];
+		const clearedAtMs = timestampToMillis(clearedAt);
+		const lastMessageAtMs = timestampToMillis(conversation.lastMessageAt);
 
+		return clearedAtMs > 0 && lastMessageAtMs > 0 && clearedAtMs >= lastMessageAtMs;
+	}
 
 	function formatUnreadCount(count: number) {
 		return count > 99 ? '99+' : String(count);
@@ -138,18 +231,24 @@
 		userConversations: ChatConversation[],
 		currentUserId: string
 	) {
+		const visibleConversations = userConversations.filter(
+			(conversation) => !(conversation.hiddenFor ?? []).includes(currentUserId)
+		);
+
 		const conversationsWithProfiles = await Promise.all(
-			userConversations.map(async (conversation) => {
+			visibleConversations.map(async (conversation) => {
 				const unreadCount = conversation.unreadCounts?.[currentUserId] ?? 0;
 
 				if (conversation.type === 'rally_system') {
+					const isCleared = isConversationClearedForUser(conversation, currentUserId);
 					return {
 						...conversation,
 						otherUser: null,
 						unreadCount,
 						lastInteractionAtMs: getConversationLastInteraction(conversation),
 						displayName: 'Rally',
-						displaySubtitle: 'Activity & event updates',
+						displaySubtitle: isCleared ? 'No messages' : 'Activity & event updates',
+						lastMessage: isCleared ? '' : conversation.lastMessage,
 						displayPhotoURL: null,
 						displayHref: `/messages/${conversation.id}`,
 						isOrganizationChat: false
@@ -157,13 +256,15 @@
 				}
 
 				if (conversation.type === 'group') {
+					const isCleared = isConversationClearedForUser(conversation, currentUserId);
 					return {
 						...conversation,
 						otherUser: null,
 						unreadCount,
 						lastInteractionAtMs: getConversationLastInteraction(conversation),
 						displayName: conversation.title ?? 'Event group',
-						displaySubtitle: 'Event group chat',
+						displaySubtitle: isCleared ? 'No messages' : 'Event group chat',
+						lastMessage: isCleared ? '' : conversation.lastMessage,
 						displayPhotoURL: conversation.photoURL ?? null,
 						displayHref: `/messages/${conversation.id}`,
 						isOrganizationChat: false
@@ -171,13 +272,15 @@
 				}
 
 				if (conversation.type === 'tournament_team') {
+					const isCleared = isConversationClearedForUser(conversation, currentUserId);
 					return {
 						...conversation,
 						otherUser: null,
 						unreadCount,
 						lastInteractionAtMs: getConversationLastInteraction(conversation),
 						displayName: conversation.title ?? 'Tournament team',
-						displaySubtitle: 'Team chat',
+						displaySubtitle: isCleared ? 'No messages' : 'Team chat',
+						lastMessage: isCleared ? '' : conversation.lastMessage,
 						displayPhotoURL: conversation.photoURL ?? null,
 						displayHref: `/messages/${conversation.id}`,
 						isOrganizationChat: false
@@ -185,13 +288,15 @@
 				}
 
 				if (conversation.type === 'organization_direct') {
+					const isCleared = isConversationClearedForUser(conversation, currentUserId);
 					return {
 						...conversation,
 						otherUser: null,
 						unreadCount,
 						lastInteractionAtMs: getConversationLastInteraction(conversation),
 						displayName: conversation.organizationName ?? conversation.title ?? 'Organization',
-						displaySubtitle: 'Organization inbox',
+						displaySubtitle: isCleared ? 'No messages' : 'Organization inbox',
+						lastMessage: isCleared ? '' : conversation.lastMessage,
 						displayPhotoURL: conversation.organizationLogoURL ?? conversation.photoURL ?? null,
 						displayHref: `/messages/${conversation.id}`,
 						isOrganizationChat: true
@@ -207,7 +312,12 @@
 					unreadCount,
 					lastInteractionAtMs: getConversationLastInteraction(conversation),
 					displayName: otherUser?.displayName ?? 'Rally user',
-					displaySubtitle: `@${otherUser?.rallyTag ?? 'rally'}`,
+					displaySubtitle: isConversationClearedForUser(conversation, currentUserId)
+						? 'No messages'
+						: `@${otherUser?.rallyTag ?? 'rally'}`,
+					lastMessage: isConversationClearedForUser(conversation, currentUserId)
+						? ''
+						: conversation.lastMessage,
 					displayPhotoURL: otherUser?.photoURL ?? null,
 					displayHref: `/messages/${conversation.id}`,
 					isOrganizationChat: false
@@ -422,6 +532,11 @@
 	}
 
 	async function openConversation(conversationId: string) {
+		if (longPressOpenedConversationId === conversationId) {
+			longPressOpenedConversationId = '';
+			return;
+		}
+
 		const currentUser = auth.currentUser;
 
 		if (currentUser) {
@@ -431,14 +546,56 @@
 		await goto(`/messages/${conversationId}`);
 	}
 
+	async function handleDeleteConversation(conversation: ConversationWithProfile) {
+		const currentUser = auth.currentUser;
+
+		if (!currentUser) return;
+		if (!confirm(`Remove "${conversation.displayName}" from your chat list?`)) return;
+
+		actionLoading = `conversation-${conversation.id}`;
+		error = '';
+
+		try {
+			await hideConversationForUser(conversation.id, currentUser.uid);
+			openConversationMenuId = '';
+		} catch (err) {
+			console.error('Delete conversation error:', err);
+			error = err instanceof Error ? err.message : 'Could not remove conversation.';
+		} finally {
+			actionLoading = '';
+		}
+	}
+
+	async function handleClearConversation(conversation: ConversationWithProfile) {
+		const currentUser = auth.currentUser;
+
+		if (!currentUser) return;
+		if (!confirm(`Clear all messages from "${conversation.displayName}" for you?`)) return;
+
+		actionLoading = `clear-${conversation.id}`;
+		error = '';
+
+		try {
+			await clearConversationForUser(conversation.id, currentUser.uid);
+			openConversationMenuId = '';
+		} catch (err) {
+			console.error('Clear conversation error:', err);
+			error = err instanceof Error ? err.message : 'Could not clear conversation.';
+		} finally {
+			actionLoading = '';
+		}
+	}
+
 	onMount(() => {
-	loadMessagesPage();
+		loadConversationPrefs();
+		loadMessagesPage();
 	});
 
 	onDestroy(() => {
 		stopConversationsListener();
 		stopInvitesListener();
 		stopFriendRequestsListener();
+		clearLongPress();
 	});
 </script>
 
@@ -625,61 +782,153 @@
 				{:else}
 					<div class="divide-y divide-slate-100 dark:divide-slate-800">
 						{#each activeConversations as conversation (conversation.id)}
-							<button
-								type="button"
-								onclick={() => openConversation(conversation.id)}
-								class="flex w-full items-center gap-3 rounded-3xl p-3 text-left transition hover:bg-slate-100 dark:hover:bg-slate-800"
+							<div
+								role="group"
+								class="relative flex w-full items-center gap-2 rounded-3xl p-2 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+								oncontextmenu={(event) => {
+									event.preventDefault();
+									showConversationMenu(conversation.id);
+								}}
+								onpointerdown={() => startLongPress(conversation.id)}
+								onpointerup={finishLongPress}
+								onpointerleave={clearLongPress}
 							>
-								<div
-									class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full {conversation.type === 'rally_system' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-blue-600 dark:bg-slate-800 dark:text-blue-300'} text-base font-black"
+								<button
+									type="button"
+									onclick={() => openConversation(conversation.id)}
+									class="flex min-w-0 flex-1 items-center gap-3 rounded-2xl p-1 text-left"
 								>
-									{#if conversation.type === 'rally_system'}
-										<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
-											<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-										</svg>
-									{:else if conversation.displayPhotoURL}
-										<img
-											src={conversation.displayPhotoURL}
-											alt={conversation.displayName}
-											class="h-full w-full object-cover"
-										/>
-									{:else}
-										{conversation.displayName.charAt(0).toUpperCase()}
-									{/if}
-								</div>
-
-								<div class="min-w-0 flex-1">
-									<div class="flex items-center gap-2">
-										<p class="truncate font-black text-slate-950 dark:text-slate-50">
-											{conversation.displayName}
-										</p>
-
+									<div
+										class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full {conversation.type ===
+										'rally_system'
+											? 'bg-blue-600 text-white'
+											: 'bg-slate-100 text-blue-600 dark:bg-slate-800 dark:text-blue-300'} text-base font-black"
+									>
 										{#if conversation.type === 'rally_system'}
-											<span class="shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-black text-white">
-												Official
-											</span>
-										{:else if conversation.isOrganizationChat}
-											<span
-												class="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+											<svg
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												stroke-width="2.5"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												class="h-5 w-5"
+												aria-hidden="true"
 											>
-												Company
-											</span>
+												<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+											</svg>
+										{:else if conversation.displayPhotoURL}
+											<img
+												src={conversation.displayPhotoURL}
+												alt={conversation.displayName}
+												class="h-full w-full object-cover"
+											/>
+										{:else}
+											{conversation.displayName.charAt(0).toUpperCase()}
 										{/if}
 									</div>
 
-									<p class="truncate text-xs text-slate-500 dark:text-slate-400">
-										{conversation.lastMessage ?? conversation.displaySubtitle}
-									</p>
-								</div>
+									<div class="min-w-0 flex-1">
+										<div class="flex items-center gap-2">
+											<p class="truncate font-black text-slate-950 dark:text-slate-50">
+												{conversation.displayName}
+											</p>
 
-								{#if conversation.unreadCount > 0}
-									<span
-										class="flex min-h-6 min-w-6 items-center justify-center rounded-full bg-blue-600 px-2 text-xs font-black text-white"
+											{#if conversation.type === 'rally_system'}
+												<span
+													class="shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-black text-white"
+												>
+													Official
+												</span>
+											{/if}
+
+											{#if pinnedConversationIds.includes(conversation.id)}
+												<span class="text-xs text-blue-500" aria-label="Pinned">●</span>
+											{/if}
+
+											{#if mutedConversationIds.includes(conversation.id)}
+												<span class="text-xs text-slate-400" aria-label="Muted">Muted</span>
+											{:else if conversation.isOrganizationChat}
+												<span
+													class="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+												>
+													Company
+												</span>
+											{/if}
+										</div>
+
+										<p class="truncate text-xs text-slate-500 dark:text-slate-400">
+											{conversation.lastMessage ?? conversation.displaySubtitle}
+										</p>
+									</div>
+
+									{#if conversation.unreadCount > 0}
+										<span
+											class="flex min-h-6 min-w-6 items-center justify-center rounded-full bg-blue-600 px-2 text-xs font-black text-white"
+										>
+											{formatUnreadCount(conversation.unreadCount)}
+										</span>
+									{/if}
+								</button>
+
+								{#if conversation.type !== 'rally_system'}
+									<button
+										type="button"
+										onclick={() => openConversationMenu(conversation.id)}
+										class="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-white hover:text-slate-800 dark:hover:bg-slate-900 dark:hover:text-white md:flex"
+										aria-label="Conversation options"
 									>
-										{formatUnreadCount(conversation.unreadCount)}
-									</span>
+										⌄
+									</button>
+
+									{#if openConversationMenuId === conversation.id}
+										<div
+											role="menu"
+											tabindex="-1"
+											class="absolute right-3 top-12 z-20 w-48 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1 text-sm shadow-2xl shadow-slate-300/50 dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/40"
+											onpointerdown={(event) => event.stopPropagation()}
+											onpointerup={(event) => event.stopPropagation()}
+											onclick={(event) => event.stopPropagation()}
+											onkeydown={(event) => event.stopPropagation()}
+										>
+											<button
+												type="button"
+												onclick={() => toggleConversationPin(conversation.id)}
+												class="block w-full rounded-xl px-3 py-2 text-left font-bold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+											>
+												{pinnedConversationIds.includes(conversation.id)
+													? 'Unpin chat'
+													: 'Pin chat'}
+											</button>
+											<button
+												type="button"
+												onclick={() => toggleConversationMute(conversation.id)}
+												class="block w-full rounded-xl px-3 py-2 text-left font-bold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+											>
+												{mutedConversationIds.includes(conversation.id)
+													? 'Unmute chat'
+													: 'Mute chat'}
+											</button>
+											<button
+												type="button"
+												onclick={() => handleClearConversation(conversation)}
+												disabled={actionLoading === `clear-${conversation.id}`}
+												class="block w-full rounded-xl px-3 py-2 text-left font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:text-slate-200 dark:hover:bg-slate-800"
+											>
+												Clear chat
+											</button>
+											<button
+												type="button"
+												onclick={() => handleDeleteConversation(conversation)}
+												disabled={actionLoading === `conversation-${conversation.id}`}
+												class="block w-full rounded-xl px-3 py-2 text-left font-bold text-red-600 hover:bg-red-50 disabled:opacity-50 dark:text-red-300 dark:hover:bg-red-950/40"
+											>
+												Delete chat
+											</button>
+										</div>
+									{/if}
 								{/if}
-							</button>
+							</div>
 						{/each}
 
 						{#if finishedEventConversations.length > 0}
@@ -688,10 +937,14 @@
 								onclick={() => (showFinishedChats = !showFinishedChats)}
 								class="flex w-full items-center gap-2 py-3 text-left"
 							>
-								<span class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
+								<span
+									class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500"
+								>
 									Finished events
 								</span>
-								<span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+								<span
+									class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+								>
 									{finishedEventConversations.length}
 								</span>
 								<svg
@@ -701,7 +954,9 @@
 									stroke-width="2.5"
 									stroke-linecap="round"
 									stroke-linejoin="round"
-									class="ml-auto h-4 w-4 text-slate-400 transition-transform duration-200 dark:text-slate-500 {showFinishedChats ? 'rotate-180' : ''}"
+									class="ml-auto h-4 w-4 text-slate-400 transition-transform duration-200 dark:text-slate-500 {showFinishedChats
+										? 'rotate-180'
+										: ''}"
 									aria-hidden="true"
 								>
 									<path d="M6 9l6 6 6-6" />
@@ -710,42 +965,110 @@
 
 							{#if showFinishedChats}
 								{#each finishedEventConversations as conversation (conversation.id)}
-									<button
-										type="button"
-										onclick={() => openConversation(conversation.id)}
-										class="flex w-full items-center gap-3 rounded-3xl p-3 text-left opacity-60 transition hover:bg-slate-100 hover:opacity-100 dark:hover:bg-slate-800"
+									<div
+										role="group"
+										class="relative flex w-full items-center gap-2 rounded-3xl p-2 opacity-60 transition hover:bg-slate-100 hover:opacity-100 dark:hover:bg-slate-800"
+										oncontextmenu={(event) => {
+											event.preventDefault();
+											showConversationMenu(conversation.id);
+										}}
+										onpointerdown={() => startLongPress(conversation.id)}
+										onpointerup={finishLongPress}
+										onpointerleave={clearLongPress}
 									>
-										<div
-											class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 text-base font-black"
+										<button
+											type="button"
+											onclick={() => openConversation(conversation.id)}
+											class="flex min-w-0 flex-1 items-center gap-3 rounded-2xl p-1 text-left"
 										>
-											{#if conversation.displayPhotoURL}
-												<img
-													src={conversation.displayPhotoURL}
-													alt={conversation.displayName}
-													class="h-full w-full object-cover grayscale"
-												/>
-											{:else}
-												{conversation.displayName.charAt(0).toUpperCase()}
-											{/if}
-										</div>
-
-										<div class="min-w-0 flex-1">
-											<p class="truncate font-black text-slate-950 dark:text-slate-50">
-												{conversation.displayName}
-											</p>
-											<p class="truncate text-xs text-slate-500 dark:text-slate-400">
-												{conversation.lastMessage ?? conversation.displaySubtitle}
-											</p>
-										</div>
-
-										{#if conversation.unreadCount > 0}
-											<span
-												class="flex min-h-6 min-w-6 items-center justify-center rounded-full bg-slate-400 px-2 text-xs font-black text-white dark:bg-slate-600"
+											<div
+												class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 text-base font-black"
 											>
-												{formatUnreadCount(conversation.unreadCount)}
-											</span>
+												{#if conversation.displayPhotoURL}
+													<img
+														src={conversation.displayPhotoURL}
+														alt={conversation.displayName}
+														class="h-full w-full object-cover grayscale"
+													/>
+												{:else}
+													{conversation.displayName.charAt(0).toUpperCase()}
+												{/if}
+											</div>
+
+											<div class="min-w-0 flex-1">
+												<p class="truncate font-black text-slate-950 dark:text-slate-50">
+													{conversation.displayName}
+												</p>
+												<p class="truncate text-xs text-slate-500 dark:text-slate-400">
+													{conversation.lastMessage ?? conversation.displaySubtitle}
+												</p>
+											</div>
+
+											{#if conversation.unreadCount > 0}
+												<span
+													class="flex min-h-6 min-w-6 items-center justify-center rounded-full bg-slate-400 px-2 text-xs font-black text-white dark:bg-slate-600"
+												>
+													{formatUnreadCount(conversation.unreadCount)}
+												</span>
+											{/if}
+										</button>
+
+										<button
+											type="button"
+											onclick={() => openConversationMenu(conversation.id)}
+											class="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-white hover:text-slate-800 dark:hover:bg-slate-900 dark:hover:text-white md:flex"
+											aria-label="Conversation options"
+										>
+											⌄
+										</button>
+
+										{#if openConversationMenuId === conversation.id}
+											<div
+												role="menu"
+												tabindex="-1"
+												class="absolute right-3 top-12 z-20 w-48 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1 text-sm shadow-2xl shadow-slate-300/50 dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/40"
+												onpointerdown={(event) => event.stopPropagation()}
+												onpointerup={(event) => event.stopPropagation()}
+												onclick={(event) => event.stopPropagation()}
+												onkeydown={(event) => event.stopPropagation()}
+											>
+												<button
+													type="button"
+													onclick={() => toggleConversationPin(conversation.id)}
+													class="block w-full rounded-xl px-3 py-2 text-left font-bold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+												>
+													{pinnedConversationIds.includes(conversation.id)
+														? 'Unpin chat'
+														: 'Pin chat'}
+												</button>
+												<button
+													type="button"
+													onclick={() => toggleConversationMute(conversation.id)}
+													class="block w-full rounded-xl px-3 py-2 text-left font-bold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+												>
+													{mutedConversationIds.includes(conversation.id)
+														? 'Unmute chat'
+														: 'Mute chat'}
+												</button>
+												<button
+													type="button"
+													onclick={() => handleClearConversation(conversation)}
+													disabled={actionLoading === `clear-${conversation.id}`}
+													class="block w-full rounded-xl px-3 py-2 text-left font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:text-slate-200 dark:hover:bg-slate-800"
+												>
+													Clear chat
+												</button>
+												<button
+													type="button"
+													onclick={() => handleDeleteConversation(conversation)}
+													disabled={actionLoading === `conversation-${conversation.id}`}
+													class="block w-full rounded-xl px-3 py-2 text-left font-bold text-red-600 hover:bg-red-50 disabled:opacity-50 dark:text-red-300 dark:hover:bg-red-950/40"
+												>
+													Delete chat
+												</button>
+											</div>
 										{/if}
-									</button>
+									</div>
 								{/each}
 							{/if}
 						{/if}
@@ -780,7 +1103,7 @@
 
 								<button
 									onclick={() => startConversation(friend.id)}
-									class="rounded-full bg-slate-100 px-4 py-2 text-sm font-bold text-blue-600 transition hover:bg-blue-600 hover:text-white dark:bg-slate-900 dark:text-blue-400 dark:hover:bg-blue-600 dark:hover:text-white"
+									class="shrink-0 rounded-full bg-slate-100 px-4 py-2 text-sm font-bold text-blue-600 transition hover:bg-blue-600 hover:text-white dark:bg-slate-900 dark:text-blue-400 dark:hover:bg-blue-600 dark:hover:text-white"
 								>
 									Message
 								</button>

@@ -331,6 +331,8 @@ export interface ChatConversation {
 
 	unreadFor?: string[];
 	unreadCounts?: Record<string, number>;
+	hiddenFor?: string[];
+	clearedFor?: Record<string, Timestamp>;
 	typing?: Record<string, ChatTypingState>;
 
 	createdAt: Timestamp;
@@ -342,6 +344,17 @@ export interface ChatMessage {
 	conversationId: string;
 	senderId: string;
 	text: string;
+	attachmentURL?: string | null;
+	attachmentPath?: string | null;
+	attachmentName?: string | null;
+	attachmentContentType?: string | null;
+	imageURL?: string | null;
+	imagePath?: string | null;
+	imageName?: string | null;
+	imageContentType?: string | null;
+	editedAt?: Timestamp | null;
+	deletedAt?: Timestamp | null;
+	deletedBy?: string | null;
 	createdAt: Timestamp;
 }
 

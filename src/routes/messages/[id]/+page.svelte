@@ -4,9 +4,12 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { browser } from '$app/environment';
 	import { auth } from '$lib/firebase';
 	import {
 		clearUserTyping,
+		deleteMessageForEveryone,
+		editMessage,
 		getConversationById,
 		listenConversationById,
 		listenMessagesForConversation,
@@ -14,6 +17,7 @@
 		sendMessage,
 		setUserTyping
 	} from '$lib/services/chat.service';
+	import { uploadChatFile } from '$lib/services/storage.service';
 	import { getUserProfile, getUserProfilesByIds } from '$lib/services/user.service';
 	import { getTournamentEntries } from '$lib/services/event.service';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -40,9 +44,13 @@
 	let typingLabel = $state('');
 	let showGroupInfo = $state(false);
 	let teamEntry = $state<TournamentEntry | null>(null);
+	let editingMessage = $state<ChatMessage | null>(null);
+	let imageSending = $state(false);
+	let pinnedMessageIds = $state<string[]>([]);
 
 	let messagesContainer = $state<HTMLElement | null>(null);
 	let messageInput = $state<HTMLInputElement>();
+	let imageInput = $state<HTMLInputElement>();
 	let unsubscribeMessages: Unsubscribe | null = null;
 	let unsubscribeConversation: Unsubscribe | null = null;
 	let typingTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -53,6 +61,21 @@
 	let isGroupChat = $derived(
 		conversation?.type === 'group' || conversation?.type === 'tournament_team'
 	);
+	let displayedMessages = $derived.by(() => {
+		const currentUserId = auth.currentUser?.uid;
+		const clearedAt = currentUserId ? conversation?.clearedFor?.[currentUserId] : null;
+		const clearedAtMs = timestampToMillis(clearedAt);
+
+		if (!clearedAtMs) return messages;
+
+		return messages.filter((message) => timestampToMillis(message.createdAt) > clearedAtMs);
+	});
+	let pinnedMessages = $derived(
+		displayedMessages.filter(
+			(message) => pinnedMessageIds.includes(message.id) && !message.deletedAt
+		)
+	);
+	let pinnedPreviewMessage = $derived(pinnedMessages[0] ?? null);
 
 	let conversationTitle = $derived.by(() => {
 		if (!conversation) return 'Messages';
@@ -162,6 +185,61 @@
 		}
 	}
 
+	function pinnedStorageKey(nextConversationId = conversationId) {
+		return `rally:pinned-messages:${nextConversationId}`;
+	}
+
+	function loadPinnedMessages(nextConversationId: string) {
+		if (!browser || !nextConversationId) return;
+
+		try {
+			pinnedMessageIds = JSON.parse(
+				localStorage.getItem(pinnedStorageKey(nextConversationId)) ?? '[]'
+			);
+		} catch {
+			pinnedMessageIds = [];
+		}
+	}
+
+	function savePinnedMessages() {
+		if (!browser || !conversationId) return;
+		localStorage.setItem(pinnedStorageKey(), JSON.stringify(pinnedMessageIds));
+	}
+
+	function togglePinnedMessage(message: ChatMessage) {
+		if (message.deletedAt) return;
+
+		pinnedMessageIds = pinnedMessageIds.includes(message.id)
+			? pinnedMessageIds.filter((id) => id !== message.id)
+			: [message.id, ...pinnedMessageIds];
+		savePinnedMessages();
+	}
+
+	function messageAttachmentName(message: ChatMessage) {
+		return message.attachmentName ?? message.imageName ?? '';
+	}
+
+	function messagePreviewText(message: ChatMessage) {
+		if (message.text) return message.text;
+		if ((message.attachmentContentType ?? message.imageContentType ?? '').startsWith('image/')) {
+			return 'Photo';
+		}
+		if ((message.attachmentContentType ?? '').startsWith('video/')) {
+			return 'Video';
+		}
+		return messageAttachmentName(message) || 'Attachment';
+	}
+
+	async function scrollToMessage(messageId: string) {
+		await tick();
+
+		const target = document.getElementById(`chat-message-${messageId}`);
+
+		if (target) {
+			target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		}
+	}
+
 	async function updateTypingLabel(
 		currentConversation: ChatConversation | null,
 		currentUserId: string
@@ -246,6 +324,7 @@
 		}
 
 		conversationId = id;
+		loadPinnedMessages(id);
 		loading = true;
 		error = '';
 
@@ -401,6 +480,103 @@
 		}
 	}
 
+	function beginEditMessage(message: ChatMessage) {
+		if (message.senderId !== auth.currentUser?.uid || message.deletedAt) return;
+
+		editingMessage = message;
+		text = message.text;
+		void focusMessageInput();
+	}
+
+	function cancelEditMessage() {
+		editingMessage = null;
+		text = '';
+	}
+
+	async function handleEditMessage() {
+		const currentUser = auth.currentUser;
+
+		if (!currentUser || !conversationId || !editingMessage || !text.trim()) return;
+
+		sending = true;
+		error = '';
+
+		try {
+			await editMessage({
+				conversationId,
+				messageId: editingMessage.id,
+				userId: currentUser.uid,
+				text
+			});
+
+			cancelEditMessage();
+		} catch (err) {
+			console.error('Edit message error:', err);
+			error = err instanceof Error ? err.message : 'Could not edit message.';
+		} finally {
+			sending = false;
+		}
+	}
+
+	async function handleDeleteMessage(message: ChatMessage) {
+		const currentUser = auth.currentUser;
+
+		if (!currentUser || !conversationId || message.senderId !== currentUser.uid) return;
+		if (!confirm('Delete this message for everyone?')) return;
+
+		error = '';
+
+		try {
+			await deleteMessageForEveryone({
+				conversationId,
+				messageId: message.id,
+				userId: currentUser.uid
+			});
+		} catch (err) {
+			console.error('Delete message error:', err);
+			error = err instanceof Error ? err.message : 'Could not delete message.';
+		}
+	}
+
+	async function handleFileSelected(event: Event) {
+		const currentUser = auth.currentUser;
+		const input = event.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+
+		if (!currentUser || !conversationId || !file) return;
+
+		imageSending = true;
+		error = '';
+
+		try {
+			await clearCurrentUserTyping();
+
+			const attachment = await uploadChatFile({
+				conversationId,
+				userId: currentUser.uid,
+				file
+			});
+
+			await sendMessage({
+				conversationId,
+				senderId: currentUser.uid,
+				text: '',
+				attachmentURL: attachment.url,
+				attachmentPath: attachment.path,
+				attachmentName: file.name,
+				attachmentContentType: file.type || 'application/octet-stream'
+			});
+
+			await scrollToBottom();
+		} catch (err) {
+			console.error('Send attachment error:', err);
+			error = err instanceof Error ? err.message : 'Could not send attachment.';
+		} finally {
+			input.value = '';
+			imageSending = false;
+		}
+	}
+
 	onMount(() => {
 		loadConversation();
 	});
@@ -531,6 +707,34 @@
 		{/if}
 	</header>
 
+	{#if pinnedPreviewMessage}
+		<button
+			type="button"
+			onclick={() => scrollToMessage(pinnedPreviewMessage.id)}
+			class="flex items-center gap-3 border-b border-slate-100 bg-white px-4 py-2 text-left transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:hover:bg-slate-900"
+			aria-label="Pinned message"
+		>
+			<svg
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2.3"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				class="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400"
+				aria-hidden="true"
+			>
+				<path d="m14 4 6 6-4 1-5 5v4h-2v-4l-5-5 1-1 5 1 5-5z" />
+			</svg>
+			<p class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-700 dark:text-slate-200">
+				{messagePreviewText(pinnedPreviewMessage)}
+			</p>
+			<span class="text-xs font-black text-slate-400 dark:text-slate-500">
+				{pinnedMessages.length > 1 ? `${pinnedMessages.length} pinned` : 'Pinned'}
+			</span>
+		</button>
+	{/if}
+
 	{#if showGroupInfo && conversation && isGroupChat}
 		<dialog
 			open
@@ -650,7 +854,7 @@
 			<div class="flex h-full items-center justify-center text-sm text-slate-500">
 				Loading conversation...
 			</div>
-		{:else if messages.length === 0}
+		{:else if displayedMessages.length === 0}
 			<div class="flex h-full items-center justify-center text-center">
 				<div class="flex flex-col items-center">
 					<div
@@ -683,7 +887,7 @@
 			</div>
 		{:else}
 			<ChatMessageList
-				{messages}
+				messages={displayedMessages}
 				currentUserId={auth.currentUser?.uid}
 				getSenderProfile={(senderId) => {
 					if (senderId === 'rally-system')
@@ -698,6 +902,10 @@
 				}}
 				{typingLabel}
 				showSenderName={isGroupChat}
+				onEditMessage={beginEditMessage}
+				onDeleteMessage={handleDeleteMessage}
+				onTogglePinMessage={togglePinnedMessage}
+				{pinnedMessageIds}
 			/>
 		{/if}
 	</section>
@@ -715,17 +923,67 @@
 			class="border-t border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950"
 			onsubmit={(e) => {
 				e.preventDefault();
-				handleSendMessage();
+				if (editingMessage) {
+					handleEditMessage();
+				} else {
+					handleSendMessage();
+				}
 			}}
 		>
+			{#if editingMessage}
+				<div
+					class="mx-auto mb-2 flex max-w-3xl items-center justify-between gap-3 rounded-2xl bg-blue-50 px-4 py-2 text-sm text-blue-700 dark:bg-blue-950/50 dark:text-blue-200"
+				>
+					<span class="min-w-0 truncate font-semibold">Editing message</span>
+					<button
+						type="button"
+						onclick={cancelEditMessage}
+						class="shrink-0 font-black hover:text-blue-950 dark:hover:text-white"
+					>
+						Cancel
+					</button>
+				</div>
+			{/if}
+
 			<div
 				class="mx-auto flex max-w-3xl items-center gap-2 rounded-full bg-slate-100 px-3 py-2 dark:bg-slate-900"
 			>
+				<input bind:this={imageInput} type="file" class="hidden" onchange={handleFileSelected} />
+
+				<button
+					type="button"
+					onclick={() => imageInput?.click()}
+					disabled={sending || imageSending || Boolean(editingMessage)}
+					class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-white hover:text-blue-600 disabled:opacity-40 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-blue-300"
+					aria-label="Send attachment"
+				>
+					{#if imageSending}
+						<span
+							class="h-4 w-4 animate-spin rounded-full border-2 border-blue-200 border-t-blue-600"
+						></span>
+					{:else}
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="h-5 w-5"
+							aria-hidden="true"
+						>
+							<rect x="3" y="3" width="18" height="18" rx="3" />
+							<circle cx="8.5" cy="8.5" r="1.5" />
+							<path d="m21 15-5-5L5 21" />
+						</svg>
+					{/if}
+				</button>
+
 				<input
 					bind:this={messageInput}
 					bind:value={text}
 					oninput={handleTyping}
-					placeholder="Message..."
+					placeholder={editingMessage ? 'Edit message...' : 'Message...'}
 					class="min-w-0 flex-1 border-0 bg-transparent px-2 text-sm text-slate-950 placeholder:text-slate-400 focus:ring-0 dark:text-white"
 				/>
 
@@ -734,7 +992,7 @@
 					disabled={sending || !text.trim()}
 					class="rounded-full bg-blue-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-blue-700 disabled:opacity-50"
 				>
-					{sending ? '...' : 'Send'}
+					{sending ? '...' : editingMessage ? 'Save' : 'Send'}
 				</button>
 			</div>
 		</form>
