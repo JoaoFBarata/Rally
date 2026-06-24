@@ -2,6 +2,7 @@ import { auth } from '$lib/firebase';
 import {
 	createUserWithEmailAndPassword,
 	GoogleAuthProvider,
+	sendPasswordResetEmail,
 	signInWithEmailAndPassword,
 	signInWithPopup,
 	signInWithCredential,
@@ -19,6 +20,7 @@ import { env } from '$env/dynamic/public';
 import { createOrganization } from '$lib/services/organization.service';
 import { sendRallySystemMessage } from '$lib/services/chat.service';
 import type { OrganizationType } from '$lib/schema';
+import { createAppUrl } from '$lib/utils/app-url';
 
 export const authService = {
 	async register(email: string, password: string, displayName: string) {
@@ -108,6 +110,13 @@ export const authService = {
 		await ensureUserProfile(credential.user);
 
 		return credential.user;
+	},
+
+	async sendPasswordReset(email: string) {
+		await sendPasswordResetEmail(auth, email, {
+			url: createAppUrl('/login'),
+			handleCodeInApp: false
+		});
 	},
 
 	async signInWithGoogle() {

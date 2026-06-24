@@ -363,10 +363,12 @@
 
 {#if showInviteModal}
 	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-		<div
+		<button
+			type="button"
+			aria-label="Skip inviting friends"
 			class="absolute inset-0 bg-black/40 backdrop-blur-sm"
 			onclick={() => goto(resolve('/dashboard'))}
-		></div>
+		></button>
 
 		<div
 			class="relative w-full max-w-md rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900"
