@@ -81,7 +81,6 @@ export interface UserProfile {
 	city?: string;
 	country?: string;
 	age?: number | null;
-	level?: SportLevel;
 	sports: Sport[];
 
 	rallyPointsTotal?: number;

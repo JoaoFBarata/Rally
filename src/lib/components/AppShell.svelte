@@ -241,6 +241,7 @@
 
 			await PushNotifications.addListener('registration', async (token) => {
 				console.log('Push registration success, token:', token.value);
+				localStorage.setItem('rally_fcm_token', token.value);
 				try {
 					await saveUserFcmToken(userId, token.value);
 				} catch (err) {

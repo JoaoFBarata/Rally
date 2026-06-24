@@ -63,11 +63,11 @@
 	});
 </script>
 
-<main class="mx-auto max-w-[1500px] px-3 py-5 sm:px-5 sm:py-8">
-	<header class="mb-6">
+<main class="mx-auto w-full max-w-[1500px] px-2.5 py-3 sm:px-5 sm:py-8 h-[calc(100dvh-96px)] flex flex-col overflow-hidden md:h-auto md:overflow-visible">
+	<header class="mb-2 sm:mb-6 shrink-0">
 		<RallyWordmark size="sm" />
-		<h1 class="mt-2 text-3xl font-bold">Explore</h1>
-		<p class="mt-1 text-slate-500">Find games, teams and sports partners nearby.</p>
+		<h1 class="mt-1 text-2xl font-bold sm:mt-2 sm:text-3xl">Explore</h1>
+		<p class="mt-1 hidden text-sm text-slate-500 sm:block">Find games, teams and sports partners nearby.</p>
 	</header>
 
 	{#if loading}
@@ -81,85 +81,115 @@
 			{error}
 		</section>
 	{:else}
-		<section
-			class="relative overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
-		>
-			<ExploreMap
-				{events}
-				{currentUserId}
-				{friendIds}
-				onFilteredCountChange={(count) => (filteredEventCount = count)}
-				onSelectedEventChange={(eventId) => (selectedMapEventId = eventId)}
-			/>
-			{#if !selectedMapEventId}
-				<div
-					class="pointer-events-none absolute inset-x-3 bottom-3 z-20 hidden md:block md:inset-x-auto md:left-5 md:top-5 md:bottom-auto md:w-80"
-				>
-					<div class="pointer-events-auto space-y-3">
-						<section
-							class="rounded-[1.5rem] border border-blue-200 bg-white/95 p-4 shadow-xl shadow-slate-300/40 backdrop-blur dark:border-blue-900 dark:bg-slate-950/95 dark:shadow-none"
-						>
-							<p
-								class="text-xs font-black uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400"
+		<div class="flex flex-col gap-3 flex-1 min-h-0">
+			<!-- Positioning container for Map and Desktop Promoted Overlay -->
+			<div class="relative flex-1 min-h-0 flex flex-col">
+				<ExploreMap
+					{events}
+					{currentUserId}
+					{friendIds}
+					onFilteredCountChange={(count) => (filteredEventCount = count)}
+					onSelectedEventChange={(eventId) => (selectedMapEventId = eventId)}
+				/>
+				{#if !selectedMapEventId}
+					<div
+						class="pointer-events-none absolute inset-x-3 bottom-3 z-20 hidden md:block md:inset-x-auto md:left-5 md:top-5 md:bottom-auto md:w-80"
+					>
+						<div class="pointer-events-auto space-y-3">
+							<section
+								class="rounded-[1.5rem] border border-blue-200 bg-white/95 p-4 shadow-xl shadow-slate-300/40 backdrop-blur dark:border-blue-900 dark:bg-slate-950/95 dark:shadow-none"
 							>
-								Promoted
-							</p>
+								<p
+									class="text-xs font-black uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400"
+								>
+									Promoted
+								</p>
 
-							<h2 class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50">
-								Featured near you
-							</h2>
+								<h2 class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50">
+									Featured near you
+								</h2>
 
-							<p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
-								Organizations paid to boost these events.
-							</p>
-						</section>
+								<p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+									Organizations paid to boost these events.
+								</p>
+							</section>
 
-						{#if promotedEvents.length}
-							<div class="max-h-[48dvh] space-y-3 overflow-y-auto pr-1 md:max-h-[420px]">
-								{#each promotedEvents.slice(0, 3) as event (event.id)}
-									<EventCard {event} />
-								{/each}
-							</div>
-						{:else}
-							<div
-								class="rounded-[1.5rem] border border-dashed border-slate-300 bg-white/95 p-4 text-sm font-bold text-slate-500 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-950/95 dark:text-slate-400"
-							>
-								No promoted events right now.
-							</div>
-						{/if}
+							{#if promotedEvents.length}
+								<div class="max-h-[48dvh] space-y-3 overflow-y-auto pr-1 md:max-h-[420px]">
+									{#each promotedEvents.slice(0, 3) as event (event.id)}
+										<EventCard {event} />
+									{/each}
+								</div>
+							{:else}
+								<div
+									class="rounded-[1.5rem] border border-dashed border-slate-300 bg-white/95 p-4 text-sm font-bold text-slate-500 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-950/95 dark:text-slate-400"
+								>
+									No promoted events right now.
+								</div>
+							{/if}
+						</div>
 					</div>
-				</div>
-			{/if}
-		</section>
-
-		<section class="mt-4 md:hidden">
-			<div class="mb-3 flex items-end justify-between gap-3">
-				<div>
-					<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">
-						Promoted
-					</p>
-					<h2 class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50">
-						Featured near you
-					</h2>
-				</div>
-				<span class="text-xs font-bold text-slate-400">Sponsored</span>
+				{/if}
 			</div>
 
-			{#if promotedEvents.length}
-				<div class="flex snap-x gap-3 overflow-x-auto pb-2">
-					{#each promotedEvents.slice(0, 5) as event (event.id)}
-						<div class="w-[88vw] max-w-sm shrink-0 snap-start">
-							<EventCard {event} />
-						</div>
-					{/each}
+			<!-- Mobile Promoted Section -->
+			<section class="mt-1 md:hidden shrink-0">
+				<div class="mb-2 flex items-center justify-between gap-3">
+					<div>
+						<p class="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">
+							Promoted
+						</p>
+					</div>
+					<span class="text-[10px] font-bold text-slate-450 dark:text-slate-550">Sponsored</span>
 				</div>
-			{:else}
-				<div
-					class="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
-				>
-					No promoted events right now.
-				</div>
-			{/if}
-		</section>
+
+				{#if promotedEvents.length}
+					<div class="flex snap-x gap-2.5 overflow-x-auto pb-1">
+						{#each promotedEvents.slice(0, 5) as event (event.id)}
+							<div class="w-[70vw] max-w-[260px] shrink-0 snap-start">
+								<a
+									href={`/events/${event.id}`}
+									class="block rounded-2xl border border-blue-200/80 bg-blue-50/20 p-3 shadow-md dark:border-blue-900/60 dark:bg-slate-900/60 active:scale-95 transition-all"
+								>
+									<div class="flex items-center justify-between gap-3">
+										<div class="min-w-0 flex-1">
+											<div class="flex items-center gap-1.5">
+												<span class="text-[9px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">
+													{event.sport}
+												</span>
+												<span class="rounded-full bg-blue-100 px-1.5 py-0.5 text-[8px] font-black uppercase text-blue-700 dark:bg-blue-950/80 dark:text-blue-300">
+													PROMOTED
+												</span>
+											</div>
+
+											<h3 class="mt-1 truncate text-xs font-black text-slate-900 dark:text-slate-100">
+												{event.title}
+											</h3>
+
+											<div class="mt-1 flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500">
+												<span class="truncate">📍 {event.location.name}</span>
+											</div>
+										</div>
+
+										<div class="shrink-0 rounded-xl bg-blue-50 px-2 py-1 text-center dark:bg-blue-950/80">
+											<p class="text-xs font-black text-blue-600 dark:text-blue-300">
+												{event.participantIds.length}/{event.maxParticipants}
+											</p>
+											<p class="text-[8px] font-bold text-slate-500 dark:text-slate-400">players</p>
+										</div>
+									</div>
+								</a>
+							</div>
+						{/each}
+					</div>
+				{:else}
+					<div
+						class="rounded-xl border border-dashed border-slate-350 bg-white p-2.5 text-xs font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
+					>
+						No promoted events right now.
+					</div>
+				{/if}
+			</section>
+		</div>
 	{/if}
 </main>

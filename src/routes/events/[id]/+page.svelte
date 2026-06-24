@@ -900,12 +900,6 @@
 											>
 												Remove
 											</button>
-										{:else if participant.level}
-											<span
-												class="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300"
-											>
-												{participant.level}
-											</span>
 										{/if}
 									</div>
 								{/each}

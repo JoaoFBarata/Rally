@@ -12,6 +12,7 @@ import {
 import {
 	createUserProfile,
 	ensureUserProfile,
+	removeUserFcmToken,
 	updateUserActiveOrganization
 } from '$lib/services/user.service';
 import { Capacitor } from '@capacitor/core';
@@ -156,6 +157,18 @@ export const authService = {
 	},
 
 	async logout() {
+		const user = auth.currentUser;
+		if (user) {
+			const token = localStorage.getItem('rally_fcm_token');
+			if (token) {
+				try {
+					await removeUserFcmToken(user.uid, token);
+				} catch (err) {
+					console.error('Error removing FCM token during logout:', err);
+				}
+				localStorage.removeItem('rally_fcm_token');
+			}
+		}
 		await signOut(auth);
 	}
 };

@@ -4,8 +4,8 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { auth } from '$lib/firebase';
-	import { signOut } from 'firebase/auth';
-	import type { Sport, SportLevel, UserProfile } from '$lib/schema';
+	import { authService } from '$lib/services/auth.service';
+	import type { Sport, UserProfile } from '$lib/schema';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import RallyWordmark from '$lib/components/RallyWordmark.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
@@ -49,7 +49,7 @@
 	let country = $state('PT');
 	let age = $state<string | number>('');
 	let sports = $state<Sport[]>([]);
-	let level = $state<SportLevel>('casual');
+
 
 	let friendTag = $state('');
 	let loading = $state(true);
@@ -79,7 +79,6 @@
 		country = nextProfile.country ?? 'PT';
 		age = nextProfile.age ? String(nextProfile.age) : '';
 		sports = nextProfile.sports ?? [];
-		level = nextProfile.level ?? 'casual';
 	}
 
 	async function loadProfile() {
@@ -152,7 +151,6 @@
 				city,
 				country,
 				age: parsedAge,
-				level,
 				sports
 			});
 
@@ -260,7 +258,7 @@
 		logoutLoading = true;
 
 		try {
-			await signOut(auth);
+			await authService.logout();
 			await goto('/');
 		} finally {
 			logoutLoading = false;
@@ -518,12 +516,7 @@
 							</p>
 						</div>
 
-						<!-- <div class="rounded-3xl bg-slate-50 p-5 dark:bg-slate-800">
-							<p class="text-sm font-bold text-slate-500 dark:text-slate-400">Level</p>
-							<p class="mt-2 font-black capitalize text-slate-950 dark:text-slate-50">
-								{profile.level ?? 'casual'}
-							</p>
-						</div> -->
+
 
 						<div
 							class="min-w-0 rounded-2xl bg-slate-50 p-3 dark:bg-slate-800 sm:rounded-3xl sm:p-5"

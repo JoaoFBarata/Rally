@@ -48,11 +48,7 @@
 		return sport.charAt(0).toUpperCase() + sport.slice(1);
 	}
 
-	function formatLevel(level?: string | null) {
-		if (!level) return 'Casual';
 
-		return level.charAt(0).toUpperCase() + level.slice(1);
-	}
 
 	function getEventStartMs(event: SportEvent): number {
 		const ts = event.startAt as unknown as { toMillis?: () => number; toDate?: () => Date };
@@ -319,14 +315,7 @@
 						</div>
 					</div>
 
-					<div class="mt-5 grid grid-cols-2 gap-2 sm:mt-7 sm:gap-3 xl:grid-cols-4">
-						<div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
-							<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Level</p>
-							<p class="mt-2 font-black text-slate-950 dark:text-slate-50">
-								{formatLevel(targetProfile.level)}
-							</p>
-						</div>
-
+					<div class="mt-5 grid grid-cols-2 gap-2 sm:mt-7 sm:gap-3 xl:grid-cols-3">
 						<div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
 							<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Age</p>
 							<p class="mt-2 font-black text-slate-950 dark:text-slate-50">

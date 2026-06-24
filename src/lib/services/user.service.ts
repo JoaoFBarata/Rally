@@ -1,4 +1,5 @@
 import {
+	arrayRemove,
 	arrayUnion,
 	collection,
 	doc,
@@ -12,7 +13,7 @@ import {
 } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
 import { db } from '$lib/firebase';
-import type { AccountType, Sport, SportLevel, UserProfile } from '$lib/schema';
+import type { AccountType, Sport, UserProfile } from '$lib/schema';
 
 function slugify(value: string) {
 	return value
@@ -56,7 +57,6 @@ export async function createUserProfile(params: {
 		city: '',
 		country: 'PT',
 		age: null,
-		level: 'casual',
 		sports: params.sports ?? [],
 		createdAt: serverTimestamp(),
 		updatedAt: serverTimestamp()
@@ -102,7 +102,6 @@ export async function ensureUserProfile(user: User) {
 		data.city === undefined ||
 		data.country === undefined ||
 		data.age === undefined ||
-		data.level === undefined ||
 		data.sports === undefined ||
 		data.photoURL === undefined ||
 		data.profilePhotoPath === undefined ||
@@ -121,7 +120,6 @@ export async function ensureUserProfile(user: User) {
 			city: data.city ?? '',
 			country: data.country ?? 'PT',
 			age: data.age ?? null,
-			level: data.level ?? 'casual',
 			sports: data.sports ?? [],
 			photoURL: nextPhotoURL,
 			profilePhotoPath: data.profilePhotoPath ?? null,
@@ -186,7 +184,6 @@ export async function updateUserProfileDetails(
 		city: string;
 		country: string;
 		age: number | null;
-		level: SportLevel;
 		sports: Sport[];
 	}
 ) {
@@ -196,7 +193,6 @@ export async function updateUserProfileDetails(
 		city: params.city,
 		country: params.country,
 		age: params.age,
-		level: params.level,
 		sports: params.sports,
 		updatedAt: serverTimestamp()
 	});
@@ -235,4 +231,11 @@ export async function saveUserFcmToken(userId: string, token: string) {
 		},
 		{ merge: true }
 	);
+}
+
+export async function removeUserFcmToken(userId: string, token: string) {
+	await updateDoc(doc(db, 'users', userId), {
+		fcmTokens: arrayRemove(token),
+		updatedAt: serverTimestamp()
+	});
 }

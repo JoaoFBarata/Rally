@@ -319,41 +319,149 @@
 </script>
 
 <section
-	class="relative overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900"
+	class="relative overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900 flex-1 min-h-0 flex flex-col"
 >
 	<div
 		bind:this={mapContainer}
-		class="h-[calc(100dvh-170px)] min-h-[500px] w-full md:h-[calc(100vh-240px)] md:min-h-[620px]"
+		class="flex-1 min-h-[250px] w-full md:h-[calc(100vh-240px)] md:min-h-[620px] md:flex-none"
 	></div>
 
 	<div
-		class="absolute right-4 bottom-4 z-10 rounded-2xl bg-white/95 p-4 shadow-lg backdrop-blur dark:bg-slate-900/95"
+		class="absolute right-2 bottom-2 z-10 flex flex-row flex-wrap items-center gap-3 rounded-xl bg-white/95 p-2 shadow-md backdrop-blur dark:bg-slate-900/95 text-xs md:right-4 md:bottom-4 md:flex-col md:items-start md:gap-2 md:rounded-2xl md:p-4 md:shadow-lg md:text-sm"
 	>
 		{#if currentUserId}
-			<div class="flex items-center gap-2 text-sm">
-				<span class="h-3 w-3 rounded-full bg-blue-600"></span>
+			<div class="flex items-center gap-1.5">
+				<span class="h-2.5 w-2.5 rounded-full bg-blue-600"></span>
 				<span>My events</span>
 			</div>
 		{/if}
 
-		<div
-			class={currentUserId
-				? 'mt-2 flex items-center gap-2 text-sm'
-				: 'flex items-center gap-2 text-sm'}
-		>
-			<span class="h-3 w-3 rounded-full bg-red-600"></span>
+		<div class="flex items-center gap-1.5">
+			<span class="h-2.5 w-2.5 rounded-full bg-red-600"></span>
 			<span>Public events</span>
 		</div>
 
 		{#if currentUserId}
-			<div class="mt-2 flex items-center gap-2 text-sm">
-				<span class="h-3 w-3 rounded-full bg-yellow-600"></span>
+			<div class="flex items-center gap-1.5">
+				<span class="h-2.5 w-2.5 rounded-full bg-yellow-600"></span>
 				<span>Friends' events</span>
 			</div>
 		{/if}
 	</div>
 
-	<div class="border-t border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
+	<!-- Floating Filters Button (Mobile Only) -->
+	<div class="absolute left-4 top-4 z-10 md:hidden">
+		<button
+			type="button"
+			onclick={() => (showFilters = !showFilters)}
+			class="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-black text-slate-700 shadow-md backdrop-blur border border-slate-200/60 dark:bg-slate-900/90 dark:text-slate-200 dark:border-slate-800 transition-all active:scale-95 hover:bg-white dark:hover:bg-slate-900"
+		>
+			<svg
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2.5"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				class="h-4 w-4 text-blue-600 dark:text-blue-400"
+			>
+				<path d="M3 5h18" />
+				<path d="M7 12h10" />
+				<path d="M10 19h4" />
+			</svg>
+
+			<span>Filters</span>
+
+			{#if selectedSports.length > 0 || selectedLevels.length > 0}
+				<span class="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white">
+					{selectedSports.length + selectedLevels.length}
+				</span>
+			{/if}
+		</button>
+	</div>
+
+	<!-- Floating Filters Modal Card (Mobile Only) -->
+	{#if showFilters}
+		<div
+			class="absolute inset-x-4 top-16 z-30 max-h-[70%] overflow-y-auto rounded-3xl border border-slate-200 bg-white/95 p-5 shadow-2xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 md:hidden"
+		>
+			<div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+				<h3 class="text-base font-black text-slate-950 dark:text-slate-50">Filters</h3>
+				<div class="flex items-center gap-3">
+					{#if selectedSports.length > 0 || selectedLevels.length > 0}
+						<button
+							type="button"
+							onclick={clearAllFilters}
+							class="text-xs font-bold text-red-500 hover:text-red-600 transition"
+						>
+							Clear All
+						</button>
+					{/if}
+					<button
+						type="button"
+						onclick={() => (showFilters = false)}
+						class="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 transition font-black text-sm"
+						aria-label="Close filters"
+					>
+						×
+					</button>
+				</div>
+			</div>
+
+			<!-- Sports Filter -->
+			<div class="mt-4">
+				<div>
+					<p class="text-xs font-black uppercase tracking-wider text-slate-400">Sport</p>
+				</div>
+
+				{#if availableSports.length === 0}
+					<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">No sports available.</p>
+				{:else}
+					<div class="mt-2.5 flex flex-wrap gap-1.5">
+						{#each availableSports as sport (sport)}
+							<button
+								type="button"
+								onclick={() => toggleSportFilter(sport)}
+								class={`rounded-full px-3 py-1.5 text-xs font-bold capitalize transition ${
+									selectedSports.includes(sport)
+										? 'bg-blue-600 text-white shadow-sm'
+										: 'bg-slate-50 text-slate-600 border border-slate-100 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-blue-950'
+								}`}
+							>
+								{sport}
+							</button>
+						{/each}
+					</div>
+				{/if}
+			</div>
+
+			<!-- Levels Filter -->
+			<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
+				<div>
+					<p class="text-xs font-black uppercase tracking-wider text-slate-400">Level</p>
+				</div>
+
+				<div class="mt-2.5 flex flex-wrap gap-1.5">
+					{#each availableLevels as level (level)}
+						<button
+							type="button"
+							onclick={() => toggleLevelFilter(level)}
+							class={`rounded-full px-3 py-1.5 text-xs font-bold capitalize transition ${
+								selectedLevels.includes(level)
+									? 'bg-blue-600 text-white shadow-sm'
+									: 'bg-slate-50 text-slate-600 border border-slate-100 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-blue-950'
+							}`}
+						>
+							{level}
+						</button>
+					{/each}
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Desktop Filters Bar (Web Only) -->
+	<div class="hidden md:block border-t border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900 shrink-0">
 		<div class="flex items-center justify-between gap-3">
 			<button
 				type="button"
@@ -367,7 +475,7 @@
 					stroke-width="2.2"
 					stroke-linecap="round"
 					stroke-linejoin="round"
-					class="h-4 w-4"
+					class="h-4 w-4 text-blue-600 dark:text-blue-400"
 				>
 					<path d="M3 5h18" />
 					<path d="M7 12h10" />
@@ -395,10 +503,9 @@
 		</div>
 
 		{#if showFilters}
-			<div class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700">
+			<div class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700 max-h-[220px] overflow-y-auto">
 				<div>
 					<p class="text-sm font-black text-slate-950 dark:text-slate-50">Sport</p>
-
 					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
 						Choose which sports appear on the map.
 					</p>
@@ -415,7 +522,7 @@
 								class={`rounded-full px-4 py-2 text-sm font-bold capitalize transition ${
 									selectedSports.includes(sport)
 										? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
-										: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950 dark:hover:text-blue-300'
+										: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-750 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950'
 								}`}
 							>
 								{sport}
@@ -427,7 +534,6 @@
 
 			<div class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700">
 				<p class="text-sm font-black text-slate-950 dark:text-slate-50">Level</p>
-
 				<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
 					Choose the difficulty level of the events.
 				</p>
@@ -440,7 +546,7 @@
 							class={`rounded-full px-4 py-2 text-sm font-bold capitalize transition ${
 								selectedLevels.includes(level)
 									? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
-									: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950 dark:hover:text-blue-300'
+									: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950'
 							}`}
 						>
 							{level}

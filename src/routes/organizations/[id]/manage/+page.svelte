@@ -4,7 +4,7 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { onAuthStateChanged, signOut } from 'firebase/auth';
+	import { onAuthStateChanged } from 'firebase/auth';
 	import { auth } from '$lib/firebase';
 	import { authService } from '$lib/services/auth.service';
 	import type { Organization, OrganizationType, SportEvent } from '$lib/schema';
@@ -306,7 +306,7 @@
 		logoutLoading = true;
 
 		try {
-			await signOut(auth);
+			await authService.logout();
 			await goto('/');
 		} finally {
 			logoutLoading = false;
