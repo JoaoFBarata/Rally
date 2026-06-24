@@ -246,7 +246,8 @@
                     profile_url: photoURL,
 					sport: item.event.sport,
                     n_confirmed_attendees: item.event.participantIds?.length || 0,
-                    max_occupancy: item.event.maxParticipants || 0
+                    max_occupancy: item.event.maxParticipants || 0,
+                    marker_color: getMarkerColor(item.event)
                 }
             });
             svelteMarkers.push(markerComponent);

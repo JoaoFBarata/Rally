@@ -207,6 +207,13 @@
             el.className = 'custom-marker';
             el.style.cursor = 'pointer';
 
+            const getMarkerColor = (ev: SportEvent) => {
+                if (ev.creatorId === userId) {
+                    return '#2563eb'; // Blue - My events
+                }
+                return '#64748b'; // Gray - Public/other events
+            };
+
             // 4. Mount the Svelte 5 component to the wrapper element
             const markerComponent = mount(Marker, {
                 target: el,
@@ -214,7 +221,8 @@
                     profile_url: photoURL,
 					sport: event.sport,
                     n_confirmed_attendees: event.participantIds?.length || 0,
-                    max_occupancy: event.maxParticipants || 0
+                    max_occupancy: event.maxParticipants || 0,
+                    marker_color: getMarkerColor(event)
                 }
             });
             svelteMarkers.push(markerComponent);
