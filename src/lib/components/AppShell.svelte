@@ -118,10 +118,10 @@
 		return items;
 	});
 
-	// Keep the mobile bar usable at five items. Admin replaces the profile/public shortcut when needed.
+	// Keep the mobile bar compact, but do not hide Profile for platform admins.
 	let mobileNavItems = $derived.by(() => {
 		let filtered = navItems;
-		if (navItems.length > 5) {
+		if (navItems.length > 5 && !isPlatformAdmin) {
 			const replaceableHref = organizationPublicHref ?? '/profile';
 			filtered = navItems.filter((item) => item.href !== replaceableHref);
 		}
@@ -140,8 +140,19 @@
 			];
 		}
 
-		return filtered.slice(0, 5);
+		return filtered.slice(0, isPlatformAdmin ? 6 : 5);
 	});
+
+	let mobileNavGridClass = $derived(
+		mobileNavItems.length > 5 ? 'max-w-lg grid-cols-6 gap-0.5' : 'max-w-md grid-cols-5 gap-1'
+	);
+
+	function mobileLabel(label: string) {
+		if (label === 'Create event') return 'Create';
+		if (label === 'Organization') return 'Org';
+		if (label === 'Public page') return 'Public';
+		return label;
+	}
 
 	function isActive(href: string) {
 		const cleanHref = href.split('?')[0];
@@ -369,13 +380,13 @@
 		<nav
 			class="fixed inset-x-3 bottom-3 z-[100] rounded-3xl border border-slate-200 bg-white px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-2xl shadow-slate-400/30 [transform:translateZ(0)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/50 md:hidden"
 		>
-			<div class="mx-auto grid max-w-md grid-cols-5 items-end gap-1">
+			<div class={`mx-auto grid ${mobileNavGridClass} items-end`}>
 				{#each mobileNavItems as item (item.href)}
 					<a href={resolveNavHref(item.href)} class="flex flex-col items-center justify-end gap-1">
 						<span
 							class={`relative flex items-center justify-center text-lg transition-all ${
 								item.primary
-									? 'h-11 w-11 -translate-y-2 rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/35 hover:bg-blue-700 active:scale-95'
+									? `${mobileNavItems.length > 5 ? 'h-10 w-10' : 'h-11 w-11'} -translate-y-2 rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/35 hover:bg-blue-700 active:scale-95`
 									: `h-9 w-9 rounded-2xl ${
 											isActive(item.href)
 												? 'bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400'
@@ -396,13 +407,13 @@
 
 						<span
 							class:hidden={item.primary}
-							class={`text-[11px] font-medium ${
+							class={`max-w-12 truncate text-[10px] font-medium sm:text-[11px] ${
 								isActive(item.href)
 									? 'text-blue-600 dark:text-blue-400'
 									: 'text-slate-400 dark:text-slate-500'
 							}`}
 						>
-							{item.label}
+							{mobileLabel(item.label)}
 						</span>
 					</a>
 				{/each}

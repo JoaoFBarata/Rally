@@ -2,7 +2,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { auth } from '$lib/firebase';
 	import { signOut } from 'firebase/auth';
@@ -25,11 +24,9 @@
 		subscribeToUserActivityChanges,
 		subscribeToUserChanges
 	} from '$lib/services/realtime.service';
-	import {
-		getUserPointTransactions,
-		RALLY_POINTS_CONFIG
-	} from '$lib/services/points.service';
+	import { getUserPointTransactions, RALLY_POINTS_CONFIG } from '$lib/services/points.service';
 	import type { RallyPointTransaction } from '$lib/schema';
+	import { createAppUrl } from '$lib/utils/app-url';
 
 	const availableSports: Sport[] = [
 		'football',
@@ -100,7 +97,6 @@
 			profile = await ensureUserProfile(currentUser);
 			resetFormFromProfile(profile);
 			await generateProfileQrCode(profile.id);
-			await handleQrFriendRequestFromUrl();
 
 			const rawFriends = await getFriendsForUser(currentUser.uid);
 			friends = rawFriends.sort(sortByDisplayName);
@@ -274,7 +270,7 @@
 	async function generateProfileQrCode(userId: string) {
 		if (!browser || !profile?.rallyTag) return;
 
-		const link = `${window.location.origin}/profile?addFriend=${encodeURIComponent(profile.rallyTag)}`;
+		const link = createAppUrl(`/friends/add?tag=${encodeURIComponent(profile.rallyTag)}`);
 
 		qrCodeLink = link;
 		qrCodeDataUrl = await QRCode.toDataURL(link, {
@@ -285,30 +281,6 @@
 				light: '#ffffff'
 			}
 		});
-	}
-
-	async function handleQrFriendRequestFromUrl() {
-		const currentUser = auth.currentUser;
-
-		if (!currentUser || !browser) return;
-
-		const tagFromQr = page.url.searchParams.get('addFriend');
-
-		if (!tagFromQr) return;
-
-		try {
-			const target = await sendFriendRequestByTag({
-				fromUserId: currentUser.uid,
-				rallyTag: tagFromQr
-			});
-
-			success = `Friend request sent to ${target.displayName}.`;
-			await goto('/profile', { replaceState: true });
-		} catch (err) {
-			console.error('QR friend request error:', err);
-			error = err instanceof Error ? err.message : 'Could not send friend request.';
-			await goto('/profile', { replaceState: true });
-		}
 	}
 
 	onMount(() => {
@@ -738,18 +710,16 @@
 
 					<!-- How it works breakdown (collapsible) -->
 					{#if showPointsBreakdown}
-						<div class="border-b border-slate-100 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/60 sm:px-6">
-							<p class="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+						<div
+							class="border-b border-slate-100 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/60 sm:px-6"
+						>
+							<p
+								class="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400"
+							>
 								Earn per event at a Verified venue
 							</p>
 							<div class="space-y-2 text-sm">
-								{#each [
-									{ label: 'Participating', pts: RALLY_POINTS_CONFIG.BASE_PARTICIPATION },
-									{ label: 'First visit to venue', pts: RALLY_POINTS_CONFIG.FIRST_VENUE_BONUS },
-									{ label: `Per other player (max ${RALLY_POINTS_CONFIG.PER_PARTICIPANT_CAP})`, pts: RALLY_POINTS_CONFIG.PER_PARTICIPANT },
-									{ label: 'Organising the event', pts: RALLY_POINTS_CONFIG.ORGANIZER_BONUS },
-									{ label: 'Event at full capacity', pts: RALLY_POINTS_CONFIG.FULL_EVENT_BONUS }
-								] as row}
+								{#each [{ label: 'Participating', pts: RALLY_POINTS_CONFIG.BASE_PARTICIPATION }, { label: 'First visit to venue', pts: RALLY_POINTS_CONFIG.FIRST_VENUE_BONUS }, { label: `Per other player (max ${RALLY_POINTS_CONFIG.PER_PARTICIPANT_CAP})`, pts: RALLY_POINTS_CONFIG.PER_PARTICIPANT }, { label: 'Organising the event', pts: RALLY_POINTS_CONFIG.ORGANIZER_BONUS }, { label: 'Event at full capacity', pts: RALLY_POINTS_CONFIG.FULL_EVENT_BONUS }] as row}
 									<div class="flex items-center justify-between">
 										<span class="text-slate-600 dark:text-slate-400">{row.label}</span>
 										<span class="font-bold text-slate-900 dark:text-slate-50">+{row.pts} pts</span>
@@ -761,26 +731,30 @@
 
 					<!-- Recent transactions -->
 					{#if pointTransactions.length > 0}
-					<div class="p-4 sm:p-6">
-						<p class="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-							Recent activity
-						</p>
-						<div class="space-y-2">
-							{#each pointTransactions as tx (tx.id)}
-								<div class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800">
-									<div class="min-w-0">
-										<p class="truncate text-sm font-bold text-slate-900 dark:text-slate-50">
-											{tx.eventTitle}
-										</p>
+						<div class="p-4 sm:p-6">
+							<p
+								class="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400"
+							>
+								Recent activity
+							</p>
+							<div class="space-y-2">
+								{#each pointTransactions as tx (tx.id)}
+									<div
+										class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800"
+									>
+										<div class="min-w-0">
+											<p class="truncate text-sm font-bold text-slate-900 dark:text-slate-50">
+												{tx.eventTitle}
+											</p>
 											<p class="truncate text-xs text-slate-500 dark:text-slate-400">
 												{tx.venueName}
 											</p>
 										</div>
 										<span class="ml-3 shrink-0 font-black text-yellow-500">+{tx.amount}</span>
-								</div>
-							{/each}
+									</div>
+								{/each}
+							</div>
 						</div>
-					</div>
 					{/if}
 				</section>
 
@@ -855,6 +829,10 @@
 				</div>
 
 				<p class="mt-5 text-sm text-slate-500 dark:text-slate-400">@{profile?.rallyTag}</p>
+
+				{#if qrCodeLink}
+					<p class="mt-2 break-all text-xs text-slate-400 dark:text-slate-500">{qrCodeLink}</p>
+				{/if}
 			</div>
 		</dialog>
 	{/if}
