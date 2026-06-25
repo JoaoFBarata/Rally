@@ -12,6 +12,7 @@
 		canCreateOfficialPaidEvents
 	} from '$lib/services/organization.service';
 	import { createTournamentEvent } from '$lib/services/event.service';
+	import { goBack } from '$lib/utils/navigation';
 	import type {
 		EntryFeeType,
 		Organization,
@@ -254,12 +255,13 @@
 				</p>
 			</div>
 
-			<a
-				href={resolve(`/organizations/${organization.id}/manage`)}
+			<button
+				type="button"
+				onclick={() => goBack(resolve(`/organizations/${page.params.id}/manage`))}
 				class="rounded-2xl bg-slate-100 px-5 py-3 font-black text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200"
 			>
 				← Back to organization
-			</a>
+			</button>
 		</div>
 
 		{#if error}

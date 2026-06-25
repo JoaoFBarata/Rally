@@ -123,21 +123,23 @@
 <a
 	href={`/events/${event.id}`}
 	onclick={handleClick}
-	class={`block overflow-hidden rounded-4xl border shadow-lg transition ${getCardClasses()}`}
+	class={`flex h-full min-h-[15.5rem] flex-col overflow-hidden rounded-4xl border shadow-lg transition ${getCardClasses()}`}
 >
 	{#if showImage && event.groupPhotoURL}
-		<img src={event.groupPhotoURL} alt={event.title} class="h-40 w-full object-cover" />
+		<img src={event.groupPhotoURL} alt={event.title} class="h-36 w-full shrink-0 object-cover" />
 	{/if}
-	<div class="p-5">
+	<div class="flex flex-1 flex-col p-5">
 		{#if showPromotion}
-			<div class="mb-4 flex items-center justify-between gap-3">
+			<div class="mb-3 flex items-center justify-between gap-3">
 				<span
 					class="rounded-full bg-blue-600 px-3 py-1 text-xs font-black uppercase tracking-wide text-white dark:bg-blue-500"
 				>
 					Promoted
 				</span>
 
-				<span class="text-xs font-bold text-slate-500 dark:text-slate-400"> Sponsored event </span>
+				<span class="truncate text-xs font-bold text-slate-500 dark:text-slate-400">
+					Sponsored event
+				</span>
 			</div>
 		{/if}
 
@@ -173,7 +175,7 @@
 					</div>
 				{/if}
 
-				<div class="flex flex-wrap items-center gap-2">
+				<div class="flex min-h-8 flex-wrap items-center gap-2">
 					<p class="text-sm font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400">
 						{event.sport}
 					</p>
@@ -203,7 +205,7 @@
 					{event.title}
 				</h3>
 
-				<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
+				<p class="mt-2 truncate text-sm text-slate-500 dark:text-slate-400">
 					📍 {event.location.name}
 				</p>
 
@@ -221,7 +223,7 @@
 			</div>
 		</div>
 
-		<div class="mt-4 flex flex-wrap items-center justify-between gap-2">
+		<div class="mt-auto flex flex-wrap items-center justify-between gap-2 pt-4">
 			<span
 				class="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold capitalize text-slate-900 dark:bg-slate-800 dark:text-slate-300"
 			>

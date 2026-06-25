@@ -5,6 +5,7 @@
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import GoogleSignInButton from '$lib/components/GoogleSignInButton.svelte';
 	import { authService } from '$lib/services/auth.service';
+	import { goBack } from '$lib/utils/navigation';
 
 	let email = $state('');
 	let password = $state('');
@@ -192,12 +193,13 @@
 				</p>
 			</div>
 
-			<a
-				href="/"
+			<button
+				type="button"
+				onclick={() => goBack('/')}
 				class="mt-6 block text-center text-sm font-semibold text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400"
 			>
 				← Back to home
-			</a>
+			</button>
 		</div>
 	</section>
 </main>

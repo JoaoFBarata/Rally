@@ -22,6 +22,7 @@
 	import { getTournamentEntries } from '$lib/services/event.service';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import ChatMessageList from '$lib/components/chat/ChatMessageList.svelte';
+	import { goBack } from '$lib/utils/navigation';
 	import type {
 		ChatConversation,
 		ChatMessage,
@@ -594,13 +595,14 @@
 	<header
 		class="flex items-center gap-3 border-b border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950"
 	>
-		<a
-			href="/messages"
+		<button
+			type="button"
+			onclick={() => goBack(resolve('/messages'))}
 			class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xl font-bold transition hover:bg-slate-100 dark:hover:bg-slate-900"
 			aria-label="Back to messages"
 		>
 			←
-		</a>
+		</button>
 
 		{#if conversationProfileHref}
 			<a

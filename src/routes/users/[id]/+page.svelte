@@ -19,6 +19,7 @@
 	import { getOrCreateDirectConversation } from '$lib/services/chat.service';
 	import { getEventsCreatedByUser, getEventsForUser } from '$lib/services/event.service';
 	import EventCard from '$lib/components/EventCard.svelte';
+	import { goBack } from '$lib/utils/navigation';
 	import {
 		subscribeToUserActivityChanges,
 		subscribeToUserChanges
@@ -247,12 +248,13 @@
 </script>
 
 <main class="mx-auto max-w-6xl px-5 py-8">
-	<a
-		href={resolve('/dashboard')}
+	<button
+		type="button"
+		onclick={() => goBack(resolve('/dashboard'))}
 		class="inline-flex rounded-full bg-blue-50 px-5 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
 	>
 		← Back
-	</a>
+	</button>
 
 	{#if loading}
 		<section
@@ -441,7 +443,7 @@
 
 				<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 					{#each hostedEvents as event}
-						<EventCard {event} />
+						<EventCard {event} showImage={false} />
 					{/each}
 				</div>
 			</section>
@@ -455,7 +457,7 @@
 
 				<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 					{#each participatedEvents as event}
-						<EventCard {event} />
+						<EventCard {event} showImage={false} />
 					{/each}
 				</div>
 			</section>
