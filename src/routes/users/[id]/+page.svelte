@@ -303,7 +303,7 @@
 							</p>
 						</div>
 
-						<div class="flex shrink-0 flex-wrap justify-end gap-2">
+						<div class="flex min-w-0 max-w-[11rem] flex-wrap justify-end gap-1.5 sm:max-w-none sm:shrink-0 sm:gap-2">
 							{#if isOrganizationViewer}
 								<span
 									class="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-500 dark:bg-slate-800 dark:text-slate-400"
@@ -315,7 +315,7 @@
 									type="button"
 									onclick={handleMessage}
 									disabled={actionLoading}
-									class="rounded-xl bg-blue-600 px-3 py-2 text-sm font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-60 sm:rounded-2xl sm:px-5 sm:py-3 sm:text-base"
+									class="rounded-xl bg-blue-600 px-3 py-2 text-xs font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-60 sm:rounded-2xl sm:px-5 sm:py-3 sm:text-base"
 								>
 									{actionLoading ? 'Opening...' : 'Message'}
 								</button>
@@ -323,14 +323,14 @@
 								<button
 									type="button"
 									disabled
-									class="rounded-2xl bg-slate-100 px-5 py-3 font-black text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+									class="rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-500 dark:bg-slate-800 dark:text-slate-400 sm:rounded-2xl sm:px-5 sm:py-3 sm:text-base"
 								>
 									Request Pending
 								</button>
 							{:else if relationship === 'request_received'}
 								<a
 									href={resolve('/messages')}
-									class="rounded-2xl bg-slate-950 px-5 py-3 font-black text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+									class="rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200 sm:rounded-2xl sm:px-5 sm:py-3 sm:text-base"
 								>
 									Respond request
 								</a>
@@ -339,7 +339,7 @@
 									type="button"
 									onclick={handleMessage}
 									disabled={actionLoading}
-									class="rounded-2xl bg-blue-600 px-5 py-3 font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-60"
+									class="rounded-xl bg-blue-600 px-3 py-2 text-xs font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-60 sm:rounded-2xl sm:px-5 sm:py-3 sm:text-base"
 								>
 									{actionLoading ? 'Opening...' : 'Message'}
 								</button>
@@ -348,16 +348,17 @@
 									type="button"
 									onclick={handleRemoveFriend}
 									disabled={actionLoading}
-									class="rounded-2xl bg-slate-100 px-5 py-3 font-black text-slate-600 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-60 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-red-950/40 dark:hover:text-red-300"
+									class="rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-600 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-60 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-red-950/40 dark:hover:text-red-300 sm:rounded-2xl sm:px-5 sm:py-3 sm:text-base"
 								>
-									Remove friend
+									<span class="sm:hidden">Remove</span>
+									<span class="hidden sm:inline">Remove friend</span>
 								</button>
 							{:else}
 								<button
 									type="button"
 									onclick={handleAddFriend}
 									disabled={actionLoading}
-									class="rounded-2xl bg-blue-600 px-5 py-3 font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-60"
+									class="rounded-xl bg-blue-600 px-3 py-2 text-xs font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-60 sm:rounded-2xl sm:px-5 sm:py-3 sm:text-base"
 								>
 									{actionLoading ? 'Sending...' : 'Add friend'}
 								</button>
