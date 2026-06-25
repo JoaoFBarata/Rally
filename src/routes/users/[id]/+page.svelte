@@ -36,6 +36,7 @@
 	let actionLoading = $state(false);
 	let error = $state('');
 	let success = $state('');
+	let showRemoveConfirmModal = $state(false);
 	let isOrganizationViewer = $derived(currentProfile?.accountType === 'organization');
 
 	let commonSports = $derived.by(() => {
@@ -186,11 +187,15 @@
 		}
 	}
 
-	async function handleRemoveFriend() {
+	function handleRemoveFriend() {
+		showRemoveConfirmModal = true;
+	}
+
+	async function executeRemoveFriend() {
 		const currentUser = auth.currentUser;
 
 		if (!currentUser || !targetProfile) return;
-		if (!confirm(`Remove ${targetProfile.displayName} from your friends?`)) return;
+		showRemoveConfirmModal = false;
 
 		actionLoading = true;
 		error = '';
@@ -461,6 +466,52 @@
 					{/each}
 				</div>
 			</section>
+		{/if}
+		{#if showRemoveConfirmModal && targetProfile}
+			<dialog
+				open
+				class="fixed inset-0 z-[120] m-0 flex h-full w-full max-w-none items-end justify-center border-0 bg-slate-950/60 px-0 backdrop-blur-sm sm:items-center sm:px-5"
+				onclick={(event) => {
+					if (event.target === event.currentTarget) showRemoveConfirmModal = false;
+				}}
+				aria-labelledby="confirm-remove-title"
+			>
+				<div
+					class="max-h-[92dvh] w-full max-w-sm overflow-y-auto rounded-t-[2rem] bg-white p-6 text-center shadow-2xl dark:bg-slate-900 sm:rounded-[2rem] sm:p-8"
+				>
+					<div class="flex flex-col items-center">
+						<div class="flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400">
+							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-7 w-7">
+								<path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+							</svg>
+						</div>
+
+						<h2 id="confirm-remove-title" class="mt-4 text-xl font-black text-slate-950 dark:text-slate-50">
+							Remove friend?
+						</h2>
+						<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
+							Are you sure you want to remove <span class="font-bold text-slate-800 dark:text-slate-200">{targetProfile.displayName}</span> from your friends?
+						</p>
+
+						<div class="mt-6 flex w-full flex-col gap-2 sm:flex-row">
+							<button
+								type="button"
+								onclick={executeRemoveFriend}
+								class="w-full rounded-2xl bg-red-600 py-3 font-bold text-white transition hover:bg-red-700 active:scale-95"
+							>
+								Remove
+							</button>
+							<button
+								type="button"
+								onclick={() => (showRemoveConfirmModal = false)}
+								class="w-full rounded-2xl bg-slate-100 py-3 font-bold text-slate-700 transition hover:bg-slate-200 active:scale-95 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+							>
+								Cancel
+							</button>
+						</div>
+					</div>
+				</div>
+			</dialog>
 		{/if}
 	{/if}
 </main>

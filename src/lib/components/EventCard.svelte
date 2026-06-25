@@ -93,7 +93,7 @@
 
 	function getCardClasses() {
 		const status = getEffectiveStatus();
-		if (status === 'finished') {
+		if (status === 'finished' || status === 'cancelled') {
 			return 'border-red-200 bg-red-50/20 shadow-red-50/50 hover:border-red-300 hover:bg-red-50/30 dark:border-red-950/50 dark:bg-red-950/10 dark:shadow-none dark:hover:border-red-900/60 dark:hover:bg-red-950/20 opacity-75';
 		}
 		if (showPromotion) {

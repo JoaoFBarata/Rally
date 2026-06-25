@@ -344,7 +344,7 @@
 		{#if currentUserId}
 			<div class="flex items-center gap-1.5">
 				<span class="h-2.5 w-2.5 rounded-full bg-yellow-600"></span>
-				<span>Friends' events</span>
+				<span>Friends events</span>
 			</div>
 		{/if}
 	</div>
