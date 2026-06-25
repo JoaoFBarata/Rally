@@ -5,6 +5,7 @@
 	import RallyWordmark from '$lib/components/RallyWordmark.svelte';
 	import GoogleSignInButton from '$lib/components/GoogleSignInButton.svelte';
 	import { authService } from '$lib/services/auth.service';
+	import { goBack } from '$lib/utils/navigation';
 
 	let displayName = $state('');
 	let email = $state('');
@@ -240,11 +241,12 @@
 				</p>
 			</section>
 		</div>
-		<a
-			href="/"
+		<button
+			type="button"
+			onclick={() => goBack('/')}
 			class="mt-6 block text-center text-sm font-semibold text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400"
 		>
 			← Back to home
-		</a>
+		</button>
 	</div>
 </main>

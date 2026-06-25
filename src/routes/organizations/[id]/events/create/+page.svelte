@@ -19,6 +19,7 @@
 	} from '$lib/services/organization.service';
 	import { createSportEvent, PROMOTION_COUNTRIES, promoteEvent } from '$lib/services/event.service';
 	import LocationPickerMap from '$lib/components/maps/LocationPickerMap.svelte';
+	import { goBack } from '$lib/utils/navigation';
 
 	let organization = $state<Organization | null>(null);
 
@@ -342,12 +343,13 @@
 				</div>
 			</div>
 
-			<a
-				href={resolve(`/organizations/${organization.id}/manage`)}
+			<button
+				type="button"
+				onclick={() => goBack(resolve(`/organizations/${page.params.id}/manage`))}
 				class="rounded-2xl bg-slate-100 px-5 py-3 font-black text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
 			>
 				← Back to organization
-			</a>
+			</button>
 		</div>
 
 		{#if error}

@@ -9,6 +9,7 @@
 	import { getEventById } from '$lib/services/event.service';
 	import { getFriendsForUser } from '$lib/services/social.service';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
+	import { goBack } from '$lib/utils/navigation';
 	import type { SportEvent, UserProfile } from '$lib/schema';
 
 	let eventId = $state('');
@@ -136,12 +137,13 @@
 </script>
 
 <div class="mx-auto max-w-3xl">
-	<a
-		href={resolve(`/events/${eventId}`)}
+	<button
+		type="button"
+		onclick={() => goBack(resolve(`/events/${eventId}`))}
 		class="inline-flex rounded-full bg-blue-50 px-5 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
 	>
 		← Back to event
-	</a>
+	</button>
 
 	<div class="mt-6">
 		<p class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">

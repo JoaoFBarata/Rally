@@ -46,6 +46,7 @@
 	import type { Unsubscribe } from 'firebase/firestore';
 	import ChatMessageList from '$lib/components/chat/ChatMessageList.svelte';
 	import { getTypingLabel } from '$lib/utils/chat-typing.utils';
+	import { goBack } from '$lib/utils/navigation';
 	import { getOrCreateOrganizationConversation } from '$lib/services/chat.service';
 	import TournamentPanel from '$lib/components/tournaments/TournamentPanel.svelte';
 
@@ -716,12 +717,13 @@
 	});
 </script>
 
-<a
-	href={resolve('/dashboard')}
+<button
+	type="button"
+	onclick={() => goBack(resolve('/dashboard'))}
 	class="inline-flex rounded-full bg-blue-50 px-5 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
 >
 	← Back
-</a>
+</button>
 
 {#if loading}
 	<div

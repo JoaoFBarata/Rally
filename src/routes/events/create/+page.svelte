@@ -8,6 +8,7 @@
 	import { getFriendsForUser } from '$lib/services/social.service';
 	import { inviteUsersToEvent } from '$lib/services/invite.service';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
+	import { goBack } from '$lib/utils/navigation';
 	import type { Sport, EventVisibility, SportLevel, UserProfile } from '$lib/schema';
 
 	let title = $state('');
@@ -147,12 +148,13 @@
 </script>
 
 <div class="mx-auto w-full max-w-3xl space-y-4 px-4 py-5 sm:px-5 sm:py-8">
-	<a
-		href={resolve('/dashboard')}
+	<button
+		type="button"
+		onclick={() => goBack(resolve('/dashboard'))}
 		class="inline-flex rounded-full bg-blue-100 px-5 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
 	>
 		← Back
-	</a>
+	</button>
 
 	<div
 		class="min-w-0 rounded-3xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-4xl sm:p-8"
