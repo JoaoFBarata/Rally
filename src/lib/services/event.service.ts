@@ -51,21 +51,21 @@ export const PROMOTION_PLANS: Record<
 > = {
 	local: {
 		label: 'Local Boost',
-		description: 'Best for reaching people near the event city.',
-		cpm: 3,
-		placement: 'Local event discovery'
+		description: 'Shows the event first to people in the selected country/city.',
+		cpm: 7,
+		placement: 'Local and country discovery'
 	},
 	sport: {
 		label: 'Sport Boost',
-		description: 'Best for reaching people interested in this sport.',
-		cpm: 5,
-		placement: 'Sport discovery results'
+		description: 'Most efficient: targets people who already like this sport.',
+		cpm: 9,
+		placement: 'Sport-matched recommendations'
 	},
 	featured: {
 		label: 'Featured Boost',
-		description: 'Best for top placement in Explore and promoted sections.',
-		cpm: 8,
-		placement: 'Featured Explore placement'
+		description: 'Broadest reach: appears in top promoted sections for the selected country.',
+		cpm: 5,
+		placement: 'Top promoted placement'
 	}
 };
 
@@ -113,6 +113,9 @@ export function calculatePromotionStats(event: SportEvent) {
 export function isPromotionActive(event: SportEvent) {
 	if (!event.isPromoted) return false;
 	if (event.promotionStatus !== 'active') return false;
+	if (getEffectiveEventStatus(event) === 'finished' || getEffectiveEventStatus(event) === 'cancelled') {
+		return false;
+	}
 
 	const endsAt = event.promotionEndsAt as unknown as {
 		toMillis?: () => number;
@@ -864,6 +867,7 @@ export async function promoteEvent(params: {
 	}
 	const durationDays = Math.max(1, Math.min(params.durationDays, 30));
 	const planConfig = getPromotionPlanConfig(params.plan);
+	const targetSport = params.targetSport ?? (params.plan === 'sport' ? event.sport : null);
 	const impressionLimit = calculatePromotionImpressionLimit({
 		budget,
 		cpm: planConfig.cpm
@@ -880,7 +884,7 @@ export async function promoteEvent(params: {
 		promotionImpressionLimit: impressionLimit,
 		promotionTargetCity: params.targetCity?.trim() ?? '',
 		promotionTargetCountry: targetCountry,
-		promotionTargetSport: params.targetSport ?? null,
+		promotionTargetSport: targetSport,
 		promotionStartedAt: serverTimestamp(),
 		promotionEndsAt: Timestamp.fromDate(endsAt),
 		promotionViews: 0,
@@ -2024,6 +2028,12 @@ export async function notifyEventFinished(event: SportEvent): Promise<void> {
 
 	await updateDoc(doc(db, 'events', event.id), {
 		status: 'finished',
+		...(event.isPromoted
+			? {
+					isPromoted: false,
+					promotionStatus: 'ended'
+				}
+			: {}),
 		updatedAt: serverTimestamp()
 	});
 }

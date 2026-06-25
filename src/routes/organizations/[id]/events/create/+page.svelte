@@ -8,6 +8,7 @@
 	import { auth } from '$lib/firebase';
 	import type {
 		EventPaymentMode,
+		EventPromotionPlan,
 		EventVisibility,
 		Organization,
 		Sport,
@@ -17,7 +18,12 @@
 		assertCanManageOrganization,
 		canCreateOfficialPaidEvents
 	} from '$lib/services/organization.service';
-	import { createSportEvent, PROMOTION_COUNTRIES, promoteEvent } from '$lib/services/event.service';
+	import {
+		createSportEvent,
+		PROMOTION_COUNTRIES,
+		PROMOTION_PLANS,
+		promoteEvent
+	} from '$lib/services/event.service';
 	import LocationPickerMap from '$lib/components/maps/LocationPickerMap.svelte';
 	import { goBack } from '$lib/utils/navigation';
 
@@ -50,6 +56,7 @@
 	let priceTotal = $state('');
 
 	let promote = $state(false);
+	let promotionPlan = $state<EventPromotionPlan>('sport');
 	let promotionBudget = $state('25');
 	let promotionDurationDays = $state('7');
 	let promotionTargetCity = $state('');
@@ -76,6 +83,11 @@
 		{ value: 'intermediate', label: 'Intermediate' },
 		{ value: 'advanced', label: 'Advanced' }
 	];
+
+	const promotionPlanOptions = Object.entries(PROMOTION_PLANS) as [
+		EventPromotionPlan,
+		(typeof PROMOTION_PLANS)[EventPromotionPlan]
+	][];
 
 	let isVerified = $derived(organization ? canCreateOfficialPaidEvents(organization) : false);
 
@@ -246,7 +258,7 @@
 					userId: user.uid,
 					budget: Number(promotionBudget) || 0,
 					durationDays: Number(promotionDurationDays) || 7,
-					plan: 'local',
+					plan: promotionPlan,
 					targetCity: promotionTargetCity,
 					targetCountry: promotionTargetCountry,
 					targetSport: promotionTargetSport || null
@@ -739,6 +751,41 @@
 
 					{#if promote}
 						<div class="mt-5 space-y-3">
+							<div>
+								<p class="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+									Promotion type
+								</p>
+
+								<div class="grid gap-2">
+									{#each promotionPlanOptions as [plan, config]}
+										<button
+											type="button"
+											onclick={() => (promotionPlan = plan)}
+											class={`rounded-2xl border p-3 text-left transition ${
+												promotionPlan === plan
+													? 'border-blue-500 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/40'
+													: 'border-slate-200 bg-slate-50 hover:border-blue-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-blue-500'
+											}`}
+										>
+											<div class="flex items-start justify-between gap-3">
+												<div>
+													<p class="font-black text-slate-950 dark:text-slate-50">
+														{config.label}
+													</p>
+													<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+														{config.description}
+													</p>
+												</div>
+
+												<span class="shrink-0 text-sm font-black text-blue-600 dark:text-blue-400">
+													€{config.cpm} CPM
+												</span>
+											</div>
+										</button>
+									{/each}
+								</div>
+							</div>
+
 							<label class="block">
 								<span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500"
 									>Target country</span
@@ -752,40 +799,64 @@
 									{/each}
 								</select>
 							</label>
-							<input
-								bind:value={promotionBudget}
-								type="number"
-								min="0"
-								step="1"
-								placeholder="Budget"
-								class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-							/>
 
-							<select
-								bind:value={promotionDurationDays}
-								class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-							>
-								<option value="3">3 days</option>
-								<option value="7">7 days</option>
-								<option value="14">14 days</option>
-								<option value="30">30 days</option>
-							</select>
+							<label class="block">
+								<span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
+									Budget (€)
+								</span>
+								<input
+									bind:value={promotionBudget}
+									type="number"
+									min="1"
+									step="1"
+									placeholder="e.g. 25"
+									class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+								/>
+							</label>
 
-							<input
-								bind:value={promotionTargetCity}
-								placeholder="Target city or region (optional)"
-								class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-							/>
+							<label class="block">
+								<span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
+									Duration
+								</span>
+								<select
+									bind:value={promotionDurationDays}
+									class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+								>
+									<option value="3">3 days</option>
+									<option value="7">7 days</option>
+									<option value="14">14 days</option>
+									<option value="30">30 days</option>
+								</select>
+							</label>
 
-							<select
-								bind:value={promotionTargetSport}
-								class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-							>
-								<option value="">Same as event sport</option>
-								{#each sports as option}
-									<option value={option.value}>{option.label}</option>
-								{/each}
-							</select>
+							<label class="block">
+								<span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
+									Target city or region
+								</span>
+								<input
+									bind:value={promotionTargetCity}
+									placeholder="Optional, e.g. Lisbon"
+									class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+								/>
+							</label>
+
+							<label class="block">
+								<span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
+									Target sport
+								</span>
+								<select
+									bind:value={promotionTargetSport}
+									class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+								>
+									<option value="">Same as event sport</option>
+									{#each sports as option}
+										<option value={option.value}>{option.label}</option>
+									{/each}
+								</select>
+								<span class="mt-1 block text-xs text-slate-500 dark:text-slate-400">
+									Used mainly by Sport Boost. Empty means this event's sport.
+								</span>
+							</label>
 						</div>
 					{/if}
 				</section>

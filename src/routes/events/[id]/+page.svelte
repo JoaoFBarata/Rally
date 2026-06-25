@@ -199,6 +199,14 @@
 	});
 
 	let currentUserId = $derived(auth.currentUser?.uid ?? '');
+	let canContactOrganizer = $derived.by(() => {
+		const user = auth.currentUser;
+
+		if (!user || !event?.organizationId) return false;
+		if (event.creatorId === user.uid) return false;
+
+		return true;
+	});
 
 	let canManageTournament = $derived.by(() => {
 		const user = auth.currentUser;
@@ -1074,14 +1082,16 @@
 						</div>
 					</a>
 
-					<button
-						type="button"
-						onclick={contactOrganizer}
-						disabled={contactLoading}
-						class="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3 font-black text-slate-800 transition hover:border-blue-300 hover:bg-blue-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-blue-500 dark:hover:bg-slate-700"
-					>
-						{contactLoading ? 'Opening chat...' : 'Contact organizer'}
-					</button>
+					{#if canContactOrganizer}
+						<button
+							type="button"
+							onclick={contactOrganizer}
+							disabled={contactLoading}
+							class="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3 font-black text-slate-800 transition hover:border-blue-300 hover:bg-blue-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-blue-500 dark:hover:bg-slate-700"
+						>
+							{contactLoading ? 'Opening chat...' : 'Contact organizer'}
+						</button>
+					{/if}
 
 					{#if canPromoteThisEvent}
 						{#if isPromotionActive(event)}
@@ -1276,45 +1286,71 @@
 								<p class="mt-3 text-sm font-black text-blue-600 dark:text-blue-400">
 									€{config.cpm} CPM
 								</p>
+
+								<p class="mt-1 text-xs font-bold text-slate-400 dark:text-slate-500">
+									{config.placement}
+								</p>
 							</button>
 						{/each}
 					</div>
 
 					<div class="mt-6 grid gap-3 md:grid-cols-3">
-						<input
-							bind:value={promotionBudget}
-							type="number"
-							min="1"
-							step="1"
-							class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-							placeholder="Budget (€)"
-						/>
+						<label class="block">
+							<span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
+								Budget (€)
+							</span>
+							<input
+								bind:value={promotionBudget}
+								type="number"
+								min="1"
+								step="1"
+								class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+								placeholder="e.g. 25"
+							/>
+						</label>
 
-						<select
-							bind:value={promotionDurationDays}
-							class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-						>
-							<option value="3">3 days</option>
-							<option value="7">7 days</option>
-							<option value="14">14 days</option>
-							<option value="30">30 days</option>
-						</select>
+						<label class="block">
+							<span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
+								Duration
+							</span>
+							<select
+								bind:value={promotionDurationDays}
+								class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+							>
+								<option value="3">3 days</option>
+								<option value="7">7 days</option>
+								<option value="14">14 days</option>
+								<option value="30">30 days</option>
+							</select>
+						</label>
 
-						<select
-							bind:value={promotionTargetCountry}
-							aria-label="Target country"
-							class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-						>
-							{#each PROMOTION_COUNTRIES as country}
-								<option value={country.code}>{country.label}</option>
-							{/each}
-						</select>
+						<label class="block">
+							<span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
+								Target country
+							</span>
+							<select
+								bind:value={promotionTargetCountry}
+								class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+							>
+								{#each PROMOTION_COUNTRIES as country}
+									<option value={country.code}>{country.label}</option>
+								{/each}
+							</select>
+						</label>
 
-						<input
-							bind:value={promotionTargetCity}
-							class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-							placeholder={`City or region (e.g. ${event.location.name})`}
-						/>
+						<label class="block md:col-span-3">
+							<span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
+								Target city or region
+							</span>
+							<input
+								bind:value={promotionTargetCity}
+								class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+								placeholder={`Optional, e.g. ${event.location.name}`}
+							/>
+							<span class="mt-1 block text-xs text-slate-500 dark:text-slate-400">
+								Leave empty for the whole selected country. Sport Boost uses {event.sport} automatically.
+							</span>
+						</label>
 					</div>
 
 					<div class="mt-6 rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">

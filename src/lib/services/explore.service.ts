@@ -56,26 +56,50 @@ function isSamePlace(first?: string, second?: string) {
 
 function promotionWeight(event: SportEvent, profile?: UserProfile | null) {
 	if (!isPromotionActive(event)) return 0;
+
 	const targetCountry = event.promotionTargetCountry?.toUpperCase() || 'PT';
 	const userCountry = profile?.country?.toUpperCase() || 'PT';
+
 	if (targetCountry !== userCountry) return 0;
+
 	if (event.promotionPlan === 'featured') return 30;
+
 	if (event.promotionPlan === 'sport') {
-		if (!profile) return 20;
-		return event.promotionTargetSport && profile?.sports.includes(event.promotionTargetSport)
-			? 20
-			: 0;
+		const targetSport = event.promotionTargetSport ?? event.sport;
+		if (!profile || !profile.sports?.length) return 12;
+		return profile.sports.includes(targetSport) ? 24 : 0;
 	}
+
 	if (event.promotionPlan === 'local') {
-		if (!profile) return 10;
-		if (!event.promotionTargetCity) return 10;
+		if (!profile) return 12;
+		if (!event.promotionTargetCity) return 12;
 		// Older campaigns used the venue name as a city fallback. Treat those as country-wide.
 		if (normalizeTarget(event.promotionTargetCity) === normalizeTarget(event.location.name))
-			return 10;
-		if (!profile.city) return 5;
-		return isSamePlace(event.promotionTargetCity, profile.city) ? 15 : 0;
+			return 12;
+		if (!profile.city) return 8;
+		return isSamePlace(event.promotionTargetCity, profile.city) ? 18 : 6;
 	}
+
 	return 0;
+}
+
+function canSeeOwnOrganizationPromotions(profile?: UserProfile | null) {
+	return Boolean(profile?.activeOrganizationId || profile?.accountType === 'organization');
+}
+
+function canSeeOwnPromotion(event: SportEvent, userId: string, profile?: UserProfile | null) {
+	return (
+		event.creatorId === userId ||
+		(profile?.activeOrganizationId && event.organizationId === profile.activeOrganizationId) ||
+		canSeeOwnOrganizationPromotions(profile)
+	);
+}
+
+function isSamePromotionCountry(event: SportEvent, profile?: UserProfile | null) {
+	const targetCountry = event.promotionTargetCountry?.toUpperCase() || 'PT';
+	const userCountry = profile?.country?.toUpperCase() || 'PT';
+
+	return targetCountry === userCountry;
 }
 
 function promotedFirst(events: SportEvent[], profile?: UserProfile | null) {
@@ -143,10 +167,15 @@ export async function getPromotedEventsForUser(userId: string, profile: UserProf
 		.filter(isVisibleInExplore)
 		.filter((event) => isPromotionActive(event))
 		.filter((event) => event.visibility === 'public')
-		.filter((event) => event.creatorId !== userId)
-		.filter((event) => event.organizationId !== profile.activeOrganizationId)
-		.filter((event) => !event.participantIds.includes(userId))
-		.filter((event) => promotionWeight(event, profile) > 0);
+		.filter((event) => canSeeOwnPromotion(event, userId, profile) || event.creatorId !== userId)
+		.filter(
+			(event) =>
+				canSeeOwnPromotion(event, userId, profile) ||
+				event.organizationId !== profile.activeOrganizationId
+		)
+		.filter((event) => canSeeOwnPromotion(event, userId, profile) || !event.participantIds.includes(userId))
+		.filter((event) => isSamePromotionCountry(event, profile))
+		.filter((event) => canSeeOwnPromotion(event, userId, profile) || promotionWeight(event, profile) > 0);
 
 	const events = await refreshOrganizationSnapshots(candidates);
 
@@ -192,10 +221,15 @@ export function subscribeToPromotedEventsForUser(
 				.filter(isVisibleInExplore)
 				.filter((event) => isPromotionActive(event))
 				.filter((event) => event.visibility === 'public')
-				.filter((event) => event.creatorId !== userId)
-				.filter((event) => event.organizationId !== profile.activeOrganizationId)
-				.filter((event) => !event.participantIds.includes(userId))
-				.filter((event) => promotionWeight(event, profile) > 0);
+				.filter((event) => canSeeOwnPromotion(event, userId, profile) || event.creatorId !== userId)
+				.filter(
+					(event) =>
+						canSeeOwnPromotion(event, userId, profile) ||
+						event.organizationId !== profile.activeOrganizationId
+				)
+				.filter((event) => canSeeOwnPromotion(event, userId, profile) || !event.participantIds.includes(userId))
+				.filter((event) => isSamePromotionCountry(event, profile))
+				.filter((event) => canSeeOwnPromotion(event, userId, profile) || promotionWeight(event, profile) > 0);
 
 			const events = await refreshOrganizationSnapshots(candidates);
 			if (currentVersion !== requestVersion) return;
@@ -305,7 +339,10 @@ export async function getVisibleEventsForUser(userId: string) {
 		return {
 			...event,
 			promotionAudienceMatch:
-				!isPromotionActive(event) || (!alreadyConnected && promotionWeight(event, profile) > 0)
+				!isPromotionActive(event) ||
+				((canSeeOwnPromotion(event, userId, profile) || !alreadyConnected) &&
+					isSamePromotionCountry(event, profile) &&
+					(canSeeOwnPromotion(event, userId, profile) || promotionWeight(event, profile) > 0))
 		};
 	});
 

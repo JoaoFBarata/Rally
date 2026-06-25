@@ -4,9 +4,13 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { auth } from '$lib/firebase';
-	import { getVisibleEventsForUser } from '$lib/services/explore.service';
+	import {
+		getVisibleEventsForUser,
+		subscribeToPromotedEventsForUser
+	} from '$lib/services/explore.service';
 	import { getFriendsForUser } from '$lib/services/social.service';
-	import type { SportEvent } from '$lib/schema';
+	import { ensureUserProfile } from '$lib/services/user.service';
+	import type { SportEvent, UserProfile } from '$lib/schema';
 	import ExploreMap from '$lib/components/maps/ExploreMap.svelte';
 	import RallyWordmark from '$lib/components/RallyWordmark.svelte';
 	import EventCard from '$lib/components/EventCard.svelte';
@@ -14,15 +18,31 @@
 	import { subscribeToEventCatalogChanges } from '$lib/services/realtime.service';
 
 	let events = $state<SportEvent[]>([]);
+	let promotedCampaignEvents = $state<SportEvent[]>([]);
+	let profile = $state<UserProfile | null>(null);
 	let loading = $state(true);
 	let error = $state('');
 	let currentUserId = $state('');
 	let friendIds = $state<string[]>([]);
 	let filteredEventCount = $state(0);
 	let selectedMapEventId = $state<string | null>(null);
-	let promotedEvents = $derived(
-		events.filter((event) => isPromotionActive(event) && event.promotionAudienceMatch !== false)
-	);
+	let promotedEvents = $derived.by(() => {
+		const eventsById = new Map<string, SportEvent>();
+
+		for (const event of promotedCampaignEvents) {
+			if (event.visibility === 'public' && isPromotionActive(event)) {
+				eventsById.set(event.id, event);
+			}
+		}
+
+		for (const event of events) {
+			if (event.visibility === 'public' && isPromotionActive(event)) {
+				eventsById.set(event.id, event);
+			}
+		}
+
+		return Array.from(eventsById.values());
+	});
 	let refreshing = false;
 
 	async function loadExploreData(userId: string) {
@@ -40,6 +60,7 @@
 
 	onMount(() => {
 		let unsubscribeEvents = () => {};
+		let unsubscribePromotions = () => {};
 		void (async () => {
 			const currentUser = auth.currentUser;
 			if (!currentUser) {
@@ -48,7 +69,15 @@
 			}
 			currentUserId = currentUser.uid;
 			try {
+				profile = await ensureUserProfile(currentUser);
 				await loadExploreData(currentUser.uid);
+				unsubscribePromotions = subscribeToPromotedEventsForUser(
+					currentUser.uid,
+					profile,
+					(loadedEvents) => (promotedCampaignEvents = loadedEvents),
+					(err) => console.error('Explore promoted events listener error:', err),
+					10
+				);
 				unsubscribeEvents = subscribeToEventCatalogChanges(() => {
 					void loadExploreData(currentUser.uid);
 				});
@@ -59,7 +88,10 @@
 				loading = false;
 			}
 		})();
-		return () => unsubscribeEvents();
+		return () => {
+			unsubscribeEvents();
+			unsubscribePromotions();
+		};
 	});
 </script>
 
@@ -115,8 +147,8 @@
 							</section>
 
 							{#if promotedEvents.length}
-								<div class="max-h-[48dvh] space-y-3 overflow-y-auto pr-1 md:max-h-[420px]">
-									{#each promotedEvents.slice(0, 3) as event (event.id)}
+								<div class="max-h-[52dvh] space-y-3 overflow-y-auto pr-1 md:max-h-[520px]">
+									{#each promotedEvents as event (event.id)}
 										<EventCard {event} />
 									{/each}
 								</div>

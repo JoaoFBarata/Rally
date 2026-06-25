@@ -12,6 +12,7 @@
 		getUpcomingEvents,
 		sortEventsByStartDate,
 		isEventFinished,
+		isPromotionActive,
 		notifyEventFinished
 	} from '$lib/services/event.service';
 	import { getInvitesForUser } from '$lib/services/invite.service';
@@ -46,6 +47,22 @@
 	let participantEvents = $derived(joinedEvents.filter((event) => !isEventFinished(event)));
 	let pastParticipantEvents = $derived(joinedEvents.filter((event) => isEventFinished(event)));
 	let currentJoinedEvents = $derived(showPastEvents ? pastParticipantEvents : participantEvents);
+	let visiblePromotedEvents = $derived.by(() => {
+		const eventsById = new Map<string, SportEvent>();
+
+		for (const event of promotedEvents) {
+			if (event.visibility === 'public' && isPromotionActive(event)) {
+				eventsById.set(event.id, event);
+			}
+		}
+		for (const event of allUserEvents) {
+			if (event.visibility === 'public' && isPromotionActive(event)) {
+				eventsById.set(event.id, event);
+			}
+		}
+
+		return Array.from(eventsById.values());
+	});
 
 	let pendingInvites = $derived(invites.filter((i) => i.status === 'pending'));
 	let nextEvent = $derived(getUpcomingEvents(allUserEvents)[0] ?? null);
@@ -457,8 +474,8 @@
 						>
 					</div>
 
-					{#if promotedEvents.length > 0}
-						<PromotedEventCarousel events={promotedEvents} />
+					{#if visiblePromotedEvents.length > 0}
+						<PromotedEventCarousel events={visiblePromotedEvents} />
 					{:else}
 						<div
 							class="rounded-2xl border border-dashed border-blue-200 bg-white/70 p-5 text-sm dark:border-blue-900 dark:bg-slate-900/70"
