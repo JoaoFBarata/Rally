@@ -65,6 +65,17 @@
 	let pointTransactions = $state<RallyPointTransaction[]>([]);
 	let showPointsBreakdown = $state(false);
 
+	let showPhotoModal = $state(false);
+	let avatarSelectionMode = $state(false);
+	let fileInput = $state<HTMLInputElement | null>(null);
+
+	const appAvatars = [
+		'/avatars/avatar_1.png',
+		'/avatars/avatar_2.png',
+		'/avatars/avatar_3.png',
+		'/avatars/avatar_4.png'
+	];
+
 	function sortByDisplayName(a: UserProfile, b: UserProfile) {
 		return (a.displayName ?? '').localeCompare(b.displayName ?? '', undefined, {
 			sensitivity: 'base'
@@ -195,6 +206,34 @@
 			await loadProfile();
 		} catch (err) {
 			console.error('Profile photo error:', err);
+			error = err instanceof Error ? err.message : 'Could not update profile photo.';
+		} finally {
+			photoSaving = false;
+		}
+	}
+
+	async function selectAppAvatar(avatarPath: string) {
+		const currentUser = auth.currentUser;
+
+		if (!currentUser) return;
+
+		photoSaving = true;
+		error = '';
+		success = '';
+		showPhotoModal = false;
+		avatarSelectionMode = false;
+
+		try {
+			await updateUserProfilePhoto({
+				userId: currentUser.uid,
+				photoURL: avatarPath,
+				profilePhotoPath: null
+			});
+
+			success = 'Profile photo updated.';
+			await loadProfile();
+		} catch (err) {
+			console.error('Select avatar error:', err);
 			error = err instanceof Error ? err.message : 'Could not update profile photo.';
 		} finally {
 			photoSaving = false;
@@ -342,18 +381,21 @@
 								size="xl"
 							/>
 
-							<label
+							<button
+								type="button"
+								onclick={() => (showPhotoModal = true)}
 								title="Edit profile photo"
 								class="absolute -bottom-1 -right-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-blue-600 text-sm text-white shadow-lg transition hover:bg-blue-700"
 							>
 								{photoSaving ? '…' : '✎'}
-								<input
-									type="file"
-									accept="image/*"
-									class="hidden"
-									onchange={handleProfilePhotoFileChange}
-								/>
-							</label>
+							</button>
+							<input
+								bind:this={fileInput}
+								type="file"
+								accept="image/*"
+								class="hidden"
+								onchange={handleProfilePhotoFileChange}
+							/>
 						</div>
 
 						<div class="min-w-0">
@@ -822,6 +864,109 @@
 
 				{#if qrCodeLink}
 					<p class="mt-2 break-all text-xs text-slate-400 dark:text-slate-500">{qrCodeLink}</p>
+				{/if}
+			</div>
+		</dialog>
+	{/if}
+
+	{#if showPhotoModal}
+		<dialog
+			open
+			class="fixed inset-0 z-[120] m-0 flex h-full w-full max-w-none items-end justify-center border-0 bg-slate-950/60 px-0 backdrop-blur-sm sm:items-center sm:px-5"
+			onclick={(event) => {
+				if (event.target === event.currentTarget) {
+					showPhotoModal = false;
+					avatarSelectionMode = false;
+				}
+			}}
+			aria-labelledby="profile-photo-title"
+		>
+			<div
+				class="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-[2rem] bg-white p-6 shadow-2xl dark:bg-slate-900 sm:rounded-[2rem] sm:p-8"
+			>
+				<div class="flex items-start justify-between gap-4">
+					<div class="text-left">
+						<h2 id="profile-photo-title" class="text-2xl font-black text-slate-950 dark:text-slate-50">
+							{avatarSelectionMode ? 'Choose App Avatar' : 'Edit profile photo'}
+						</h2>
+						<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+							{avatarSelectionMode ? 'Select one of the Rally sports avatars' : 'Select how you want to update your profile photo.'}
+						</p>
+					</div>
+
+					<button
+						type="button"
+						onclick={() => {
+							showPhotoModal = false;
+							avatarSelectionMode = false;
+						}}
+						class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-xl font-black text-slate-500 transition hover:bg-slate-200 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+						aria-label="Close dialog"
+					>
+						×
+					</button>
+				</div>
+
+				{#if !avatarSelectionMode}
+					<div class="mt-6 grid gap-4">
+						<button
+							type="button"
+							onclick={() => {
+								showPhotoModal = false;
+								fileInput?.click();
+							}}
+							class="flex w-full items-center gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left transition hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/50 dark:hover:bg-slate-800"
+						>
+							<div class="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="h-6 w-6">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+									<path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
+								</svg>
+							</div>
+							<div>
+								<p class="font-bold text-slate-900 dark:text-slate-50">Upload from Camera/Gallery</p>
+								<p class="text-xs text-slate-500 dark:text-slate-400">Take a photo or choose from your files</p>
+							</div>
+						</button>
+
+						<button
+							type="button"
+							onclick={() => (avatarSelectionMode = true)}
+							class="flex w-full items-center gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left transition hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/50 dark:hover:bg-slate-800"
+						>
+							<div class="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="h-6 w-6">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+								</svg>
+							</div>
+							<div>
+								<p class="font-bold text-slate-900 dark:text-slate-50">Choose App Avatar</p>
+								<p class="text-xs text-slate-500 dark:text-slate-400">Select one of our blue sports avatars</p>
+							</div>
+						</button>
+					</div>
+				{:else}
+					<div class="mt-6">
+						<div class="grid grid-cols-3 gap-3">
+							{#each appAvatars as avatar}
+								<button
+									type="button"
+									onclick={() => selectAppAvatar(avatar)}
+									class="relative aspect-square overflow-hidden rounded-2xl border-2 border-slate-100 bg-slate-50 transition hover:scale-105 hover:border-blue-500 active:scale-95 dark:border-slate-800 dark:bg-slate-800/50 dark:hover:border-blue-400"
+								>
+									<img src={avatar} alt="App Avatar" class="h-full w-full object-cover" />
+								</button>
+							{/each}
+						</div>
+
+						<button
+							type="button"
+							onclick={() => (avatarSelectionMode = false)}
+							class="mt-6 w-full rounded-2xl bg-slate-100 py-3 font-bold text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+						>
+							Back to options
+						</button>
+					</div>
 				{/if}
 			</div>
 		</dialog>

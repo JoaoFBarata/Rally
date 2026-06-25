@@ -201,7 +201,7 @@ export async function updateUserProfileDetails(
 export async function updateUserProfilePhoto(params: {
 	userId: string;
 	photoURL: string;
-	profilePhotoPath: string;
+	profilePhotoPath: string | null;
 }) {
 	await updateDoc(doc(db, 'users', params.userId), {
 		photoURL: params.photoURL,
