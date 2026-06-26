@@ -21,6 +21,7 @@
 	let address = $state('');
 	let startDate = $state('');
 	let startTime = $state('');
+	let durationMinutes = $state(90);
 	let maxParticipants = $state(10);
 	let visibility = $state<EventVisibility>('private');
 	let priceTotal = $state<number | null>(null);
@@ -61,10 +62,18 @@
 			return;
 		}
 		const startAt = new Date(`${startDate}T${startTime}`);
+		const duration = Number(durationMinutes);
 		if (isNaN(startAt.getTime()) || startAt <= new Date()) {
 			error = 'The event must be scheduled in the future.';
 			return;
 		}
+
+		if (!duration || duration < 15) {
+			error = 'Add a valid event duration.';
+			return;
+		}
+
+		const endAt = new Date(startAt.getTime() + duration * 60_000);
 
 		if (sport === 'other' && !customSport.trim()) {
 			error = 'No sport added! Please specify to make it easier for others.';
@@ -95,6 +104,7 @@
 				lng,
 				address,
 				startAt,
+				endAt,
 				maxParticipants,
 				visibility,
 				priceTotal: priceTotal ?? undefined
@@ -269,7 +279,7 @@
 					/>
 				</div>
 
-				<div class="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-5">
+				<div class="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5">
 					<div class="min-w-0">
 						<label for="startDate" class="text-sm font-bold text-slate-700 dark:text-slate-300">
 							Date
@@ -298,11 +308,26 @@
 					</div>
 
 					<div class="min-w-0">
+						<label for="durationMinutes" class="text-sm font-bold text-slate-700 dark:text-slate-300">
+							Duration
+						</label>
+
+						<input
+							id="durationMinutes"
+							type="number"
+							min="15"
+							step="15"
+							bind:value={durationMinutes}
+							class="mt-2 w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950 sm:px-4"
+						/>
+					</div>
+
+					<div class="min-w-0">
 						<label
 							for="maxParticipants"
 							class="text-sm font-bold text-slate-700 dark:text-slate-300"
 						>
-							Max participants
+							Max players
 						</label>
 
 						<input

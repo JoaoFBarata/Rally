@@ -23,6 +23,7 @@
 	let lng = $state<number | null>(null);
 	let address = $state('');
 	let startAt = $state('');
+	let durationMinutes = $state(90);
 	let maxParticipants = $state(10);
 	let visibility = $state<EventVisibility>('private');
 	let priceTotal = $state<number | null>(null);
@@ -45,6 +46,16 @@
 		return '';
 	}
 
+	function timestampToDate(ts: unknown): Date | null {
+		try {
+			const timestamp = ts as { toDate?: () => Date };
+			const date = timestamp?.toDate?.();
+			return date && !Number.isNaN(date.getTime()) ? date : null;
+		} catch {
+			return null;
+		}
+	}
+
 	function populateForm(e: SportEvent) {
 		title = e.title;
 		description = e.description ?? '';
@@ -55,6 +66,11 @@
 		lng = e.location.lng ?? null;
 		address = e.location.address ?? '';
 		startAt = timestampToDatetimeLocal(e.startAt);
+		const startDate = timestampToDate(e.startAt);
+		const endDate = timestampToDate(e.endAt);
+		if (startDate && endDate && endDate > startDate) {
+			durationMinutes = Math.round((endDate.getTime() - startDate.getTime()) / 60000);
+		}
 		maxParticipants = e.maxParticipants;
 		visibility = e.visibility;
 		priceTotal = e.priceTotal ?? null;
@@ -95,6 +111,16 @@
 			return;
 		}
 
+		const parsedStartAt = new Date(startAt);
+		const duration = Number(durationMinutes);
+
+		if (!duration || duration < 15) {
+			error = 'Add a valid event duration.';
+			return;
+		}
+
+		const endAt = new Date(parsedStartAt.getTime() + duration * 60_000);
+
 		saving = true;
 
 		try {
@@ -110,7 +136,8 @@
 				address,
 				lat,
 				lng,
-				startAt: new Date(startAt),
+				startAt: parsedStartAt,
+				endAt,
 				maxParticipants,
 				visibility,
 				priceTotal
@@ -297,7 +324,7 @@
 					/>
 				</div>
 
-				<div class="grid gap-5 md:grid-cols-2">
+				<div class="grid gap-5 md:grid-cols-3">
 					<div>
 						<label for="startAt" class="text-sm font-bold text-slate-700 dark:text-slate-300">
 							Date and time
@@ -306,6 +333,20 @@
 							id="startAt"
 							type="datetime-local"
 							bind:value={startAt}
+							class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+						/>
+					</div>
+
+					<div>
+						<label for="durationMinutes" class="text-sm font-bold text-slate-700 dark:text-slate-300">
+							Duration
+						</label>
+						<input
+							id="durationMinutes"
+							type="number"
+							min="15"
+							step="15"
+							bind:value={durationMinutes}
 							class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
 						/>
 					</div>

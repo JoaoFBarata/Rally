@@ -611,11 +611,13 @@
 	class="min-h-screen bg-white text-slate-950 dark:bg-slate-950 dark:text-white"
 	onpointerdown={closeConversationMenuOnOutsidePress}
 >
-	<div class="mx-auto max-w-4xl px-5 py-6">
-		<header class="mb-6">
-			<RallyWordmark size="sm" />
-			<h1 class="mt-3 text-3xl font-black tracking-tight">Messages</h1>
-			<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+	<div class="mx-auto max-w-4xl px-4 py-4 sm:px-5 sm:py-6">
+		<header class="mb-4 sm:mb-6">
+			<div class="hidden sm:block">
+				<RallyWordmark size="sm" />
+			</div>
+			<h1 class="text-2xl font-black tracking-tight sm:mt-3 sm:text-3xl">Messages</h1>
+			<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">
 				Invitations, chats and Rally friends.
 			</p>
 		</header>
@@ -633,9 +635,9 @@
 				Loading messages...
 			</div>
 		{:else}
-			<section class="mb-8">
+			<section class="mb-6 sm:mb-8">
 				<div class="mb-3 flex items-center justify-between">
-					<h2 class="text-base font-black">Event invitations</h2>
+					<h2 class="text-sm font-black uppercase tracking-[0.16em] text-slate-400 sm:text-base sm:normal-case sm:tracking-normal sm:text-slate-950 sm:dark:text-white">Event invitations</h2>
 					<span class="text-sm font-bold text-blue-600 dark:text-blue-400">
 						{invites.filter((invite) => invite.status === 'pending').length} pending
 					</span>
@@ -651,7 +653,7 @@
 					<div class="flex gap-3 overflow-x-auto pb-2">
 						{#each invites as invite (invite.id)}
 							<article
-								class="min-w-[280px] max-w-[280px] rounded-3xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900"
+								class="min-w-[220px] max-w-[220px] rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900 sm:min-w-[280px] sm:max-w-[280px] sm:rounded-3xl sm:p-4"
 							>
 								{#if invite.event}
 									<p
@@ -660,19 +662,19 @@
 										{invite.event.sport}
 									</p>
 
-									<h3 class="mt-1 truncate text-lg font-black">
+									<h3 class="mt-1 truncate text-base font-black sm:text-lg">
 										{invite.event.title}
 									</h3>
 
-									<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
+									<p class="mt-1 truncate text-xs text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-sm">
 										📍 {invite.event.location.name}
 									</p>
 
-									<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+									<p class="mt-1 truncate text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
 										🕒 {formatDate(invite.event.startAt)}
 									</p>
 
-									<div class="mt-4 flex items-center justify-between gap-2">
+									<div class="mt-3 flex items-center justify-between gap-2 sm:mt-4">
 										<a
 											href={`/events/${invite.event.id}`}
 											class="text-sm font-bold text-blue-600 dark:text-blue-400"
@@ -713,7 +715,7 @@
 				{/if}
 			</section>
 
-			<section class="mb-8">
+			<section class="mb-6 sm:mb-8">
 				<div class="mb-3 flex items-center justify-between">
 					<h2 class="text-base font-black">Friend requests</h2>
 					<span class="text-sm font-bold text-blue-600 dark:text-blue-400">
@@ -783,8 +785,8 @@
 				{/if}
 			</section>
 
-			<section class="mb-8">
-				<h2 class="mb-3 text-base font-black">Chats</h2>
+			<section class="mb-6 sm:mb-8">
+				<h2 class="mb-3 text-sm font-black uppercase tracking-[0.16em] text-slate-400 sm:text-base sm:normal-case sm:tracking-normal sm:text-slate-950 sm:dark:text-white">Chats</h2>
 
 				{#if conversations.length === 0}
 					<p class="text-sm text-slate-500 dark:text-slate-400">
@@ -795,7 +797,7 @@
 						{#each activeConversations as conversation (conversation.id)}
 							<div
 								role="group"
-								class="relative flex w-full items-center gap-2 rounded-3xl p-2 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+								class="relative flex w-full items-center gap-2 rounded-2xl p-1.5 transition hover:bg-slate-100 dark:hover:bg-slate-800 sm:rounded-3xl sm:p-2"
 								oncontextmenu={(event) => {
 									event.preventDefault();
 									showConversationMenu(conversation.id);
@@ -810,7 +812,7 @@
 									class="flex min-w-0 flex-1 items-center gap-3 rounded-2xl p-1 text-left"
 								>
 									<div
-										class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full {conversation.type ===
+										class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full sm:h-12 sm:w-12 {conversation.type ===
 										'rally_system'
 											? 'bg-blue-600 text-white'
 											: 'bg-slate-100 text-blue-600 dark:bg-slate-800 dark:text-blue-300'} text-base font-black"
@@ -995,7 +997,7 @@
 											class="flex min-w-0 flex-1 items-center gap-3 rounded-2xl p-1 text-left"
 										>
 											<div
-												class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 text-base font-black"
+												class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full sm:h-12 sm:w-12 bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 text-base font-black"
 											>
 												{#if conversation.displayPhotoURL}
 													<img
@@ -1092,7 +1094,7 @@
 			</section>
 
 			<section>
-				<h2 class="mb-3 text-base font-black">Rally friends</h2>
+				<h2 class="mb-3 text-sm font-black uppercase tracking-[0.16em] text-slate-400 sm:text-base sm:normal-case sm:tracking-normal sm:text-slate-950 sm:dark:text-white">Rally friends</h2>
 
 				{#if friends.length === 0}
 					<p class="text-sm text-slate-500 dark:text-slate-400">

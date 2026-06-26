@@ -1,0 +1,44 @@
+diff --git a/src/routes/events/[id]/+page.svelte b/src/routes/events/[id]/+page.svelte
+index bbbd2c9..a074b6f 100644
+--- a/src/routes/events/[id]/+page.svelte
++++ b/src/routes/events/[id]/+page.svelte
+@@ -823,7 +823,7 @@
+ 						{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
+ 							<label
+ 								title="Edit group photo"
+-								class="absolute -bottom-1 -right-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-slate-950 text-xs text-white shadow-lg ring-2 ring-white dark:bg-white dark:text-slate-950 dark:ring-slate-900"
++								class="absolute -bottom-1 -right-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-white text-xs text-blue-600 shadow-lg ring-2 ring-white transition hover:bg-blue-50 dark:bg-white dark:text-blue-600 dark:ring-slate-900"
+ 							>
+ 								{#if groupPhotoSaving}
+ 								…
+@@ -1029,7 +1029,7 @@
+ 						{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
+ 							<label
+ 								title="Edit group photo"
+-								class="absolute -bottom-1 -right-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-blue-600 text-sm text-white shadow-lg transition hover:bg-blue-700"
++								class="absolute -bottom-1 -right-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-white text-sm text-blue-600 shadow-lg ring-2 ring-slate-100 transition hover:bg-blue-50 dark:bg-white dark:text-blue-600 dark:ring-slate-800"
+ 							>
+ 								{#if groupPhotoSaving}
+ 								…
+diff --git a/src/routes/events/[id]/invite/+page.svelte b/src/routes/events/[id]/invite/+page.svelte
+index 4d55dce..385e6b9 100644
+--- a/src/routes/events/[id]/invite/+page.svelte
++++ b/src/routes/events/[id]/invite/+page.svelte
+@@ -242,7 +242,7 @@
+ 					</p>
+ 				</div>
+ 			{:else}
+-				<div class="divide-y divide-slate-100 dark:divide-slate-800">
++				<div class="max-h-[27.5rem] overflow-y-auto overscroll-contain pr-1 divide-y divide-slate-100 dark:divide-slate-800 sm:max-h-[34rem]">
+ 					{#each availableFriends as friend (friend.id)}
+ 						<button
+ 							type="button"
+@@ -280,7 +280,7 @@
+ 			{/if}
+ 
+ 			<div
+-				class="sticky bottom-20 mt-6 rounded-[1.75rem] border border-slate-200 bg-white/95 p-3 shadow-xl shadow-slate-200/70 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 dark:shadow-none md:bottom-4 sm:p-4"
++				class="mt-5 rounded-[1.75rem] border border-slate-200 bg-white p-3 shadow-sm shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-950 dark:shadow-none sm:p-4"
+ 			>
+ 				<div class="flex items-center justify-between gap-3">
+ 					<p class="text-sm font-bold text-slate-600 dark:text-slate-300">

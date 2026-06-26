@@ -459,6 +459,7 @@ export async function updateSportEvent(params: {
 	lat?: number | null;
 	lng?: number | null;
 	startAt: Date;
+	endAt?: Date | null;
 	maxParticipants: number;
 	visibility: EventVisibility;
 	priceTotal?: number | null;
@@ -496,6 +497,7 @@ export async function updateSportEvent(params: {
 			lng: params.lng ?? null
 		},
 		startAt: Timestamp.fromDate(params.startAt),
+		endAt: params.endAt ? Timestamp.fromDate(params.endAt) : null,
 		maxParticipants: params.maxParticipants,
 		visibility: params.visibility,
 		priceTotal: params.priceTotal ?? null,

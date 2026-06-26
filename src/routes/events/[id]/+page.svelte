@@ -198,6 +198,12 @@
 		);
 	});
 
+
+	let hostProfile = $derived.by(() => {
+		if (!event) return null;
+		return participants.find((participant) => participant.id === event?.creatorId) ?? null;
+	});
+
 	let currentUserId = $derived(auth.currentUser?.uid ?? '');
 	let canContactOrganizer = $derived.by(() => {
 		const user = auth.currentUser;
@@ -259,6 +265,58 @@
 		} catch {
 			return 'Date not set';
 		}
+	}
+
+	function formatShortDate(dateValue: unknown) {
+		const date = timestampToDate(dateValue);
+		if (!date) return 'Date not set';
+
+		return date.toLocaleDateString('en-GB', {
+			weekday: 'short',
+			day: '2-digit',
+			month: 'short'
+		});
+	}
+
+	function formatShortTime(dateValue: unknown) {
+		const date = timestampToDate(dateValue);
+		if (!date) return 'Time not set';
+
+		return date.toLocaleTimeString('en-GB', {
+			hour: '2-digit',
+			minute: '2-digit'
+		});
+	}
+
+
+	function timestampToDate(value: unknown): Date | null {
+		try {
+			const timestamp = value as { toDate?: () => Date };
+			const date = timestamp?.toDate?.();
+			return date && !Number.isNaN(date.getTime()) ? date : null;
+		} catch {
+			return null;
+		}
+	}
+
+	function formatEventDuration(currentEvent: SportEvent) {
+		const start = timestampToDate(currentEvent.startAt);
+		const end = timestampToDate(currentEvent.endAt);
+		if (!start || !end || end <= start) return 'Not set';
+
+		const totalMinutes = Math.round((end.getTime() - start.getTime()) / 60000);
+		const hours = Math.floor(totalMinutes / 60);
+		const minutes = totalMinutes % 60;
+
+		if (!hours) return `${minutes} min`;
+		if (!minutes) return `${hours}h`;
+		return `${hours}h ${minutes}min`;
+	}
+
+	function formatPriceLabel(currentEvent: SportEvent) {
+		if (currentEvent.pricePerPerson) return `€${currentEvent.pricePerPerson.toFixed(2)} per person`;
+		if (currentEvent.priceTotal) return `€${currentEvent.priceTotal.toFixed(2)} total`;
+		return 'Free / not defined';
 	}
 
 	function stopGroupMessagesListener() {
@@ -728,9 +786,12 @@
 <button
 	type="button"
 	onclick={() => goBack(resolve('/dashboard'))}
-	class="inline-flex rounded-full bg-blue-50 px-5 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+	class="ml-5 inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold leading-none text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900 sm:ml-0 sm:px-5"
 >
-	← Back
+	<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="h-4 w-4 shrink-0">
+		<path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+	</svg>
+	<span>Back</span>
 </button>
 
 {#if loading}
@@ -746,10 +807,208 @@
 		{error}
 	</div>
 {:else if event}
-	<div class="mt-8 grid min-w-0 max-w-full gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)]">
+	<div class="mt-4 grid min-w-0 max-w-full gap-6 px-5 pb-28 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)] sm:mt-8 sm:px-0 sm:pb-0">
 		<div class="min-w-0 max-w-full space-y-6">
+			<section class="space-y-5 sm:hidden">
+				<div class="flex items-start gap-4">
+					<div class="relative h-[4.5rem] w-[4.5rem] shrink-0">
+						{#if event.groupPhotoURL}
+							<img src={event.groupPhotoURL} alt={event.title} class="h-[4.5rem] w-[4.5rem] rounded-full object-cover ring-4 ring-white dark:ring-slate-900" />
+						{:else}
+							<div class="flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full bg-blue-100 text-3xl font-black text-blue-600 ring-4 ring-white dark:bg-blue-950 dark:text-blue-300 dark:ring-slate-900">
+								{event.title.slice(0, 1).toUpperCase()}
+							</div>
+						{/if}
+
+						{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
+							<label
+								title="Edit group photo"
+								class="absolute -bottom-1 -right-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-white text-xs text-blue-600 shadow-lg ring-2 ring-white transition hover:bg-blue-50 dark:bg-white dark:text-blue-600 dark:ring-slate-900"
+							>
+								{#if groupPhotoSaving}
+								…
+							{:else}
+								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.4" stroke="currentColor" class="h-4 w-4">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18A2.25 2.25 0 0 0 4.5 20.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+									<path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
+								</svg>
+							{/if}
+								<input type="file" accept="image/*" class="hidden" onchange={handleGroupPhotoFileChange} />
+							</label>
+						{/if}
+					</div>
+
+					<div class="min-w-0 flex-1 pt-1">
+						<div class="flex flex-wrap items-center gap-2">
+							<span class="text-[11px] font-black uppercase tracking-[0.22em] text-blue-600 dark:text-blue-400">
+								{event.eventKind === 'tournament' ? 'Tournament' : event.sport}
+							</span>
+
+							<span class="text-xs font-black capitalize text-slate-500 dark:text-slate-400">
+								{effectiveStatus}
+							</span>
+						</div>
+
+						<h1 class="mt-2 break-words text-3xl font-black leading-tight tracking-tight text-slate-950 dark:text-slate-50">
+							{event.title}
+						</h1>
+
+						<p class="mt-1 text-sm font-bold capitalize text-slate-500 dark:text-slate-400">
+							{event.level ?? 'casual'} level
+						</p>
+					</div>
+				</div>
+
+				{#if event.description}
+					<p class="text-[15px] leading-6 text-slate-600 dark:text-slate-300">
+						{event.description}
+					</p>
+				{/if}
+
+				<div class="rounded-[1.75rem] bg-white/80 p-4 shadow-sm shadow-slate-200/60 ring-1 ring-slate-200/70 dark:bg-slate-900/80 dark:shadow-none dark:ring-slate-800">
+					<div class="grid grid-cols-3 gap-3">
+						<div>
+							<p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Date</p>
+							<p class="mt-1 truncate text-sm font-black text-slate-950 dark:text-slate-50">{formatShortDate(event.startAt)}</p>
+						</div>
+						<div>
+							<p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Time</p>
+							<p class="mt-1 truncate text-sm font-black text-slate-950 dark:text-slate-50">{formatShortTime(event.startAt)}</p>
+						</div>
+						<div>
+							<p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Duration</p>
+							<p class="mt-1 truncate text-sm font-black text-slate-950 dark:text-slate-50">{formatEventDuration(event)}</p>
+						</div>
+					</div>
+
+					<div class="mt-4 flex items-start justify-between gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+						<div class="min-w-0">
+							<p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Location</p>
+							<p class="mt-1 truncate text-sm font-black text-slate-950 dark:text-slate-50">{event.location.name}</p>
+							{#if event.location.address}
+								<p class="mt-0.5 line-clamp-2 text-xs leading-5 text-slate-500 dark:text-slate-400">{event.location.address}</p>
+							{/if}
+						</div>
+
+						<div class="shrink-0 text-right">
+							<p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Price</p>
+							<p class="mt-1 max-w-[7rem] text-sm font-black text-slate-950 dark:text-slate-50">{formatPriceLabel(event)}</p>
+						</div>
+					</div>
+				</div>
+
+				<EventMap
+					lat={event.location.lat ?? null}
+					lng={event.location.lng ?? null}
+					name={event.location.name}
+					address={event.location.address ?? ''}
+					compact={true}
+				/>
+
+				{#if event.hostType === 'organization'}
+					<div class="rounded-[1.75rem] bg-white/80 p-4 shadow-sm shadow-slate-200/60 ring-1 ring-slate-200/70 dark:bg-slate-900/80 dark:shadow-none dark:ring-slate-800">
+						<p class="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">Hosted by</p>
+
+						<a href={resolve(`/organizations/${event.organizationId}`)} class="mt-3 flex items-center gap-3">
+							<div class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-lg font-black text-blue-600 dark:bg-slate-800 dark:text-blue-300">
+								{#if event.organizationLogoURL}
+									<img src={event.organizationLogoURL} alt={event.organizationName ?? 'Organization'} class="h-full w-full object-cover" />
+								{:else}
+									{event.organizationName?.charAt(0).toUpperCase() ?? 'O'}
+								{/if}
+							</div>
+
+							<div class="min-w-0 flex-1">
+								<div class="flex items-center gap-2">
+									<p class="truncate font-black text-slate-950 dark:text-slate-50">{event.organizationName ?? 'Organization'}</p>
+									{#if event.organizationVerificationStatus === 'verified'}
+										<span class="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300">Verified</span>
+									{/if}
+								</div>
+								<p class="text-xs text-slate-500 dark:text-slate-400">Official organizer</p>
+							</div>
+						</a>
+
+						<div class="mt-4 grid gap-2 {canContactOrganizer && canPromoteThisEvent ? 'grid-cols-2' : 'grid-cols-1'}">
+							{#if canContactOrganizer}
+								<button type="button" onclick={contactOrganizer} disabled={contactLoading} class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-800 transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100">
+									{contactLoading ? 'Opening...' : 'Contact organizer'}
+								</button>
+							{/if}
+
+							{#if canPromoteThisEvent}
+								{#if isPromotionActive(event)}
+									<button type="button" onclick={handleStopPromotion} disabled={stoppingPromotion} class="rounded-2xl bg-blue-50 px-4 py-3 text-sm font-black text-blue-700 transition hover:bg-blue-100 disabled:opacity-60 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900">
+										{stoppingPromotion ? 'Stopping...' : 'Promotion active'}
+									</button>
+								{:else}
+									<button type="button" onclick={() => (showPromoteModal = true)} class="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700">
+										Promote
+									</button>
+								{/if}
+							{/if}
+						</div>
+					</div>
+				{:else if hostProfile}
+					<a href={resolve(`/users/${hostProfile.id}`)} class="flex items-center gap-3 rounded-[1.5rem] bg-white/70 p-3 shadow-sm shadow-slate-200/50 ring-1 ring-slate-200/70 dark:bg-slate-900/70 dark:shadow-none dark:ring-slate-800">
+						<UserAvatar photoURL={hostProfile.photoURL} displayName={hostProfile.displayName} email={hostProfile.email} size="sm" />
+						<div class="min-w-0">
+							<p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Host</p>
+							<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">{hostProfile.displayName}</p>
+						</div>
+					</a>
+				{/if}
+
+				{#if event?.eventKind !== 'tournament'}
+					<div class="space-y-3">
+						<div class="flex items-center justify-between gap-4">
+							<div>
+								<p class="text-base font-black text-slate-950 dark:text-slate-50">Players</p>
+								<p class="text-sm font-bold text-slate-500 dark:text-slate-400">{participants.length}/{event.maxParticipants} confirmed</p>
+							</div>
+
+							<div class="flex -space-x-2 overflow-hidden pl-2">
+								{#each participants.slice(0, 4) as participant (participant.id)}
+									<UserAvatar photoURL={participant.photoURL} displayName={participant.displayName} email={participant.email} size="sm" />
+								{/each}
+
+								{#if participants.length > 4}
+									<span class="flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-slate-100 text-xs font-black text-slate-600 dark:border-slate-950 dark:bg-slate-800 dark:text-slate-300">+{participants.length - 4}</span>
+								{/if}
+							</div>
+						</div>
+
+						<div class="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+							<div class="h-full rounded-full bg-blue-600" style={`width: ${Math.min(100, (participants.length / event.maxParticipants) * 100)}%`}></div>
+						</div>
+
+						<div class="grid grid-cols-2 gap-3">
+							{#if canInvite}
+								<a href={resolve(`/events/${event.id}/invite`)} class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center text-sm font-black text-slate-800 shadow-sm transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800">Invite</a>
+							{/if}
+
+							{#if canJoin}
+								<button onclick={handleJoinEvent} disabled={actionLoading} class="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:opacity-60">
+									{actionLoading ? 'Joining...' : 'Join event'}
+								</button>
+							{/if}
+
+							{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
+								<a href={resolve(`/events/${event.id}/edit`)} class="rounded-2xl bg-slate-950 px-4 py-3 text-center text-sm font-black text-white shadow-lg shadow-slate-950/10 transition hover:bg-slate-800 dark:bg-white dark:text-slate-950">Edit</a>
+							{/if}
+						</div>
+					</div>
+				{/if}
+
+				{#if error}
+					<div class="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+						{error}
+					</div>
+				{/if}
+			</section>
+
 			<section
-				class="rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-4xl sm:p-8"
+				class="hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:block sm:rounded-4xl sm:p-8"
 			>
 				<div class="flex flex-col gap-5 sm:flex-row sm:items-start">
 					<div class="relative h-20 w-20 shrink-0">
@@ -770,9 +1029,16 @@
 						{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
 							<label
 								title="Edit group photo"
-								class="absolute -bottom-1 -right-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-blue-600 text-sm text-white shadow-lg transition hover:bg-blue-700"
+								class="absolute -bottom-1 -right-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-white text-sm text-blue-600 shadow-lg ring-2 ring-slate-100 transition hover:bg-blue-50 dark:bg-white dark:text-blue-600 dark:ring-slate-800"
 							>
-								{groupPhotoSaving ? '…' : '✎'}
+								{#if groupPhotoSaving}
+								…
+							{:else}
+								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.4" stroke="currentColor" class="h-4 w-4">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18A2.25 2.25 0 0 0 4.5 20.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+									<path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
+								</svg>
+							{/if}
 								<input
 									type="file"
 									accept="image/*"
@@ -802,7 +1068,7 @@
 					</div>
 				</div>
 
-				<div class="mt-6 grid grid-cols-2 gap-3 sm:mt-8 sm:gap-4">
+				<div class="mt-6 grid grid-cols-2 gap-3 sm:mt-8 sm:grid-cols-3 sm:gap-4">
 					<div class="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800">
 						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Date and time</p>
 						<p class="mt-2 font-bold text-slate-950 dark:text-slate-50">
@@ -831,15 +1097,17 @@
 					</div>
 
 					<div class="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800">
-						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Price</p>
+						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Duration</p>
+						<p class="mt-2 font-bold text-slate-950 dark:text-slate-50">
+							{formatEventDuration(event)}
+						</p>
+					</div>
 
-						{#if event.pricePerPerson}
-							<p class="mt-2 font-bold text-slate-950 dark:text-slate-50">
-								€{event.pricePerPerson.toFixed(2)} per person
-							</p>
-						{:else}
-							<p class="mt-2 font-bold text-slate-950 dark:text-slate-50">Free / not defined</p>
-						{/if}
+					<div class="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800">
+						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Price</p>
+						<p class="mt-2 font-bold text-slate-950 dark:text-slate-50">
+							{formatPriceLabel(event)}
+						</p>
 					</div>
 				</div>
 
@@ -939,28 +1207,28 @@
 
 			{#if canAccessGroupChat && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
 				<section
-					class="rounded-4xl border border-slate-200 bg-white shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+					class="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-4xl sm:shadow-xl sm:shadow-slate-200/70"
 				>
-					<div class="flex items-center gap-4 border-b border-slate-100 p-5 dark:border-slate-800">
+					<div class="flex items-center gap-3 border-b border-slate-100 p-4 dark:border-slate-800 sm:gap-4 sm:p-5">
 						{#if event.groupPhotoURL}
 							<img
 								src={event.groupPhotoURL}
 								alt={event.title}
-								class="h-12 w-12 rounded-full object-cover ring-2 ring-white dark:ring-slate-800"
+								class="h-10 w-10 rounded-full object-cover ring-2 ring-white dark:ring-slate-800 sm:h-12 sm:w-12"
 							/>
 						{:else}
 							<div
-								class="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-lg font-black text-blue-600 ring-2 ring-white dark:bg-blue-950 dark:text-blue-300 dark:ring-slate-800"
+								class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-base font-black text-blue-600 ring-2 ring-white dark:bg-blue-950 dark:text-blue-300 dark:ring-slate-800 sm:h-12 sm:w-12 sm:text-lg"
 							>
 								{event.title.slice(0, 1).toUpperCase()}
 							</div>
 						{/if}
 
 						<div class="min-w-0 flex-1">
-							<p class="truncate text-lg font-black text-slate-950 dark:text-white">
+							<p class="truncate text-base font-black text-slate-950 dark:text-white sm:text-lg">
 								{event.title}
 							</p>
-							<p class="truncate text-sm text-slate-500 dark:text-slate-400">
+							<p class="truncate text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
 								Group chat · {event.participantIds.length} members
 							</p>
 						</div>
@@ -968,7 +1236,7 @@
 
 					<div
 						bind:this={messagesContainer}
-						class="h-90 overflow-y-auto bg-slate-50 px-5 py-5 dark:bg-slate-950"
+						class="h-[20rem] overflow-y-auto bg-slate-50 px-4 py-4 dark:bg-slate-950 sm:h-[22.5rem] sm:px-5 sm:py-5"
 					>
 						{#if groupChatLoading}
 							<div
@@ -1007,7 +1275,7 @@
 					</div>
 
 					<form
-						class="border-t border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900"
+						class="border-t border-slate-100 bg-white px-3 py-3 dark:border-slate-800 dark:bg-slate-900 sm:px-4"
 						onsubmit={(submitEvent) => {
 							submitEvent.preventDefault();
 							handleSendGroupMessage();
@@ -1036,7 +1304,7 @@
 			{/if}
 		</div>
 
-		<aside class="space-y-6">
+		<aside class="hidden space-y-6 lg:block">
 			{#if event?.hostType === 'organization'}
 				<div
 					class="rounded-4xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"

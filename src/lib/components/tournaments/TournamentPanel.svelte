@@ -213,6 +213,31 @@
 		}
 	}
 
+	function timestampToDate(value: unknown): Date | null {
+		try {
+			const timestamp = value as { toDate?: () => Date };
+			const date = timestamp?.toDate?.();
+			return date && !Number.isNaN(date.getTime()) ? date : null;
+		} catch {
+			return null;
+		}
+	}
+
+	function formatTournamentDuration() {
+		const start = timestampToDate(event.startAt);
+		const end = timestampToDate(event.endAt);
+		if (!start || !end || end <= start) return 'Not set';
+
+		const totalMinutes = Math.round((end.getTime() - start.getTime()) / 60000);
+		const hours = Math.floor(totalMinutes / 60);
+		const minutes = totalMinutes % 60;
+
+		if (!hours) return `${minutes} min`;
+		if (!minutes) return `${hours}h`;
+		return `${hours}h ${minutes}min`;
+	}
+
+
 	function timestampToLocalInput(value: unknown) {
 		try {
 			const timestamp = value as { toDate?: () => Date };
@@ -840,9 +865,9 @@
 {/snippet}
 
 <section
-	class="mt-8 w-full min-w-0 max-w-full overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/70 [contain:inline-size] dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-7"
+	class="mt-4 w-full min-w-0 max-w-full overflow-hidden rounded-[1.75rem] bg-white/75 p-4 shadow-sm shadow-slate-200/60 ring-1 ring-slate-200/70 [contain:inline-size] dark:bg-slate-900/80 dark:shadow-none dark:ring-slate-800 sm:mt-8 sm:rounded-[2rem] sm:border sm:border-slate-200 sm:bg-white sm:p-7 sm:shadow-xl sm:shadow-slate-200/70 sm:ring-0 sm:dark:border-slate-800 sm:dark:bg-slate-900 sm:dark:shadow-none"
 >
-	<div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+	<div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
 		<div class="min-w-0">
 			<div class="flex flex-wrap items-center gap-2">
 				<span
@@ -859,23 +884,23 @@
 			</div>
 
 			<h2
-				class="mt-3 text-2xl font-black tracking-tight text-slate-950 dark:text-slate-50 sm:text-3xl"
+				class="mt-2 text-xl font-black leading-tight tracking-tight text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-3xl"
 			>
 				{formatTournamentFormat()}
 			</h2>
 
-			<p class="mt-2 text-sm font-bold text-slate-500 dark:text-slate-400">
+			<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400 sm:mt-2">
 				{formatRegistrationType()} · {entries.length}/{maxEntries} registered
 			</p>
 		</div>
 
 		<div
-			class="flex w-full overflow-x-auto rounded-2xl bg-slate-100 p-1 dark:bg-slate-800 lg:w-auto"
+			class="grid w-full grid-cols-3 rounded-2xl bg-slate-100 p-1 shadow-sm shadow-slate-200/60 dark:bg-slate-800 dark:shadow-none lg:w-auto lg:min-w-[21rem]"
 		>
 			<button
 				type="button"
 				onclick={() => (activeTab = 'overview')}
-				class={`flex-1 whitespace-nowrap rounded-xl px-2 py-2 text-xs font-black transition sm:px-4 sm:text-sm ${
+				class={`whitespace-nowrap rounded-xl px-2 py-2 text-xs font-black transition sm:px-4 sm:text-sm ${
 					activeTab === 'overview'
 						? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white'
 						: 'text-slate-500 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
@@ -887,7 +912,7 @@
 			<button
 				type="button"
 				onclick={() => (activeTab = 'entries')}
-				class={`flex-1 whitespace-nowrap rounded-xl px-2 py-2 text-xs font-black transition sm:px-4 sm:text-sm ${
+				class={`whitespace-nowrap rounded-xl px-2 py-2 text-xs font-black transition sm:px-4 sm:text-sm ${
 					activeTab === 'entries'
 						? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white'
 						: 'text-slate-500 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
@@ -899,7 +924,7 @@
 			<button
 				type="button"
 				onclick={() => (activeTab = 'bracket')}
-				class={`flex-1 whitespace-nowrap rounded-xl px-2 py-2 text-xs font-black transition sm:px-4 sm:text-sm ${
+				class={`whitespace-nowrap rounded-xl px-2 py-2 text-xs font-black transition sm:px-4 sm:text-sm ${
 					activeTab === 'bracket'
 						? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white'
 						: 'text-slate-500 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
@@ -929,48 +954,47 @@
 	{#if loading}
 		<p class="mt-6 text-sm font-bold text-slate-500 dark:text-slate-400">Loading tournament...</p>
 	{:else if activeTab === 'overview'}
-		<div class="mt-7 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-			<div
-				class="rounded-3xl border border-slate-100 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-950"
-			>
-				<p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Format</p>
-				<p class="mt-3 text-lg font-black text-slate-950 dark:text-slate-50">
+		<div class="mt-5 grid grid-cols-2 gap-3 sm:mt-7 sm:grid-cols-2 sm:gap-4 xl:grid-cols-5">
+			<div class="rounded-2xl bg-slate-50 p-3 dark:bg-slate-950 sm:rounded-3xl sm:border sm:border-slate-100 sm:p-5 sm:dark:border-slate-800">
+				<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Format</p>
+				<p class="mt-1 text-sm font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-lg">
 					{formatTournamentFormat()}
 				</p>
 			</div>
 
-			<div
-				class="rounded-3xl border border-slate-100 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-950"
-			>
-				<p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Registration</p>
-				<p class="mt-3 text-lg font-black text-slate-950 dark:text-slate-50">
+			<div class="rounded-2xl bg-slate-50 p-3 dark:bg-slate-950 sm:rounded-3xl sm:border sm:border-slate-100 sm:p-5 sm:dark:border-slate-800">
+				<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Registration</p>
+				<p class="mt-1 text-sm font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-lg">
 					{entries.length}/{maxEntries}
 				</p>
 			</div>
 
-			<div
-				class="rounded-3xl border border-slate-100 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-950"
-			>
-				<p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Entry cost</p>
-				<p class="mt-3 text-lg font-black text-slate-950 dark:text-slate-50">
+			<div class="rounded-2xl bg-slate-50 p-3 dark:bg-slate-950 sm:rounded-3xl sm:border sm:border-slate-100 sm:p-5 sm:dark:border-slate-800">
+				<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Duration</p>
+				<p class="mt-1 text-sm font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-lg">
+					{formatTournamentDuration()}
+				</p>
+			</div>
+
+			<div class="rounded-2xl bg-slate-50 p-3 dark:bg-slate-950 sm:rounded-3xl sm:border sm:border-slate-100 sm:p-5 sm:dark:border-slate-800">
+				<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Entry cost</p>
+				<p class="mt-1 text-sm font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-lg">
 					{event.entryFeeType === 'free' ? 'Free' : `€${event.entryFeeAmount ?? 0}`}
 				</p>
 			</div>
 
-			<div
-				class="rounded-3xl border border-slate-100 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-950"
-			>
-				<p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Prize</p>
-				<p class="mt-3 line-clamp-2 text-lg font-black text-slate-950 dark:text-slate-50">
+			<div class="col-span-2 rounded-2xl bg-slate-50 p-3 dark:bg-slate-950 sm:col-span-1 sm:rounded-3xl sm:border sm:border-slate-100 sm:p-5 sm:dark:border-slate-800">
+				<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Prize</p>
+				<p class="mt-1 line-clamp-2 text-sm font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-lg">
 					{event.prizeType === 'none' ? 'No prize' : event.prizeDescription || event.prizeType}
 				</p>
 			</div>
 		</div>
 
 		{#if event.tournamentRules}
-			<div class="mt-5 rounded-2xl bg-white p-5 dark:bg-slate-900">
-				<h3 class="font-black text-slate-950 dark:text-slate-50">Rules</h3>
-				<p class="mt-2 whitespace-pre-line text-sm text-slate-600 dark:text-slate-300">
+			<div class="mt-5 rounded-2xl bg-slate-50 p-4 dark:bg-slate-950 sm:bg-white sm:p-5 sm:dark:bg-slate-900">
+				<h3 class="text-sm font-black text-slate-950 dark:text-slate-50">Rules</h3>
+				<p class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600 dark:text-slate-300">
 					{event.tournamentRules}
 				</p>
 			</div>

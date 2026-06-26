@@ -136,13 +136,16 @@
 	}
 </script>
 
-<div class="mx-auto max-w-3xl">
+<div class="mx-auto w-full max-w-3xl px-5 pb-28 sm:px-0 sm:pb-0">
 	<button
 		type="button"
 		onclick={() => goBack(resolve(`/events/${eventId}`))}
-		class="inline-flex rounded-full bg-blue-50 px-5 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+		class="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold leading-none text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900 sm:px-5"
 	>
-		← Back to event
+		<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="h-4 w-4 shrink-0">
+			<path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+		</svg>
+		<span>Back to event</span>
 	</button>
 
 	<div class="mt-6">
@@ -198,7 +201,7 @@
 			</p>
 		</div>
 	{:else}
-		<div class="mt-8">
+		<div class="mt-8 overflow-hidden rounded-[1.75rem] bg-white/70 p-4 shadow-sm shadow-slate-200/50 ring-1 ring-slate-200/70 dark:bg-slate-900/60 dark:shadow-none dark:ring-slate-800">
 			<div class="mb-4 flex items-center justify-between gap-4">
 				<div>
 					<h2 class="text-lg font-black text-slate-950 dark:text-white">
@@ -239,12 +242,12 @@
 					</p>
 				</div>
 			{:else}
-				<div class="divide-y divide-slate-100 dark:divide-slate-800">
+				<div class="max-h-[27.5rem] overflow-y-auto overscroll-contain pr-1 divide-y divide-slate-100 dark:divide-slate-800 sm:max-h-[34rem]">
 					{#each availableFriends as friend (friend.id)}
 						<button
 							type="button"
 							onclick={() => toggleFriend(friend.id)}
-							class="flex w-full items-center gap-3 py-4 text-left transition hover:bg-slate-50 dark:hover:bg-slate-900"
+							class="flex w-full items-center gap-3 rounded-2xl px-1 py-4 text-left transition hover:bg-slate-50 dark:hover:bg-slate-900"
 						>
 							<UserAvatar
 								displayName={friend.displayName}
@@ -277,9 +280,9 @@
 			{/if}
 
 			<div
-				class="sticky bottom-20 mt-8 rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-xl shadow-slate-200/70 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90 dark:shadow-none md:bottom-4"
+				class="mt-5 rounded-[1.75rem] border border-slate-200 bg-white p-3 shadow-sm shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-950 dark:shadow-none sm:p-4"
 			>
-				<div class="flex items-center justify-between gap-4">
+				<div class="flex items-center justify-between gap-3">
 					<p class="text-sm font-bold text-slate-600 dark:text-slate-300">
 						{selectedFriendIds.length} selected
 					</p>
@@ -288,7 +291,7 @@
 						type="button"
 						onclick={handleSendInvites}
 						disabled={sending || selectedFriendIds.length === 0}
-						class="rounded-full bg-blue-600 px-6 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+						class="rounded-full bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:px-6"
 					>
 						{sending ? 'Sending...' : 'Send invites'}
 					</button>
