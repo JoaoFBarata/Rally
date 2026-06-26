@@ -29,6 +29,13 @@
 		subscribeToUserChanges
 	} from '$lib/services/realtime.service';
 	import { getUserPointTransactions, RALLY_POINTS_CONFIG } from '$lib/services/points.service';
+	import {
+		canFastSwitchDeviceAccount,
+		getDeviceAccounts,
+		rememberDeviceAccount,
+		removeDeviceAccount,
+		type DeviceAccount
+	} from '$lib/services/device-accounts.service';
 	import type { RallyPointTransaction } from '$lib/schema';
 	import { createAppUrl } from '$lib/utils/app-url';
 
@@ -68,6 +75,12 @@
 	let showQrModal = $state(false);
 	let pointTransactions = $state<RallyPointTransaction[]>([]);
 	let showPointsBreakdown = $state(false);
+	let showSettingsModal = $state(false);
+	let notificationsEnabled = $state(true);
+	let selectedLanguage = $state('en');
+	let showAccountSwitcher = $state(false);
+	let deviceAccounts = $state<DeviceAccount[]>([]);
+	let switchingAccountId = $state<string | null>(null);
 
 	let showPhotoModal = $state(false);
 	let avatarSelectionMode = $state(false);
@@ -109,6 +122,7 @@
 
 		try {
 			profile = await ensureUserProfile(currentUser);
+			deviceAccounts = rememberDeviceAccount(profile, currentUser);
 			resetFormFromProfile(profile);
 			await generateProfileQrCode(profile.id);
 
@@ -116,6 +130,7 @@
 			friends = rawFriends.sort(sortByDisplayName);
 
 			pointTransactions = await getUserPointTransactions(currentUser.uid, 5);
+			deviceAccounts = getDeviceAccounts();
 		} catch (err) {
 			console.error('Profile load error:', err);
 			error = err instanceof Error ? err.message : 'Could not load profile.';
@@ -335,6 +350,66 @@
 		}
 	}
 
+	async function handleAddAccount() {
+		logoutLoading = true;
+
+		try {
+			if (profile) deviceAccounts = rememberDeviceAccount(profile, auth.currentUser);
+			await authService.logout();
+			showSettingsModal = false;
+			showAccountSwitcher = false;
+			await goto('/login?returnTo=/profile&mode=addAccount');
+		} finally {
+			logoutLoading = false;
+		}
+	}
+
+	async function handleSwitchAccount(account: DeviceAccount) {
+		if (account.id === auth.currentUser?.uid) {
+			showAccountSwitcher = false;
+			return;
+		}
+
+		logoutLoading = true;
+		switchingAccountId = account.id;
+		error = '';
+
+		try {
+			if (profile) deviceAccounts = rememberDeviceAccount(profile, auth.currentUser);
+
+			if (canFastSwitchDeviceAccount(account)) {
+				await authService.logout();
+				const switchedUser = await authService.signInWithGoogle();
+
+				if (switchedUser.uid !== account.id) {
+					deviceAccounts = getDeviceAccounts();
+					error = `You signed in as ${switchedUser.email ?? 'another account'}. Choose ${account.email} to switch to ${account.displayName}.`;
+					return;
+				}
+
+				showSettingsModal = false;
+				showAccountSwitcher = false;
+				await goto('/profile');
+				return;
+			}
+
+			await authService.logout();
+			showSettingsModal = false;
+			showAccountSwitcher = false;
+			await goto(`/login?returnTo=/profile&email=${encodeURIComponent(account.email)}&switchAccount=${encodeURIComponent(account.id)}`);
+		} catch (err) {
+			console.error('Switch account error:', err);
+			error = err instanceof Error ? err.message : 'Could not switch account.';
+		} finally {
+			logoutLoading = false;
+			switchingAccountId = null;
+		}
+	}
+
+	function handleForgetDeviceAccount(accountId: string) {
+		deviceAccounts = removeDeviceAccount(accountId);
+	}
+
 	async function generateProfileQrCode(userId: string) {
 		if (!browser || !profile?.rallyTag) return;
 
@@ -364,16 +439,37 @@
 	});
 </script>
 
-<main class="mx-auto w-full max-w-6xl px-4 py-5 sm:px-5 sm:py-6">
-	<header class="mb-6">
-		<div class="flex items-center justify-between gap-3">
-			<RallyWordmark size="sm" />
-			<div class="md:hidden"><ThemeToggle /></div>
+<main class="mx-auto w-full max-w-6xl px-5 py-5 sm:px-5 sm:py-6">
+	<header class="mb-4 md:mb-6">
+		<div class="hidden md:block">
+			<div class="flex items-center justify-between gap-3">
+				<RallyWordmark size="sm" />
+				<button
+					type="button"
+					onclick={() => (showSettingsModal = true)}
+					class="rounded-full bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-800 dark:hover:bg-slate-800"
+				>
+					Settings
+				</button>
+			</div>
+			<h1 class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">Profile</h1>
+			<p class="mt-1 text-slate-500 dark:text-slate-400">
+				Your Rally identity, sports profile and friends.
+			</p>
 		</div>
-		<h1 class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">Profile</h1>
-		<p class="mt-1 text-slate-500 dark:text-slate-400">
-			Your Rally identity, sports profile and friends.
-		</p>
+
+		<div class="flex items-center justify-between md:hidden">
+			<p class="text-base font-black text-slate-950 dark:text-slate-50">Profile</p>
+
+			<button
+				type="button"
+				onclick={() => (showSettingsModal = true)}
+				class="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-800"
+				aria-label="Open settings"
+			>
+				⚙
+			</button>
+		</div>
 	</header>
 
 	{#if loading}
@@ -399,7 +495,302 @@
 			</div>
 		{/if}
 
-		<div class="grid min-w-0 items-start gap-4 lg:grid-cols-[1.1fr_0.9fr] lg:gap-6">
+		<section class="space-y-6 pb-6 md:hidden">
+			{#if editMode}
+				<div class="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+					<div class="flex items-center justify-between gap-3">
+						<div>
+							<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Edit profile</h2>
+							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Keep your Rally profile fresh.</p>
+						</div>
+						<button
+							type="button"
+							onclick={cancelEdit}
+							class="rounded-full bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+						>
+							Cancel
+						</button>
+					</div>
+
+					<div class="mt-5 grid gap-4">
+						<div>
+							<label for="mobile-name" class="text-sm font-bold text-slate-700 dark:text-slate-300">Name</label>
+							<input
+								id="mobile-name"
+								bind:value={displayName}
+								class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+							/>
+						</div>
+
+						<div class="grid grid-cols-2 gap-3">
+							<div>
+								<label for="mobile-city" class="text-sm font-bold text-slate-700 dark:text-slate-300">City</label>
+								<input
+									id="mobile-city"
+									bind:value={city}
+									class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+								/>
+							</div>
+							<div>
+								<label for="mobile-age" class="text-sm font-bold text-slate-700 dark:text-slate-300">Age</label>
+								<input
+									id="mobile-age"
+									type="number"
+									min="13"
+									max="100"
+									bind:value={age}
+									class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+								/>
+							</div>
+						</div>
+
+						<div>
+							<label for="mobile-bio" class="text-sm font-bold text-slate-700 dark:text-slate-300">Bio</label>
+							<textarea
+								id="mobile-bio"
+								bind:value={bio}
+								rows="3"
+								class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+							></textarea>
+						</div>
+
+						<div>
+							<p class="text-sm font-bold text-slate-700 dark:text-slate-300">Sports</p>
+							<div class="mt-3 flex flex-wrap gap-2">
+								{#each availableSports as sport (sport)}
+									<button
+										type="button"
+										onclick={() => toggleSport(sport)}
+										class={`rounded-full px-3 py-2 text-xs font-bold transition ${
+											sports.includes(sport)
+												? 'bg-blue-600 text-white'
+												: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+										}`}
+									>
+										{sport}
+									</button>
+								{/each}
+							</div>
+						</div>
+
+						<button
+							onclick={handleSaveProfile}
+							disabled={saving}
+							class="rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white shadow-lg shadow-blue-600/20 transition active:scale-[0.98] disabled:opacity-60"
+						>
+							{saving ? 'Saving...' : 'Save profile'}
+						</button>
+					</div>
+				</div>
+			{:else}
+			    <div class="px-2">
+			        <div class="flex items-center gap-4">
+						<div class="relative h-20 w-20 shrink-0">
+						    <UserAvatar
+						        photoURL={profile.photoURL ?? auth.currentUser?.photoURL ?? null}
+						        displayName={profile.displayName}
+						        email={profile.email}
+						        size="xl"
+						    />
+						    <button
+						        type="button"
+						        onclick={() => (showPhotoModal = true)}
+						        class="absolute -bottom-1 -right-1 flex h-9 w-9 items-center justify-center rounded-full bg-white text-blue-600 shadow-lg ring-2 ring-white transition active:scale-95 dark:bg-slate-900 dark:text-blue-400 dark:ring-slate-950"
+						        aria-label="Edit profile photo"
+						    >
+						        {#if photoSaving}
+						            <span class="text-sm font-black">…</span>
+						        {:else}
+						            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" class="h-4 w-4">
+						                <path stroke-linecap="round" stroke-linejoin="round" d="M6.8 6.2A2.3 2.3 0 0 1 5.2 7.2c-.38.05-.76.11-1.14.18A2.25 2.25 0 0 0 2.25 9.6V18A2.25 2.25 0 0 0 4.5 20.25h15A2.25 2.25 0 0 0 21.75 18V9.6a2.25 2.25 0 0 0-1.81-2.21c-.38-.07-.76-.13-1.14-.18a2.3 2.3 0 0 1-1.6-1l-.82-1.32a2.2 2.2 0 0 0-1.74-1.04 49 49 0 0 0-5.28 0 2.2 2.2 0 0 0-1.74 1.04L6.8 6.2Z" />
+						                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 13a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
+						            </svg>
+						        {/if}
+						    </button>
+						    <input bind:this={fileInput} type="file" accept="image/*" class="hidden" onchange={handleProfilePhotoFileChange} />
+						</div>
+
+						<div class="min-w-0 flex-1">
+						    <div class="flex items-start justify-between gap-3">
+						        <div class="min-w-0">
+									<h2 class="truncate text-2xl font-black leading-tight text-slate-950 dark:text-slate-50">
+									    {profile.displayName}
+									</h2>
+									<button
+									    type="button"
+									    onclick={copyTag}
+									    class="mt-1 block max-w-full truncate text-left text-sm font-bold text-blue-600 dark:text-blue-400"
+									>
+									    @{profile.rallyTag ?? 'creating-tag'}
+									</button>
+						        </div>
+
+						        <button
+									type="button"
+									onclick={() => (editMode = true)}
+									class="shrink-0 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+						        >
+									Edit
+						        </button>
+						    </div>
+
+						    {#if profile.city || profile.age}
+						        <p class="mt-2 truncate text-sm text-slate-500 dark:text-slate-400">
+									{profile.city || 'No city'}{profile.age ? ` · ${profile.age} years old` : ''}
+						        </p>
+						    {/if}
+						</div>
+			        </div>
+
+			        <div class="mt-5 flex flex-wrap gap-2">
+						{#if profile.sports?.length}
+						    {#each profile.sports as sport (sport)}
+						        <span class="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">{sport}</span>
+						    {/each}
+						{:else}
+						    <span class="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">No sports yet</span>
+						{/if}
+			        </div>
+
+			        <div class="mt-5 grid grid-cols-2 divide-x divide-slate-200 rounded-[1.5rem] bg-slate-50 p-4 dark:divide-slate-700 dark:bg-slate-800/70">
+						<div class="text-center">
+						    <p class="text-2xl font-black text-slate-950 dark:text-slate-50">{friends.length}</p>
+						    <p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">Friends</p>
+						</div>
+						<div class="text-center">
+						    <p class="text-2xl font-black text-slate-950 dark:text-slate-50">{(profile.rallyPointsTotal ?? 0).toLocaleString()}</p>
+						    <p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">Points</p>
+						</div>
+			        </div>
+
+			        {#if profile.bio}
+						<div class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-800">
+							<p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">About</p>
+							<p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{profile.bio}</p>
+						</div>
+			        {/if}
+			    </div>
+
+			    <button
+			        type="button"
+			        onclick={() => (showQrModal = true)}
+			        class="flex w-full items-center justify-between rounded-[1.6rem] bg-blue-600 p-4 text-left text-white shadow-lg shadow-blue-600/20 active:scale-[0.99]"
+			    >
+			        <span>
+						<span class="block text-sm font-black">Rally QR</span>
+						<span class="block text-xs text-blue-100">Share your code to connect</span>
+			        </span>
+			        <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/15">
+						<img src="/qr-code.png" alt="QR code" class="h-6 w-6 object-contain invert" />
+			        </span>
+			    </button>
+			{/if}
+
+			<section class="overflow-hidden rounded-[1.7rem] bg-white shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+			    <div class="bg-gradient-to-r from-slate-950 to-slate-800 p-4">
+			        <div class="flex items-center justify-between gap-3">
+						<div class="flex items-center gap-2.5">
+						    <svg viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5 text-yellow-400" aria-hidden="true">
+						        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+						    </svg>
+						    <h2 class="text-lg font-black text-white">Rally Points</h2>
+						</div>
+
+						<button
+						    type="button"
+						    onclick={() => (showPointsBreakdown = !showPointsBreakdown)}
+						    class="rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/70"
+						>
+						    {showPointsBreakdown ? 'Hide' : 'How it works'}
+						</button>
+			        </div>
+
+			        <p class="mt-3 text-4xl font-black text-white">
+						{(profile.rallyPointsTotal ?? 0).toLocaleString()}
+						<span class="text-base font-semibold text-white/50">pts</span>
+			        </p>
+
+			        <p class="mt-1 text-sm text-white/50">
+						{(profile.rallyPointsTotal ?? 0) === 0 ? 'Play at a Rally Verified venue to start earning.' : 'Your total Rally Points balance.'}
+			        </p>
+			    </div>
+
+			    {#if showPointsBreakdown}
+			        <div class="border-b border-slate-100 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/60">
+						<p class="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+						    Earn per event at a Verified venue
+						</p>
+						<div class="space-y-2 text-sm">
+						    {#each [{ label: 'Participating', pts: RALLY_POINTS_CONFIG.BASE_PARTICIPATION }, { label: 'First visit to venue', pts: RALLY_POINTS_CONFIG.FIRST_VENUE_BONUS }, { label: `Per other player (max ${RALLY_POINTS_CONFIG.PER_PARTICIPANT_CAP})`, pts: RALLY_POINTS_CONFIG.PER_PARTICIPANT }, { label: 'Organising the event', pts: RALLY_POINTS_CONFIG.ORGANIZER_BONUS }, { label: 'Event at full capacity', pts: RALLY_POINTS_CONFIG.FULL_EVENT_BONUS }] as row}
+						        <div class="flex items-center justify-between gap-3">
+									<span class="text-slate-600 dark:text-slate-400">{row.label}</span>
+									<span class="font-bold text-slate-900 dark:text-slate-50">+{row.pts} pts</span>
+						        </div>
+						    {/each}
+						</div>
+			        </div>
+			    {/if}
+
+			    {#if pointTransactions.length > 0}
+			        <div class="p-4">
+						<p class="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Recent activity</p>
+						<div class="space-y-2">
+						    {#each pointTransactions as tx (tx.id)}
+						        <div class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800">
+									<div class="min-w-0">
+									    <p class="truncate text-sm font-bold text-slate-900 dark:text-slate-50">{tx.eventTitle}</p>
+									    <p class="truncate text-xs text-slate-500 dark:text-slate-400">{tx.venueName}</p>
+									</div>
+									<span class="ml-3 shrink-0 font-black text-yellow-500">+{tx.amount}</span>
+						        </div>
+						    {/each}
+						</div>
+			        </div>
+			    {/if}
+			</section>
+
+			<div class="px-2">
+			    <div class="flex items-center justify-between gap-3">
+			        <h2 class="text-lg font-black text-slate-950 dark:text-slate-50">Friends</h2>
+			        <span class="text-xs font-black text-blue-600 dark:text-blue-400">{friends.length}</span>
+			    </div>
+
+			    {#if friends.length === 0}
+			        <p class="mt-3 text-sm text-slate-500 dark:text-slate-400">Add friends using a Rally tag.</p>
+			    {:else}
+			        <div class="mt-4 flex gap-3 overflow-x-auto pb-1">
+						{#each friends as friend (friend.id)}
+						    <a href={resolve(`/users/${friend.id}`)} class="w-16 shrink-0 text-center">
+						        <div class="mx-auto h-12 w-12">
+									<UserAvatar photoURL={friend.photoURL} displayName={friend.displayName} email={friend.email} size="md" />
+						        </div>
+						        <p class="mt-2 truncate text-xs font-bold text-slate-700 dark:text-slate-300">{friend.displayName}</p>
+						    </a>
+						{/each}
+			        </div>
+			    {/if}
+			</div>
+
+			<div class="px-2">
+			    <h2 class="text-lg font-black text-slate-950 dark:text-slate-50">Add friend</h2>
+			    <div class="mt-3 flex gap-2">
+			        <input
+						bind:value={friendTag}
+						placeholder="rally-tag"
+						class="min-w-0 flex-1 rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-950 placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+			        />
+			        <button
+						onclick={handleAddFriend}
+						disabled={friendLoading || !friendTag}
+						class="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
+			        >
+						{friendLoading ? '...' : 'Add'}
+			        </button>
+			    </div>
+			</div>
+		</section>
+
+		<div class="hidden min-w-0 items-start gap-4 md:grid lg:grid-cols-[1.1fr_0.9fr] lg:gap-6">
 			<section
 				class="min-w-0 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:rounded-4xl sm:p-6"
 			>
@@ -417,9 +808,16 @@
 								type="button"
 								onclick={() => (showPhotoModal = true)}
 								title="Edit profile photo"
-								class="absolute -bottom-1 -right-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-blue-600 text-sm text-white shadow-lg transition hover:bg-blue-700"
+								class="absolute -bottom-1 -right-1 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-white text-blue-600 shadow-lg ring-2 ring-white transition hover:scale-105 hover:bg-blue-50 dark:bg-slate-900 dark:text-blue-400 dark:ring-slate-950 dark:hover:bg-slate-800"
 							>
-								{photoSaving ? '…' : '✎'}
+								{#if photoSaving}
+									<span class="text-sm font-black">…</span>
+								{:else}
+									<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" class="h-4 w-4">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M6.8 6.2A2.3 2.3 0 0 1 5.2 7.2c-.38.05-.76.11-1.14.18A2.25 2.25 0 0 0 2.25 9.6V18A2.25 2.25 0 0 0 4.5 20.25h15A2.25 2.25 0 0 0 21.75 18V9.6a2.25 2.25 0 0 0-1.81-2.21c-.38-.07-.76-.13-1.14-.18a2.3 2.3 0 0 1-1.6-1l-.82-1.32a2.2 2.2 0 0 0-1.74-1.04 49 49 0 0 0-5.28 0 2.2 2.2 0 0 0-1.74 1.04L6.8 6.2Z" />
+										<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 13a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
+									</svg>
+								{/if}
 							</button>
 							<input
 								bind:this={fileInput}
@@ -1014,6 +1412,213 @@
 						</button>
 					</div>
 				{/if}
+			</div>
+		</dialog>
+	{/if}
+
+	{#if showSettingsModal}
+		<dialog
+			open
+			class="fixed inset-0 z-[120] m-0 flex h-full w-full max-w-none items-end justify-center border-0 bg-slate-950/60 px-0 backdrop-blur-sm sm:items-center sm:px-5"
+			onclick={(event) => {
+				if (event.target === event.currentTarget) {
+					showSettingsModal = false;
+					showAccountSwitcher = false;
+				}
+			}}
+			aria-labelledby="profile-settings-title"
+		>
+			<div
+				class="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-[2rem] bg-white p-5 shadow-2xl dark:bg-slate-900 sm:rounded-[2rem] sm:p-6"
+			>
+				<div class="flex items-start justify-between gap-4">
+					<div>
+						<h2 id="profile-settings-title" class="text-2xl font-black text-slate-950 dark:text-slate-50">Settings</h2>
+						<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Notifications, appearance, language and account.</p>
+					</div>
+					<button
+						type="button"
+						onclick={() => {
+							showSettingsModal = false;
+							showAccountSwitcher = false;
+						}}
+						class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-xl font-black text-slate-500 transition hover:bg-slate-200 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+						aria-label="Close settings"
+					>
+						×
+					</button>
+				</div>
+
+				<div class="mt-6 space-y-5">
+					<section>
+						<p class="mb-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">App</p>
+
+						<div class="divide-y divide-slate-200 overflow-hidden rounded-3xl bg-slate-50 dark:divide-slate-700 dark:bg-slate-800">
+							<div class="flex items-center justify-between gap-4 p-4">
+								<div>
+									<p class="font-black text-slate-950 dark:text-slate-50">Notifications</p>
+									<p class="text-xs text-slate-500 dark:text-slate-400">Event invites, messages and friend requests.</p>
+								</div>
+								<button
+									type="button"
+									onclick={() => (notificationsEnabled = !notificationsEnabled)}
+									class={`relative h-7 w-12 rounded-full transition ${notificationsEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+									aria-label="Toggle notifications"
+								>
+									<span class={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${notificationsEnabled ? 'left-6' : 'left-1'}`}></span>
+								</button>
+							</div>
+
+							<div class="flex items-center justify-between gap-4 p-4">
+								<div>
+									<p class="font-black text-slate-950 dark:text-slate-50">Appearance</p>
+									<p class="text-xs text-slate-500 dark:text-slate-400">Switch light or dark mode.</p>
+								</div>
+								<ThemeToggle />
+							</div>
+
+							<label class="flex items-center justify-between gap-4 p-4">
+								<div>
+									<p class="font-black text-slate-950 dark:text-slate-50">Language</p>
+									<p class="text-xs text-slate-500 dark:text-slate-400">App language.</p>
+								</div>
+								<select
+									bind:value={selectedLanguage}
+									class="rounded-2xl border-slate-200 bg-white py-2 pl-3 pr-8 text-sm font-bold text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+								>
+									<option value="en">English</option>
+									<option value="pt">Português</option>
+								</select>
+							</label>
+						</div>
+					</section>
+
+					<section>
+						<div class="mb-2 flex items-center justify-between gap-3">
+							<p class="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Account</p>
+							{#if showAccountSwitcher}
+								<button
+									type="button"
+									onclick={() => (showAccountSwitcher = false)}
+									class="text-xs font-black text-blue-600 dark:text-blue-400"
+								>
+									Back
+								</button>
+							{/if}
+						</div>
+
+						{#if showAccountSwitcher}
+							<div class="overflow-hidden rounded-3xl bg-slate-50 dark:bg-slate-800">
+								<div class="divide-y divide-slate-200 dark:divide-slate-700">
+									{#each deviceAccounts as account (account.id)}
+										<div class="flex items-center gap-3 p-4">
+											<button
+												type="button"
+												onclick={() => handleSwitchAccount(account)}
+												disabled={logoutLoading}
+												class="flex min-w-0 flex-1 items-center gap-3 text-left disabled:opacity-60"
+											>
+												<UserAvatar
+													photoURL={account.photoURL}
+													displayName={account.displayName}
+													email={account.email}
+													size="md"
+												/>
+												<div class="min-w-0 flex-1">
+													<div class="flex min-w-0 items-center gap-2">
+														<p class="truncate font-black text-slate-950 dark:text-slate-50">{account.displayName}</p>
+														{#if account.accountType === 'organization'}
+															<span class="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[0.65rem] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300">Org</span>
+														{/if}
+													</div>
+													<p class="truncate text-xs text-slate-500 dark:text-slate-400">
+														{account.rallyTag ? `@${account.rallyTag}` : account.email}
+													</p>
+													{#if account.id !== auth.currentUser?.uid}
+														<p class="mt-0.5 text-[0.68rem] font-bold text-slate-400 dark:text-slate-500">
+															{#if switchingAccountId === account.id}
+																Switching...
+															{:else if canFastSwitchDeviceAccount(account)}
+																Quick switch with Google
+															{:else}
+																Password required
+															{/if}
+														</p>
+													{/if}
+												</div>
+											</button>
+
+											{#if account.id === auth.currentUser?.uid}
+												<span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-black text-white">✓</span>
+											{:else}
+												<button
+													type="button"
+													onclick={() => handleForgetDeviceAccount(account.id)}
+													class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-white hover:text-red-500 dark:hover:bg-slate-900"
+													aria-label="Forget account on this device"
+												>
+													×
+												</button>
+											{/if}
+										</div>
+									{/each}
+								</div>
+
+								<button
+									type="button"
+									onclick={handleAddAccount}
+									disabled={logoutLoading}
+									class="flex w-full items-center gap-3 border-t border-slate-200 p-4 text-left transition hover:bg-slate-100 disabled:opacity-60 dark:border-slate-700 dark:hover:bg-slate-700"
+								>
+									<span class="flex h-11 w-11 items-center justify-center rounded-full bg-white text-2xl font-light text-slate-700 shadow-sm dark:bg-slate-900 dark:text-slate-200">+</span>
+									<span>
+										<span class="block font-black text-slate-950 dark:text-slate-50">Add another account</span>
+										<span class="block text-xs text-slate-500 dark:text-slate-400">It will be saved on this device.</span>
+									</span>
+								</button>
+
+								<div class="px-4 pb-4 pt-1">
+									<p class="text-[0.7rem] leading-relaxed text-slate-400 dark:text-slate-500">
+										Google accounts can quick switch. Email/password accounts still require the password for security.
+									</p>
+								</div>
+							</div>
+						{:else}
+							<div class="overflow-hidden rounded-3xl bg-slate-50 dark:bg-slate-800">
+								<div class="flex items-center gap-3 p-4">
+									<UserAvatar
+										photoURL={profile?.photoURL ?? auth.currentUser?.photoURL ?? null}
+										displayName={profile?.displayName ?? ''}
+										email={profile?.email}
+										size="md"
+									/>
+									<div class="min-w-0 flex-1">
+										<p class="truncate font-black text-slate-950 dark:text-slate-50">{profile?.displayName}</p>
+										<p class="truncate text-xs text-slate-500 dark:text-slate-400">{profile?.email}</p>
+									</div>
+							</div>
+
+							<div class="grid grid-cols-2 gap-2 p-3 pt-0">
+								<button
+									type="button"
+									onclick={() => (showAccountSwitcher = true)}
+									class="rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-900 shadow-sm transition hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-50 dark:hover:bg-slate-700"
+								>
+									Switch
+								</button>
+
+								<button
+									onclick={handleLogout}
+									disabled={logoutLoading}
+									class="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-slate-50 dark:text-slate-950 dark:hover:bg-slate-200"
+								>
+									{logoutLoading ? '...' : 'Log out'}
+								</button>
+							</div>
+							</div>
+						{/if}
+					</section>
+				</div>
 			</div>
 		</dialog>
 	{/if}

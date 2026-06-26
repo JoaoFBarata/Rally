@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import RallyLogo from '$lib/components/RallyLogo.svelte';
@@ -13,6 +14,7 @@
 	let resetLoading = $state(false);
 	let error = $state('');
 	let success = $state('');
+	let switchingAccount = $state(false);
 
 	async function handleLogin() {
 		error = '';
@@ -35,6 +37,15 @@
 			loading = false;
 		}
 	}
+
+	onMount(() => {
+		const accountEmail = page.url.searchParams.get('email');
+		switchingAccount = Boolean(page.url.searchParams.get('switchAccount') || page.url.searchParams.get('mode') === 'addAccount');
+
+		if (accountEmail) {
+			email = accountEmail;
+		}
+	});
 
 	async function handlePasswordReset() {
 		error = '';
@@ -96,7 +107,9 @@
 				class="rounded-4xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 			>
 				<h1 class="text-3xl font-black text-slate-950 dark:text-slate-50">Log in</h1>
-				<p class="mt-2 text-slate-500 dark:text-slate-400">Continue to Rally.</p>
+				<p class="mt-2 text-slate-500 dark:text-slate-400">
+					{switchingAccount ? 'Choose or confirm the account you want to use.' : 'Continue to Rally.'}
+				</p>
 
 				<div class="mt-8">
 					<GoogleSignInButton />
