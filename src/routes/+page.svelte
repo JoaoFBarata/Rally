@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
+	import MobileLanding from '$lib/components/MobileLanding.svelte';
 	import { authState } from '$lib/auth.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import { Capacitor } from '@capacitor/core';
@@ -178,7 +179,9 @@
 	];
 </script>
 
-<main class="min-h-screen bg-white dark:bg-slate-950">
+<MobileLanding user={authState.user} loading={authState.loading} />
+
+<main class="hidden min-h-screen bg-white dark:bg-slate-950 md:block">
 	<!-- ─── HERO ─────────────────────────────────────────────────────────── -->
 	<section class="relative h-screen min-h-[600px] overflow-hidden">
 		<video
