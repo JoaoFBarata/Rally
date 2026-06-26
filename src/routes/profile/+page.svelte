@@ -399,7 +399,7 @@
 			</div>
 		{/if}
 
-		<div class="grid min-w-0 gap-4 lg:grid-cols-[1.1fr_0.9fr] lg:gap-6">
+		<div class="grid min-w-0 items-start gap-4 lg:grid-cols-[1.1fr_0.9fr] lg:gap-6">
 			<section
 				class="min-w-0 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:rounded-4xl sm:p-6"
 			>

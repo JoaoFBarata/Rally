@@ -59,6 +59,13 @@
 		clearLongPress();
 	}
 
+	function closeMessageMenuOnOutsidePress(event: PointerEvent) {
+		if (!openMessageMenuId) return;
+		const target = event.target as HTMLElement | null;
+		if (target?.closest('[data-message-menu]')) return;
+		openMessageMenuId = '';
+	}
+
 	function attachmentUrl(message: ChatMessage) {
 		return message.attachmentURL ?? message.imageURL ?? null;
 	}
@@ -72,7 +79,11 @@
 	}
 </script>
 
-<div class="mx-auto flex max-w-3xl flex-col gap-2">
+<div
+	role="list"
+	class="mx-auto flex max-w-3xl flex-col gap-2"
+	onpointerdown={closeMessageMenuOnOutsidePress}
+>
 	{#each messages as message, index (message.id)}
 		{@const isOwnMessage = message.senderId === currentUserId}
 		{@const sender = getSenderProfile(message.senderId)}
@@ -85,6 +96,7 @@
 		{@const fileType = attachmentContentType(message)}
 
 		<div
+			role="listitem"
 			id={`chat-message-${message.id}`}
 			class={`flex w-full flex-col ${isOwnMessage ? 'items-end' : 'items-start'}`}
 		>
@@ -119,6 +131,7 @@
 						<button
 							type="button"
 							onclick={() => openMessageMenu(message.id)}
+							data-message-menu
 							class={`absolute top-1 hidden h-7 w-7 items-center justify-center rounded-full text-xs opacity-0 shadow-sm transition group-hover:opacity-100 md:group-hover:flex ${
 								isOwnMessage
 									? 'left-1 bg-blue-700 text-white hover:bg-blue-800'
@@ -131,6 +144,7 @@
 
 						{#if openMessageMenuId === message.id}
 							<div
+								data-message-menu
 								class={`absolute top-8 z-20 w-44 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1 text-sm text-slate-700 shadow-2xl shadow-slate-300/50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:shadow-black/40 ${
 									isOwnMessage ? 'right-0' : 'left-0'
 								}`}

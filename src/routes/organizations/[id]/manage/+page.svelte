@@ -427,20 +427,6 @@
 					Public page
 				</a>
 
-				<a
-					href={resolve(`/organizations/${organization.id}/events/create`)}
-					class="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
-				>
-					Create event
-				</a>
-
-				<a
-					href={resolve(`/organizations/${organization.id}/tournaments/create`)}
-					class="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
-				>
-					Create tournament
-				</a>
-
 				<button
 					type="button"
 					onclick={handleLogout}
@@ -502,6 +488,49 @@
 				<p class="mt-2 text-sm font-black text-slate-950 dark:text-slate-50">
 					Users can contact this organization
 				</p>
+			</div>
+		</section>
+
+		<section
+			class="mt-6 rounded-[2rem] border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:p-6"
+		>
+			<div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+				<div>
+					<p class="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
+						Quick actions
+					</p>
+
+					<h2 class="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50">
+						Create and manage activities
+					</h2>
+
+					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+						Start a regular event, create a tournament, or open your organization inbox.
+					</p>
+				</div>
+
+				<div class="grid gap-2 sm:grid-cols-3 md:min-w-[28rem]">
+					<a
+						href={resolve(`/organizations/${organization.id}/events/create`)}
+						class="rounded-2xl bg-blue-600 px-5 py-3 text-center text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
+					>
+						Create event
+					</a>
+
+					<a
+						href={resolve(`/organizations/${organization.id}/tournaments/create`)}
+						class="rounded-2xl bg-slate-950 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+					>
+						Create tournament
+					</a>
+
+					<a
+						href={resolve('/messages')}
+						class="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3 text-center text-sm font-black text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+					>
+						Open inbox
+					</a>
+				</div>
 			</div>
 		</section>
 

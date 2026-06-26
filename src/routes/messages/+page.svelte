@@ -172,6 +172,14 @@
 	function finishLongPress() {
 		clearLongPress();
 	}
+
+	function closeConversationMenuOnOutsidePress(event: PointerEvent) {
+		if (!openConversationMenuId) return;
+		const target = event.target as HTMLElement | null;
+		if (target?.closest('[data-conversation-menu]')) return;
+		openConversationMenuId = '';
+	}
+
 	function timestampToMillis(value: unknown) {
 		try {
 			const timestamp = value as { toDate?: () => Date };
@@ -599,7 +607,10 @@
 	});
 </script>
 
-<main class="min-h-screen bg-white text-slate-950 dark:bg-slate-950 dark:text-white">
+<main
+	class="min-h-screen bg-white text-slate-950 dark:bg-slate-950 dark:text-white"
+	onpointerdown={closeConversationMenuOnOutsidePress}
+>
 	<div class="mx-auto max-w-4xl px-5 py-6">
 		<header class="mb-6">
 			<RallyWordmark size="sm" />
@@ -875,6 +886,7 @@
 									<button
 										type="button"
 										onclick={() => openConversationMenu(conversation.id)}
+										data-conversation-menu
 										class="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-white hover:text-slate-800 dark:hover:bg-slate-900 dark:hover:text-white md:flex"
 										aria-label="Conversation options"
 									>
@@ -885,6 +897,7 @@
 										<div
 											role="menu"
 											tabindex="-1"
+											data-conversation-menu
 											class="absolute right-3 top-12 z-20 w-48 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1 text-sm shadow-2xl shadow-slate-300/50 dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/40"
 											onpointerdown={(event) => event.stopPropagation()}
 											onpointerup={(event) => event.stopPropagation()}
@@ -1016,6 +1029,7 @@
 										<button
 											type="button"
 											onclick={() => openConversationMenu(conversation.id)}
+											data-conversation-menu
 											class="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-white hover:text-slate-800 dark:hover:bg-slate-900 dark:hover:text-white md:flex"
 											aria-label="Conversation options"
 										>
@@ -1026,6 +1040,7 @@
 											<div
 												role="menu"
 												tabindex="-1"
+												data-conversation-menu
 												class="absolute right-3 top-12 z-20 w-48 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1 text-sm shadow-2xl shadow-slate-300/50 dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/40"
 												onpointerdown={(event) => event.stopPropagation()}
 												onpointerup={(event) => event.stopPropagation()}
