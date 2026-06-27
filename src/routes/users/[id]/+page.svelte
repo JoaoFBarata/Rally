@@ -5,6 +5,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { onAuthStateChanged } from 'firebase/auth';
+	import { PUBLIC_MAPBOX_ACCESS_TOKEN } from '$env/static/public';
 	import { auth } from '$lib/firebase';
 	import type { Sport, SportEvent, UserProfile } from '$lib/schema';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -18,7 +19,6 @@
 	} from '$lib/services/social.service';
 	import { getOrCreateDirectConversation } from '$lib/services/chat.service';
 	import { getEventsCreatedByUser, getEventsForUser } from '$lib/services/event.service';
-	import EventCard from '$lib/components/EventCard.svelte';
 	import { goBack } from '$lib/utils/navigation';
 	import {
 		subscribeToUserActivityChanges,
@@ -49,6 +49,64 @@
 
 	function formatSport(sport: Sport) {
 		return sport.charAt(0).toUpperCase() + sport.slice(1);
+	}
+
+
+	function formatDate(dateValue: unknown) {
+		try {
+			const timestamp = dateValue as { toDate?: () => Date };
+			if (!timestamp?.toDate) return 'Date not set';
+			return timestamp.toDate().toLocaleString('en-GB', {
+				day: '2-digit',
+				month: 'short',
+				hour: '2-digit',
+				minute: '2-digit'
+			});
+		} catch {
+			return 'Date not set';
+		}
+	}
+
+	function formatShortDate(dateValue: unknown) {
+		try {
+			const timestamp = dateValue as { toDate?: () => Date };
+			if (!timestamp?.toDate) return 'Soon';
+			return timestamp.toDate().toLocaleDateString('en-GB', {
+				day: '2-digit',
+				month: 'short'
+			});
+		} catch {
+			return 'Soon';
+		}
+	}
+
+	function formatPrice(event: SportEvent) {
+		if (event.entryFeeAmount && event.entryFeeAmount > 0) return `€${event.entryFeeAmount}`;
+		if (event.pricePerPerson && event.pricePerPerson > 0) return `€${event.pricePerPerson}`;
+		if (event.priceTotal && event.priceTotal > 0) return `€${event.priceTotal}`;
+		return 'Free';
+	}
+
+	function formatCapacity(event: SportEvent) {
+		if (event.eventKind === 'tournament') {
+			return `${event.participantIds?.length ?? 0}/${event.maxTournamentEntries ?? event.maxParticipants} entries`;
+		}
+		return `${event.participantIds?.length ?? 0}/${event.maxParticipants} joined`;
+	}
+
+	function getStatusLabel(event: SportEvent) {
+		if (event.status === 'cancelled') return 'Cancelled';
+		if (event.status === 'finished') return 'Finished';
+		if (event.eventKind === 'tournament') return 'Tournament';
+		return isEventActive(event) ? 'Upcoming' : 'Past';
+	}
+
+	function getMiniMapUrl(event: SportEvent) {
+		const lat = event.location?.lat;
+		const lng = event.location?.lng;
+		if (!PUBLIC_MAPBOX_ACCESS_TOKEN || typeof lat !== 'number' || typeof lng !== 'number') return '';
+		const marker = `pin-s+2563eb(${lng},${lat})`;
+		return `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${marker}/${lng},${lat},13,0/144x104@2x?access_token=${PUBLIC_MAPBOX_ACCESS_TOKEN}`;
 	}
 
 	function getEventStartMs(event: SportEvent): number {
@@ -88,13 +146,10 @@
 				return;
 			}
 
-			const [loadedTargetProfile, loadedCurrentProfile, allHosted, allParticipated] =
-				await Promise.all([
-					getUserProfile(targetUserId),
-					getUserProfile(currentUserId),
-					getEventsCreatedByUser(targetUserId),
-					getEventsForUser(targetUserId)
-				]);
+			const [loadedTargetProfile, loadedCurrentProfile] = await Promise.all([
+				getUserProfile(targetUserId),
+				getUserProfile(currentUserId)
+			]);
 
 			if (!loadedTargetProfile) {
 				error = 'User not found.';
@@ -111,21 +166,33 @@
 
 			targetProfile = loadedTargetProfile;
 			currentProfile = loadedCurrentProfile;
+			loading = false;
+
+			const [allHosted, allParticipated, loadedRelationship] = await Promise.all([
+				getEventsCreatedByUser(targetUserId).catch((err) => {
+					console.error('Could not load hosted events:', err);
+					return [];
+				}),
+				getEventsForUser(targetUserId).catch((err) => {
+					console.error('Could not load participated events:', err);
+					return [];
+				}),
+				loadedCurrentProfile?.accountType === 'organization'
+					? Promise.resolve<RelationshipStatus>('none')
+					: getRelationshipStatus({
+							currentUserId,
+							targetUserId
+						}).catch((err) => {
+							console.error('Could not load relationship:', err);
+							return 'none' as RelationshipStatus;
+						})
+			]);
 
 			hostedEvents = sortEventsByStatusThenDate(allHosted.filter((e) => e.visibility === 'public'));
 			participatedEvents = sortEventsByStatusThenDate(
 				allParticipated.filter((e) => e.visibility === 'public' && e.creatorId !== targetUserId)
 			);
-
-			if (loadedCurrentProfile?.accountType === 'organization') {
-				relationship = 'none';
-				return;
-			}
-
-			relationship = await getRelationshipStatus({
-				currentUserId,
-				targetUserId
-			});
+			relationship = loadedRelationship;
 		} catch (err) {
 			console.error('Public user page error:', err);
 			error = 'Some profile information could not be loaded. Please try again.';
@@ -252,222 +319,272 @@
 	});
 </script>
 
-<main class="mx-auto max-w-6xl px-5 py-8">
+<main class="mx-auto w-full max-w-6xl px-4 py-5 pb-28 sm:px-5 sm:py-8">
 	<button
 		type="button"
 		onclick={() => goBack(resolve('/dashboard'))}
-		class="inline-flex rounded-full bg-blue-50 px-5 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+		class="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-black text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
 	>
-		← Back
+		<span class="leading-none">←</span>
+		<span>Back</span>
 	</button>
 
 	{#if loading}
-		<section
-			class="mt-8 rounded-4xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
-		>
-			<p class="text-slate-500 dark:text-slate-400">Loading user...</p>
+		<section class="mt-8 rounded-[2rem] bg-white p-6 shadow-sm dark:bg-slate-900">
+			<p class="font-bold text-slate-500 dark:text-slate-400">Loading user...</p>
 		</section>
 	{:else if error && !targetProfile}
-		<section
-			class="mt-8 rounded-4xl border border-red-200 bg-red-50 p-8 text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
-		>
+		<section class="mt-8 rounded-[2rem] bg-red-50 p-6 font-bold text-red-700 dark:bg-red-950/40 dark:text-red-300">
 			{error}
 		</section>
 	{:else if targetProfile}
-		<div class="mt-6 grid min-w-0 gap-4 sm:mt-8 lg:grid-cols-[1.25fr_0.75fr] lg:gap-6">
-			<section
-				class="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
-			>
-				<div class="h-24 bg-gradient-to-br from-blue-600 via-blue-500 to-sky-400 sm:h-32"></div>
-
-				<div class="-mt-14 px-4 pb-5 sm:px-7 sm:pb-7">
-					<div class="flex items-end justify-between gap-3 sm:gap-5">
-						<div class="flex flex-col items-start">
-							<div class="rounded-full bg-white p-1 dark:bg-slate-900">
-								<UserAvatar
-									photoURL={targetProfile.photoURL}
-									displayName={targetProfile.displayName}
-									email={targetProfile.email}
-									size="xl"
-								/>
-							</div>
-
-							<h1
-								class="mt-3 max-w-[11rem] truncate text-2xl font-black tracking-tight text-slate-950 dark:text-slate-50 sm:mt-4 sm:max-w-none sm:text-4xl"
-							>
-								{targetProfile.displayName}
-							</h1>
-
-							<p class="mt-1 text-sm font-bold text-blue-600 dark:text-blue-400">
-								@{targetProfile.rallyTag}
-							</p>
-						</div>
-
-						<div class="flex min-w-0 max-w-[11rem] flex-wrap justify-end gap-1.5 sm:max-w-none sm:shrink-0 sm:gap-2">
-							{#if isOrganizationViewer}
-								<span
-									class="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-500 dark:bg-slate-800 dark:text-slate-400"
-								>
-									Personal profile
-								</span>
-
-								<button
-									type="button"
-									onclick={handleMessage}
-									disabled={actionLoading}
-									class="rounded-xl bg-blue-600 px-3 py-2 text-xs font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-60 sm:rounded-2xl sm:px-5 sm:py-3 sm:text-base"
-								>
-									{actionLoading ? 'Opening...' : 'Message'}
-								</button>
-							{:else if relationship === 'request_sent'}
-								<button
-									type="button"
-									disabled
-									class="rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-500 dark:bg-slate-800 dark:text-slate-400 sm:rounded-2xl sm:px-5 sm:py-3 sm:text-base"
-								>
-									Request Pending
-								</button>
-							{:else if relationship === 'request_received'}
-								<a
-									href={resolve('/messages')}
-									class="rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200 sm:rounded-2xl sm:px-5 sm:py-3 sm:text-base"
-								>
-									Respond request
-								</a>
-							{:else if relationship === 'friends'}
-								<button
-									type="button"
-									onclick={handleMessage}
-									disabled={actionLoading}
-									class="rounded-xl bg-blue-600 px-3 py-2 text-xs font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-60 sm:rounded-2xl sm:px-5 sm:py-3 sm:text-base"
-								>
-									{actionLoading ? 'Opening...' : 'Message'}
-								</button>
-
-								<button
-									type="button"
-									onclick={handleRemoveFriend}
-									disabled={actionLoading}
-									class="rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-600 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-60 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-red-950/40 dark:hover:text-red-300 sm:rounded-2xl sm:px-5 sm:py-3 sm:text-base"
-								>
-									<span class="sm:hidden">Remove</span>
-									<span class="hidden sm:inline">Remove friend</span>
-								</button>
-							{:else}
-								<button
-									type="button"
-									onclick={handleAddFriend}
-									disabled={actionLoading}
-									class="rounded-xl bg-blue-600 px-3 py-2 text-xs font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-60 sm:rounded-2xl sm:px-5 sm:py-3 sm:text-base"
-								>
-									{actionLoading ? 'Sending...' : 'Add friend'}
-								</button>
-							{/if}
-						</div>
-					</div>
-
-					<div class="mt-5 grid grid-cols-2 gap-2 sm:mt-7 sm:gap-3 xl:grid-cols-3">
-						<div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
-							<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Age</p>
-							<p class="mt-2 font-black text-slate-950 dark:text-slate-50">
-								{targetProfile.age !== null && targetProfile.age !== undefined
-									? `${targetProfile.age} years`
-									: 'Not set'}
-							</p>
-						</div>
-
-						<div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
-							<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">City</p>
-							<p class="mt-2 font-black text-slate-950 dark:text-slate-50">
-								{targetProfile.city || 'Not set'}
-							</p>
-						</div>
-
-						<div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
-							<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Friends</p>
-							<p class="mt-2 font-black text-slate-950 dark:text-slate-50">Private</p>
-						</div>
-					</div>
-
-					{#if targetProfile.bio}
-						<div class="mt-7">
-							<h2 class="text-lg font-black text-slate-950 dark:text-slate-50">Bio</h2>
-							<p class="mt-2 leading-relaxed text-slate-600 dark:text-slate-300">
-								{targetProfile.bio}
-							</p>
-						</div>
-					{/if}
-
-					<div class="mt-7">
-						<h2 class="text-lg font-black text-slate-950 dark:text-slate-50">Sports</h2>
-
-						{#if targetProfile.sports?.length}
-							<div class="mt-3 flex flex-wrap gap-2">
-								{#each targetProfile.sports as sport}
-									<span
-										class="rounded-full bg-blue-50 px-4 py-2 text-sm font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-									>
-										{formatSport(sport)}
-									</span>
-								{/each}
-							</div>
-						{:else}
-							<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">No sports added yet.</p>
-						{/if}
-					</div>
+		<section class="mt-6 min-w-0 overflow-hidden">
+			<div class="flex min-w-0 items-start gap-4 sm:gap-5">
+				<div class="shrink-0 rounded-full bg-white p-1 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+					<UserAvatar
+						photoURL={targetProfile.photoURL}
+						displayName={targetProfile.displayName}
+						email={targetProfile.email}
+						size="xl"
+					/>
 				</div>
+
+				<div class="min-w-0 flex-1 pt-1">
+					<div class="flex min-w-0 items-center gap-2">
+						<h1 class="truncate text-2xl font-black tracking-tight text-slate-950 dark:text-slate-50 sm:text-4xl">
+							{targetProfile.displayName}
+						</h1>
+						<span class="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-blue-600 text-[11px] font-black text-white sm:h-6 sm:w-6">✓</span>
+					</div>
+
+					<p class="mt-1 truncate text-sm font-bold text-slate-500 dark:text-slate-400">
+						{targetProfile.rallyTag ? `@${targetProfile.rallyTag}` : targetProfile.email}
+					</p>
+					<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">
+						{targetProfile.city || 'Rally player'}{#if targetProfile.country} · {targetProfile.country}{/if}
+					</p>
+				</div>
+			</div>
+
+			<div class="mt-5 flex flex-wrap gap-2">
+				{#if targetProfile.sports?.length}
+					{#each targetProfile.sports.slice(0, 4) as sport}
+						<span class="rounded-full bg-white px-3 py-2 text-xs font-black text-slate-700 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-800">
+							{formatSport(sport)}
+						</span>
+					{/each}
+					{#if targetProfile.sports.length > 4}
+						<span class="rounded-full bg-slate-100 px-3 py-2 text-xs font-black text-slate-500 dark:bg-slate-800 dark:text-slate-300">+{targetProfile.sports.length - 4}</span>
+					{/if}
+				{:else}
+					<span class="rounded-full bg-slate-100 px-3 py-2 text-xs font-black text-slate-500 dark:bg-slate-800 dark:text-slate-300">No sports yet</span>
+				{/if}
+			</div>
+
+			<div class="mt-5 grid max-w-xl grid-cols-3 divide-x divide-slate-200 border-y border-slate-200 py-4 text-center dark:divide-slate-800 dark:border-slate-800">
+				<div>
+					<p class="text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{hostedEvents.length}</p>
+					<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Hosted</p>
+				</div>
+				<div>
+					<p class="text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{participatedEvents.length}</p>
+					<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Joined</p>
+				</div>
+				<div>
+					<p class="text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{targetProfile.rallyPointsTotal ?? 0}</p>
+					<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Points</p>
+				</div>
+			</div>
+
+			{#if targetProfile.bio}
+				<div class="mt-5 max-w-2xl">
+					<h2 class="text-sm font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">About</h2>
+					<p class="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300 sm:text-base">
+						{targetProfile.bio}
+					</p>
+				</div>
+			{/if}
+
+			<div class="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+				{#if isOrganizationViewer}
+					<span class="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+						Personal profile
+					</span>
+
+					<button
+						type="button"
+						onclick={handleMessage}
+						disabled={actionLoading}
+						class="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:opacity-60"
+					>
+						{actionLoading ? 'Opening...' : 'Message'}
+					</button>
+				{:else if relationship === 'request_sent'}
+					<button
+						type="button"
+						disabled
+						class="rounded-2xl bg-slate-100 px-5 py-3 text-sm font-black text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+					>
+						Request Pending
+					</button>
+				{:else if relationship === 'request_received'}
+					<a
+						href={resolve('/messages')}
+						class="rounded-2xl bg-slate-950 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+					>
+						Respond request
+					</a>
+				{:else if relationship === 'friends'}
+					<button
+						type="button"
+						onclick={handleMessage}
+						disabled={actionLoading}
+						class="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:opacity-60"
+					>
+						{actionLoading ? 'Opening...' : 'Message'}
+					</button>
+
+					<button
+						type="button"
+						onclick={handleRemoveFriend}
+						disabled={actionLoading}
+						class="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-600 shadow-sm ring-1 ring-slate-200 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-60 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-800 dark:hover:bg-red-950/40 dark:hover:text-red-300"
+					>
+						Remove friend
+					</button>
+				{:else}
+					<button
+						type="button"
+						onclick={handleAddFriend}
+						disabled={actionLoading}
+						class="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:opacity-60"
+					>
+						{actionLoading ? 'Sending...' : 'Add friend'}
+					</button>
+				{/if}
+			</div>
+		</section>
+
+		<div class="mt-6 grid min-w-0 max-w-full gap-5 lg:grid-cols-[minmax(0,1fr)_21rem]">
+			<section class="min-w-0 max-w-full space-y-5 overflow-hidden">
+				{#if hostedEvents.length > 0}
+					<section>
+						<div class="flex items-end justify-between gap-3">
+							<div>
+								<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">Hosted events</h2>
+								<p class="text-sm font-bold text-slate-500 dark:text-slate-400">Public events created by {targetProfile.displayName}</p>
+							</div>
+						</div>
+
+						<div class="mt-3 space-y-3">
+							{#each hostedEvents as event (event.id)}
+								<a href={resolve(`/events/${event.id}`)} class="group flex max-w-full gap-3 overflow-hidden rounded-[1.45rem] bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:bg-slate-900 sm:p-4">
+									<div class="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800 sm:h-24 sm:w-32">
+										{#if getMiniMapUrl(event)}
+											<img src={getMiniMapUrl(event)} alt={event.location.name} class="h-full w-full object-cover" />
+										{:else if event.groupPhotoURL}
+											<img src={event.groupPhotoURL} alt={event.title} class="h-full w-full object-cover" />
+										{:else}
+											<div class="grid h-full w-full place-items-center text-2xl font-black text-blue-600 dark:text-blue-300">{event.title.charAt(0).toUpperCase()}</div>
+										{/if}
+										<span class="absolute bottom-2 left-2 rounded-full bg-white/90 px-2 py-1 text-[10px] font-black text-slate-700 shadow-sm dark:bg-slate-950/90 dark:text-slate-200">{formatShortDate(event.startAt)}</span>
+									</div>
+
+									<div class="min-w-0 flex-1 py-1">
+										<div class="flex min-w-0 items-center gap-2">
+											<p class="min-w-0 flex-1 truncate text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base">{event.title}</p>
+											<span class="shrink-0 rounded-full bg-blue-50 px-2 py-1 text-[10px] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300">{getStatusLabel(event)}</span>
+										</div>
+										<p class="mt-1 truncate text-xs font-bold text-slate-500 dark:text-slate-400">{formatSport(event.sport)} · {event.location.name}</p>
+										<p class="mt-2 truncate text-xs font-black text-slate-400 dark:text-slate-500">{formatDate(event.startAt)} · {formatCapacity(event)} · {formatPrice(event)}</p>
+									</div>
+								</a>
+							{/each}
+						</div>
+					</section>
+				{/if}
+
+				{#if participatedEvents.length > 0}
+					<section>
+						<div>
+							<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">Joined events</h2>
+							<p class="text-sm font-bold text-slate-500 dark:text-slate-400">Public events this player joined</p>
+						</div>
+
+						<div class="mt-3 space-y-3">
+							{#each participatedEvents as event (event.id)}
+								<a href={resolve(`/events/${event.id}`)} class="group flex max-w-full gap-3 overflow-hidden rounded-[1.45rem] bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:bg-slate-900 sm:p-4">
+									<div class="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800 sm:h-24 sm:w-32">
+										{#if getMiniMapUrl(event)}
+											<img src={getMiniMapUrl(event)} alt={event.location.name} class="h-full w-full object-cover" />
+										{:else if event.groupPhotoURL}
+											<img src={event.groupPhotoURL} alt={event.title} class="h-full w-full object-cover" />
+										{:else}
+											<div class="grid h-full w-full place-items-center text-2xl font-black text-blue-600 dark:text-blue-300">{event.title.charAt(0).toUpperCase()}</div>
+										{/if}
+										<span class="absolute bottom-2 left-2 rounded-full bg-white/90 px-2 py-1 text-[10px] font-black text-slate-700 shadow-sm dark:bg-slate-950/90 dark:text-slate-200">{formatShortDate(event.startAt)}</span>
+									</div>
+
+									<div class="min-w-0 flex-1 py-1">
+										<div class="flex min-w-0 items-center gap-2">
+											<p class="min-w-0 flex-1 truncate text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base">{event.title}</p>
+											<span class="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">{getStatusLabel(event)}</span>
+										</div>
+										<p class="mt-1 truncate text-xs font-bold text-slate-500 dark:text-slate-400">{formatSport(event.sport)} · {event.location.name}</p>
+										<p class="mt-2 truncate text-xs font-black text-slate-400 dark:text-slate-500">{formatDate(event.startAt)} · {formatCapacity(event)} · {formatPrice(event)}</p>
+									</div>
+								</a>
+							{/each}
+						</div>
+					</section>
+				{/if}
+
+				{#if hostedEvents.length === 0 && participatedEvents.length === 0}
+					<section class="rounded-[2rem] bg-white p-8 text-center shadow-sm dark:bg-slate-900">
+						<p class="text-4xl">🏟️</p>
+						<p class="mt-3 font-black text-slate-950 dark:text-slate-50">No public events yet</p>
+						<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Events from this player will appear here when public.</p>
+					</section>
+				{/if}
 			</section>
 
-			<aside class="space-y-6">
-				<section
-					class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
-				>
-					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">In common</h2>
+			<aside class="min-w-0 max-w-full space-y-4 overflow-hidden">
+				<section class="rounded-[1.7rem] bg-white p-4 shadow-sm dark:bg-slate-900">
+					<h2 class="font-black text-slate-950 dark:text-slate-50">In common</h2>
 
 					{#if commonSports.length}
-						<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">You both like:</p>
-
-						<div class="mt-4 flex flex-wrap gap-2">
+						<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">Sports you both like</p>
+						<div class="mt-3 flex flex-wrap gap-2">
 							{#each commonSports as sport}
-								<span
-									class="rounded-full bg-slate-100 px-4 py-2 text-sm font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200"
-								>
+								<span class="rounded-full bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300">
 									{formatSport(sport)}
 								</span>
 							{/each}
 						</div>
 					{:else}
-						<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">No sports in common yet.</p>
+						<p class="mt-2 text-sm font-bold text-slate-500 dark:text-slate-400">No sports in common yet.</p>
 					{/if}
+				</section>
+
+				<section class="rounded-[1.7rem] bg-white p-4 shadow-sm dark:bg-slate-900">
+					<h2 class="font-black text-slate-950 dark:text-slate-50">Player info</h2>
+					<div class="mt-3 space-y-3 text-sm font-bold text-slate-500 dark:text-slate-400">
+						<p>Age · {targetProfile.age !== null && targetProfile.age !== undefined ? `${targetProfile.age} years` : 'Not set'}</p>
+						<p>City · {targetProfile.city || 'Not set'}</p>
+						<p>Sports · {targetProfile.sports?.length ?? 0}</p>
+					</div>
 				</section>
 			</aside>
 		</div>
 
-		{#if hostedEvents.length > 0}
-			<section class="mt-4 sm:mt-6">
-				<h2 class="mb-4 text-xl font-black text-slate-950 dark:text-slate-50">Hosted events</h2>
-
-				<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-					{#each hostedEvents as event}
-						<EventCard {event} showImage={false} />
-					{/each}
-				</div>
-			</section>
+		{#if error}
+			<p class="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:bg-red-950/40 dark:text-red-300">{error}</p>
 		{/if}
 
-		{#if participatedEvents.length > 0}
-			<section class="mt-4 sm:mt-6">
-				<h2 class="mb-4 text-xl font-black text-slate-950 dark:text-slate-50">
-					Events participated in
-				</h2>
-
-				<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-					{#each participatedEvents as event}
-						<EventCard {event} showImage={false} />
-					{/each}
-				</div>
-			</section>
+		{#if success}
+			<p class="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">{success}</p>
 		{/if}
+
 		{#if showRemoveConfirmModal && targetProfile}
 			<dialog
 				open
