@@ -19,7 +19,7 @@
 	import { ensureUserProfile } from '$lib/services/user.service';
 	import { subscribeToPromotedEventsForUser } from '$lib/services/explore.service';
 	import type { EventInvite, SportEvent, UserProfile } from '$lib/schema';
-	import EventCard from '$lib/components/EventCard.svelte';
+	import EventListItem from '$lib/components/EventListItem.svelte';
 	import UserMiniMap from '$lib/components/maps/UserMiniMap.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import PromotedEventCarousel from '$lib/components/PromotedEventCarousel.svelte';
@@ -272,72 +272,50 @@
 {:else}
 	<div class="mx-auto max-w-6xl px-4 py-5 sm:px-5 sm:py-8">
 		<!-- Header -->
-		<header class="mb-7 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-			<div>
-				<p class="text-sm text-slate-400 dark:text-slate-500">{greeting()}</p>
-				<h1 class="mt-0.5 text-2xl font-black text-slate-950 dark:text-slate-50">
+		<header class="mb-6 flex items-start justify-between gap-4 sm:mb-8">
+			<div class="min-w-0">
+				<p class="text-sm font-bold text-slate-400 dark:text-slate-500">{greeting()}</p>
+				<h1 class="mt-1 truncate text-3xl font-black tracking-tight text-slate-950 dark:text-slate-50 sm:text-4xl">
 					{profile?.displayName ?? user?.displayName ?? 'Athlete'}
 				</h1>
-
-				<!-- Inline stats -->
-				<div
-					class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500 dark:text-slate-400"
-				>
-					<span>
-						<span class="font-bold text-slate-950 dark:text-slate-50">{events.length}</span>
-						{events.length === 1 ? 'event' : 'events'} created
-					</span>
-					<span class="text-slate-300 dark:text-slate-600">·</span>
-					<span>
-						<span class="font-bold text-slate-950 dark:text-slate-50">{activeEventsCount}</span>
-						active
-					</span>
-					{#if pendingInvites.length > 0}
-						<span class="text-slate-300 dark:text-slate-600">·</span>
-						<a
-							href={resolve('/messages')}
-							class="font-bold text-blue-600 transition hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-						>
-							{pendingInvites.length}
-							{pendingInvites.length === 1 ? 'invite' : 'invites'} pending
-						</a>
-					{/if}
-				</div>
 			</div>
 
-			<div class="flex w-full items-center gap-3 sm:w-auto sm:shrink-0">
+			<div class="flex shrink-0 items-center gap-3">
 				<a
 					href={resolve('/events/create')}
-					class="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700 sm:flex-none"
+					class="grid h-11 w-11 place-items-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 sm:hidden"
+					aria-label="Create event"
 				>
-					<svg
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						class="h-4 w-4"
-						aria-hidden="true"
-					>
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
 						<path d="M12 5v14" /><path d="M5 12h14" />
 					</svg>
-					Create event
 				</a>
 				<a
-					href={resolve('/profile')}
-					class="rounded-full transition hover:opacity-80"
-					aria-label="Profile"
+					href={resolve('/events/create')}
+					class="hidden items-center justify-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 sm:inline-flex"
 				>
-					<UserAvatar
-						photoURL={profile?.photoURL ?? user?.photoURL}
-						displayName={profile?.displayName ?? user?.displayName}
-						email={profile?.email ?? user?.email}
-						size="md"
-					/>
+					Create event
+				</a>
+				<a href={resolve('/profile')} class="rounded-full transition hover:opacity-80" aria-label="Profile">
+					<UserAvatar photoURL={profile?.photoURL ?? user?.photoURL} displayName={profile?.displayName ?? user?.displayName} email={profile?.email ?? user?.email} size="md" />
 				</a>
 			</div>
 		</header>
+
+		<section class="mb-6 grid grid-cols-3 divide-x divide-slate-200 border-y border-slate-200 py-4 text-center dark:divide-slate-800 dark:border-slate-800 sm:max-w-xl">
+			<div>
+				<p class="text-xl font-black text-slate-950 dark:text-slate-50">{events.length}</p>
+				<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Created</p>
+			</div>
+			<div>
+				<p class="text-xl font-black text-slate-950 dark:text-slate-50">{activeEventsCount}</p>
+				<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Active</p>
+			</div>
+			<a href={resolve('/messages')} class="block transition hover:text-blue-600 dark:hover:text-blue-400">
+				<p class="text-xl font-black text-slate-950 dark:text-slate-50">{pendingInvites.length}</p>
+				<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Invites</p>
+			</a>
+		</section>
 
 		{#if error}
 			<div
@@ -351,150 +329,65 @@
 			<!-- Left column -->
 			<div class="min-w-0 space-y-5">
 				<!-- Next up -->
-				{#if nextEvent}
-					<a
-						href={resolve(`/events/${nextEvent.id}`)}
-						class="group block rounded-3xl border border-blue-100 bg-blue-50 p-6 transition hover:border-blue-200 hover:bg-blue-100/70 dark:border-blue-900/50 dark:bg-blue-950/20 dark:hover:border-blue-800 dark:hover:bg-blue-950/30"
-					>
-						<div class="flex items-center justify-between gap-2">
-							<span
-								class="text-xs font-bold uppercase tracking-widest text-blue-500 dark:text-blue-400"
-							>
-								Next up
-							</span>
-							<span
-								class="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
-							>
-								{nextEvent.customSport ?? nextEvent.sport}
-							</span>
-						</div>
-
-						<h2 class="mt-3 text-xl font-black text-slate-950 dark:text-slate-50">
-							{nextEvent.title}
-						</h2>
-
-						<div
-							class="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-sm text-slate-500 dark:text-slate-400"
-						>
-							<span class="flex items-center gap-1.5">
-								<svg
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									class="h-4 w-4 shrink-0"
-									aria-hidden="true"
-								>
-									<circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-								</svg>
-								{formatDate(nextEvent.startAt)}
-							</span>
-							<span class="flex items-center gap-1.5">
-								<svg
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									class="h-4 w-4 shrink-0"
-									aria-hidden="true"
-								>
-									<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle
-										cx="12"
-										cy="10"
-										r="3"
-									/>
-								</svg>
-								{nextEvent.location.name}
-							</span>
-						</div>
-
-						<div class="mt-4 flex items-center gap-3">
-							<div
-								class="h-1.5 flex-1 overflow-hidden rounded-full bg-blue-200 dark:bg-blue-900/60"
-							>
-								<div
-									class="h-1.5 rounded-full bg-blue-500 dark:bg-blue-400"
-									style="width: {Math.round(
-										(nextEvent.participantIds.length / nextEvent.maxParticipants) * 100
-									)}%"
-								></div>
-							</div>
-							<span class="shrink-0 text-sm font-bold text-slate-700 dark:text-slate-300">
-								{nextEvent.participantIds.length}/{nextEvent.maxParticipants} players
-							</span>
-						</div>
-					</a>
-				{:else}
-					<div class="rounded-3xl border border-dashed border-slate-200 p-8 dark:border-slate-800">
-						<p class="font-black text-slate-950 dark:text-slate-50">No upcoming games</p>
-						<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-							Create an event or find one near you.
-						</p>
-						<div class="mt-5 flex flex-wrap gap-3">
-							<a
-								href={resolve('/events/create')}
-								class="rounded-2xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700"
-							>
-								Create event
-							</a>
-							<a
-								href={resolve('/explore')}
-								class="rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-							>
-								Explore
-							</a>
-						</div>
-					</div>
-				{/if}
-
-				<section
-					class="rounded-3xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-5 shadow-lg shadow-blue-100/60 dark:border-blue-900 dark:from-blue-950/40 dark:to-slate-900 dark:shadow-none"
-				>
-					<div class="mb-4 flex items-end justify-between gap-4">
+				<section class="space-y-3">
+					<div class="flex items-center justify-between gap-3">
 						<div>
-							<div class="flex items-center gap-2">
-								<span
-									class="rounded-full bg-blue-600 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-white"
-									>Sponsored</span
-								>
-								<p class="text-xs font-bold text-blue-600 dark:text-blue-400">Selected for you</p>
-							</div>
-							<h2 class="mt-2 text-xl font-black text-slate-950 dark:text-slate-50">
-								Events worth discovering
-							</h2>
+							<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">Next up</p>
+							<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">Your next rally</h2>
 						</div>
-						<a
-							href={resolve('/explore')}
-							class="shrink-0 text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400"
-							>Explore all</a
-						>
+						<a href={resolve('/explore')} class="text-sm font-black text-blue-600 dark:text-blue-400">Explore</a>
+					</div>
+
+					{#if nextEvent}
+						<EventListItem event={nextEvent} label="next" />
+					{:else}
+						<div class="rounded-[1.7rem] bg-white p-5 shadow-sm ring-1 ring-slate-100 dark:bg-slate-900 dark:ring-slate-800">
+							<p class="font-black text-slate-950 dark:text-slate-50">No upcoming games</p>
+							<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">Create an event or find one near you.</p>
+							<div class="mt-4 flex gap-2">
+								<a href={resolve('/events/create')} class="rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700">Create</a>
+								<a href={resolve('/explore')} class="rounded-full bg-slate-100 px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200">Explore</a>
+							</div>
+						</div>
+					{/if}
+				</section>
+
+				<nav class="grid grid-cols-3 gap-2 text-center sm:hidden">
+					<a href={resolve('/explore')} class="rounded-2xl bg-white px-3 py-3 text-xs font-black text-slate-600 shadow-sm ring-1 ring-slate-100 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-800">Explore</a>
+					<a href={resolve('/events/create')} class="rounded-2xl bg-blue-600 px-3 py-3 text-xs font-black text-white shadow-sm shadow-blue-600/20">Create</a>
+					<a href={resolve('/messages')} class="rounded-2xl bg-white px-3 py-3 text-xs font-black text-slate-600 shadow-sm ring-1 ring-slate-100 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-800">Messages</a>
+				</nav>
+
+				<section class="space-y-3">
+					<div class="flex items-end justify-between gap-4">
+						<div>
+							<p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">For you</p>
+							<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">Promoted nearby</h2>
+						</div>
+						<a href={resolve('/explore')} class="shrink-0 text-sm font-black text-blue-600 hover:text-blue-700 dark:text-blue-400">See all</a>
 					</div>
 
 					{#if visiblePromotedEvents.length > 0}
 						<PromotedEventCarousel events={visiblePromotedEvents} />
 					{:else}
-						<div
-							class="rounded-2xl border border-dashed border-blue-200 bg-white/70 p-5 text-sm dark:border-blue-900 dark:bg-slate-900/70"
-						>
-							<p class="font-black text-slate-800 dark:text-slate-100">
-								No sponsored events available for you right now
-							</p>
-							<p class="mt-1 text-slate-500 dark:text-slate-400">
-								Campaigns only appear when they are active, public, targeted to your country and not
-								created or already joined by you.
-							</p>
+						<div class="rounded-[1.5rem] border border-dashed border-slate-200 bg-white/70 p-5 text-sm dark:border-slate-800 dark:bg-slate-900/70">
+							<p class="font-black text-slate-800 dark:text-slate-100">No promoted events right now</p>
+							<p class="mt-1 text-slate-500 dark:text-slate-400">When clubs promote public events near you, they will appear here.</p>
 						</div>
 					{/if}
 				</section>
 
 				<!-- Your activity -->
-				<div>
+				<section class="space-y-4">
+					<div class="flex items-end justify-between gap-4">
+						<div>
+							<p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Activity</p>
+							<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">My events</h2>
+						</div>
+					</div>
+
 					<div
-						class="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800"
+						class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800"
 					>
 						<div class="flex items-center gap-1">
 							<button
@@ -611,7 +504,7 @@
 						{:else}
 							<div class="space-y-3">
 								{#each currentHostingEvents as event (event.id)}
-									<EventCard {event} showImage={!showPastEvents} />
+									<EventListItem {event} label="hosting" />
 								{/each}
 							</div>
 						{/if}
@@ -637,22 +530,22 @@
 						{:else}
 							<div class="space-y-3">
 								{#each currentJoinedEvents as event (event.id)}
-									<EventCard {event} showImage={!showPastEvents} />
+									<EventListItem {event} label="joined" />
 								{/each}
 							</div>
 						{/if}
 					{/if}
-				</div>
+				</section>
 			</div>
 
 			<!-- Right column -->
-			<div class="grid grid-cols-2 gap-3 lg:block lg:space-y-4">
+			<aside class="grid grid-cols-2 gap-3 lg:block lg:space-y-4">
 				<!-- Nearby map -->
 				<div
-					class="col-span-2 overflow-hidden rounded-3xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+					class="col-span-2 overflow-hidden rounded-[1.7rem] bg-white shadow-sm ring-1 ring-slate-100 dark:bg-slate-900 dark:ring-slate-800"
 				>
 					<div
-						class="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800"
+						class="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-800"
 					>
 						<p class="text-sm font-bold text-slate-950 dark:text-slate-50">Nearby</p>
 						<a
@@ -669,7 +562,7 @@
 				{#if pendingInvites.length > 0}
 					<a
 						href={resolve('/messages')}
-						class="col-span-2 flex items-center justify-between rounded-2xl border border-blue-100 bg-blue-50 p-4 transition hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-950/30 dark:hover:bg-blue-950/50"
+						class="col-span-2 flex items-center justify-between rounded-[1.5rem] bg-blue-50 p-4 shadow-sm ring-1 ring-blue-100 transition hover:bg-blue-100 dark:bg-blue-950/30 dark:ring-blue-900/50 dark:hover:bg-blue-950/50"
 					>
 						<div>
 							<p class="text-sm font-bold text-slate-950 dark:text-slate-50">
@@ -731,7 +624,7 @@
 						<p class="text-sm font-bold text-slate-950 dark:text-slate-50">Messages</p>
 					</a>
 				</div>
-			</div>
+			</aside>
 		</div>
 	</div>
 {/if}
