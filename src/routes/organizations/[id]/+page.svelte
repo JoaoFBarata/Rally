@@ -464,7 +464,6 @@
 							<span class="text-xl text-slate-300">›</span>
 						</div>
 					</a>
-				{:else}
 				{/if}
 
 				<div class="max-w-full overflow-hidden rounded-[1.7rem] bg-white p-4 shadow-sm dark:bg-slate-900">

@@ -344,6 +344,15 @@ function getTimestampMillis(value: unknown) {
 
 	return 0;
 }
+
+function getConversationSortTime(conversation: ChatConversation) {
+	return (
+		getTimestampMillis(conversation.lastMessageAt) ||
+		getTimestampMillis(conversation.createdAt) ||
+		getTimestampMillis(conversation.updatedAt)
+	);
+}
+
 export function listenConversationById(
 	conversationId: string,
 	callback: (conversation: ChatConversation | null) => void,
@@ -386,8 +395,8 @@ export function listenConversationsForUser(
 			})) as ChatConversation[];
 
 			conversations.sort((a, b) => {
-				const aTime = getTimestampMillis(a.lastMessageAt ?? a.updatedAt);
-				const bTime = getTimestampMillis(b.lastMessageAt ?? b.updatedAt);
+				const aTime = getConversationSortTime(a);
+				const bTime = getConversationSortTime(b);
 
 				return bTime - aTime;
 			});
@@ -454,8 +463,7 @@ export async function markConversationAsRead(conversationId: string, userId: str
 
 	await updateDoc(conversationRef, {
 		unreadFor: arrayRemove(userId),
-		unreadCounts: nextUnreadCounts,
-		updatedAt: serverTimestamp()
+		unreadCounts: nextUnreadCounts
 	});
 }
 

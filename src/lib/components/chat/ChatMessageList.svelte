@@ -94,6 +94,10 @@
 		{@const fileURL = attachmentUrl(message)}
 		{@const fileName = attachmentName(message)}
 		{@const fileType = attachmentContentType(message)}
+		{@const isMediaOnly =
+			Boolean(fileURL) &&
+			(fileType.startsWith('image/') || fileType.startsWith('video/')) &&
+			!message.text}
 
 		<div
 			role="listitem"
@@ -121,10 +125,14 @@
 				{/if}
 
 				<div
-					class={`group relative max-w-[88%] rounded-3xl px-4 py-2 text-sm leading-6 shadow-sm sm:max-w-[78%] ${
-						isOwnMessage
-							? 'rounded-br-md bg-blue-600 text-white'
-							: 'rounded-bl-md bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100'
+					class={`group relative max-w-[88%] text-sm leading-6 sm:max-w-[78%] ${
+						isMediaOnly
+							? 'rounded-3xl bg-transparent p-0 shadow-none'
+							: `rounded-3xl px-4 py-2 shadow-sm ${
+									isOwnMessage
+										? 'rounded-br-md bg-blue-600 text-white'
+										: 'rounded-bl-md bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100'
+								}`
 					}`}
 				>
 					{#if !isDeleted}
@@ -197,10 +205,14 @@
 					{:else}
 						{#if fileURL && fileType.startsWith('image/')}
 							<a href={fileURL} target="_blank" rel="noreferrer" class="block">
-								<img src={fileURL} alt={fileName} class="max-h-72 rounded-2xl object-cover" />
+								<img
+									src={fileURL}
+									alt={fileName}
+									class="block max-h-80 max-w-full rounded-3xl object-cover shadow-sm"
+								/>
 							</a>
 						{:else if fileURL && fileType.startsWith('video/')}
-							<video src={fileURL} controls class="max-h-72 rounded-2xl">
+							<video src={fileURL} controls class="block max-h-80 max-w-full rounded-3xl shadow-sm">
 								<track kind="captions" />
 							</video>
 						{:else if fileURL}

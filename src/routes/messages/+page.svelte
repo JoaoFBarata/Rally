@@ -192,8 +192,8 @@
 	function getConversationLastInteraction(conversation: ChatConversation) {
 		return (
 			timestampToMillis(conversation.lastMessageAt) ||
-			timestampToMillis(conversation.updatedAt) ||
-			timestampToMillis(conversation.createdAt)
+			timestampToMillis(conversation.createdAt) ||
+			timestampToMillis(conversation.updatedAt)
 		);
 	}
 
