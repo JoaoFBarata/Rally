@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
+	import { PUBLIC_MAPBOX_ACCESS_TOKEN } from '$env/static/public';
 	import { auth } from '$lib/firebase';
 	import type { EventStatus, SportEvent } from '$lib/schema';
 	import {
@@ -35,9 +36,9 @@
 		}
 	}
 
-	function getEventStartAtMillis() {
+	function getTimestampMillis(value: unknown) {
 		try {
-			const timestamp = event.startAt as unknown as {
+			const timestamp = value as {
 				toDate?: () => Date;
 				toMillis?: () => number;
 			};
@@ -55,9 +56,9 @@
 		if (event.status === 'cancelled') return 'cancelled';
 		if (event.status === 'finished') return 'finished';
 
-		const startAtMs = getEventStartAtMillis();
+		const finishAtMs = getTimestampMillis(event.endAt) || getTimestampMillis(event.startAt);
 
-		if (startAtMs && startAtMs < Date.now()) return 'finished';
+		if (finishAtMs && finishAtMs < Date.now()) return 'finished';
 
 		return event.status;
 	}
@@ -94,13 +95,25 @@
 	function getCardClasses() {
 		const status = getEffectiveStatus();
 		if (status === 'finished' || status === 'cancelled') {
-			return 'border-red-200 bg-red-50/20 shadow-red-50/50 hover:border-red-300 hover:bg-red-50/30 dark:border-red-950/50 dark:bg-red-950/10 dark:shadow-none dark:hover:border-red-900/60 dark:hover:bg-red-950/20 opacity-75';
+			return 'border-red-100 bg-white/80 shadow-slate-200/60 hover:border-red-200 hover:bg-red-50/30 dark:border-red-950/50 dark:bg-slate-900/80 dark:shadow-none dark:hover:border-red-900/60 opacity-75';
 		}
 		if (showPromotion) {
-			return 'border-blue-300 bg-blue-50/40 shadow-blue-200/70 hover:border-blue-500 hover:bg-blue-50 dark:border-blue-900 dark:bg-blue-950/20 dark:shadow-none dark:hover:border-blue-500 dark:hover:bg-blue-950/30';
+			return 'border-blue-200 bg-white shadow-blue-100/80 hover:border-blue-400 hover:bg-blue-50/30 dark:border-blue-900/70 dark:bg-slate-900 dark:shadow-none dark:hover:border-blue-500';
 		}
 
-		return 'border-slate-200 bg-white shadow-slate-200/70 hover:border-blue-300 hover:bg-blue-50/40 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none dark:hover:border-blue-500 dark:hover:bg-slate-800';
+		return 'border-slate-200 bg-white shadow-slate-200/70 hover:border-blue-200 hover:bg-blue-50/30 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none dark:hover:border-blue-700 dark:hover:bg-slate-800';
+	}
+
+	function getMiniMapUrl() {
+		const lat = event.location?.lat;
+		const lng = event.location?.lng;
+
+		if (!PUBLIC_MAPBOX_ACCESS_TOKEN || typeof lat !== 'number' || typeof lng !== 'number') {
+			return '';
+		}
+
+		const marker = `pin-s+2563eb(${lng},${lat})`;
+		return `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${marker}/${lng},${lat},13,0/176x128@2x?access_token=${PUBLIC_MAPBOX_ACCESS_TOKEN}`;
 	}
 
 	function handleClick() {
@@ -123,22 +136,51 @@
 <a
 	href={`/events/${event.id}`}
 	onclick={handleClick}
-	class={`flex h-full min-h-[15.5rem] flex-col overflow-hidden rounded-4xl border shadow-lg transition ${getCardClasses()}`}
+	class={`group flex h-full min-h-[8.25rem] overflow-hidden rounded-[1.5rem] border shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${getCardClasses()}`}
 >
-	{#if showImage && event.groupPhotoURL}
-		<img src={event.groupPhotoURL} alt={event.title} class="h-36 w-full shrink-0 object-cover" />
-	{/if}
-	<div class="flex flex-1 flex-col p-5">
-		{#if showPromotion}
-			<div class="mb-3 flex items-center justify-between gap-3">
+	{#if showImage}
+		<div
+			class={`relative w-24 shrink-0 overflow-hidden bg-blue-50 dark:bg-blue-950/40 sm:w-32 lg:w-40 ${
+				showPromotion ? 'bg-blue-50 dark:bg-blue-950/40' : 'bg-slate-100 dark:bg-slate-800'
+			}`}
+		>
+			{#if event.groupPhotoURL}
+				<img src={event.groupPhotoURL} alt={event.title} class="h-full w-full object-cover" />
+			{:else if getMiniMapUrl()}
+				<img src={getMiniMapUrl()} alt={event.location.name} class="h-full w-full object-cover" />
+			{:else}
+				<div class="grid h-full w-full place-items-center text-3xl font-black text-blue-500/70">
+					{event.title.charAt(0).toUpperCase()}
+				</div>
+			{/if}
+
+			{#if showPromotion}
 				<span
-					class="rounded-full bg-blue-600 px-3 py-1 text-xs font-black uppercase tracking-wide text-white dark:bg-blue-500"
+					class="absolute left-3 top-3 rounded-full bg-blue-600 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-white shadow-lg shadow-blue-700/20"
 				>
 					Promoted
 				</span>
+			{:else}
+				<span
+					class="absolute bottom-3 left-3 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-black text-slate-700 shadow-sm backdrop-blur dark:bg-slate-950/85 dark:text-slate-200"
+				>
+					{formatDate(event.startAt)}
+				</span>
+			{/if}
+		</div>
+	{/if}
+
+	<div class="flex min-w-0 flex-1 flex-col p-3 sm:p-4">
+		{#if showPromotion}
+			<div class="mb-3 flex items-center justify-between gap-3">
+				<span
+					class="rounded-full bg-blue-50 px-3 py-1 text-xs font-black uppercase tracking-wide text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+				>
+					Sponsored
+				</span>
 
 				<span class="truncate text-xs font-bold text-slate-500 dark:text-slate-400">
-					Sponsored event
+					Selected for you
 				</span>
 			</div>
 		{/if}
@@ -146,7 +188,7 @@
 		<div class="flex items-start justify-between gap-4">
 			<div class="min-w-0 flex-1">
 				{#if event.hostType === 'organization'}
-					<div class="mb-3 flex min-w-0 items-center gap-2">
+					<div class="mb-2 hidden min-w-0 items-center gap-2 sm:flex">
 						<div
 							class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-xs font-black text-blue-600 dark:bg-slate-800 dark:text-blue-300"
 						>
@@ -176,7 +218,7 @@
 				{/if}
 
 				<div class="flex min-h-8 flex-wrap items-center gap-2">
-					<p class="text-sm font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400">
+					<p class="text-xs font-black uppercase tracking-wide text-blue-600 dark:text-blue-400">
 						{event.sport}
 					</p>
 
@@ -201,20 +243,20 @@
 					{/if}
 				</div>
 
-				<h3 class="mt-2 truncate text-xl font-black text-slate-950 dark:text-slate-50">
+				<h3 class="mt-1 line-clamp-2 text-base font-black leading-tight text-slate-950 dark:text-slate-50 sm:text-lg">
 					{event.title}
 				</h3>
 
-				<p class="mt-2 truncate text-sm text-slate-500 dark:text-slate-400">
+				<p class="mt-1 truncate text-xs font-semibold text-slate-500 dark:text-slate-400 sm:text-sm">
 					📍 {event.location.name}
 				</p>
 
-				<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+				<p class="mt-0.5 truncate text-xs font-semibold text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">
 					🕒 {formatDate(event.startAt)}
 				</p>
 			</div>
 
-			<div class="shrink-0 rounded-2xl bg-blue-50 px-3 py-2 text-center dark:bg-blue-950">
+			<div class="shrink-0 rounded-2xl bg-slate-50 px-3 py-2 text-center dark:bg-slate-800">
 				<p class="text-sm font-black text-blue-600 dark:text-blue-300">
 					{event.participantIds.length}/{event.maxParticipants}
 				</p>
@@ -223,9 +265,9 @@
 			</div>
 		</div>
 
-		<div class="mt-auto flex flex-wrap items-center justify-between gap-2 pt-4">
+		<div class="mt-auto flex flex-wrap items-center justify-between gap-2 pt-2 sm:pt-3">
 			<span
-				class="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold capitalize text-slate-900 dark:bg-slate-800 dark:text-slate-300"
+				class="rounded-full bg-slate-100 px-3 py-1 text-xs font-black capitalize text-slate-600 dark:bg-slate-800 dark:text-slate-300"
 			>
 				{event.level ?? 'casual'}
 			</span>

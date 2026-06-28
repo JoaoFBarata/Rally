@@ -172,11 +172,13 @@ export function isEventFinished(event: SportEvent) {
 	if (event.status === 'finished') return true;
 	if (event.status === 'cancelled') return false;
 
-	const startAtMs = getEventStartAtMillis(event);
+	const endAt = event.endAt as unknown as { toMillis?: () => number; toDate?: () => Date } | null;
+	const endAtMs = endAt?.toMillis?.() ?? endAt?.toDate?.()?.getTime?.() ?? 0;
+	const finishAtMs = endAtMs || getEventStartAtMillis(event);
 
-	if (!startAtMs) return false;
+	if (!finishAtMs) return false;
 
-	return startAtMs < Date.now();
+	return finishAtMs < Date.now();
 }
 
 export function getEffectiveEventStatus(event: SportEvent): EventStatus {
@@ -754,6 +756,36 @@ export async function cancelEvent(eventId: string, userId: string) {
 	await syncEventGroupConversation({
 		...event,
 		status: 'cancelled'
+	});
+}
+
+export async function finishEvent(eventId: string, userId: string) {
+	const event = await getEventById(eventId);
+
+	if (!event) {
+		throw new Error('Event not found');
+	}
+
+	await assertCanManageEvent(event, userId);
+
+	if (event.status === 'cancelled') {
+		throw new Error('Cancelled events cannot be finished.');
+	}
+
+	await updateDoc(doc(db, 'events', eventId), {
+		status: 'finished',
+		...(event.isPromoted
+			? {
+					isPromoted: false,
+					promotionStatus: 'ended'
+				}
+			: {}),
+		updatedAt: serverTimestamp()
+	});
+
+	await syncEventGroupConversation({
+		...event,
+		status: 'finished'
 	});
 }
 
@@ -1698,7 +1730,10 @@ function isEliminationStage(stage: TournamentMatch['stage']) {
 
 async function finishTournament(eventId: string, winnerEntryId: string | null) {
 	await updateDoc(doc(db, 'events', eventId), {
+		status: 'finished',
 		tournamentStatus: 'finished',
+		isPromoted: false,
+		promotionStatus: 'ended',
 		updatedAt: serverTimestamp()
 	});
 
@@ -1994,6 +2029,10 @@ export async function updateTournamentMatchResult(params: {
 		const entries = await getTournamentEntries(match.eventId);
 		await Promise.all([
 			updateDoc(doc(db, 'events', match.eventId), {
+				status:
+					event.participantIds.length >= event.maxParticipants || event.status === 'full'
+						? 'full'
+						: 'open',
 				tournamentStatus: 'in_progress',
 				updatedAt: serverTimestamp()
 			}),

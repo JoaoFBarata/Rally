@@ -19,7 +19,7 @@
 	import { ensureUserProfile } from '$lib/services/user.service';
 	import { subscribeToPromotedEventsForUser } from '$lib/services/explore.service';
 	import type { EventInvite, SportEvent, UserProfile } from '$lib/schema';
-	import EventListItem from '$lib/components/EventListItem.svelte';
+	import EventCard from '$lib/components/EventCard.svelte';
 	import UserMiniMap from '$lib/components/maps/UserMiniMap.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import PromotedEventCarousel from '$lib/components/PromotedEventCarousel.svelte';
@@ -339,7 +339,7 @@
 					</div>
 
 					{#if nextEvent}
-						<EventListItem event={nextEvent} label="next" />
+						<EventCard event={nextEvent} />
 					{:else}
 						<div class="rounded-[1.7rem] bg-white p-5 shadow-sm ring-1 ring-slate-100 dark:bg-slate-900 dark:ring-slate-800">
 							<p class="font-black text-slate-950 dark:text-slate-50">No upcoming games</p>
@@ -504,7 +504,7 @@
 						{:else}
 							<div class="space-y-3">
 								{#each currentHostingEvents as event (event.id)}
-									<EventListItem {event} label="hosting" />
+									<EventCard {event} />
 								{/each}
 							</div>
 						{/if}
@@ -530,7 +530,7 @@
 						{:else}
 							<div class="space-y-3">
 								{#each currentJoinedEvents as event (event.id)}
-									<EventListItem {event} label="joined" />
+									<EventCard {event} />
 								{/each}
 							</div>
 						{/if}

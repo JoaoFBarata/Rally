@@ -69,9 +69,9 @@
 		return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300';
 	}
 
-	function getEventStartAtMillis(event: SportEvent) {
+	function getEventTimestampMillis(value: unknown) {
 		try {
-			const timestamp = event.startAt as unknown as { toDate?: () => Date; toMillis?: () => number };
+			const timestamp = value as { toDate?: () => Date; toMillis?: () => number };
 			if (timestamp?.toMillis) return timestamp.toMillis();
 			if (timestamp?.toDate) return timestamp.toDate().getTime();
 			return 0;
@@ -83,8 +83,8 @@
 	function getEffectiveStatus(event: SportEvent): EventStatus {
 		if (event.status === 'cancelled') return 'cancelled';
 		if (event.status === 'finished') return 'finished';
-		const startAtMs = getEventStartAtMillis(event);
-		if (startAtMs && startAtMs < Date.now()) return 'finished';
+		const finishAtMs = getEventTimestampMillis(event.endAt) || getEventTimestampMillis(event.startAt);
+		if (finishAtMs && finishAtMs < Date.now()) return 'finished';
 		return event.status;
 	}
 

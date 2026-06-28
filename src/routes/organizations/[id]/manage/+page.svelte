@@ -7,10 +7,11 @@
 	import { onAuthStateChanged } from 'firebase/auth';
 	import { auth } from '$lib/firebase';
 	import { authService } from '$lib/services/auth.service';
-	import type { Organization, OrganizationType, SportEvent } from '$lib/schema';
+	import type { Organization, OrganizationType, SportEvent, UserProfile } from '$lib/schema';
 	import EventCard from '$lib/components/EventCard.svelte';
 	import LocationPickerMap from '$lib/components/maps/LocationPickerMap.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import {
 		assertCanManageOrganization,
 		requestOrganizationVerification,
@@ -28,6 +29,13 @@
 		subscribeToEventCatalogChanges,
 		subscribeToOrganizationChanges
 	} from '$lib/services/realtime.service';
+	import {
+		canFastSwitchDeviceAccount,
+		getDeviceAccounts,
+		rememberDeviceAccount,
+		removeDeviceAccount,
+		type DeviceAccount
+	} from '$lib/services/device-accounts.service';
 
 	let organization = $state<Organization | null>(null);
 	let organizationEvents = $state<SportEvent[]>([]);
@@ -37,6 +45,12 @@
 	let requesting = $state(false);
 	let uploadingLogo = $state(false);
 	let logoutLoading = $state(false);
+	let showSettingsModal = $state(false);
+	let notificationsEnabled = $state(true);
+	let selectedLanguage = $state('en');
+	let showAccountSwitcher = $state(false);
+	let deviceAccounts = $state<DeviceAccount[]>([]);
+	let switchingAccountId = $state<string | null>(null);
 
 	let error = $state('');
 	let success = $state('');
@@ -313,6 +327,77 @@
 		}
 	}
 
+	function getCurrentOrganizationDeviceProfile(): UserProfile | null {
+		if (!organization || !auth.currentUser) return null;
+
+		return {
+			id: auth.currentUser.uid,
+			email: auth.currentUser.email ?? contactEmail,
+			displayName: organization.name,
+			photoURL: organization.logoURL ?? auth.currentUser.photoURL ?? null,
+			rallyTag: organization.handle,
+			accountType: 'organization',
+			activeOrganizationId: organization.id,
+			sports: [],
+			createdAt: organization.createdAt,
+			updatedAt: organization.updatedAt
+		};
+	}
+
+	async function handleAddAccount() {
+		logoutLoading = true;
+
+		try {
+			const currentDeviceProfile = getCurrentOrganizationDeviceProfile();
+			if (currentDeviceProfile) {
+				deviceAccounts = rememberDeviceAccount(currentDeviceProfile, auth.currentUser);
+			}
+			showSettingsModal = false;
+			showAccountSwitcher = false;
+			await authService.logout();
+			await goto(resolve('/login'));
+		} finally {
+			logoutLoading = false;
+		}
+	}
+
+	async function handleSwitchAccount(account: DeviceAccount) {
+		if (account.id === auth.currentUser?.uid) {
+			showAccountSwitcher = false;
+			return;
+		}
+
+		logoutLoading = true;
+		switchingAccountId = account.id;
+
+		try {
+			const currentDeviceProfile = getCurrentOrganizationDeviceProfile();
+			if (currentDeviceProfile) {
+				deviceAccounts = rememberDeviceAccount(currentDeviceProfile, auth.currentUser);
+			}
+
+			if (canFastSwitchDeviceAccount(account)) {
+				await authService.signInWithGoogle();
+				deviceAccounts = getDeviceAccounts();
+				showSettingsModal = false;
+				showAccountSwitcher = false;
+				return;
+			}
+
+			await authService.logout();
+			showSettingsModal = false;
+			showAccountSwitcher = false;
+			await goto(resolve(`/login?email=${encodeURIComponent(account.email)}`));
+		} finally {
+			logoutLoading = false;
+			switchingAccountId = null;
+		}
+	}
+
+	function handleForgetDeviceAccount(accountId: string) {
+		deviceAccounts = removeDeviceAccount(accountId);
+	}
+
 	async function handleStopPromotion(eventId: string) {
 		const user = auth.currentUser;
 		if (!user) return;
@@ -338,6 +423,7 @@
 	}
 
 	onMount(() => {
+		deviceAccounts = getDeviceAccounts();
 		let unsubscribeOrganization = () => {};
 		let unsubscribeEvents = () => {};
 		const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -367,7 +453,7 @@
 	});
 </script>
 
-<main class="mx-auto max-w-6xl px-4 py-5 sm:px-5 sm:py-8">
+<main class="mx-auto max-w-6xl px-4 pb-28 pt-5 sm:px-5 sm:py-8">
 	{#if loading}
 		<section
 			class="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
@@ -381,10 +467,10 @@
 			{error}
 		</section>
 	{:else if organization}
-		<div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+		<section class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 			<div class="flex min-w-0 items-center gap-3 sm:gap-4">
 				<div
-					class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-2xl font-black text-blue-600 shadow-lg dark:bg-slate-800 dark:text-blue-300 sm:h-20 sm:w-20 sm:text-3xl"
+					class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[1.5rem] bg-slate-100 text-2xl font-black text-blue-600 shadow-lg dark:bg-slate-800 dark:text-blue-300 sm:h-20 sm:w-20 sm:rounded-[1.8rem] sm:text-3xl"
 				>
 					{#if organization.logoURL}
 						<img
@@ -417,9 +503,8 @@
 			</div>
 
 			<div
-				class="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-3"
+				class="flex flex-wrap items-center gap-2 sm:justify-end sm:gap-3"
 			>
-				<div class="col-span-2 flex justify-end md:hidden"><ThemeToggle /></div>
 				<a
 					href={resolve(`/organizations/${organization.id}`)}
 					class="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
@@ -429,13 +514,15 @@
 
 				<button
 					type="button"
-					onclick={handleLogout}
-					class="rounded-2xl border border-red-100 bg-red-50 px-5 py-3 text-sm font-black text-red-700 transition hover:bg-red-100 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
+					onclick={() => (showSettingsModal = true)}
+					class="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-800 dark:hover:bg-slate-800 md:h-auto md:w-auto md:rounded-2xl md:bg-slate-950 md:px-5 md:py-3 md:text-sm md:font-black md:text-white md:ring-0 md:dark:bg-white md:dark:text-slate-950 md:dark:hover:bg-slate-200"
+					aria-label="Open settings"
 				>
-					Log out
+					<span class="md:hidden">⚙</span>
+					<span class="hidden md:inline">Settings</span>
 				</button>
 			</div>
-		</div>
+		</section>
 
 		{#if error}
 			<div
@@ -453,48 +540,31 @@
 			</div>
 		{/if}
 
-		<section class="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-6">
-			<div
-				class="rounded-3xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-6"
-			>
+		<section class="mt-6 grid max-w-2xl grid-cols-3 divide-x divide-slate-200 border-y border-slate-200 py-4 text-center dark:divide-slate-800 dark:border-slate-800">
+			<div>
 				<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Followers</p>
-				<p class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">
+				<p class="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50">
 					{organization.followersCount ?? 0}
 				</p>
 			</div>
 
-			<div
-				class="rounded-3xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-6"
-			>
+			<div>
 				<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Upcoming events</p>
-				<p class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">
+				<p class="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50">
 					{upcomingEvents.length}
 				</p>
 			</div>
 
-			<div
-				class="rounded-3xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-6"
-			>
+			<div>
 				<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Promoted</p>
-				<p class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">
+				<p class="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50">
 					{activePromotedEvents.length}
-				</p>
-			</div>
-
-			<div
-				class="rounded-3xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-6"
-			>
-				<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Inbox</p>
-				<p class="mt-2 text-sm font-black text-slate-950 dark:text-slate-50">
-					Users can contact this organization
 				</p>
 			</div>
 		</section>
 
-		<section
-			class="mt-6 rounded-[2rem] border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:p-6"
-		>
-			<div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+		<section class="mt-7">
+			<div class="flex flex-col gap-5">
 				<div>
 					<p class="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
 						Quick actions
@@ -505,53 +575,38 @@
 					</h2>
 
 					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-						Start a regular event, create a tournament, or open your organization inbox.
+						Start a regular event, create a tournament, or open messages from players.
 					</p>
 				</div>
 
-				<div class="grid gap-2 sm:grid-cols-3 md:min-w-[28rem]">
+				<div class="grid gap-3 sm:grid-cols-3">
 					<a
 						href={resolve(`/organizations/${organization.id}/events/create`)}
-						class="rounded-2xl bg-blue-600 px-5 py-3 text-center text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
+						class="rounded-[1.4rem] bg-blue-600 p-4 text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700"
 					>
-						Create event
+						<span class="block text-2xl">＋</span>
+						<span class="mt-3 block font-black">Create event</span>
+						<span class="mt-1 block text-xs font-bold text-blue-100">Open games, runs and sessions</span>
 					</a>
 
 					<a
 						href={resolve(`/organizations/${organization.id}/tournaments/create`)}
-						class="rounded-2xl bg-slate-950 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+						class="rounded-[1.4rem] bg-slate-950 p-4 text-white transition hover:-translate-y-0.5 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
 					>
-						Create tournament
+						<span class="block text-2xl">🏆</span>
+						<span class="mt-3 block font-black">Create tournament</span>
+						<span class="mt-1 block text-xs font-bold text-slate-300 dark:text-slate-500">Brackets, teams and winners</span>
 					</a>
 
 					<a
 						href={resolve('/messages')}
-						class="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3 text-center text-sm font-black text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+						class="rounded-[1.4rem] border border-slate-200 bg-slate-50 p-4 text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
 					>
-						Open inbox
+						<span class="block text-2xl">💬</span>
+						<span class="mt-3 block font-black">Open inbox</span>
+						<span class="mt-1 block text-xs font-bold text-slate-500 dark:text-slate-400">Reply to users and teams</span>
 					</a>
 				</div>
-			</div>
-		</section>
-
-		<section
-			class="mt-8 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
-		>
-			<div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-				<div>
-					<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">Organization inbox</h2>
-
-					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-						Users can message this organization from the public page or from events hosted by it.
-					</p>
-				</div>
-
-				<a
-					href={resolve('/messages')}
-					class="rounded-2xl bg-slate-950 px-5 py-3 font-black text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
-				>
-					Open messages
-				</a>
 			</div>
 		</section>
 
@@ -904,10 +959,296 @@
 
 				<div class="grid gap-4 lg:grid-cols-2">
 					{#each pastEvents as event (event.id)}
-						<EventCard {event} showImage={false} />
+						<EventCard {event} />
 					{/each}
 				</div>
 			</section>
+		{/if}
+
+		{#if showSettingsModal}
+			<dialog
+				open
+				class="fixed inset-0 z-[120] m-0 flex h-full w-full max-w-none items-end justify-center border-0 bg-slate-950/60 px-0 backdrop-blur-sm sm:items-center sm:px-5"
+				onclick={(event) => {
+					if (event.target === event.currentTarget) {
+						showSettingsModal = false;
+						showAccountSwitcher = false;
+					}
+				}}
+				aria-labelledby="organization-settings-title"
+			>
+				<div
+					class="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-[2rem] bg-white p-5 shadow-2xl dark:bg-slate-900 sm:rounded-[2rem] sm:p-6"
+				>
+					<div class="flex items-start justify-between gap-4">
+						<div>
+							<h2
+								id="organization-settings-title"
+								class="text-2xl font-black text-slate-950 dark:text-slate-50"
+							>
+								Settings
+							</h2>
+							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+								Notifications, appearance, language and account.
+							</p>
+						</div>
+
+						<button
+							type="button"
+							onclick={() => {
+								showSettingsModal = false;
+								showAccountSwitcher = false;
+							}}
+							class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-xl font-black text-slate-500 transition hover:bg-slate-200 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+							aria-label="Close settings"
+						>
+							×
+						</button>
+					</div>
+
+					<div class="mt-6 space-y-5">
+						<section>
+							<p class="mb-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+								App
+							</p>
+
+							<div
+								class="divide-y divide-slate-200 overflow-hidden rounded-3xl bg-slate-50 dark:divide-slate-700 dark:bg-slate-800"
+							>
+								<div class="flex items-center justify-between gap-4 p-4">
+									<div>
+										<p class="font-black text-slate-950 dark:text-slate-50">Notifications</p>
+										<p class="text-xs text-slate-500 dark:text-slate-400">
+											Event invites, messages and organization updates.
+										</p>
+									</div>
+									<button
+										type="button"
+										onclick={() => (notificationsEnabled = !notificationsEnabled)}
+										class={`relative h-7 w-12 rounded-full transition ${notificationsEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+										aria-label="Toggle notifications"
+									>
+										<span
+											class={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${notificationsEnabled ? 'left-6' : 'left-1'}`}
+										></span>
+									</button>
+								</div>
+
+								<div class="flex items-center justify-between gap-4 p-4">
+									<div>
+										<p class="font-black text-slate-950 dark:text-slate-50">Appearance</p>
+										<p class="text-xs text-slate-500 dark:text-slate-400">
+											Switch light or dark mode.
+										</p>
+									</div>
+									<ThemeToggle />
+								</div>
+
+								<label class="flex items-center justify-between gap-4 p-4">
+									<div>
+										<p class="font-black text-slate-950 dark:text-slate-50">Language</p>
+										<p class="text-xs text-slate-500 dark:text-slate-400">App language.</p>
+									</div>
+									<select
+										bind:value={selectedLanguage}
+										class="rounded-2xl border-slate-200 bg-white py-2 pl-3 pr-8 text-sm font-bold text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+									>
+										<option value="en">English</option>
+										<option value="pt">Português</option>
+									</select>
+								</label>
+							</div>
+						</section>
+
+						<section>
+							<p class="mb-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+								Organization
+							</p>
+
+							<div
+								class="divide-y divide-slate-200 overflow-hidden rounded-3xl bg-slate-50 dark:divide-slate-700 dark:bg-slate-800"
+							>
+								<a
+									href={resolve(`/organizations/${organization.id}`)}
+									class="flex items-center justify-between gap-4 p-4 transition hover:bg-slate-100 dark:hover:bg-slate-700"
+								>
+									<span>
+										<span class="block font-black text-slate-950 dark:text-slate-50">
+											Public page
+										</span>
+										<span class="block text-xs text-slate-500 dark:text-slate-400">
+											View what players see.
+										</span>
+									</span>
+									<span class="text-slate-300">›</span>
+								</a>
+
+								<a
+									href="#upcoming-events"
+									onclick={() => (showSettingsModal = false)}
+									class="flex items-center justify-between gap-4 p-4 transition hover:bg-slate-100 dark:hover:bg-slate-700"
+								>
+									<span>
+										<span class="block font-black text-slate-950 dark:text-slate-50">
+											Promote events
+										</span>
+										<span class="block text-xs text-slate-500 dark:text-slate-400">
+											Choose an event to boost.
+										</span>
+									</span>
+									<span class="text-slate-300">›</span>
+								</a>
+							</div>
+						</section>
+
+						<section>
+							<div class="mb-2 flex items-center justify-between gap-3">
+								<p class="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+									Account
+								</p>
+								{#if showAccountSwitcher}
+									<button
+										type="button"
+										onclick={() => (showAccountSwitcher = false)}
+										class="text-xs font-black text-blue-600 dark:text-blue-400"
+									>
+										Back
+									</button>
+								{/if}
+							</div>
+
+							{#if showAccountSwitcher}
+								<div class="overflow-hidden rounded-3xl bg-slate-50 dark:bg-slate-800">
+									<div class="divide-y divide-slate-200 dark:divide-slate-700">
+										{#each deviceAccounts as account (account.id)}
+											<div class="flex items-center gap-3 p-4">
+												<button
+													type="button"
+													onclick={() => handleSwitchAccount(account)}
+													disabled={logoutLoading}
+													class="flex min-w-0 flex-1 items-center gap-3 text-left disabled:opacity-60"
+												>
+													<UserAvatar
+														photoURL={account.photoURL}
+														displayName={account.displayName}
+														email={account.email}
+														size="md"
+													/>
+													<div class="min-w-0 flex-1">
+														<div class="flex min-w-0 items-center gap-2">
+															<p class="truncate font-black text-slate-950 dark:text-slate-50">
+																{account.displayName}
+															</p>
+															{#if account.accountType === 'organization'}
+																<span class="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[0.65rem] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+																	Org
+																</span>
+															{/if}
+														</div>
+														<p class="truncate text-xs text-slate-500 dark:text-slate-400">
+															{account.rallyTag ? `@${account.rallyTag}` : account.email}
+														</p>
+														{#if account.id !== auth.currentUser?.uid}
+															<p class="mt-0.5 text-[0.68rem] font-bold text-slate-400 dark:text-slate-500">
+																{#if switchingAccountId === account.id}
+																	Switching...
+																{:else if canFastSwitchDeviceAccount(account)}
+																	Quick switch with Google
+																{:else}
+																	Password required
+																{/if}
+															</p>
+														{/if}
+													</div>
+												</button>
+
+												{#if account.id === auth.currentUser?.uid}
+													<span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-black text-white">
+														✓
+													</span>
+												{:else}
+													<button
+														type="button"
+														onclick={() => handleForgetDeviceAccount(account.id)}
+														class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-white hover:text-red-500 dark:hover:bg-slate-900"
+														aria-label="Forget account on this device"
+													>
+														×
+													</button>
+												{/if}
+											</div>
+										{/each}
+									</div>
+
+									<button
+										type="button"
+										onclick={handleAddAccount}
+										disabled={logoutLoading}
+										class="flex w-full items-center gap-3 border-t border-slate-200 p-4 text-left transition hover:bg-slate-100 disabled:opacity-60 dark:border-slate-700 dark:hover:bg-slate-700"
+									>
+										<span class="flex h-11 w-11 items-center justify-center rounded-full bg-white text-2xl font-light text-slate-700 shadow-sm dark:bg-slate-900 dark:text-slate-200">
+											+
+										</span>
+										<span>
+											<span class="block font-black text-slate-950 dark:text-slate-50">
+												Add another account
+											</span>
+											<span class="block text-xs text-slate-500 dark:text-slate-400">
+												It will be saved on this device.
+											</span>
+										</span>
+									</button>
+
+									<div class="px-4 pb-4 pt-1">
+										<p class="text-[0.7rem] leading-relaxed text-slate-400 dark:text-slate-500">
+											Google accounts can quick switch. Email/password accounts still require the
+											password for security.
+										</p>
+									</div>
+								</div>
+							{:else}
+								<div class="overflow-hidden rounded-3xl bg-slate-50 dark:bg-slate-800">
+									<div class="flex items-center gap-3 p-4">
+										<UserAvatar
+											photoURL={organization.logoURL ?? auth.currentUser?.photoURL ?? null}
+											displayName={organization.name}
+											email={contactEmail}
+											size="md"
+										/>
+										<div class="min-w-0 flex-1">
+											<p class="truncate font-black text-slate-950 dark:text-slate-50">
+												{organization.name}
+											</p>
+											<p class="truncate text-xs text-slate-500 dark:text-slate-400">
+												{contactEmail}
+											</p>
+										</div>
+									</div>
+
+									<div class="grid grid-cols-2 gap-2 p-3 pt-0">
+										<button
+											type="button"
+											onclick={() => (showAccountSwitcher = true)}
+											class="rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-900 shadow-sm transition hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-50 dark:hover:bg-slate-700"
+										>
+											Switch
+										</button>
+
+										<button
+											type="button"
+											onclick={handleLogout}
+											disabled={logoutLoading}
+											class="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-slate-50 dark:text-slate-950 dark:hover:bg-slate-200"
+										>
+											{logoutLoading ? '...' : 'Log out'}
+										</button>
+									</div>
+								</div>
+							{/if}
+						</section>
+					</div>
+				</div>
+			</dialog>
 		{/if}
 	{/if}
 </main>

@@ -11,6 +11,7 @@
 		cancelEvent,
 		calculatePromotionStats,
 		ensureEventGroupConversation,
+		finishEvent,
 		getEventById,
 		getEventGroupConversationId,
 		getEffectiveEventStatus,
@@ -593,6 +594,34 @@
 		}
 	}
 
+	async function handleFinishEvent() {
+		const currentUser = auth.currentUser;
+
+		if (!currentUser || !event) return;
+
+		const confirmed = await showConfirm({
+			title: 'Finish this event?',
+			message:
+				'This will close the event, stop active promotion and move it out of upcoming events.',
+			confirmLabel: 'Finish event'
+		});
+
+		if (!confirmed) return;
+
+		actionLoading = true;
+		error = '';
+
+		try {
+			await finishEvent(event.id, currentUser.uid);
+			await reloadEvent();
+		} catch (err) {
+			console.error('Finish event error:', err);
+			error = err instanceof Error ? err.message : 'Could not finish event.';
+		} finally {
+			actionLoading = false;
+		}
+	}
+
 	async function handleRemoveParticipant(participantId: string) {
 		const currentUser = auth.currentUser;
 
@@ -995,6 +1024,9 @@
 
 							{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
 								<a href={resolve(`/events/${event.id}/edit`)} class="rounded-2xl bg-slate-950 px-4 py-3 text-center text-sm font-black text-white shadow-lg shadow-slate-950/10 transition hover:bg-slate-800 dark:bg-white dark:text-slate-950">Edit</a>
+								<button type="button" onclick={handleFinishEvent} disabled={actionLoading} class="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-black text-blue-700 transition hover:bg-blue-100 disabled:opacity-60 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900">
+									Finish
+								</button>
 							{/if}
 						</div>
 					</div>
@@ -1407,16 +1439,29 @@
 						<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Team status</h2>
 
 						{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
-							<button
-								type="button"
-								onclick={handleCancelEvent}
-								disabled={actionLoading}
-								title="Cancel event"
-								aria-label="Cancel event"
-								class="flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-xl font-black text-red-600 transition hover:bg-red-100 disabled:opacity-60 dark:bg-red-950 dark:text-red-300 dark:hover:bg-red-900"
-							>
-								×
-							</button>
+							<div class="flex items-center gap-2">
+								<button
+									type="button"
+									onclick={handleFinishEvent}
+									disabled={actionLoading}
+									title="Finish event"
+									aria-label="Finish event"
+									class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-sm font-black text-blue-600 transition hover:bg-blue-100 disabled:opacity-60 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+								>
+									✓
+								</button>
+
+								<button
+									type="button"
+									onclick={handleCancelEvent}
+									disabled={actionLoading}
+									title="Cancel event"
+									aria-label="Cancel event"
+									class="flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-xl font-black text-red-600 transition hover:bg-red-100 disabled:opacity-60 dark:bg-red-950 dark:text-red-300 dark:hover:bg-red-900"
+								>
+									×
+								</button>
+							</div>
 						{:else if isParticipant && !isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
 							<button
 								type="button"
