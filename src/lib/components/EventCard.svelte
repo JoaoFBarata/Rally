@@ -136,11 +136,11 @@
 <a
 	href={`/events/${event.id}`}
 	onclick={handleClick}
-	class={`group flex h-full min-h-[8.25rem] overflow-hidden rounded-[1.5rem] border shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${getCardClasses()}`}
+	class={`group flex h-full min-h-[6.7rem] overflow-hidden rounded-[1.35rem] border shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg sm:min-h-[8.25rem] sm:rounded-[1.5rem] ${getCardClasses()}`}
 >
 	{#if showImage}
 		<div
-			class={`relative w-24 shrink-0 overflow-hidden bg-blue-50 dark:bg-blue-950/40 sm:w-32 lg:w-40 ${
+			class={`relative w-20 shrink-0 overflow-hidden bg-blue-50 dark:bg-blue-950/40 sm:w-32 lg:w-40 ${
 				showPromotion ? 'bg-blue-50 dark:bg-blue-950/40' : 'bg-slate-100 dark:bg-slate-800'
 			}`}
 		>
@@ -156,13 +156,13 @@
 
 			{#if showPromotion}
 				<span
-					class="absolute left-3 top-3 rounded-full bg-blue-600 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-white shadow-lg shadow-blue-700/20"
+					class="absolute left-2 top-2 rounded-full bg-blue-600 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow-lg shadow-blue-700/20 sm:left-3 sm:top-3 sm:px-2.5 sm:py-1 sm:text-[10px]"
 				>
 					Promoted
 				</span>
 			{:else}
 				<span
-					class="absolute bottom-3 left-3 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-black text-slate-700 shadow-sm backdrop-blur dark:bg-slate-950/85 dark:text-slate-200"
+					class="absolute bottom-2 left-2 rounded-full bg-white/90 px-2 py-0.5 text-[9px] font-black text-slate-700 shadow-sm backdrop-blur dark:bg-slate-950/85 dark:text-slate-200 sm:bottom-3 sm:left-3 sm:px-2.5 sm:py-1 sm:text-[10px]"
 				>
 					{formatDate(event.startAt)}
 				</span>
@@ -170,9 +170,9 @@
 		</div>
 	{/if}
 
-	<div class="flex min-w-0 flex-1 flex-col p-3 sm:p-4">
+	<div class="flex min-w-0 flex-1 flex-col p-2.5 sm:p-4">
 		{#if showPromotion}
-			<div class="mb-3 flex items-center justify-between gap-3">
+			<div class="mb-2 hidden items-center justify-between gap-3 sm:flex">
 				<span
 					class="rounded-full bg-blue-50 px-3 py-1 text-xs font-black uppercase tracking-wide text-blue-700 dark:bg-blue-950 dark:text-blue-300"
 				>
@@ -217,18 +217,18 @@
 					</div>
 				{/if}
 
-				<div class="flex min-h-8 flex-wrap items-center gap-2">
+				<div class="flex min-h-0 flex-wrap items-center gap-1.5 sm:min-h-8 sm:gap-2">
 					<p class="text-xs font-black uppercase tracking-wide text-blue-600 dark:text-blue-400">
 						{event.sport}
 					</p>
 
-					<span class={`rounded-full px-3 py-1 text-xs font-black ${getStatusClasses()}`}>
+					<span class={`rounded-full px-2 py-0.5 text-[10px] font-black sm:px-3 sm:py-1 sm:text-xs ${getStatusClasses()}`}>
 						{getStatusLabel()}
 					</span>
 
 					{#if event.eventKind === 'tournament'}
 						<span
-							class="rounded-full bg-purple-50 px-3 py-1 text-xs font-black text-purple-700 dark:bg-purple-950 dark:text-purple-300"
+							class="hidden rounded-full bg-purple-50 px-3 py-1 text-xs font-black text-purple-700 dark:bg-purple-950 dark:text-purple-300 sm:inline-flex"
 						>
 							Tournament
 						</span>
@@ -236,36 +236,36 @@
 
 					{#if event.paymentMode === 'official'}
 						<span
-							class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+							class="hidden rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 sm:inline-flex"
 						>
 							Protected payment
 						</span>
 					{/if}
 				</div>
 
-				<h3 class="mt-1 line-clamp-2 text-base font-black leading-tight text-slate-950 dark:text-slate-50 sm:text-lg">
+				<h3 class="mt-0.5 line-clamp-1 text-sm font-black leading-tight text-slate-950 dark:text-slate-50 sm:mt-1 sm:line-clamp-2 sm:text-lg">
 					{event.title}
 				</h3>
 
-				<p class="mt-1 truncate text-xs font-semibold text-slate-500 dark:text-slate-400 sm:text-sm">
+				<p class="mt-0.5 truncate text-[11px] font-semibold text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">
 					📍 {event.location.name}
 				</p>
 
-				<p class="mt-0.5 truncate text-xs font-semibold text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">
+				<p class="hidden truncate text-xs font-semibold text-slate-500 dark:text-slate-400 sm:mt-1 sm:block sm:text-sm">
 					🕒 {formatDate(event.startAt)}
 				</p>
 			</div>
 
-			<div class="shrink-0 rounded-2xl bg-slate-50 px-3 py-2 text-center dark:bg-slate-800">
-				<p class="text-sm font-black text-blue-600 dark:text-blue-300">
+			<div class="shrink-0 rounded-2xl bg-slate-50 px-2 py-1 text-center dark:bg-slate-800 sm:px-3 sm:py-2">
+				<p class="text-xs font-black text-blue-600 dark:text-blue-300 sm:text-sm">
 					{event.participantIds.length}/{event.maxParticipants}
 				</p>
 
-				<p class="text-xs font-medium text-slate-500 dark:text-slate-400">players</p>
+				<p class="hidden text-xs font-medium text-slate-500 dark:text-slate-400 sm:block">players</p>
 			</div>
 		</div>
 
-		<div class="mt-auto flex flex-wrap items-center justify-between gap-2 pt-2 sm:pt-3">
+		<div class="mt-auto hidden flex-wrap items-center justify-between gap-2 pt-3 sm:flex">
 			<span
 				class="rounded-full bg-slate-100 px-3 py-1 text-xs font-black capitalize text-slate-600 dark:bg-slate-800 dark:text-slate-300"
 			>

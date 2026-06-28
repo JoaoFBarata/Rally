@@ -453,7 +453,7 @@
 	});
 </script>
 
-<main class="mx-auto max-w-6xl px-4 pb-28 pt-5 sm:px-5 sm:py-8">
+<main class="mx-auto max-w-6xl px-4 pb-28 pt-4 sm:px-5 sm:py-8">
 	{#if loading}
 		<section
 			class="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
@@ -467,10 +467,10 @@
 			{error}
 		</section>
 	{:else if organization}
-		<section class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+		<section class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 			<div class="flex min-w-0 items-center gap-3 sm:gap-4">
 				<div
-					class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[1.5rem] bg-slate-100 text-2xl font-black text-blue-600 shadow-lg dark:bg-slate-800 dark:text-blue-300 sm:h-20 sm:w-20 sm:rounded-[1.8rem] sm:text-3xl"
+					class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[1.35rem] bg-slate-100 text-xl font-black text-blue-600 shadow-sm dark:bg-slate-800 dark:text-blue-300 sm:h-20 sm:w-20 sm:rounded-[1.8rem] sm:text-3xl"
 				>
 					{#if organization.logoURL}
 						<img
@@ -486,7 +486,7 @@
 				<div class="min-w-0">
 					<div class="flex flex-wrap items-center gap-2">
 						<h1
-							class="truncate text-3xl font-black tracking-tight text-slate-950 dark:text-slate-50 sm:text-4xl"
+							class="truncate text-2xl font-black tracking-tight text-slate-950 dark:text-slate-50 sm:text-4xl"
 						>
 							{organization.name}
 						</h1>
@@ -496,7 +496,7 @@
 						</span>
 					</div>
 
-					<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
+					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-sm">
 						Organization dashboard · manage official events, verification and promotions.
 					</p>
 				</div>
@@ -507,7 +507,7 @@
 			>
 				<a
 					href={resolve(`/organizations/${organization.id}`)}
-					class="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+					class="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 sm:rounded-2xl sm:px-5 sm:py-3 sm:text-sm"
 				>
 					Public page
 				</a>
@@ -540,129 +540,129 @@
 			</div>
 		{/if}
 
-		<section class="mt-6 grid max-w-2xl grid-cols-3 divide-x divide-slate-200 border-y border-slate-200 py-4 text-center dark:divide-slate-800 dark:border-slate-800">
+		<section class="mt-4 grid max-w-2xl grid-cols-3 divide-x divide-slate-200 border-y border-slate-200 py-3 text-center dark:divide-slate-800 dark:border-slate-800 sm:mt-6 sm:py-4">
 			<div>
-				<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Followers</p>
-				<p class="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50">
+				<p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Followers</p>
+				<p class="mt-0.5 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-1 sm:text-2xl">
 					{organization.followersCount ?? 0}
 				</p>
 			</div>
 
 			<div>
-				<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Upcoming events</p>
-				<p class="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50">
+				<p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Upcoming</p>
+				<p class="mt-0.5 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-1 sm:text-2xl">
 					{upcomingEvents.length}
 				</p>
 			</div>
 
 			<div>
-				<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Promoted</p>
-				<p class="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50">
+				<p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Promoted</p>
+				<p class="mt-0.5 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-1 sm:text-2xl">
 					{activePromotedEvents.length}
 				</p>
 			</div>
 		</section>
 
-		<section class="mt-7">
-			<div class="flex flex-col gap-5">
+		<section class="mt-5 sm:mt-7">
+			<div class="flex flex-col gap-3 sm:gap-5">
 				<div>
-					<p class="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
+					<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400 sm:text-sm sm:tracking-[0.25em]">
 						Quick actions
 					</p>
 
-					<h2 class="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50">
+					<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:text-2xl">
 						Create and manage activities
 					</h2>
 
-					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+					<p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">
 						Start a regular event, create a tournament, or open messages from players.
 					</p>
 				</div>
 
-				<div class="grid gap-3 sm:grid-cols-3">
+				<div class="grid grid-cols-3 gap-2 sm:gap-3">
 					<a
 						href={resolve(`/organizations/${organization.id}/events/create`)}
-						class="rounded-[1.4rem] bg-blue-600 p-4 text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700"
+						class="rounded-[1.1rem] bg-blue-600 p-3 text-center text-white shadow-sm shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700 sm:rounded-[1.4rem] sm:p-4 sm:text-left"
 					>
-						<span class="block text-2xl">＋</span>
-						<span class="mt-3 block font-black">Create event</span>
-						<span class="mt-1 block text-xs font-bold text-blue-100">Open games, runs and sessions</span>
+						<span class="block text-xl sm:text-2xl">＋</span>
+						<span class="mt-1 block text-xs font-black sm:mt-3 sm:text-base">Event</span>
+						<span class="mt-1 hidden text-xs font-bold text-blue-100 sm:block">Open games, runs and sessions</span>
 					</a>
 
 					<a
 						href={resolve(`/organizations/${organization.id}/tournaments/create`)}
-						class="rounded-[1.4rem] bg-slate-950 p-4 text-white transition hover:-translate-y-0.5 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+						class="rounded-[1.1rem] bg-slate-950 p-3 text-center text-white transition hover:-translate-y-0.5 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200 sm:rounded-[1.4rem] sm:p-4 sm:text-left"
 					>
-						<span class="block text-2xl">🏆</span>
-						<span class="mt-3 block font-black">Create tournament</span>
-						<span class="mt-1 block text-xs font-bold text-slate-300 dark:text-slate-500">Brackets, teams and winners</span>
+						<span class="block text-xl sm:text-2xl">🏆</span>
+						<span class="mt-1 block text-xs font-black sm:mt-3 sm:text-base">Tournament</span>
+						<span class="mt-1 hidden text-xs font-bold text-slate-300 dark:text-slate-500 sm:block">Brackets, teams and winners</span>
 					</a>
 
 					<a
 						href={resolve('/messages')}
-						class="rounded-[1.4rem] border border-slate-200 bg-slate-50 p-4 text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+						class="rounded-[1.1rem] border border-slate-200 bg-slate-50 p-3 text-center text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 sm:rounded-[1.4rem] sm:p-4 sm:text-left"
 					>
-						<span class="block text-2xl">💬</span>
-						<span class="mt-3 block font-black">Open inbox</span>
-						<span class="mt-1 block text-xs font-bold text-slate-500 dark:text-slate-400">Reply to users and teams</span>
+						<span class="block text-xl sm:text-2xl">💬</span>
+						<span class="mt-1 block text-xs font-black sm:mt-3 sm:text-base">Inbox</span>
+						<span class="mt-1 hidden text-xs font-bold text-slate-500 dark:text-slate-400 sm:block">Reply to users and teams</span>
 					</a>
 				</div>
 			</div>
 		</section>
 
 		<section
-			class="mt-8 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+			class="mt-6 rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:mt-8 sm:rounded-[2rem] sm:p-6 sm:shadow-xl sm:shadow-slate-200/70"
 		>
 			<div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 				<div>
 					<p
-						class="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400"
+						class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400 sm:text-sm sm:tracking-[0.25em]"
 					>
 						Promotions
 					</p>
 
-					<h2 class="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50">
+					<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:text-2xl">
 						Advertising dashboard
 					</h2>
 
-					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
 						Track promoted events, impressions, clicks and estimated spend.
 					</p>
 				</div>
 
 				<a
 					href="#upcoming-events"
-					class="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3 font-black text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+					class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 sm:px-5 sm:py-3 sm:text-base"
 				>
 					Choose event to promote
 				</a>
 			</div>
 
-			<div class="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-				<div class="rounded-2xl bg-white p-4 dark:bg-slate-900">
+			<div class="mt-4 grid grid-cols-4 gap-2 sm:mt-6 md:gap-4">
+				<div class="rounded-2xl bg-slate-50 p-2.5 dark:bg-slate-800 sm:bg-white sm:p-4 sm:dark:bg-slate-900">
 					<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Active</p>
-					<p class="mt-2 text-2xl font-black text-slate-950 dark:text-slate-50">
+					<p class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl">
 						{activePromotedEvents.length}
 					</p>
 				</div>
 
-				<div class="rounded-2xl bg-white p-4 dark:bg-slate-900">
+				<div class="rounded-2xl bg-slate-50 p-2.5 dark:bg-slate-800 sm:bg-white sm:p-4 sm:dark:bg-slate-900">
 					<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Views</p>
-					<p class="mt-2 text-2xl font-black text-slate-950 dark:text-slate-50">
+					<p class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl">
 						{totalPromotionViews}
 					</p>
 				</div>
 
-				<div class="rounded-2xl bg-white p-4 dark:bg-slate-900">
+				<div class="rounded-2xl bg-slate-50 p-2.5 dark:bg-slate-800 sm:bg-white sm:p-4 sm:dark:bg-slate-900">
 					<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Clicks</p>
-					<p class="mt-2 text-2xl font-black text-slate-950 dark:text-slate-50">
+					<p class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl">
 						{totalPromotionClicks}
 					</p>
 				</div>
 
-				<div class="rounded-2xl bg-white p-4 dark:bg-slate-900">
+				<div class="rounded-2xl bg-slate-50 p-2.5 dark:bg-slate-800 sm:bg-white sm:p-4 sm:dark:bg-slate-900">
 					<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">CTR / Spend</p>
-					<p class="mt-2 text-lg font-black text-slate-950 dark:text-slate-50">
+					<p class="mt-1 text-xs font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-lg">
 						{averageCtr.toFixed(1)}% · €{totalEstimatedSpend.toFixed(2)}
 					</p>
 				</div>
@@ -725,16 +725,16 @@
 			{/if}
 		</section>
 
-		<div class="mt-8 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+		<div class="mt-6 grid gap-4 sm:mt-8 sm:gap-6 lg:grid-cols-[0.9fr_1.1fr]">
 			<section
-				class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+				class="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-6 sm:shadow-xl sm:shadow-slate-200/70"
 			>
 				<div class="flex items-start justify-between gap-4">
 					<div>
-						<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">
+						<h2 class="text-xl font-black text-slate-950 dark:text-slate-50 sm:text-2xl">
 							Organization profile
 						</h2>
-						<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+						<p class="mt-1 text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
 							Edit your public organization page.
 						</p>
 					</div>
@@ -752,14 +752,14 @@
 							type="button"
 							onclick={() => logoInput?.click()}
 							disabled={uploadingLogo}
-							class="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-200 disabled:opacity-60 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+							class="rounded-2xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-200 disabled:opacity-60 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 sm:px-4 sm:py-3 sm:text-sm"
 						>
 							{uploadingLogo ? 'Uploading...' : 'Change logo'}
 						</button>
 					</div>
 				</div>
 
-				<div class="mt-6 space-y-4">
+				<div class="mt-4 space-y-3 sm:mt-6 sm:space-y-4">
 					<input
 						bind:value={name}
 						class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
@@ -829,25 +829,25 @@
 			</section>
 
 			<section
-				class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+				class="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-6 sm:shadow-xl sm:shadow-slate-200/70"
 			>
-				<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">Verification centre</h2>
+				<h2 class="text-xl font-black text-slate-950 dark:text-slate-50 sm:text-2xl">Verification centre</h2>
 
-				<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
+				<p class="mt-1 text-xs text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-sm">
 					Confirm the legal identity of the organization. A public venue is optional and only
 					applies to organizations that own or operate a physical sports space.
 				</p>
 
-				<div class="mt-5 rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
+				<div class="mt-4 rounded-2xl bg-slate-50 p-3 dark:bg-slate-800 sm:mt-5 sm:p-4">
 					<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Current status</p>
-					<p class="mt-2 font-black text-slate-950 dark:text-slate-50">
+					<p class="mt-1 font-black text-slate-950 dark:text-slate-50 sm:mt-2">
 						{verificationLabel()}
 					</p>
 				</div>
 
 				{#if organization.verificationStatus !== 'verified'}
-					<div class="mt-5 space-y-3">
-						<div class="rounded-2xl border border-slate-200 p-4 text-sm dark:border-slate-700">
+					<div class="mt-4 space-y-3 sm:mt-5">
+						<div class="rounded-2xl border border-slate-200 p-3 text-xs dark:border-slate-700 sm:p-4 sm:text-sm">
 							<p class="font-black text-slate-950 dark:text-slate-50">Required identity details</p>
 							<p class="mt-1 text-slate-500 dark:text-slate-400">
 								Legal name, NIF and contact email. Website and notes can help the review.
@@ -867,7 +867,7 @@
 								<span class="block font-black text-slate-950 dark:text-slate-50"
 									>This organization operates a public venue</span
 								>
-								<span class="mt-1 block text-sm text-slate-500 dark:text-slate-400"
+								<span class="mt-1 block text-xs text-slate-500 dark:text-slate-400 sm:text-sm"
 									>For courts, gyms, stadiums or other places customers can visit.</span
 								>
 							</span>
@@ -922,15 +922,15 @@
 			</section>
 		</div>
 
-		<section id="upcoming-events" class="mt-8 scroll-mt-8">
-			<div class="mb-5 flex items-center justify-between">
-				<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">
+		<section id="upcoming-events" class="mt-6 scroll-mt-8 sm:mt-8">
+			<div class="mb-3 flex items-center justify-between sm:mb-5">
+				<h2 class="text-xl font-black text-slate-950 dark:text-slate-50 sm:text-2xl">
 					Upcoming organization events
 				</h2>
 
 				<a
 					href={resolve(`/organizations/${organization.id}/events/create`)}
-					class="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700"
+					class="rounded-2xl bg-blue-600 px-4 py-2 text-xs font-black text-white shadow-sm shadow-blue-600/25 transition hover:bg-blue-700 sm:px-5 sm:py-3 sm:text-sm sm:shadow-lg"
 				>
 					Create event
 				</a>
@@ -943,7 +943,7 @@
 					No upcoming events yet.
 				</div>
 			{:else}
-				<div class="grid gap-4 lg:grid-cols-2">
+				<div class="grid gap-2.5 sm:gap-4 lg:grid-cols-2">
 					{#each upcomingEvents as event (event.id)}
 						<EventCard {event} />
 					{/each}
@@ -952,12 +952,12 @@
 		</section>
 
 		{#if pastEvents.length}
-			<section class="mt-8">
-				<h2 class="mb-5 text-2xl font-black text-slate-950 dark:text-slate-50">
+			<section class="mt-6 sm:mt-8">
+				<h2 class="mb-3 text-xl font-black text-slate-950 dark:text-slate-50 sm:mb-5 sm:text-2xl">
 					Past / cancelled events
 				</h2>
 
-				<div class="grid gap-4 lg:grid-cols-2">
+				<div class="grid gap-2.5 sm:gap-4 lg:grid-cols-2">
 					{#each pastEvents as event (event.id)}
 						<EventCard {event} />
 					{/each}
