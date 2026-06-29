@@ -6,6 +6,7 @@
 	import RallyWordmark from '$lib/components/RallyWordmark.svelte';
 	import { authState } from '$lib/auth.svelte';
 	import { sendFriendRequestByTag } from '$lib/services/social.service';
+	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 
 	let loading = $state(true);
 	let sending = $state(false);
@@ -31,7 +32,7 @@
 			success = `Friend request sent to ${target.displayName}.`;
 		} catch (err) {
 			console.error('QR friend request error:', err);
-			error = err instanceof Error ? err.message : 'Could not send friend request.';
+			error = getFriendlyErrorMessage(err, 'Could not send friend request.');
 		} finally {
 			sending = false;
 			loading = false;

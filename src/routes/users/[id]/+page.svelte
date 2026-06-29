@@ -19,6 +19,7 @@
 	} from '$lib/services/social.service';
 	import { getOrCreateDirectConversation } from '$lib/services/chat.service';
 	import { getEventsCreatedByUser, getEventsForUser } from '$lib/services/event.service';
+	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
 	import {
 		subscribeToUserActivityChanges,
@@ -220,7 +221,7 @@
 			success = `Friend request sent to ${targetProfile.displayName}.`;
 		} catch (err) {
 			console.error('Add friend from public profile error:', err);
-			error = err instanceof Error ? err.message : 'Could not send friend request.';
+			error = getFriendlyErrorMessage(err, 'Could not send friend request.');
 
 			const updatedRelationship = await getRelationshipStatus({
 				currentUserId: currentUser.uid,
@@ -248,7 +249,7 @@
 			await goto(resolve(`/messages/${conversationId}`));
 		} catch (err) {
 			console.error('Message user error:', err);
-			error = err instanceof Error ? err.message : 'Could not open conversation.';
+			error = getFriendlyErrorMessage(err, 'Could not open conversation.');
 		} finally {
 			actionLoading = false;
 		}
@@ -278,7 +279,7 @@
 			success = `${targetProfile.displayName} removed from your friends.`;
 		} catch (err) {
 			console.error('Remove friend from public profile error:', err);
-			error = err instanceof Error ? err.message : 'Could not remove friend.';
+			error = getFriendlyErrorMessage(err, 'Could not remove friend.');
 		} finally {
 			actionLoading = false;
 		}

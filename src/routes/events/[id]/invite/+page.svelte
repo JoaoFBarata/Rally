@@ -9,6 +9,7 @@
 	import { getEventById } from '$lib/services/event.service';
 	import { getFriendsForUser } from '$lib/services/social.service';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
+	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
 	import type { SportEvent, UserProfile } from '$lib/schema';
 
@@ -85,7 +86,7 @@
 			friends = await getFriendsForUser(currentUser.uid);
 		} catch (err) {
 			console.error('Invite page load error:', err);
-			error = err instanceof Error ? err.message : 'Could not load invite page.';
+			error = getFriendlyErrorMessage(err, 'Could not load invite page.');
 		} finally {
 			loading = false;
 		}
@@ -129,7 +130,7 @@
 			selectedFriendIds = [];
 		} catch (err) {
 			console.error('Invite error:', err);
-			error = err instanceof Error ? err.message : 'Could not send invites.';
+			error = getFriendlyErrorMessage(err, 'Could not send invites.');
 		} finally {
 			sending = false;
 		}

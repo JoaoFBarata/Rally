@@ -47,6 +47,7 @@
 	import type { Unsubscribe } from 'firebase/firestore';
 	import ChatMessageList from '$lib/components/chat/ChatMessageList.svelte';
 	import { getTypingLabel } from '$lib/utils/chat-typing.utils';
+	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
 	import { getOrCreateOrganizationConversation } from '$lib/services/chat.service';
 	import TournamentPanel from '$lib/components/tournaments/TournamentPanel.svelte';
@@ -241,7 +242,7 @@
 			await goto(resolve(`/messages/${conversationId}`));
 		} catch (err) {
 			console.error('Contact organizer error:', err);
-			error = err instanceof Error ? err.message : 'Could not contact organizer.';
+			error = getFriendlyErrorMessage(err, 'Could not contact organizer.');
 		} finally {
 			contactLoading = false;
 		}
@@ -512,7 +513,7 @@
 			}
 		} catch (err) {
 			console.error('Event detail error:', err);
-			error = err instanceof Error ? err.message : 'Could not load event.';
+			error = getFriendlyErrorMessage(err, 'Could not load event.');
 		} finally {
 			loading = false;
 		}
@@ -531,7 +532,7 @@
 			await reloadEvent();
 		} catch (err) {
 			console.error('Join event error:', err);
-			error = err instanceof Error ? err.message : 'Could not join event.';
+			error = getFriendlyErrorMessage(err, 'Could not join event.');
 		} finally {
 			actionLoading = false;
 		}
@@ -560,7 +561,7 @@
 			await reloadEvent();
 		} catch (err) {
 			console.error('Leave event error:', err);
-			error = err instanceof Error ? err.message : 'Could not leave event.';
+			error = getFriendlyErrorMessage(err, 'Could not leave event.');
 		} finally {
 			actionLoading = false;
 		}
@@ -588,7 +589,7 @@
 			await reloadEvent();
 		} catch (err) {
 			console.error('Cancel event error:', err);
-			error = err instanceof Error ? err.message : 'Could not cancel event.';
+			error = getFriendlyErrorMessage(err, 'Could not cancel event.');
 		} finally {
 			actionLoading = false;
 		}
@@ -616,7 +617,7 @@
 			await reloadEvent();
 		} catch (err) {
 			console.error('Finish event error:', err);
-			error = err instanceof Error ? err.message : 'Could not finish event.';
+			error = getFriendlyErrorMessage(err, 'Could not finish event.');
 		} finally {
 			actionLoading = false;
 		}
@@ -650,7 +651,7 @@
 			await reloadEvent();
 		} catch (err) {
 			console.error('Remove participant error:', err);
-			error = err instanceof Error ? err.message : 'Could not remove participant.';
+			error = getFriendlyErrorMessage(err, 'Could not remove participant.');
 		} finally {
 			actionLoading = false;
 		}
@@ -687,7 +688,7 @@
 			await reloadEvent();
 		} catch (err) {
 			console.error('Update group photo error:', err);
-			error = err instanceof Error ? err.message : 'Could not update group photo.';
+			error = getFriendlyErrorMessage(err, 'Could not update group photo.');
 		} finally {
 			groupPhotoSaving = false;
 		}
@@ -737,7 +738,7 @@
 			await scrollGroupChatToBottom();
 		} catch (err) {
 			console.error('Send group message error:', err);
-			error = err instanceof Error ? err.message : 'Could not send message.';
+			error = getFriendlyErrorMessage(err, 'Could not send message.');
 		} finally {
 			groupChatSending = false;
 		}
@@ -767,7 +768,7 @@
 			await loadEventPage();
 		} catch (err) {
 			console.error('Promote event error:', err);
-			error = err instanceof Error ? err.message : 'Could not promote event.';
+			error = getFriendlyErrorMessage(err, 'Could not promote event.');
 		} finally {
 			promoting = false;
 		}
@@ -790,7 +791,7 @@
 			await loadEventPage();
 		} catch (err) {
 			console.error('Stop promotion error:', err);
-			error = err instanceof Error ? err.message : 'Could not stop promotion.';
+			error = getFriendlyErrorMessage(err, 'Could not stop promotion.');
 		} finally {
 			stoppingPromotion = false;
 		}

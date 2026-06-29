@@ -25,6 +25,8 @@
 		promoteEvent
 	} from '$lib/services/event.service';
 	import LocationPickerMap from '$lib/components/maps/LocationPickerMap.svelte';
+	import TimeSelect from '$lib/components/TimeSelect.svelte';
+	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
 
 	let organization = $state<Organization | null>(null);
@@ -268,7 +270,7 @@
 			await goto(resolve(`/events/${createdEvent.id}`));
 		} catch (err) {
 			console.error('Create organization event error:', err);
-			error = err instanceof Error ? err.message : 'Could not create event.';
+			error = getFriendlyErrorMessage(err, 'Could not create event.');
 		} finally {
 			creating = false;
 		}
@@ -296,7 +298,7 @@
 				});
 			} catch (err) {
 				console.error('Load organization create event page error:', err);
-				error = err instanceof Error ? err.message : 'Could not load organization.';
+				error = getFriendlyErrorMessage(err, 'Could not load organization.');
 			} finally {
 				loading = false;
 			}
@@ -560,17 +562,13 @@
 								<input
 									bind:value={date}
 									type="date"
-									class="mt-2 min-w-0 w-full rounded-2xl border border-slate-200 bg-slate-50 px-2 py-3 text-sm text-slate-950 outline-none transition focus:border-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 sm:px-4 sm:text-base"
+									class="mt-2 min-w-0 w-full rounded-2xl border border-slate-200 bg-slate-50 px-2 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:border-slate-500 dark:focus:bg-slate-800 dark:focus:ring-slate-700 sm:px-4 sm:text-base"
 								/>
 							</label>
 
 							<label class="min-w-0">
 								<span class="text-sm font-bold text-slate-500 dark:text-slate-400">Start time</span>
-								<input
-									bind:value={startTime}
-									type="time"
-									class="mt-2 min-w-0 w-full rounded-2xl border border-slate-200 bg-slate-50 px-2 py-3 text-sm text-slate-950 outline-none transition focus:border-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 sm:px-4 sm:text-base"
-								/>
+								<TimeSelect bind:value={startTime} placeholder="Choose time" />
 							</label>
 						</div>
 
@@ -578,11 +576,7 @@
 							<span class="text-sm font-bold text-slate-500 dark:text-slate-400"
 								>End time (optional)</span
 							>
-							<input
-								bind:value={endTime}
-								type="time"
-								class="mt-2 min-w-0 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-							/>
+							<TimeSelect bind:value={endTime} placeholder="Optional end time" />
 						</label>
 
 						{#if organization?.address}
@@ -816,7 +810,7 @@
 
 							<label class="block">
 								<span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
-									Duration
+									Duration (days)
 								</span>
 								<select
 									bind:value={promotionDurationDays}

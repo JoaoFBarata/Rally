@@ -4,6 +4,7 @@
 	import RallyLogo from '$lib/components/RallyLogo.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import { authService } from '$lib/services/auth.service';
+	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
 	import type { OrganizationType } from '$lib/schema';
 
@@ -66,7 +67,7 @@
 			await goto('/dashboard');
 		} catch (err) {
 			console.error('Organization register error:', err);
-			error = err instanceof Error ? err.message : 'Could not create organization account.';
+			error = getFriendlyErrorMessage(err, 'Could not create organization account.');
 		} finally {
 			loading = false;
 		}

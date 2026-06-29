@@ -38,6 +38,7 @@
 	} from '$lib/services/device-accounts.service';
 	import type { RallyPointTransaction } from '$lib/schema';
 	import { createAppUrl } from '$lib/utils/app-url';
+	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 
 	const availableSports: Sport[] = [
 		'football',
@@ -133,7 +134,7 @@
 			deviceAccounts = getDeviceAccounts();
 		} catch (err) {
 			console.error('Profile load error:', err);
-			error = err instanceof Error ? err.message : 'Could not load profile.';
+			error = getFriendlyErrorMessage(err, 'Could not load profile.');
 		} finally {
 			loading = false;
 		}
@@ -189,7 +190,7 @@
 			await loadProfile();
 		} catch (err) {
 			console.error('Save profile error:', err);
-			error = err instanceof Error ? err.message : 'Could not update profile.';
+			error = getFriendlyErrorMessage(err, 'Could not update profile.');
 		} finally {
 			saving = false;
 		}
@@ -226,7 +227,7 @@
 			await loadProfile();
 		} catch (err) {
 			console.error('Profile photo error:', err);
-			error = err instanceof Error ? err.message : 'Could not update profile photo.';
+			error = getFriendlyErrorMessage(err, 'Could not update profile photo.');
 		} finally {
 			photoSaving = false;
 		}
@@ -254,7 +255,7 @@
 			await loadProfile();
 		} catch (err) {
 			console.error('Select avatar error:', err);
-			error = err instanceof Error ? err.message : 'Could not update profile photo.';
+			error = getFriendlyErrorMessage(err, 'Could not update profile photo.');
 		} finally {
 			photoSaving = false;
 		}
@@ -279,7 +280,7 @@
 			friendTag = '';
 		} catch (err) {
 			console.error('Friend request error:', err);
-			error = err instanceof Error ? err.message : 'Could not send friend request.';
+			error = getFriendlyErrorMessage(err, 'Could not send friend request.');
 		} finally {
 			friendLoading = false;
 		}
@@ -308,7 +309,7 @@
 			await loadProfile();
 		} catch (err) {
 			console.error('Remove friend error:', err);
-			error = err instanceof Error ? err.message : 'Could not remove friend.';
+			error = getFriendlyErrorMessage(err, 'Could not remove friend.');
 		}
 	}
 
@@ -328,7 +329,7 @@
 			await goto(`/messages/${conversationId}`);
 		} catch (err) {
 			console.error('Start conversation error:', err);
-			error = err instanceof Error ? err.message : 'Could not start conversation.';
+			error = getFriendlyErrorMessage(err, 'Could not start conversation.');
 		}
 	}
 
@@ -399,7 +400,7 @@
 			await goto(`/login?returnTo=/profile&email=${encodeURIComponent(account.email)}&switchAccount=${encodeURIComponent(account.id)}`);
 		} catch (err) {
 			console.error('Switch account error:', err);
-			error = err instanceof Error ? err.message : 'Could not switch account.';
+			error = getFriendlyErrorMessage(err, 'Could not switch account.');
 		} finally {
 			logoutLoading = false;
 			switchingAccountId = null;
@@ -1234,22 +1235,6 @@
 					{/if}
 				</section>
 
-				<section
-					class="col-span-2 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6 lg:rounded-[2rem]"
-				>
-					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Account</h2>
-					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-						Session and account actions.
-					</p>
-
-					<button
-						onclick={handleLogout}
-						disabled={logoutLoading}
-						class="mt-5 w-full rounded-2xl bg-slate-950 px-5 py-3 font-bold text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-slate-50 dark:text-slate-950 dark:hover:bg-slate-200"
-					>
-						{logoutLoading ? 'Logging out...' : 'Log out'}
-					</button>
-				</section>
 			</aside>
 		</div>
 	{/if}

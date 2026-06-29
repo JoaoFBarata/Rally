@@ -21,6 +21,7 @@
 		subscribeToEventCatalogChanges,
 		subscribeToOrganizationChanges
 	} from '$lib/services/realtime.service';
+	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 
 	let organization = $state<Organization | null>(null);
 	let events = $state<SportEvent[]>([]);
@@ -166,7 +167,7 @@
 			await goto(resolve(`/messages/${conversationId}`));
 		} catch (err) {
 			console.error('Message organization error:', err);
-			error = err instanceof Error ? err.message : 'Could not open organization chat.';
+			error = getFriendlyErrorMessage(err, 'Could not open organization chat.');
 		} finally {
 			messageLoading = false;
 		}
@@ -218,7 +219,7 @@
 			following = loadedFollowing;
 		} catch (err) {
 			console.error('Organization public page error:', err);
-			error = err instanceof Error ? err.message : 'Could not load organization.';
+			error = getFriendlyErrorMessage(err, 'Could not load organization.');
 		} finally {
 			loading = false;
 		}
@@ -244,7 +245,7 @@
 			}
 		} catch (err) {
 			console.error('Follow organization error:', err);
-			error = err instanceof Error ? err.message : 'Could not update follow status.';
+			error = getFriendlyErrorMessage(err, 'Could not update follow status.');
 		} finally {
 			actionLoading = false;
 		}

@@ -5,6 +5,7 @@
 	import type { Sport, SportEvent, SportLevel } from '$lib/schema';
 	import { authState } from '$lib/auth.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
+	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 
 	const sportIcons: Record<Sport, string> = {
 		football: '⚽',
@@ -54,7 +55,7 @@
 			filteredCount = events.length;
 		} catch (err) {
 			console.error('Discover events error:', err);
-			loadError = err instanceof Error ? err.message : 'Could not load events.';
+			loadError = getFriendlyErrorMessage(err, 'Could not load events.');
 		} finally {
 			loading = false;
 		}

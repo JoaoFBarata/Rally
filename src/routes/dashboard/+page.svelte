@@ -23,6 +23,7 @@
 	import UserMiniMap from '$lib/components/maps/UserMiniMap.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import PromotedEventCarousel from '$lib/components/PromotedEventCarousel.svelte';
+	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import {
 		subscribeToEventCatalogChanges,
 		subscribeToUserActivityChanges
@@ -152,13 +153,7 @@
 				});
 			} catch (err) {
 				console.error('Dashboard load error:', err);
-				if (err instanceof Error && err.message.includes('index')) {
-					error = 'Your events are still being prepared. Please try again in a moment.';
-				} else if (err instanceof Error && err.message.includes('permissions')) {
-					error = 'You do not have permission to load these events.';
-				} else {
-					error = 'Could not load your dashboard data.';
-				}
+				error = getFriendlyErrorMessage(err, 'Could not load your dashboard data.');
 			} finally {
 				loading = false;
 			}
@@ -490,14 +485,18 @@
 								class="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900"
 							>
 								<p class="text-sm text-slate-500 dark:text-slate-400">
-									{showPastEvents ? 'No past events found.' : 'No upcoming events created yet.'}
+									{showPastEvents
+										? 'No past events found.'
+										: events.length === 0
+											? 'No events created yet.'
+											: 'No upcoming events right now. Create another one when you are ready.'}
 								</p>
 								{#if !showPastEvents}
 									<a
 										href={resolve('/events/create')}
 										class="mt-3 inline-flex rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700"
 									>
-										Create your first event
+										{events.length === 0 ? 'Create your first event' : 'Create another event'}
 									</a>
 								{/if}
 							</div>

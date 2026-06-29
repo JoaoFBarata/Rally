@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { authService } from '$lib/services/auth.service';
+	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 
 	let loading = $state(false);
 	let error = $state('');
@@ -14,12 +15,7 @@
 			await goto('/dashboard');
 		} catch (err) {
 			console.error('Google sign-in error:', err);
-
-			if (err instanceof Error) {
-				error = err.message;
-			} else {
-				error = 'Could not continue with Google.';
-			}
+			error = getFriendlyErrorMessage(err, 'Could not continue with Google.');
 		} finally {
 			loading = false;
 		}

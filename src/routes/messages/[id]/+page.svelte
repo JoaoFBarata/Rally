@@ -22,6 +22,7 @@
 	import { getTournamentEntries } from '$lib/services/event.service';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import ChatMessageList from '$lib/components/chat/ChatMessageList.svelte';
+	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
 	import type {
 		ChatConversation,
@@ -375,7 +376,7 @@
 				},
 				(listenerError) => {
 					console.error('Conversation realtime error:', listenerError);
-					error = listenerError.message;
+					error = getFriendlyErrorMessage(listenerError, 'Could not load conversation updates.');
 				}
 			);
 
@@ -391,13 +392,13 @@
 				},
 				(listenerError) => {
 					console.error('Messages realtime error:', listenerError);
-					error = listenerError.message;
+					error = getFriendlyErrorMessage(listenerError, 'Could not load messages.');
 				}
 			);
 			await focusMessageInput();
 		} catch (err) {
 			console.error('Conversation load error:', err);
-			error = err instanceof Error ? err.message : 'Could not load conversation.';
+			error = getFriendlyErrorMessage(err, 'Could not load conversation.');
 		} finally {
 			loading = false;
 		}
@@ -475,7 +476,7 @@
 			await scrollToBottom();
 		} catch (err) {
 			console.error('Send message error:', err);
-			error = err instanceof Error ? err.message : 'Could not send message.';
+			error = getFriendlyErrorMessage(err, 'Could not send message.');
 		} finally {
 			sending = false;
 		}
@@ -513,7 +514,7 @@
 			cancelEditMessage();
 		} catch (err) {
 			console.error('Edit message error:', err);
-			error = err instanceof Error ? err.message : 'Could not edit message.';
+			error = getFriendlyErrorMessage(err, 'Could not edit message.');
 		} finally {
 			sending = false;
 		}
@@ -535,7 +536,7 @@
 			});
 		} catch (err) {
 			console.error('Delete message error:', err);
-			error = err instanceof Error ? err.message : 'Could not delete message.';
+			error = getFriendlyErrorMessage(err, 'Could not delete message.');
 		}
 	}
 
@@ -571,7 +572,7 @@
 			await scrollToBottom();
 		} catch (err) {
 			console.error('Send attachment error:', err);
-			error = err instanceof Error ? err.message : 'Could not send attachment.';
+			error = getFriendlyErrorMessage(err, 'Could not send attachment.');
 		} finally {
 			input.value = '';
 			imageSending = false;

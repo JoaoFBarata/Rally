@@ -16,6 +16,7 @@
 	import EventCard from '$lib/components/EventCard.svelte';
 	import { isPromotionActive } from '$lib/services/event.service';
 	import { subscribeToEventCatalogChanges } from '$lib/services/realtime.service';
+	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 
 	let events = $state<SportEvent[]>([]);
 	let promotedCampaignEvents = $state<SportEvent[]>([]);
@@ -83,7 +84,7 @@
 				});
 			} catch (err) {
 				console.error('Explore events error:', err);
-				error = err instanceof Error ? err.message : 'Could not load events.';
+				error = getFriendlyErrorMessage(err, 'Could not load events.');
 			} finally {
 				loading = false;
 			}

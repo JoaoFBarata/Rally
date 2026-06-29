@@ -4,6 +4,7 @@
 	import MapboxWorker from 'mapbox-gl/dist/mapbox-gl-csp-worker?worker';
 	import { PUBLIC_MAPBOX_ACCESS_TOKEN } from '$env/static/public';
 	import { themeState } from '$lib/theme.svelte';
+	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 
 	let {
 		lat = $bindable<number | null>(),
@@ -130,7 +131,7 @@
 			suggestions = data.features ?? [];
 		} catch (err) {
 			console.error('Address search error:', err);
-			searchError = err instanceof Error ? err.message : 'Could not search address.';
+			searchError = getFriendlyErrorMessage(err, 'Could not search address.');
 			suggestions = [];
 		} finally {
 			searchLoading = false;
@@ -282,7 +283,7 @@
 			await setLocation(coords.lng, coords.lat, selectedAddress);
 		} catch (err) {
 			console.error('Manual address geocoding error:', err);
-			searchError = err instanceof Error ? err.message : 'Could not find this address.';
+			searchError = getFriendlyErrorMessage(err, 'Could not find this address.');
 		} finally {
 			searchLoading = false;
 		}

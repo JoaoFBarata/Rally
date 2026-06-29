@@ -36,6 +36,7 @@
 		removeDeviceAccount,
 		type DeviceAccount
 	} from '$lib/services/device-accounts.service';
+	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 
 	let organization = $state<Organization | null>(null);
 	let organizationEvents = $state<SportEvent[]>([]);
@@ -195,7 +196,7 @@
 			resetForm(loadedOrganization);
 		} catch (err) {
 			console.error('Organization manage error:', err);
-			error = err instanceof Error ? err.message : 'Could not load organization.';
+			error = getFriendlyErrorMessage(err, 'Could not load organization.');
 		} finally {
 			loading = false;
 		}
@@ -232,7 +233,7 @@
 			await loadManagePage(user.uid);
 		} catch (err) {
 			console.error('Save organization error:', err);
-			error = err instanceof Error ? err.message : 'Could not save organization.';
+			error = getFriendlyErrorMessage(err, 'Could not save organization.');
 		} finally {
 			saving = false;
 		}
@@ -278,7 +279,7 @@
 			await loadManagePage(user.uid);
 		} catch (err) {
 			console.error('Upload organization logo error:', err);
-			error = err instanceof Error ? err.message : 'Could not upload logo.';
+			error = getFriendlyErrorMessage(err, 'Could not upload logo.');
 		} finally {
 			uploadingLogo = false;
 			input.value = '';
@@ -310,7 +311,7 @@
 			await loadManagePage(user.uid);
 		} catch (err) {
 			console.error('Verification request error:', err);
-			error = err instanceof Error ? err.message : 'Could not request verification.';
+			error = getFriendlyErrorMessage(err, 'Could not request verification.');
 		} finally {
 			requesting = false;
 		}
@@ -416,7 +417,7 @@
 			await loadManagePage(user.uid);
 		} catch (err) {
 			console.error('Stop promotion error:', err);
-			error = err instanceof Error ? err.message : 'Could not stop promotion.';
+			error = getFriendlyErrorMessage(err, 'Could not stop promotion.');
 		} finally {
 			stoppingPromotionId = '';
 		}

@@ -7,6 +7,8 @@
 	import { auth } from '$lib/firebase';
 	import { getEventById, updateSportEvent } from '$lib/services/event.service';
 	import LocationPickerMap from '$lib/components/maps/LocationPickerMap.svelte';
+	import TimeSelect from '$lib/components/TimeSelect.svelte';
+	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
 	import type { Sport, EventVisibility, SportLevel, SportEvent } from '$lib/schema';
 
@@ -22,7 +24,8 @@
 	let lat = $state<number | null>(null);
 	let lng = $state<number | null>(null);
 	let address = $state('');
-	let startAt = $state('');
+	let startDate = $state('');
+	let startTime = $state('');
 	let durationMinutes = $state(90);
 	let maxParticipants = $state(10);
 	let visibility = $state<EventVisibility>('private');
@@ -32,13 +35,32 @@
 	let saving = $state(false);
 	let error = $state('');
 
-	function timestampToDatetimeLocal(ts: unknown): string {
+	function timestampToDateInput(ts: unknown): string {
 		try {
 			const timestamp = ts as { toDate?: () => Date };
 			if (timestamp?.toDate) {
 				const d = timestamp.toDate();
 				const pad = (n: number) => String(n).padStart(2, '0');
-				return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+				return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+			}
+		} catch {
+			// fall through
+		}
+		return '';
+	}
+
+	function timestampToTimeInput(ts: unknown): string {
+		try {
+			const timestamp = ts as { toDate?: () => Date };
+			if (timestamp?.toDate) {
+				const d = timestamp.toDate();
+				const pad = (n: number) => String(n).padStart(2, '0');
+				const minutes = Math.round(d.getMinutes() / 15) * 15;
+				const normalized = new Date(d);
+				normalized.setMinutes(minutes === 60 ? 0 : minutes, 0, 0);
+				if (minutes === 60) normalized.setHours(normalized.getHours() + 1);
+
+				return `${pad(normalized.getHours())}:${pad(normalized.getMinutes())}`;
 			}
 		} catch {
 			// fall through
@@ -65,11 +87,12 @@
 		lat = e.location.lat ?? null;
 		lng = e.location.lng ?? null;
 		address = e.location.address ?? '';
-		startAt = timestampToDatetimeLocal(e.startAt);
-		const startDate = timestampToDate(e.startAt);
+		startDate = timestampToDateInput(e.startAt);
+		startTime = timestampToTimeInput(e.startAt);
+		const parsedStartDate = timestampToDate(e.startAt);
 		const endDate = timestampToDate(e.endAt);
-		if (startDate && endDate && endDate > startDate) {
-			durationMinutes = Math.round((endDate.getTime() - startDate.getTime()) / 60000);
+		if (parsedStartDate && endDate && endDate > parsedStartDate) {
+			durationMinutes = Math.round((endDate.getTime() - parsedStartDate.getTime()) / 60000);
 		}
 		maxParticipants = e.maxParticipants;
 		visibility = e.visibility;
@@ -91,7 +114,7 @@
 			return;
 		}
 
-		if (!title || !locationName || !startAt || maxParticipants < 2) {
+		if (!title || !locationName || !startDate || !startTime || maxParticipants < 2) {
 			error = 'Please fill in all required fields.';
 			return;
 		}
@@ -111,8 +134,13 @@
 			return;
 		}
 
-		const parsedStartAt = new Date(startAt);
+		const parsedStartAt = new Date(`${startDate}T${startTime}`);
 		const duration = Number(durationMinutes);
+
+		if (Number.isNaN(parsedStartAt.getTime())) {
+			error = 'Choose a valid event date and start time.';
+			return;
+		}
 
 		if (!duration || duration < 15) {
 			error = 'Add a valid event duration.';
@@ -146,7 +174,7 @@
 			await goto(resolve(`/events/${eventId}`));
 		} catch (err) {
 			console.error('Update event error:', err);
-			error = err instanceof Error ? err.message : 'Could not update event.';
+			error = getFriendlyErrorMessage(err, 'Could not update event.');
 		} finally {
 			saving = false;
 		}
@@ -184,7 +212,7 @@
 			populateForm(loaded);
 		} catch (err) {
 			console.error('Load event error:', err);
-			loadError = err instanceof Error ? err.message : 'Could not load event.';
+			loadError = getFriendlyErrorMessage(err, 'Could not load event.');
 		} finally {
 			loadingEvent = false;
 		}
@@ -324,22 +352,29 @@
 					/>
 				</div>
 
-				<div class="grid gap-5 md:grid-cols-3">
+				<div class="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-4">
 					<div>
-						<label for="startAt" class="text-sm font-bold text-slate-700 dark:text-slate-300">
-							Date and time
+						<label for="startDate" class="text-sm font-bold text-slate-700 dark:text-slate-300">
+							Event date
 						</label>
 						<input
-							id="startAt"
-							type="datetime-local"
-							bind:value={startAt}
-							class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+							id="startDate"
+							type="date"
+							bind:value={startDate}
+							class="mt-2 w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-slate-950 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:border-slate-500 dark:focus:bg-slate-800 dark:focus:ring-slate-700 sm:px-4"
 						/>
 					</div>
 
 					<div>
+						<label for="startTime" class="text-sm font-bold text-slate-700 dark:text-slate-300">
+							Start time
+						</label>
+						<TimeSelect id="startTime" bind:value={startTime} placeholder="Choose time" />
+					</div>
+
+					<div>
 						<label for="durationMinutes" class="text-sm font-bold text-slate-700 dark:text-slate-300">
-							Duration
+							Duration (minutes)
 						</label>
 						<input
 							id="durationMinutes"
@@ -347,7 +382,7 @@
 							min="15"
 							step="15"
 							bind:value={durationMinutes}
-							class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+							class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:border-slate-500 dark:focus:bg-slate-800 dark:focus:ring-slate-700"
 						/>
 					</div>
 

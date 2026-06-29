@@ -5,6 +5,7 @@
 	import RallyWordmark from '$lib/components/RallyWordmark.svelte';
 	import GoogleSignInButton from '$lib/components/GoogleSignInButton.svelte';
 	import { authService } from '$lib/services/auth.service';
+	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
 
 	let displayName = $state('');
@@ -39,7 +40,7 @@
 			await goto(resolve('/dashboard'));
 		} catch (err) {
 			console.error('Register error:', err);
-			error = err instanceof Error ? err.message : 'Could not create account.';
+			error = getFriendlyErrorMessage(err, 'Could not create account.');
 		} finally {
 			loading = false;
 		}

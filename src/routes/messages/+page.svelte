@@ -30,6 +30,7 @@
 		SportEvent,
 		UserProfile
 	} from '$lib/schema';
+	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import type { Unsubscribe } from 'firebase/firestore';
 
 	type InviteWithEvent = EventInvite & {
@@ -421,7 +422,7 @@
 				},
 				(listenerError) => {
 					console.error('Invites realtime error:', listenerError);
-					error = listenerError.message;
+					error = getFriendlyErrorMessage(listenerError, 'Could not load invites.');
 				}
 			);
 
@@ -434,7 +435,7 @@
 				},
 				(listenerError) => {
 					console.error('Friend requests realtime error:', listenerError);
-					error = listenerError.message;
+					error = getFriendlyErrorMessage(listenerError, 'Could not load friend requests.');
 				}
 			);
 
@@ -450,12 +451,12 @@
 				},
 				(listenerError) => {
 					console.error('Conversations realtime error:', listenerError);
-					error = listenerError.message;
+					error = getFriendlyErrorMessage(listenerError, 'Could not load conversations.');
 				}
 			);
 		} catch (err) {
 			console.error('Messages load error:', err);
-			error = err instanceof Error ? err.message : 'Could not load messages.';
+			error = getFriendlyErrorMessage(err, 'Could not load messages.');
 		} finally {
 			loading = false;
 		}
@@ -481,7 +482,7 @@
 			});
 		} catch (err) {
 			console.error('Invite response error:', err);
-			error = err instanceof Error ? err.message : 'Could not update invitation.';
+			error = getFriendlyErrorMessage(err, 'Could not update invitation.');
 		} finally {
 			actionLoading = '';
 		}
@@ -515,7 +516,7 @@
 			}
 		} catch (err) {
 			console.error('Friend response error:', err);
-			error = err instanceof Error ? err.message : 'Could not update friend request.';
+			error = getFriendlyErrorMessage(err, 'Could not update friend request.');
 		} finally {
 			actionLoading = '';
 		}
@@ -535,7 +536,7 @@
 			await goto(`/messages/${conversationId}`);
 		} catch (err) {
 			console.error('Start conversation error:', err);
-			error = err instanceof Error ? err.message : 'Could not start conversation.';
+			error = getFriendlyErrorMessage(err, 'Could not start conversation.');
 		}
 	}
 
@@ -568,7 +569,7 @@
 			openConversationMenuId = '';
 		} catch (err) {
 			console.error('Delete conversation error:', err);
-			error = err instanceof Error ? err.message : 'Could not remove conversation.';
+			error = getFriendlyErrorMessage(err, 'Could not remove conversation.');
 		} finally {
 			actionLoading = '';
 		}
@@ -588,7 +589,7 @@
 			openConversationMenuId = '';
 		} catch (err) {
 			console.error('Clear conversation error:', err);
-			error = err instanceof Error ? err.message : 'Could not clear conversation.';
+			error = getFriendlyErrorMessage(err, 'Could not clear conversation.');
 		} finally {
 			actionLoading = '';
 		}

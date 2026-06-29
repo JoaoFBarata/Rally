@@ -6,6 +6,7 @@
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import GoogleSignInButton from '$lib/components/GoogleSignInButton.svelte';
 	import { authService } from '$lib/services/auth.service';
+	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
 
 	let email = $state('');
@@ -27,12 +28,7 @@
 			await goto(returnTo?.startsWith('/') ? returnTo : '/dashboard');
 		} catch (err) {
 			console.error('Login error:', err);
-
-			if (err instanceof Error) {
-				error = err.message;
-			} else {
-				error = 'Could not log in.';
-			}
+			error = getFriendlyErrorMessage(err, 'Could not log in.');
 		} finally {
 			loading = false;
 		}
@@ -63,7 +59,7 @@
 			success = 'Password reset email sent. Check your inbox.';
 		} catch (err) {
 			console.error('Password reset error:', err);
-			error = err instanceof Error ? err.message : 'Could not send password reset email.';
+			error = getFriendlyErrorMessage(err, 'Could not send password reset email.');
 		} finally {
 			resetLoading = false;
 		}

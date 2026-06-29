@@ -7,11 +7,13 @@
 	import { onAuthStateChanged } from 'firebase/auth';
 	import { auth } from '$lib/firebase';
 	import LocationPickerMap from '$lib/components/maps/LocationPickerMap.svelte';
+	import TimeSelect from '$lib/components/TimeSelect.svelte';
 	import {
 		assertCanManageOrganization,
 		canCreateOfficialPaidEvents
 	} from '$lib/services/organization.service';
 	import { createTournamentEvent } from '$lib/services/event.service';
+	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
 	import type {
 		EntryFeeType,
@@ -54,7 +56,8 @@
 	let maxTeamSize = $state('8');
 	let allowOpenTeams = $state(true);
 
-	let registrationDeadline = $state('');
+	let registrationDeadlineDate = $state('');
+	let registrationDeadlineTime = $state('');
 
 	let entryFeeType = $state<EntryFeeType>('free');
 	let entryFeeAmount = $state('');
@@ -102,9 +105,12 @@
 	}
 
 	function buildRegistrationDeadline() {
-		if (!registrationDeadline) return null;
+		if (!registrationDeadlineDate && !registrationDeadlineTime) return null;
+		if (!registrationDeadlineDate || !registrationDeadlineTime) {
+			throw new Error('Choose both date and time for the registration deadline.');
+		}
 
-		const parsed = new Date(registrationDeadline);
+		const parsed = new Date(`${registrationDeadlineDate}T${registrationDeadlineTime}`);
 
 		if (Number.isNaN(parsed.getTime())) return null;
 
@@ -196,7 +202,7 @@
 			await goto(resolve(`/events/${createdTournament.id}`));
 		} catch (err) {
 			console.error('Create tournament error:', err);
-			error = err instanceof Error ? err.message : 'Could not create tournament.';
+			error = getFriendlyErrorMessage(err, 'Could not create tournament.');
 		} finally {
 			creating = false;
 		}
@@ -224,7 +230,7 @@
 				});
 			} catch (err) {
 				console.error('Load tournament create page error:', err);
-				error = err instanceof Error ? err.message : 'Could not load organization.';
+				error = getFriendlyErrorMessage(err, 'Could not load organization.');
 			} finally {
 				loading = false;
 			}
@@ -359,17 +365,13 @@
 								<input
 									bind:value={date}
 									type="date"
-									class="mt-2 min-w-0 w-full rounded-2xl border border-slate-200 bg-slate-50 px-2 py-3 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 sm:px-4 sm:text-base"
+									class="mt-2 min-w-0 w-full rounded-2xl border border-slate-200 bg-slate-50 px-2 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:border-slate-500 dark:focus:bg-slate-800 dark:focus:ring-slate-700 sm:px-4 sm:text-base"
 								/>
 							</label>
 
 							<label class="min-w-0">
 								<span class="text-sm font-bold text-slate-500 dark:text-slate-400">Start time</span>
-								<input
-									bind:value={startTime}
-									type="time"
-									class="mt-2 min-w-0 w-full rounded-2xl border border-slate-200 bg-slate-50 px-2 py-3 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 sm:px-4 sm:text-base"
-								/>
+								<TimeSelect bind:value={startTime} placeholder="Choose time" />
 							</label>
 						</div>
 
@@ -377,23 +379,28 @@
 							<span class="text-sm font-bold text-slate-500 dark:text-slate-400"
 								>End time (optional)</span
 							>
-							<input
-								bind:value={endTime}
-								type="time"
-								class="mt-2 min-w-0 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-							/>
+							<TimeSelect bind:value={endTime} placeholder="Optional end time" />
 						</label>
 
-						<label class="block">
-							<span class="text-sm font-bold text-slate-500 dark:text-slate-400"
-								>Registration deadline</span
-							>
-							<input
-								bind:value={registrationDeadline}
-								type="datetime-local"
-								class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-							/>
-						</label>
+						<div class="grid grid-cols-2 gap-3">
+							<label class="min-w-0">
+								<span class="text-sm font-bold text-slate-500 dark:text-slate-400"
+									>Registration deadline date</span
+								>
+								<input
+									bind:value={registrationDeadlineDate}
+									type="date"
+									class="mt-2 min-w-0 w-full rounded-2xl border border-slate-200 bg-slate-50 px-2 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:border-slate-500 dark:focus:bg-slate-800 dark:focus:ring-slate-700 sm:px-4 sm:text-base"
+								/>
+							</label>
+
+							<label class="min-w-0">
+								<span class="text-sm font-bold text-slate-500 dark:text-slate-400"
+									>Registration deadline time</span
+								>
+								<TimeSelect bind:value={registrationDeadlineTime} placeholder="Optional time" />
+							</label>
+						</div>
 
 						<LocationPickerMap bind:lat bind:lng bind:address />
 					</div>

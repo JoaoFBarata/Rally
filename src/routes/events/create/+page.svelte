@@ -7,8 +7,10 @@
 	import { createSportEvent } from '$lib/services/event.service';
 	import { getFriendsForUser } from '$lib/services/social.service';
 	import { inviteUsersToEvent } from '$lib/services/invite.service';
+	import TimeSelect from '$lib/components/TimeSelect.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import { goBack } from '$lib/utils/navigation';
+	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import type { Sport, EventVisibility, SportLevel, UserProfile } from '$lib/schema';
 
 	let title = $state('');
@@ -116,12 +118,7 @@
 			showInviteModal = true;
 		} catch (err) {
 			console.error('Create event error:', err);
-
-			if (err instanceof Error) {
-				error = err.message;
-			} else {
-				error = 'Could not create event.';
-			}
+			error = getFriendlyErrorMessage(err, 'Could not create event.');
 		} finally {
 			loading = false;
 		}
@@ -151,7 +148,7 @@
 
 			await goto(resolve('/dashboard'));
 		} catch (err) {
-			inviteError = err instanceof Error ? err.message : 'Could not send invites.';
+			inviteError = getFriendlyErrorMessage(err, 'Could not send invites.');
 			inviteSending = false;
 		}
 	}
@@ -282,7 +279,7 @@
 				<div class="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5">
 					<div class="min-w-0">
 						<label for="startDate" class="text-sm font-bold text-slate-700 dark:text-slate-300">
-							Date
+							Event date
 						</label>
 
 						<input
@@ -290,26 +287,21 @@
 							type="date"
 							bind:value={startDate}
 							min={todayStr}
-							class="mt-2 w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950 sm:px-4"
+							class="mt-2 w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-slate-950 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:border-slate-500 dark:focus:bg-slate-800 dark:focus:ring-slate-700 sm:px-4"
 						/>
 					</div>
 
 					<div class="min-w-0">
 						<label for="startTime" class="text-sm font-bold text-slate-700 dark:text-slate-300">
-							Time
+							Start time
 						</label>
 
-						<input
-							id="startTime"
-							type="time"
-							bind:value={startTime}
-							class="mt-2 w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950 sm:px-4"
-						/>
+						<TimeSelect id="startTime" bind:value={startTime} placeholder="Choose time" />
 					</div>
 
 					<div class="min-w-0">
 						<label for="durationMinutes" class="text-sm font-bold text-slate-700 dark:text-slate-300">
-							Duration
+							Duration (minutes)
 						</label>
 
 						<input
@@ -318,7 +310,8 @@
 							min="15"
 							step="15"
 							bind:value={durationMinutes}
-							class="mt-2 w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950 sm:px-4"
+							placeholder="90"
+							class="mt-2 w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-slate-950 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:border-slate-500 dark:focus:bg-slate-800 dark:focus:ring-slate-700 sm:px-4"
 						/>
 					</div>
 

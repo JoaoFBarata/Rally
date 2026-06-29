@@ -23,7 +23,9 @@
 	import { getUserProfile, getUserProfilesByIds } from '$lib/services/user.service';
 	import { getFriendsForUser } from '$lib/services/social.service';
 	import { inviteUsersToTournamentTeam } from '$lib/services/invite.service';
+	import TimeSelect from '$lib/components/TimeSelect.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
+	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 
 	let { event, currentUserId, canManage } = $props<{
 		event: SportEvent;
@@ -57,7 +59,8 @@
 			{
 				homeScore: string;
 				awayScore: string;
-				scheduledAt: string;
+				scheduledDate: string;
+				scheduledTime: string;
 			}
 		>
 	>({});
@@ -238,18 +241,21 @@
 	}
 
 
-	function timestampToLocalInput(value: unknown) {
+	function timestampToLocalParts(value: unknown) {
 		try {
 			const timestamp = value as { toDate?: () => Date };
-			if (!timestamp?.toDate) return '';
+			if (!timestamp?.toDate) return { date: '', time: '' };
 
 			const date = timestamp.toDate();
 			const offset = date.getTimezoneOffset();
 			const local = new Date(date.getTime() - offset * 60 * 1000);
 
-			return local.toISOString().slice(0, 16);
+			return {
+				date: local.toISOString().slice(0, 10),
+				time: local.toISOString().slice(11, 16)
+			};
 		} catch {
-			return '';
+			return { date: '', time: '' };
 		}
 	}
 
@@ -289,15 +295,18 @@
 				{
 					homeScore: string;
 					awayScore: string;
-					scheduledAt: string;
+					scheduledDate: string;
+					scheduledTime: string;
 				}
 			> = {};
 
 			for (const match of loadedMatches) {
+				const scheduled = timestampToLocalParts(match.scheduledAt);
 				nextInputs[match.id] = {
 					homeScore: scoreValue(match.homeScore),
 					awayScore: scoreValue(match.awayScore),
-					scheduledAt: timestampToLocalInput(match.scheduledAt)
+					scheduledDate: scheduled.date,
+					scheduledTime: scheduled.time
 				};
 			}
 
@@ -309,7 +318,7 @@
 			matchInputs = nextInputs;
 		} catch (err) {
 			console.error('Load tournament data error:', err);
-			error = err instanceof Error ? err.message : 'Could not load tournament data.';
+			error = getFriendlyErrorMessage(err, 'Could not load tournament data.');
 		} finally {
 			loading = false;
 		}
@@ -392,7 +401,7 @@
 			await loadTournamentData();
 		} catch (err) {
 			console.error('Join tournament error:', err);
-			error = err instanceof Error ? err.message : 'Could not join tournament.';
+			error = getFriendlyErrorMessage(err, 'Could not join tournament.');
 		} finally {
 			actionLoading = '';
 		}
@@ -422,7 +431,7 @@
 			await loadTournamentData();
 		} catch (err) {
 			console.error('Create tournament team error:', err);
-			error = err instanceof Error ? err.message : 'Could not create team.';
+			error = getFriendlyErrorMessage(err, 'Could not create team.');
 		} finally {
 			actionLoading = '';
 		}
@@ -446,7 +455,7 @@
 			await loadTournamentData();
 		} catch (err) {
 			console.error('Join team error:', err);
-			error = err instanceof Error ? err.message : 'Could not join team.';
+			error = getFriendlyErrorMessage(err, 'Could not join team.');
 		} finally {
 			actionLoading = '';
 		}
@@ -468,7 +477,7 @@
 			await goto(resolve(`/messages/${conversationId}`));
 		} catch (err) {
 			console.error('Open team chat error:', err);
-			error = err instanceof Error ? err.message : 'Could not open the team chat.';
+			error = getFriendlyErrorMessage(err, 'Could not open the team chat.');
 		} finally {
 			actionLoading = '';
 		}
@@ -494,7 +503,7 @@
 			await loadTournamentData();
 		} catch (err) {
 			console.error('Remove tournament player error:', err);
-			error = err instanceof Error ? err.message : 'Could not remove the player.';
+			error = getFriendlyErrorMessage(err, 'Could not remove the player.');
 		} finally {
 			actionLoading = '';
 		}
@@ -522,7 +531,7 @@
 			await loadTournamentData();
 		} catch (err) {
 			console.error('Remove tournament entry error:', err);
-			error = err instanceof Error ? err.message : 'Could not remove the entry.';
+			error = getFriendlyErrorMessage(err, 'Could not remove the entry.');
 		} finally {
 			actionLoading = '';
 		}
@@ -545,7 +554,7 @@
 			await loadTournamentData();
 		} catch (err) {
 			console.error('Close registration error:', err);
-			error = err instanceof Error ? err.message : 'Could not close registration.';
+			error = getFriendlyErrorMessage(err, 'Could not close registration.');
 		} finally {
 			actionLoading = '';
 		}
@@ -569,7 +578,7 @@
 			await loadTournamentData();
 		} catch (err) {
 			console.error('Generate matches error:', err);
-			error = err instanceof Error ? err.message : 'Could not generate matches.';
+			error = getFriendlyErrorMessage(err, 'Could not generate matches.');
 		} finally {
 			actionLoading = '';
 		}
@@ -599,14 +608,17 @@
 				userId: currentUserId,
 				homeScore,
 				awayScore,
-				scheduledAt: input.scheduledAt ? new Date(input.scheduledAt) : null
+				scheduledAt:
+					input.scheduledDate && input.scheduledTime
+						? new Date(`${input.scheduledDate}T${input.scheduledTime}`)
+						: null
 			});
 
 			success = 'Match updated.';
 			await loadTournamentData();
 		} catch (err) {
 			console.error('Update match result error:', err);
-			error = err instanceof Error ? err.message : 'Could not update match.';
+			error = getFriendlyErrorMessage(err, 'Could not update match.');
 		} finally {
 			actionLoading = '';
 		}
@@ -650,7 +662,7 @@
 			selectedFriendIds = [];
 		} catch (err) {
 			console.error('Invite team friends error:', err);
-			error = err instanceof Error ? err.message : 'Could not send team invites.';
+			error = getFriendlyErrorMessage(err, 'Could not send team invites.');
 		} finally {
 			actionLoading = '';
 		}
@@ -673,7 +685,7 @@
 			await loadTournamentData();
 		} catch (err) {
 			console.error('Leave tournament error:', err);
-			error = err instanceof Error ? err.message : 'Could not leave tournament.';
+			error = getFriendlyErrorMessage(err, 'Could not leave tournament.');
 		} finally {
 			actionLoading = '';
 		}
@@ -692,7 +704,7 @@
 			success = 'Tournament cancelled.';
 		} catch (err) {
 			console.error('Cancel tournament error:', err);
-			error = err instanceof Error ? err.message : 'Could not cancel tournament.';
+			error = getFriendlyErrorMessage(err, 'Could not cancel tournament.');
 		} finally {
 			actionLoading = '';
 		}
@@ -820,12 +832,19 @@
 					<span class="hidden group-open:inline">Close editor</span>
 				</summary>
 				<div class="mt-2 grid gap-2">
-					<input
-						bind:value={matchInputs[match.id].scheduledAt}
-						type="datetime-local"
-						aria-label={`Schedule ${match.homeName} versus ${match.awayName}`}
-						class="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
-					/>
+					<div class="grid grid-cols-2 gap-2">
+						<input
+							bind:value={matchInputs[match.id].scheduledDate}
+							type="date"
+							aria-label={`Schedule date for ${match.homeName} versus ${match.awayName}`}
+							class="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:border-slate-500 dark:focus:ring-slate-700"
+						/>
+						<TimeSelect
+							bind:value={matchInputs[match.id].scheduledTime}
+							placeholder="Time"
+							flush
+						/>
+					</div>
 					<div class="grid grid-cols-2 gap-2">
 						<input
 							bind:value={matchInputs[match.id].homeScore}
