@@ -85,14 +85,14 @@
 					primary: true
 				},
 				{
-					label: 'Home',
-					href: '/dashboard',
-					icon: 'dashboard'
-				},
-				{
 					label: 'Explore',
 					href: '/explore',
 					icon: 'explore'
+				},
+				{
+					label: 'Home',
+					href: '/dashboard',
+					icon: 'dashboard'
 				},
 				{
 					label: 'Messages',

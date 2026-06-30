@@ -10,9 +10,11 @@
 		trackEventPromotionView
 	} from '$lib/services/event.service';
 
-	let { event, showImage = true } = $props<{
+	let { event, showImage = true, variant = 'default', compactHero = false } = $props<{
 		event: SportEvent;
 		showImage?: boolean;
+		variant?: 'default' | 'profile' | 'hero';
+		compactHero?: boolean;
 	}>();
 
 	let showPromotion = $derived(isPromotionActive(event) && event.promotionAudienceMatch !== false);
@@ -34,6 +36,23 @@
 		} catch {
 			return 'Date not set';
 		}
+	}
+
+	function formatShortDate(dateValue: unknown) {
+		try {
+			const timestamp = dateValue as { toDate?: () => Date };
+
+			if (timestamp?.toDate) {
+				return timestamp.toDate().toLocaleDateString('en-GB', {
+					day: '2-digit',
+					month: 'short'
+				});
+			}
+		} catch {
+			// fall through
+		}
+
+		return 'Soon';
 	}
 
 	function getTimestampMillis(value: unknown) {
@@ -72,6 +91,60 @@
 		if (status === 'open') return 'Open';
 
 		return status;
+	}
+
+	function getProfileStatusLabel() {
+		const status = getEffectiveStatus();
+		if (status === 'cancelled') return 'Cancelled';
+		if (status === 'finished') return 'Finished';
+		if (event.eventKind === 'tournament') return 'Tournament';
+		return status === 'open' || status === 'full' ? 'Upcoming' : 'Past';
+	}
+
+	function formatCapacity() {
+		if (event.eventKind === 'tournament') {
+			return `${event.participantIds?.length ?? 0}/${event.maxTournamentEntries ?? event.maxParticipants} entries`;
+		}
+
+		return `${event.participantIds?.length ?? 0}/${event.maxParticipants} joined`;
+	}
+
+	function formatPrice() {
+		if (event.pricePerPerson) return `€${event.pricePerPerson.toFixed(2)} / person`;
+		if (event.priceTotal) return `€${event.priceTotal.toFixed(2)} total`;
+		return 'Free';
+	}
+
+	function formatSportLabel() {
+		return event.sport.charAt(0).toUpperCase() + event.sport.slice(1);
+	}
+
+	function getHeroBackgroundClasses() {
+		const backgrounds: Record<string, string> = {
+			football: 'from-emerald-700 via-blue-700 to-slate-950',
+			basketball: 'from-orange-600 via-rose-800 to-slate-950',
+			tennis: 'from-lime-600 via-emerald-800 to-slate-950',
+			padel: 'from-cyan-600 via-blue-800 to-slate-950',
+			running: 'from-purple-600 via-blue-800 to-slate-950',
+			cycling: 'from-sky-600 via-blue-800 to-slate-950',
+			volleyball: 'from-amber-500 via-orange-800 to-slate-950',
+			gym: 'from-zinc-600 via-slate-800 to-blue-950',
+			other: 'from-blue-600 via-indigo-800 to-slate-950'
+		};
+
+		return backgrounds[event.sport] ?? backgrounds.other;
+	}
+
+	function getDefaultSportImage() {
+		return `/event-backgrounds/${event.sport || 'other'}.png`;
+	}
+
+	function formatHeroCapacity() {
+		const max = event.eventKind === 'tournament'
+			? (event.maxTournamentEntries ?? event.maxParticipants)
+			: event.maxParticipants;
+
+		return `${event.participantIds.length}/${max}`;
 	}
 
 	function getStatusClasses() {
@@ -133,6 +206,122 @@
 	});
 </script>
 
+{#if variant === 'hero'}
+	<a
+		href={`/events/${event.id}`}
+		onclick={handleClick}
+		class={`group relative block overflow-hidden rounded-[1.75rem] border border-white/10 bg-gradient-to-br ${getHeroBackgroundClasses()} text-white shadow-xl shadow-slate-300/40 transition hover:-translate-y-0.5 hover:shadow-2xl dark:shadow-none ${
+			compactHero ? 'min-h-[13rem]' : 'min-h-[15.5rem] sm:min-h-[18rem]'
+		}`}
+	>
+		<div class="absolute inset-0 opacity-70">
+			{#if event.groupPhotoURL}
+				<img src={event.groupPhotoURL} alt={event.title} class="h-full w-full object-cover" />
+			{:else}
+				<img src={getDefaultSportImage()} alt="" class="h-full w-full object-cover" />
+			{/if}
+		</div>
+		{#if !event.groupPhotoURL}
+			<div class="absolute inset-0 opacity-25">
+				<div class="absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/35"></div>
+				<div class="absolute bottom-0 left-0 right-0 h-1/2 border-t border-white/25"></div>
+				<div class="absolute left-8 top-0 h-full border-l border-white/15"></div>
+				<div class="absolute right-8 top-0 h-full border-l border-white/15"></div>
+			</div>
+		{/if}
+		<div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/50 to-slate-950/10"></div>
+		<div class="pointer-events-none absolute inset-0 opacity-35">
+			<div class="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/20 blur-2xl"></div>
+			<div class="absolute bottom-8 left-8 h-28 w-28 rounded-full bg-blue-400/30 blur-3xl"></div>
+		</div>
+
+		<div class={`relative flex h-full min-h-[inherit] flex-col justify-between p-4 ${compactHero ? 'sm:p-4' : 'sm:p-5'}`}>
+			<div class="flex items-start justify-between gap-3">
+				<span class="rounded-full bg-emerald-500/90 px-3 py-1 text-xs font-black text-white shadow-lg shadow-emerald-950/20">
+					{formatDate(event.startAt)}
+				</span>
+				<span class="rounded-full bg-white/90 px-3 py-1 text-xs font-black text-slate-950">
+					{formatHeroCapacity()}
+				</span>
+			</div>
+
+			<div>
+				<div class="mb-3 flex flex-wrap gap-2">
+					<span class="rounded-full bg-white/15 px-3 py-1 text-xs font-black backdrop-blur">
+						{formatSportLabel()}
+					</span>
+					<span class="rounded-full bg-white/15 px-3 py-1 text-xs font-black capitalize backdrop-blur">
+						{event.level ?? 'casual'}
+					</span>
+				</div>
+
+				<h3 class={`${compactHero ? 'text-xl' : 'text-2xl sm:text-3xl'} max-w-[18rem] font-black leading-tight text-white`}>
+					{event.title}
+				</h3>
+				<p class="mt-2 truncate text-sm font-bold text-white/80">
+					{event.location.name}
+				</p>
+
+				<div class="mt-4 flex items-center justify-between gap-3">
+					<span class="truncate text-sm font-bold text-white/75">
+						{formatPrice()}
+					</span>
+					<span class="shrink-0 rounded-2xl bg-blue-600 px-4 py-2 text-sm font-black text-white shadow-lg shadow-blue-950/25 transition group-hover:bg-blue-500">
+						Join game
+					</span>
+				</div>
+			</div>
+		</div>
+	</a>
+{:else if variant === 'profile'}
+	<a
+		href={`/events/${event.id}`}
+		onclick={handleClick}
+		class={`group flex max-w-full gap-3 overflow-hidden rounded-[1.45rem] p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg sm:p-4 ${getCardClasses()}`}
+	>
+		{#if showImage}
+			<div
+				class="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800 sm:h-24 sm:w-32"
+			>
+				{#if getMiniMapUrl()}
+					<img src={getMiniMapUrl()} alt={event.location.name} class="h-full w-full object-cover" />
+				{:else if event.groupPhotoURL}
+					<img src={event.groupPhotoURL} alt={event.title} class="h-full w-full object-cover" />
+				{:else}
+					<div class="grid h-full w-full place-items-center text-2xl font-black text-blue-600 dark:text-blue-300">
+						{event.title.charAt(0).toUpperCase()}
+					</div>
+				{/if}
+
+				<span
+					class="absolute bottom-2 left-2 rounded-full bg-white/90 px-2 py-1 text-[10px] font-black text-slate-700 shadow-sm dark:bg-slate-950/90 dark:text-slate-200"
+				>
+					{formatShortDate(event.startAt)}
+				</span>
+			</div>
+		{/if}
+
+		<div class="min-w-0 flex-1 py-1">
+			<div class="flex min-w-0 items-center gap-2">
+				<p class="min-w-0 flex-1 truncate text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base">
+					{event.title}
+				</p>
+				<span
+					class={`shrink-0 rounded-full px-2 py-1 text-[10px] font-black ${getStatusClasses()}`}
+				>
+					{getProfileStatusLabel()}
+				</span>
+			</div>
+
+			<p class="mt-1 truncate text-xs font-bold text-slate-500 dark:text-slate-400">
+				{formatSportLabel()} - {event.location.name}
+			</p>
+			<p class="mt-2 truncate text-xs font-black text-slate-400 dark:text-slate-500">
+				{formatDate(event.startAt)} - {formatCapacity()} - {formatPrice()}
+			</p>
+		</div>
+	</a>
+{:else}
 <a
 	href={`/events/${event.id}`}
 	onclick={handleClick}
@@ -280,3 +469,4 @@
 		</div>
 	</div>
 </a>
+{/if}

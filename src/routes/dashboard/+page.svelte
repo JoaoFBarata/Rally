@@ -13,14 +13,18 @@
 		sortEventsByStartDate,
 		isEventFinished,
 		isPromotionActive,
+		getEventById,
 		notifyEventFinished
 	} from '$lib/services/event.service';
-	import { getInvitesForUser } from '$lib/services/invite.service';
-	import { ensureUserProfile } from '$lib/services/user.service';
-	import { subscribeToPromotedEventsForUser } from '$lib/services/explore.service';
+	import { getInvitesForUser, respondToInvite } from '$lib/services/invite.service';
+	import { ensureUserProfile, getUserProfile } from '$lib/services/user.service';
+	import { getFriendsForUser } from '$lib/services/social.service';
+	import {
+		getVisibleEventsForUser,
+		subscribeToPromotedEventsForUser
+	} from '$lib/services/explore.service';
 	import type { EventInvite, SportEvent, UserProfile } from '$lib/schema';
 	import EventCard from '$lib/components/EventCard.svelte';
-	import UserMiniMap from '$lib/components/maps/UserMiniMap.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import PromotedEventCarousel from '$lib/components/PromotedEventCarousel.svelte';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
@@ -37,9 +41,18 @@
 	let allUserEvents = $state<SportEvent[]>([]);
 	let invites = $state<EventInvite[]>([]);
 	let promotedEvents = $state<SportEvent[]>([]);
+	let publicEvents = $state<SportEvent[]>([]);
+	let friends = $state<UserProfile[]>([]);
+	let invitePreviewEvent = $state<SportEvent | null>(null);
+	let invitePreviewUser = $state<UserProfile | null>(null);
 	let error = $state('');
+	let inviteActionLoading = $state('');
 	let activeTab = $state<'hosting' | 'joined'>('hosting');
 	let showPastEvents = $state(false);
+	let nearbyIndex = $state(0);
+	let radiusKm = $state(20);
+	let userDeviceLocation = $state<{ lat: number; lng: number } | null>(null);
+	let locationStatus = $state<'idle' | 'loading' | 'ready' | 'blocked' | 'unsupported'>('idle');
 
 	let hostingEvents = $derived(events.filter((event) => !isEventFinished(event)));
 	let pastHostingEvents = $derived(events.filter((event) => isEventFinished(event)));
@@ -67,7 +80,43 @@
 
 	let pendingInvites = $derived(invites.filter((i) => i.status === 'pending'));
 	let nextEvent = $derived(getUpcomingEvents(allUserEvents)[0] ?? null);
-	let activeEventsCount = $derived(getUpcomingEvents(allUserEvents).length);
+	let userEventIds = $derived(new Set(allUserEvents.map((event) => event.id)));
+	let userLocationAnchor = $derived(userDeviceLocation);
+	let nearbyEvents = $derived.by(() => {
+		return publicEvents
+			.filter((event) => event.visibility === 'public')
+			.filter((event) => !isEventFinished(event))
+			.filter((event) => !userEventIds.has(event.id))
+			.filter((event) => !event.participantIds.includes(user?.uid ?? ''))
+			.filter((event) => event.creatorId !== user?.uid)
+			.filter((event) => event.id !== nextEvent?.id)
+			.map((event) => ({ event, distance: getDistanceKm(userLocationAnchor, event) }))
+			.filter(({ distance }) => distance !== null && distance <= radiusKm)
+			.sort((a, b) => (a.distance ?? Number.POSITIVE_INFINITY) - (b.distance ?? Number.POSITIVE_INFINITY))
+			.map(({ event }) => event)
+			.slice(0, 8);
+	});
+	let currentNearbyEvent = $derived(
+		nearbyEvents.length ? nearbyEvents[nearbyIndex % nearbyEvents.length] : null
+	);
+	let recommendedEvents = $derived.by(() => {
+		const excluded = (event: SportEvent) =>
+			userEventIds.has(event.id) ||
+			event.participantIds.includes(user?.uid ?? '') ||
+			event.creatorId === user?.uid ||
+			isEventFinished(event);
+
+		const sports = profile?.sports ?? [];
+		const promoted = visiblePromotedEvents.filter((event) => !excluded(event));
+		const preferredEvents = publicEvents
+			.filter((event) => event.visibility === 'public')
+			.filter((event) => !excluded(event))
+			.filter((event) => sports.includes(event.sport))
+			.filter((event) => !promoted.some((promotedEvent) => promotedEvent.id === event.id));
+
+		return [...promoted, ...preferredEvents].slice(0, 8);
+	});
+	let hasFavoriteSports = $derived((profile?.sports?.length ?? 0) > 0);
 
 	function greeting() {
 		const h = new Date().getHours();
@@ -76,7 +125,7 @@
 		return 'Good evening';
 	}
 
-	function formatDate(dateValue: unknown) {
+	function formatCompactDate(dateValue: unknown) {
 		try {
 			const ts = dateValue as { toDate?: () => Date };
 			if (ts?.toDate) {
@@ -88,17 +137,123 @@
 					minute: '2-digit'
 				});
 			}
-			return 'Date not set';
 		} catch {
-			return 'Date not set';
+			// fall through
+		}
+
+		return 'Date not set';
+	}
+
+	function getDistanceKm(anchor: { lat: number; lng: number } | null, event: SportEvent) {
+		const lat = event.location?.lat;
+		const lng = event.location?.lng;
+
+		if (!anchor || typeof lat !== 'number' || typeof lng !== 'number') return null;
+
+		const toRad = (value: number) => (value * Math.PI) / 180;
+		const earthRadiusKm = 6371;
+		const dLat = toRad(lat - anchor.lat);
+		const dLng = toRad(lng - anchor.lng);
+		const a =
+			Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+			Math.cos(toRad(anchor.lat)) *
+				Math.cos(toRad(lat)) *
+				Math.sin(dLng / 2) *
+				Math.sin(dLng / 2);
+		const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+		return earthRadiusKm * c;
+	}
+
+	function requestDeviceLocation() {
+		if (typeof navigator === 'undefined' || !navigator.geolocation) {
+			locationStatus = 'unsupported';
+			return;
+		}
+
+		locationStatus = 'loading';
+		navigator.geolocation.getCurrentPosition(
+			(position) => {
+				userDeviceLocation = {
+					lat: position.coords.latitude,
+					lng: position.coords.longitude
+				};
+				locationStatus = 'ready';
+				nearbyIndex = 0;
+			},
+			() => {
+				locationStatus = 'blocked';
+			},
+			{
+				enableHighAccuracy: true,
+				timeout: 10000,
+				maximumAge: 5 * 60 * 1000
+			}
+		);
+	}
+
+	async function loadInvitePreview(pending: EventInvite[]) {
+		const invite = pending[0];
+
+		if (!invite) {
+			invitePreviewEvent = null;
+			invitePreviewUser = null;
+			return;
+		}
+
+		try {
+			const [eventPreview, userPreview] = await Promise.all([
+				getEventById(invite.eventId),
+				getUserProfile(invite.fromUserId)
+			]);
+
+			invitePreviewEvent = eventPreview;
+			invitePreviewUser = userPreview;
+		} catch (err) {
+			console.error('Invite preview load error:', err);
+			invitePreviewEvent = null;
+			invitePreviewUser = null;
 		}
 	}
 
+	async function handleInviteResponse(status: 'accepted' | 'declined') {
+		const currentUser = auth.currentUser;
+		const invite = pendingInvites[0];
+
+		if (!currentUser || !invite) return;
+
+		inviteActionLoading = status;
+		error = '';
+
+		try {
+			await respondToInvite({
+				inviteId: invite.id,
+				eventId: invite.eventId,
+				userId: currentUser.uid,
+				status
+			});
+
+			await refreshDashboardData(currentUser.uid);
+		} catch (err) {
+			console.error('Dashboard invite response error:', err);
+			error = getFriendlyErrorMessage(err, 'Could not update invitation.');
+		} finally {
+			inviteActionLoading = '';
+		}
+	}
+
+	function showNearby(index: number) {
+		if (!nearbyEvents.length) return;
+		nearbyIndex = (index + nearbyEvents.length) % nearbyEvents.length;
+	}
+
 	async function refreshDashboardData(userId: string) {
-		const [createdEvents, participantEvents, loadedInvites] = await Promise.all([
+		const [createdEvents, participantEvents, loadedInvites, loadedPublicEvents, loadedFriends] = await Promise.all([
 			getEventsCreatedByUser(userId),
 			getEventsForUser(userId),
-			getInvitesForUser(userId)
+			getInvitesForUser(userId),
+			getVisibleEventsForUser(userId),
+			getFriendsForUser(userId)
 		]);
 		const eventsById = new SvelteMap<string, SportEvent>();
 		for (const event of createdEvents) eventsById.set(event.id, event);
@@ -117,12 +272,16 @@
 			(event) => event.creatorId !== userId && event.participantIds.includes(userId)
 		);
 		invites = loadedInvites;
+		publicEvents = loadedPublicEvents;
+		friends = loadedFriends;
+		await loadInvitePreview(loadedInvites.filter((invite) => invite.status === 'pending'));
 	}
 
 	onMount(() => {
 		let unsubscribePromotions = () => {};
 		let unsubscribeEvents = () => {};
 		let unsubscribeActivity = () => {};
+		requestDeviceLocation();
 		const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
 			unsubscribePromotions();
 			unsubscribeEvents();
@@ -265,125 +424,332 @@
 		</div>
 	</div>
 {:else}
-	<div class="mx-auto max-w-6xl px-4 py-5 sm:px-5 sm:py-8">
-		<!-- Header -->
-		<header class="mb-6 flex items-start justify-between gap-4 sm:mb-8">
+	<div class="mx-auto max-w-7xl px-4 py-5 sm:px-5 sm:py-8">
+		<header class="mb-5 flex items-center justify-between gap-4 sm:mb-7">
 			<div class="min-w-0">
-				<p class="text-sm font-bold text-slate-400 dark:text-slate-500">{greeting()}</p>
-				<h1 class="mt-1 truncate text-3xl font-black tracking-tight text-slate-950 dark:text-slate-50 sm:text-4xl">
-					{profile?.displayName ?? user?.displayName ?? 'Athlete'}
+				<p class="text-sm font-black text-blue-600 dark:text-blue-400">Rally</p>
+				<h1 class="mt-1 truncate text-2xl font-black tracking-tight text-slate-950 dark:text-slate-50 sm:text-4xl">
+					{greeting()}, {profile?.displayName ?? user?.displayName ?? 'Athlete'}
 				</h1>
+				<p class="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+					What are you playing today?
+				</p>
 			</div>
 
-			<div class="flex shrink-0 items-center gap-3">
+			<div class="flex shrink-0 items-center gap-2 sm:gap-3">
 				<a
-					href={resolve('/events/create')}
-					class="grid h-11 w-11 place-items-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 sm:hidden"
-					aria-label="Create event"
+					href={resolve('/messages')}
+					class="relative grid h-11 w-11 place-items-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-blue-200 hover:text-blue-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+					aria-label="Messages"
 				>
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
-						<path d="M12 5v14" /><path d="M5 12h14" />
-					</svg>
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+							<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+							<path d="M13.73 21a2 2 0 0 1-3.46 0" />
+						</svg>
+					{#if pendingInvites.length > 0}
+						<span class="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">
+							{pendingInvites.length}
+						</span>
+					{/if}
 				</a>
-				<a
-					href={resolve('/events/create')}
-					class="hidden items-center justify-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 sm:inline-flex"
-				>
-					Create event
-				</a>
+
 				<a href={resolve('/profile')} class="rounded-full transition hover:opacity-80" aria-label="Profile">
 					<UserAvatar photoURL={profile?.photoURL ?? user?.photoURL} displayName={profile?.displayName ?? user?.displayName} email={profile?.email ?? user?.email} size="md" />
 				</a>
 			</div>
 		</header>
 
-		<section class="mb-6 grid grid-cols-3 divide-x divide-slate-200 border-y border-slate-200 py-4 text-center dark:divide-slate-800 dark:border-slate-800 sm:max-w-xl">
-			<div>
-				<p class="text-xl font-black text-slate-950 dark:text-slate-50">{events.length}</p>
-				<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Created</p>
-			</div>
-			<div>
-				<p class="text-xl font-black text-slate-950 dark:text-slate-50">{activeEventsCount}</p>
-				<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Active</p>
-			</div>
-			<a href={resolve('/messages')} class="block transition hover:text-blue-600 dark:hover:text-blue-400">
-				<p class="text-xl font-black text-slate-950 dark:text-slate-50">{pendingInvites.length}</p>
-				<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Invites</p>
-			</a>
-		</section>
-
 		{#if error}
 			<div
-				class="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
+				class="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
 			>
 				{error}
 			</div>
 		{/if}
 
-		<div class="grid gap-6 lg:grid-cols-[1fr_300px]">
-			<!-- Left column -->
-			<div class="min-w-0 space-y-5">
-				<!-- Next up -->
-				<section class="space-y-3">
-					<div class="flex items-center justify-between gap-3">
-						<div>
-							<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">Next up</p>
-							<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">Your next rally</h2>
-						</div>
-						<a href={resolve('/explore')} class="text-sm font-black text-blue-600 dark:text-blue-400">Explore</a>
-					</div>
+			<section class="mb-6 grid gap-5 xl:grid-cols-[1fr_360px]">
+				<div class="min-w-0 space-y-6">
+					<nav class="flex gap-2 overflow-x-auto pb-1">
+						<a href={resolve('/explore')} class="inline-flex shrink-0 items-center gap-2 rounded-full bg-blue-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700">
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+									<circle cx="11" cy="11" r="8" />
+									<path d="m21 21-4.35-4.35" />
+								</svg>
+								Find events
+							</a>
+							<a href={resolve('/events/create')} class="inline-flex shrink-0 items-center gap-2 rounded-full bg-slate-950 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-slate-950/15 transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200">
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+									<path d="M12 5v14" />
+									<path d="M5 12h14" />
+								</svg>
+								Create event
+							</a>
+							<a href={resolve('/profile')} class="inline-flex shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:border-blue-200 hover:text-blue-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-800">
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+									<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+									<circle cx="9" cy="7" r="4" />
+									<path d="M19 8v6" />
+									<path d="M22 11h-6" />
+								</svg>
+								Invite friends
+							</a>
+					</nav>
 
-					{#if nextEvent}
-						<EventCard event={nextEvent} />
-					{:else}
-						<div class="rounded-[1.7rem] bg-white p-5 shadow-sm ring-1 ring-slate-100 dark:bg-slate-900 dark:ring-slate-800">
-							<p class="font-black text-slate-950 dark:text-slate-50">No upcoming games</p>
-							<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">Create an event or find one near you.</p>
-							<div class="mt-4 flex gap-2">
-								<a href={resolve('/events/create')} class="rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700">Create</a>
-								<a href={resolve('/explore')} class="rounded-full bg-slate-100 px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200">Explore</a>
+					<section class="space-y-3">
+						<div class="flex items-end justify-between gap-4">
+							<div>
+								<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">Featured event</p>
+								<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">Your next rally</h2>
+							</div>
+							<a href={resolve('/explore')} class="shrink-0 text-sm font-black text-blue-600 dark:text-blue-400">Explore</a>
+						</div>
+
+						{#if nextEvent}
+							<div class="max-w-2xl">
+								<EventCard event={nextEvent} variant="hero" />
+							</div>
+						{:else}
+							<div class="rounded-[1.5rem] border border-dashed border-blue-200 bg-white/80 p-5 dark:border-blue-900/60 dark:bg-slate-900/80">
+								<p class="font-black text-slate-950 dark:text-slate-50">No upcoming games yet</p>
+								<p class="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">Create your next game or find something nearby.</p>
+								<div class="mt-4 flex gap-2">
+									<a href={resolve('/events/create')} class="rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700">Create</a>
+									<a href={resolve('/explore')} class="rounded-full bg-slate-100 px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200">Explore</a>
+								</div>
+							</div>
+						{/if}
+					</section>
+
+					<section class="space-y-3">
+						<div class="flex items-center justify-between gap-4">
+							<div>
+								<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Friends up for something</h2>
+								<p class="text-sm font-semibold text-slate-500 dark:text-slate-400">Invite someone to your next game.</p>
+							</div>
+							<a href={resolve('/profile')} class="shrink-0 text-sm font-black text-blue-600 dark:text-blue-400">See all</a>
+						</div>
+
+						<div class="flex gap-4 overflow-x-auto pb-2">
+							{#each friends.slice(0, 8) as friend (friend.id)}
+								<a href={resolve(`/users/${friend.id}`)} class="w-16 shrink-0 text-center">
+									<UserAvatar photoURL={friend.photoURL} displayName={friend.displayName} email={friend.email} size="lg" />
+									<p class="mt-2 truncate text-xs font-black text-slate-800 dark:text-slate-200">{friend.displayName}</p>
+									<p class="truncate text-[11px] font-semibold text-slate-500 dark:text-slate-400">Friend</p>
+								</a>
+							{/each}
+
+							<a href={resolve('/friends/add')} class="w-16 shrink-0 text-center">
+								<span class="mx-auto grid h-14 w-14 place-items-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+										<path d="M12 5v14" />
+										<path d="M5 12h14" />
+									</svg>
+								</span>
+								<p class="mt-2 text-xs font-black text-slate-800 dark:text-slate-200">Invite</p>
+								<p class="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Friends</p>
+							</a>
+						</div>
+					</section>
+
+					<section class="space-y-3">
+						<div class="flex flex-wrap items-end justify-between gap-3">
+							<div>
+								<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Nearby events</h2>
+								<p class="text-sm font-semibold text-slate-500 dark:text-slate-400">
+									{#if locationStatus === 'ready'}
+										Within {radiusKm} km of your current location.
+									{:else if locationStatus === 'loading'}
+										Checking your location...
+									{:else if locationStatus === 'blocked'}
+										Location is blocked. Enable it in your browser to use the radius.
+									{:else if locationStatus === 'unsupported'}
+										Your browser does not support location for nearby events.
+									{:else}
+										Allow location to find events around you.
+									{/if}
+								</p>
+							</div>
+							<div class="flex flex-wrap items-center gap-2">
+								{#if locationStatus === 'blocked' || locationStatus === 'idle' || locationStatus === 'unsupported'}
+									<button
+										type="button"
+										onclick={requestDeviceLocation}
+										class="rounded-full bg-white px-3 py-2 text-xs font-black text-blue-600 shadow-sm ring-1 ring-slate-200 transition hover:bg-blue-50 dark:bg-slate-900 dark:text-blue-400 dark:ring-slate-800 dark:hover:bg-slate-800"
+									>
+										Use my location
+									</button>
+								{/if}
+								<div class="flex items-center gap-1 rounded-full bg-white p-1 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+									{#each [10, 20, 50] as radius}
+										<button
+											type="button"
+											onclick={() => {
+												radiusKm = radius;
+												nearbyIndex = 0;
+											}}
+											class={`h-8 rounded-full px-3 text-xs font-black transition ${
+												radiusKm === radius
+													? 'bg-blue-600 text-white'
+													: 'text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+											}`}
+										>
+											{radius} km
+										</button>
+									{/each}
+								</div>
 							</div>
 						</div>
-					{/if}
-				</section>
 
-				<nav class="grid grid-cols-3 gap-2 text-center sm:hidden">
-					<a href={resolve('/explore')} class="rounded-2xl bg-white px-3 py-3 text-xs font-black text-slate-600 shadow-sm ring-1 ring-slate-100 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-800">Explore</a>
-					<a href={resolve('/events/create')} class="rounded-2xl bg-blue-600 px-3 py-3 text-xs font-black text-white shadow-sm shadow-blue-600/20">Create</a>
-					<a href={resolve('/messages')} class="rounded-2xl bg-white px-3 py-3 text-xs font-black text-slate-600 shadow-sm ring-1 ring-slate-100 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-800">Messages</a>
-				</nav>
+						{#if currentNearbyEvent}
+							<div class="space-y-3">
+								<div class="max-w-2xl">
+									<EventCard event={currentNearbyEvent} variant="hero" compactHero />
+								</div>
 
+								{#if nearbyEvents.length > 1}
+									<div class="flex items-center justify-center gap-1.5">
+										{#each nearbyEvents as event, index (event.id)}
+											<button
+												type="button"
+												onclick={() => showNearby(index)}
+												class={`h-2 rounded-full transition-all ${index === nearbyIndex ? 'w-6 bg-blue-600' : 'w-2 bg-blue-200 dark:bg-blue-900'}`}
+												aria-label={`Show nearby event ${index + 1}`}
+											></button>
+										{/each}
+									</div>
+								{/if}
+							</div>
+						{:else}
+							<div class="rounded-[1.5rem] border border-dashed border-slate-200 bg-white/70 p-5 text-sm dark:border-slate-800 dark:bg-slate-900/70">
+								<p class="font-black text-slate-800 dark:text-slate-100">
+									{locationStatus === 'ready' ? 'No nearby events in this radius' : 'Location needed'}
+								</p>
+								<p class="mt-1 text-slate-500 dark:text-slate-400">
+									{locationStatus === 'ready'
+										? 'Try a bigger radius or explore all public events.'
+										: 'Use your location so Rally can filter events by the selected radius.'}
+								</p>
+							</div>
+						{/if}
+					</section>
+				</div>
+
+			<aside class="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
+				{#if pendingInvites.length > 0}
+					<div class="rounded-[1.5rem] border border-emerald-100 bg-white p-3 shadow-sm dark:border-emerald-950/60 dark:bg-slate-900">
+						<a
+							href={resolve(invitePreviewEvent ? `/events/${invitePreviewEvent.id}` : '/messages')}
+							class="flex items-center gap-3 rounded-2xl transition hover:opacity-80"
+						>
+							<UserAvatar
+								photoURL={invitePreviewUser?.photoURL}
+								displayName={invitePreviewUser?.displayName ?? 'Rally user'}
+								email={invitePreviewUser?.email}
+								size="sm"
+							/>
+							<div class="min-w-0 flex-1">
+								<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">
+									{invitePreviewUser?.displayName ?? 'Someone'} invited you
+								</p>
+								<p class="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
+									{invitePreviewEvent?.title ?? 'Event invite'}
+									{#if invitePreviewEvent}
+										- {formatCompactDate(invitePreviewEvent.startAt)}
+									{/if}
+								</p>
+							</div>
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true">
+								<path d="m9 18 6-6-6-6" />
+							</svg>
+						</a>
+
+						<div class="mt-3 flex gap-2">
+							<button
+								type="button"
+								onclick={() => handleInviteResponse('declined')}
+								disabled={Boolean(inviteActionLoading)}
+								class="grid h-9 flex-1 place-items-center rounded-xl bg-slate-100 text-slate-500 transition hover:bg-slate-200 disabled:opacity-60 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+								aria-label="Decline invite"
+							>
+								{#if inviteActionLoading === 'declined'}
+									...
+								{:else}
+									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+										<path d="M18 6 6 18" />
+										<path d="m6 6 12 12" />
+									</svg>
+								{/if}
+							</button>
+							<button
+								type="button"
+								onclick={() => handleInviteResponse('accepted')}
+								disabled={Boolean(inviteActionLoading)}
+								class="grid h-9 flex-1 place-items-center rounded-xl bg-emerald-500 font-black text-white shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-600 disabled:opacity-60"
+								aria-label="Accept invite"
+							>
+								{#if inviteActionLoading === 'accepted'}
+									...
+								{:else}
+									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+										<path d="m20 6-11 11-5-5" />
+									</svg>
+								{/if}
+							</button>
+						</div>
+
+						{#if pendingInvites.length > 1}
+							<a href={resolve('/messages')} class="mt-3 block text-center text-xs font-black text-blue-600 dark:text-blue-400">
+								View {pendingInvites.length - 1} more
+							</a>
+						{/if}
+					</div>
+				{/if}
+			</aside>
+		</section>
+
+		<div class="grid gap-6 xl:grid-cols-[1fr_360px]">
+			<div class="min-w-0 space-y-6">
 				<section class="space-y-3">
 					<div class="flex items-end justify-between gap-4">
 						<div>
-							<p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">For you</p>
-							<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">Promoted nearby</h2>
+							<p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Recommended</p>
+							<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">
+								{visiblePromotedEvents.length > 0 ? 'Promoted for you' : 'Recommended for you'}
+							</h2>
 						</div>
-						<a href={resolve('/explore')} class="shrink-0 text-sm font-black text-blue-600 hover:text-blue-700 dark:text-blue-400">See all</a>
+						<a href={resolve('/explore')} class="shrink-0 text-sm font-black text-blue-600 hover:text-blue-700 dark:text-blue-400">View all</a>
 					</div>
 
-					{#if visiblePromotedEvents.length > 0}
-						<PromotedEventCarousel events={visiblePromotedEvents} />
+					{#if recommendedEvents.length > 0}
+						<PromotedEventCarousel events={recommendedEvents} cardVariant="profile" />
 					{:else}
 						<div class="rounded-[1.5rem] border border-dashed border-slate-200 bg-white/70 p-5 text-sm dark:border-slate-800 dark:bg-slate-900/70">
-							<p class="font-black text-slate-800 dark:text-slate-100">No promoted events right now</p>
-							<p class="mt-1 text-slate-500 dark:text-slate-400">When clubs promote public events near you, they will appear here.</p>
+							<p class="font-black text-slate-800 dark:text-slate-100">
+								{hasFavoriteSports ? 'No recommendations right now' : 'Choose your favourite sports'}
+							</p>
+							<p class="mt-1 text-slate-500 dark:text-slate-400">
+								{hasFavoriteSports
+									? 'Promoted events and events matching your sports will appear here.'
+									: 'Go to your profile and select sports so Rally can recommend better events.'}
+							</p>
+							{#if !hasFavoriteSports}
+								<a href={resolve('/profile')} class="mt-3 inline-flex rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700">
+									Update profile
+								</a>
+							{/if}
 						</div>
 					{/if}
 				</section>
 
-				<!-- Your activity -->
-				<section class="space-y-4">
+					<section class="space-y-4">
 					<div class="flex items-end justify-between gap-4">
 						<div>
-							<p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Activity</p>
-							<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">My events</h2>
+							<p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Upcoming events</p>
+							<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">Your activity</h2>
 						</div>
 					</div>
 
-					<div
-						class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800"
-					>
+					<div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800">
 						<div class="flex items-center gap-1">
 							<button
 								type="button"
@@ -395,17 +761,11 @@
 								}`}
 							>
 								Hosting
-								{#if currentHostingEvents.length > 0}
-									<span
-										class="ml-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-									>
-										{currentHostingEvents.length}
-									</span>
-								{/if}
+								<span class="ml-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+									{currentHostingEvents.length}
+								</span>
 								{#if activeTab === 'hosting'}
-									<span
-										class="absolute bottom-0 left-0 right-5 h-0.5 rounded-full bg-slate-950 dark:bg-white"
-									></span>
+									<span class="absolute bottom-0 left-0 right-5 h-0.5 rounded-full bg-slate-950 dark:bg-white"></span>
 								{/if}
 							</button>
 
@@ -419,17 +779,11 @@
 								}`}
 							>
 								Joined
-								{#if currentJoinedEvents.length > 0}
-									<span
-										class="ml-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-									>
-										{currentJoinedEvents.length}
-									</span>
-								{/if}
+								<span class="ml-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+									{currentJoinedEvents.length}
+								</span>
 								{#if activeTab === 'joined'}
-									<span
-										class="absolute bottom-0 left-0 right-5 h-0.5 rounded-full bg-slate-950 dark:bg-white"
-									></span>
+									<span class="absolute bottom-0 left-0 right-5 h-0.5 rounded-full bg-slate-950 dark:bg-white"></span>
 								{/if}
 							</button>
 						</div>
@@ -437,53 +791,19 @@
 						<button
 							type="button"
 							onclick={() => (showPastEvents = !showPastEvents)}
-							class={`mb-3 rounded-full border px-4 py-1.5 text-xs font-bold transition-all duration-200 flex items-center gap-1.5 shadow-sm active:scale-95 ${
+							class={`mb-3 rounded-full border px-4 py-1.5 text-xs font-bold shadow-sm transition active:scale-95 ${
 								showPastEvents
 									? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300'
-									: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/80 dark:hover:border-slate-700'
+									: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
 							}`}
 						>
-							{#if showPastEvents}
-								<svg
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2.5"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400"
-									aria-hidden="true"
-								>
-									<path
-										d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"
-									/>
-									<path d="m9 12 2 2 4-4" />
-								</svg>
-								View active events
-							{:else}
-								<svg
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2.5"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									class="h-3.5 w-3.5 text-slate-400 dark:text-slate-500"
-									aria-hidden="true"
-								>
-									<circle cx="12" cy="12" r="10" />
-									<polyline points="12 6 12 12 16 14" />
-								</svg>
-								View past events
-							{/if}
+							{showPastEvents ? 'View active events' : 'View past events'}
 						</button>
 					</div>
 
 					{#if activeTab === 'hosting'}
 						{#if currentHostingEvents.length === 0}
-							<div
-								class="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900"
-							>
+							<div class="rounded-[1.7rem] border border-dashed border-slate-200 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
 								<p class="text-sm text-slate-500 dark:text-slate-400">
 									{showPastEvents
 										? 'No past events found.'
@@ -492,44 +812,36 @@
 											: 'No upcoming events right now. Create another one when you are ready.'}
 								</p>
 								{#if !showPastEvents}
-									<a
-										href={resolve('/events/create')}
-										class="mt-3 inline-flex rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700"
-									>
+									<a href={resolve('/events/create')} class="mt-3 inline-flex rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700">
 										{events.length === 0 ? 'Create your first event' : 'Create another event'}
 									</a>
 								{/if}
 							</div>
 						{:else}
-							<div class="space-y-3">
+							<div class="grid gap-3 lg:grid-cols-2">
 								{#each currentHostingEvents as event (event.id)}
-									<EventCard {event} />
+									<EventCard {event} variant="profile" />
 								{/each}
 							</div>
 						{/if}
 					{:else}
 						{#if currentJoinedEvents.length === 0}
-							<div
-								class="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900"
-							>
+							<div class="rounded-[1.7rem] border border-dashed border-slate-200 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
 								<p class="text-sm text-slate-500 dark:text-slate-400">
 									{showPastEvents
 										? 'No past joined events found.'
 										: "You haven't joined any upcoming events yet."}
 								</p>
 								{#if !showPastEvents}
-									<a
-										href={resolve('/explore')}
-										class="mt-3 inline-flex rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700"
-									>
+									<a href={resolve('/explore')} class="mt-3 inline-flex rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700">
 										Find events near you
 									</a>
 								{/if}
 							</div>
 						{:else}
-							<div class="space-y-3">
+							<div class="grid gap-3 lg:grid-cols-2">
 								{#each currentJoinedEvents as event (event.id)}
-									<EventCard {event} />
+									<EventCard {event} variant="profile" />
 								{/each}
 							</div>
 						{/if}
@@ -537,93 +849,7 @@
 				</section>
 			</div>
 
-			<!-- Right column -->
-			<aside class="grid grid-cols-2 gap-3 lg:block lg:space-y-4">
-				<!-- Nearby map -->
-				<div
-					class="col-span-2 overflow-hidden rounded-[1.7rem] bg-white shadow-sm ring-1 ring-slate-100 dark:bg-slate-900 dark:ring-slate-800"
-				>
-					<div
-						class="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-800"
-					>
-						<p class="text-sm font-bold text-slate-950 dark:text-slate-50">Nearby</p>
-						<a
-							href={resolve('/explore')}
-							class="text-xs font-bold text-blue-600 transition hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-						>
-							View all
-						</a>
-					</div>
-					<UserMiniMap userId={user?.uid} />
-				</div>
-
-				<!-- Pending invites -->
-				{#if pendingInvites.length > 0}
-					<a
-						href={resolve('/messages')}
-						class="col-span-2 flex items-center justify-between rounded-[1.5rem] bg-blue-50 p-4 shadow-sm ring-1 ring-blue-100 transition hover:bg-blue-100 dark:bg-blue-950/30 dark:ring-blue-900/50 dark:hover:bg-blue-950/50"
-					>
-						<div>
-							<p class="text-sm font-bold text-slate-950 dark:text-slate-50">
-								{pendingInvites.length} pending {pendingInvites.length === 1 ? 'invite' : 'invites'}
-							</p>
-							<p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Tap to respond</p>
-						</div>
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2.5"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							class="h-4 w-4 shrink-0 text-slate-400"
-							aria-hidden="true"
-						>
-							<path d="M9 18l6-6-6-6" />
-						</svg>
-					</a>
-				{/if}
-
-				<!-- Quick links -->
-				<div class="col-span-2 grid grid-cols-2 gap-2">
-					<a
-						href={resolve('/explore')}
-						class="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700"
-					>
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							class="h-5 w-5 text-slate-400"
-							aria-hidden="true"
-						>
-							<circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-						</svg>
-						<p class="text-sm font-bold text-slate-950 dark:text-slate-50">Explore</p>
-					</a>
-					<a
-						href={resolve('/messages')}
-						class="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700"
-					>
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							class="h-5 w-5 text-slate-400"
-							aria-hidden="true"
-						>
-							<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-						</svg>
-						<p class="text-sm font-bold text-slate-950 dark:text-slate-50">Messages</p>
-					</a>
-				</div>
-			</aside>
+			<div class="hidden xl:block"></div>
 		</div>
 	</div>
 {/if}

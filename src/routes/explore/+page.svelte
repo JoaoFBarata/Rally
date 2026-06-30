@@ -2,6 +2,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { auth } from '$lib/firebase';
 	import {
@@ -27,6 +28,28 @@
 	let friendIds = $state<string[]>([]);
 	let filteredEventCount = $state(0);
 	let selectedMapEventId = $state<string | null>(null);
+	let searchTerm = $derived(page.url.searchParams.get('search')?.trim() ?? '');
+	let visibleEvents = $derived.by(() => {
+		const term = searchTerm.toLocaleLowerCase('pt-PT');
+		if (!term) return events;
+
+		return events.filter((event) => {
+			const haystack = [
+				event.title,
+				event.description,
+				event.sport,
+				event.customSport,
+				event.location?.name,
+				event.location?.address,
+				event.organizationName
+			]
+				.filter(Boolean)
+				.join(' ')
+				.toLocaleLowerCase('pt-PT');
+
+			return haystack.includes(term);
+		});
+	});
 	let promotedEvents = $derived.by(() => {
 		const eventsById = new Map<string, SportEvent>();
 
@@ -36,7 +59,7 @@
 			}
 		}
 
-		for (const event of events) {
+		for (const event of visibleEvents) {
 			if (event.visibility === 'public' && isPromotionActive(event)) {
 				eventsById.set(event.id, event);
 			}
@@ -100,7 +123,9 @@
 	<header class="mb-2 sm:mb-6 shrink-0">
 		<RallyWordmark size="sm" />
 		<h1 class="mt-1 text-2xl font-bold sm:mt-2 sm:text-3xl">Explore</h1>
-		<p class="mt-1 hidden text-sm text-slate-500 sm:block">Find games, teams and sports partners nearby.</p>
+		<p class="mt-1 hidden text-sm text-slate-500 sm:block">
+			{searchTerm ? `Showing results for "${searchTerm}".` : 'Find games, teams and sports partners nearby.'}
+		</p>
 	</header>
 
 	{#if loading}
@@ -118,7 +143,7 @@
 			<!-- Positioning container for Map and Desktop Promoted Overlay -->
 			<div class="relative flex-1 min-h-0 flex flex-col">
 				<ExploreMap
-					{events}
+					events={visibleEvents}
 					{currentUserId}
 					{friendIds}
 					onFilteredCountChange={(count) => (filteredEventCount = count)}
