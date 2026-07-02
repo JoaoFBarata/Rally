@@ -634,9 +634,9 @@
 					</section>
 				</div>
 
-			<aside class="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
+			<aside class="grid content-start items-start gap-4 sm:grid-cols-2 xl:grid-cols-1">
 				{#if pendingInvites.length > 0}
-					<div class="rounded-[1.5rem] border border-emerald-100 bg-white p-3 shadow-sm dark:border-emerald-950/60 dark:bg-slate-900">
+					<div class="h-fit self-start rounded-[1.5rem] border border-emerald-100 bg-white p-3 shadow-sm dark:border-emerald-950/60 dark:bg-slate-900">
 						<a
 							href={resolve(invitePreviewEvent ? `/events/${invitePreviewEvent.id}` : '/messages')}
 							class="flex items-center gap-3 rounded-2xl transition hover:opacity-80"
