@@ -63,21 +63,6 @@
 		}
 	}
 
-	function getSportEmoji(sport: string): string {
-		const emojis: Record<string, string> = {
-			football: '⚽',
-			padel: '🎾',
-			basketball: '🏀',
-			running: '🏃',
-			gym: '🏋️',
-			tennis: '🎾',
-			cycling: '🚴',
-			volleyball: '🏐',
-			other: '🎮'
-		};
-		return emojis[sport.toLowerCase()] || '🏆';
-	}
-
 	$effect(() => {
 		if (nearbyEvents.length > 0) {
 			loadCreatorProfiles(nearbyEvents);
@@ -322,12 +307,27 @@
 			interactive: true
 		});
 
+		const updateZoomScale = () => {
+			if (!map) return;
+			const zoom = map.getZoom();
+			const minZoom = 7;
+			const maxZoom = 13;
+			let scale = (0.6 * (zoom - minZoom)) / (maxZoom - minZoom);
+			if (zoom < minZoom) {
+				scale += 2.0;
+			}
+			map.getContainer().style.setProperty('--map-zoom-scale', scale.toFixed(3));
+		};
+
+		map.on('zoom', updateZoomScale);
+
 		unsubscribeThemeState = themeState.subscribe((state) => {
 			const lPreset = state ? 'night' : 'day';
 			if (map) {
 				map.setConfig('basemap', { lightPreset: lPreset });
 			}
 		});
+
 
 		map.addControl(new mapboxgl.NavigationControl(), 'top-right');
 

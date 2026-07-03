@@ -72,21 +72,6 @@
 		}
 	}
 
-	function getSportEmoji(sport: string): string {
-		const emojis: Record<string, string> = {
-			football: '⚽',
-			padel: '🎾',
-			basketball: '🏀',
-			running: '🏃',
-			gym: '🏋️',
-			tennis: '🎾',
-			cycling: '🚴',
-			volleyball: '🏐',
-			other: '🎮'
-		};
-		return emojis[sport.toLowerCase()] || '🏆';
-	}
-
 	$effect(() => {
 		if (events.length > 0) {
 			loadCreatorProfiles(events);
@@ -286,6 +271,20 @@
 			center: [-9.1393, 38.7223],
 			zoom: 10
 		});
+
+		const updateZoomScale = () => {
+			if (!map) return;
+			const zoom = map.getZoom();
+			const minZoom = 7;
+			const maxZoom = 10;
+			let scale = (0.6 * (zoom - minZoom)) / (maxZoom - minZoom);
+			if (zoom < minZoom) {
+				scale += 2.0;
+			}
+			map.getContainer().style.setProperty('--map-zoom-scale', scale.toFixed(3));
+		};
+
+		map.on('zoom', updateZoomScale);
 
 		const unsubscribeThemeState = themeState.subscribe((state) => {
 			const lightPreset = state ? 'night' : 'day';
