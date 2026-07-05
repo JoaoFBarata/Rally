@@ -1039,6 +1039,17 @@
 								</button>
 							{/if}
 
+							{#if isParticipant && !isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
+								<button
+									type="button"
+									onclick={handleLeaveEvent}
+									disabled={actionLoading}
+									class="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-black text-red-700 transition hover:bg-red-100 disabled:opacity-60 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950"
+								>
+									{actionLoading ? 'Leaving...' : 'Leave event'}
+								</button>
+							{/if}
+
 							{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
 								<a href={resolve(`/events/${event.id}/edit`)} class="rounded-2xl bg-slate-950 px-4 py-3 text-center text-sm font-black text-white shadow-lg shadow-slate-950/10 transition hover:bg-slate-800 dark:bg-white dark:text-slate-950">Edit</a>
 								<button type="button" onclick={handleFinishEvent} disabled={actionLoading} class="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-black text-blue-700 transition hover:bg-blue-100 disabled:opacity-60 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900">

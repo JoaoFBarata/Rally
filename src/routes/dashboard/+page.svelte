@@ -49,6 +49,7 @@
 	let inviteActionLoading = $state('');
 	let activeTab = $state<'hosting' | 'joined'>('hosting');
 	let showPastEvents = $state(false);
+	let showUpcomingRallies = $state(false);
 	let nearbyIndex = $state(0);
 	let radiusKm = $state(20);
 	let userDeviceLocation = $state<{ lat: number; lng: number } | null>(null);
@@ -79,7 +80,8 @@
 	});
 
 	let pendingInvites = $derived(invites.filter((i) => i.status === 'pending'));
-	let nextEvent = $derived(getUpcomingEvents(allUserEvents)[0] ?? null);
+	let upcomingRallies = $derived(getUpcomingEvents(allUserEvents));
+	let nextEvent = $derived(upcomingRallies[0] ?? null);
 	let userEventIds = $derived(new Set(allUserEvents.map((event) => event.id)));
 	let userLocationAnchor = $derived(userDeviceLocation);
 	let nearbyEvents = $derived.by(() => {
@@ -93,8 +95,7 @@
 			.map((event) => ({ event, distance: getDistanceKm(userLocationAnchor, event) }))
 			.filter(({ distance }) => distance !== null && distance <= radiusKm)
 			.sort((a, b) => (a.distance ?? Number.POSITIVE_INFINITY) - (b.distance ?? Number.POSITIVE_INFINITY))
-			.map(({ event }) => event)
-			.slice(0, 8);
+			.map(({ event }) => event);
 	});
 	let currentNearbyEvent = $derived(
 		nearbyEvents.length ? nearbyEvents[nearbyIndex % nearbyEvents.length] : null
@@ -245,6 +246,11 @@
 	function showNearby(index: number) {
 		if (!nearbyEvents.length) return;
 		nearbyIndex = (index + nearbyEvents.length) % nearbyEvents.length;
+	}
+
+	function changeRadius(radius: number) {
+		radiusKm = radius;
+		nearbyIndex = 0;
 	}
 
 	async function refreshDashboardData(userId: string) {
@@ -501,13 +507,44 @@
 								<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">Featured event</p>
 								<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">Your next rally</h2>
 							</div>
-							<a href={resolve('/explore')} class="shrink-0 text-sm font-black text-blue-600 dark:text-blue-400">Explore</a>
+							{#if upcomingRallies.length > 1}
+								<button
+									type="button"
+									onclick={() => (showUpcomingRallies = !showUpcomingRallies)}
+									class="shrink-0 text-sm font-black text-blue-600 dark:text-blue-400"
+								>
+									{showUpcomingRallies ? 'Hide' : 'View all'}
+								</button>
+							{:else}
+								<a href={resolve('/explore')} class="shrink-0 text-sm font-black text-blue-600 dark:text-blue-400">Explore</a>
+							{/if}
 						</div>
 
 						{#if nextEvent}
 							<div class="max-w-2xl">
-								<EventCard event={nextEvent} variant="hero" />
+								<EventCard
+									event={nextEvent}
+									variant="hero"
+									heroCtaLabel="Already in event"
+									heroCtaTone="muted"
+								/>
 							</div>
+
+							{#if showUpcomingRallies && upcomingRallies.length > 1}
+								<div class="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
+									{#each upcomingRallies.slice(1) as event (event.id)}
+										<div class="w-[17rem] shrink-0 sm:w-[23rem]">
+											<EventCard
+												{event}
+												variant="hero"
+												miniHero
+												heroCtaLabel="Already in event"
+												heroCtaTone="muted"
+											/>
+										</div>
+									{/each}
+								</div>
+							{/if}
 						{:else}
 							<div class="rounded-[1.5rem] border border-dashed border-blue-200 bg-white/80 p-5 dark:border-blue-900/60 dark:bg-slate-900/80">
 								<p class="font-black text-slate-950 dark:text-slate-50">No upcoming games yet</p>
@@ -579,14 +616,35 @@
 										Use my location
 									</button>
 								{/if}
+								{#if nearbyEvents.length > 1}
+									<div class="flex items-center gap-1 rounded-full bg-white p-1 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+										<button
+											type="button"
+											onclick={() => showNearby(nearbyIndex - 1)}
+											class="grid h-8 w-8 place-items-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-blue-600 dark:text-slate-300 dark:hover:bg-slate-800"
+											aria-label="Previous nearby event"
+										>
+											<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+												<path d="m15 18-6-6 6-6" />
+											</svg>
+										</button>
+										<button
+											type="button"
+											onclick={() => showNearby(nearbyIndex + 1)}
+											class="grid h-8 w-8 place-items-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-blue-600 dark:text-slate-300 dark:hover:bg-slate-800"
+											aria-label="Next nearby event"
+										>
+											<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+												<path d="m9 18 6-6-6-6" />
+											</svg>
+										</button>
+									</div>
+								{/if}
 								<div class="flex items-center gap-1 rounded-full bg-white p-1 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
 									{#each [10, 20, 50] as radius}
 										<button
 											type="button"
-											onclick={() => {
-												radiusKm = radius;
-												nearbyIndex = 0;
-											}}
+											onclick={() => changeRadius(radius)}
 											class={`h-8 rounded-full px-3 text-xs font-black transition ${
 												radiusKm === radius
 													? 'bg-blue-600 text-white'
@@ -603,11 +661,16 @@
 						{#if currentNearbyEvent}
 							<div class="space-y-3">
 								<div class="max-w-2xl">
-									<EventCard event={currentNearbyEvent} variant="hero" compactHero />
+									<EventCard
+										event={currentNearbyEvent}
+										variant="hero"
+										compactHero
+										heroCtaLabel="View event"
+									/>
 								</div>
 
 								{#if nearbyEvents.length > 1}
-									<div class="flex items-center justify-center gap-1.5">
+									<div class="flex flex-wrap items-center justify-center gap-1.5">
 										{#each nearbyEvents as event, index (event.id)}
 											<button
 												type="button"
