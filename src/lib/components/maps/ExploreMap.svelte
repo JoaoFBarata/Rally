@@ -36,7 +36,7 @@
 	let selectedSports = $state<Sport[]>([]);
 	let selectedLevels = $state<SportLevel[]>([]);
 
-	let clusterIndex = $state<any>(null);
+	let clusterIndex: any = null;
 	let hasFitBoundsForCurrentEvents = false;
 
 	let creatorProfiles = $state<Record<string, { photoURL?: string | null; displayName?: string }>>(
@@ -211,7 +211,6 @@
 		onSelectedEventChange?.(event.id);
 
 		const coords = getCoords(event);
-
 		if (!map || !coords) return;
 
 		map.flyTo({
@@ -316,6 +315,7 @@
 				svelteMarkers.push(markerComponent);
 
 				el.addEventListener('click', () => {
+					clearSelectedEvent();
 					try {
 						const expansionZoom = clusterIndex.getClusterExpansionZoom(clusterId);
 						map.flyTo({

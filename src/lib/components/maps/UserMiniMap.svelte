@@ -23,7 +23,7 @@
 	let eventMarkers: mapboxgl.Marker[] = [];
 	let svelteMarkers: any[] = [];
 	let mapReady = $state(false);
-	let clusterIndex = $state<any>(null);
+	let clusterIndex: any = null;
 	let userLocation = $state<[number, number] | null>(null); // [lng, lat]
 	let allEvents = $state<SportEvent[]>([]);
 	let unsubscribeThemeState: () => void = () => {};

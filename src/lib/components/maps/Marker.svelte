@@ -1,5 +1,5 @@
 <script lang="ts">
-    // TODO: Add linear scaling for marker size based on map zoom level
+    // TODO: Add linear scaling for marker size based on level
     const { profile_url, name_letter = 'U', sport, n_confirmed_attendees, max_occupancy, marker_scale = 0.6, marker_color = '#00B4D8FF', cluster_count = 0 } = $props();
 </script>
 <div id="marker" class="w-[calc(var(--marker-scale)*8vw)]" style="--marker-scale: calc({marker_scale}*var(--map-zoom-scale)); --marker-color: {marker_color}">
