@@ -387,9 +387,9 @@
 			if (!map) return;
 			const zoom = map.getZoom();
 			const minZoom = 7;
-			const maxZoom = 10;
-			let scale = (0.6 * (zoom - minZoom)) / (maxZoom - minZoom);
-			scale = Math.max(0.45, Math.min(scale, 1.45));
+			const maxZoom = 15;
+			let scale = 0.85 + (0.75 * (zoom - minZoom)) / (maxZoom - minZoom);
+			scale = Math.max(0.8, Math.min(scale, 1.65));
 			map.getContainer().style.setProperty('--map-zoom-scale', scale.toFixed(3));
 		};
 
