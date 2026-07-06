@@ -14,6 +14,13 @@ class AuthState {
             this.loading = false;
         });
     }
+
+    async refresh() {
+        if (auth.currentUser) {
+            await auth.currentUser.reload();
+            this.user = auth.currentUser;
+        }
+    }
 }
 
 export const authState = new AuthState();

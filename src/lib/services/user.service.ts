@@ -11,8 +11,9 @@ import {
 	updateDoc,
 	where
 } from 'firebase/firestore';
-import type { User } from 'firebase/auth';
-import { db } from '$lib/firebase';
+import { type User, updateProfile } from 'firebase/auth';
+import { auth, db } from '$lib/firebase';
+import { authState } from '$lib/auth.svelte';
 import type { AccountType, Sport, UserProfile } from '$lib/schema';
 
 function slugify(value: string) {
@@ -196,6 +197,13 @@ export async function updateUserProfileDetails(
 		sports: params.sports,
 		updatedAt: serverTimestamp()
 	});
+
+	if (auth.currentUser && auth.currentUser.uid === userId) {
+		await updateProfile(auth.currentUser, {
+			displayName: params.displayName
+		});
+		await authState.refresh();
+	}
 }
 
 export async function updateUserProfilePhoto(params: {
@@ -208,6 +216,13 @@ export async function updateUserProfilePhoto(params: {
 		profilePhotoPath: params.profilePhotoPath,
 		updatedAt: serverTimestamp()
 	});
+
+	if (auth.currentUser && auth.currentUser.uid === params.userId) {
+		await updateProfile(auth.currentUser, {
+			photoURL: params.photoURL
+		});
+		await authState.refresh();
+	}
 }
 
 export async function updateUserActiveOrganization(params: {

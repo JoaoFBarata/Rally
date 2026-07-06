@@ -35,6 +35,7 @@
 	import { getUserProfilesByIds } from '$lib/services/user.service';
 	import EventMap from '$lib/components/maps/EventMap.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
+	import EventWeather from '$lib/components/EventWeather.svelte';
 	import type {
 		ChatConversation,
 		ChatMessage,
@@ -918,22 +919,25 @@
 							{#if event.location.address}
 								<p class="mt-0.5 line-clamp-2 text-xs leading-5 text-slate-500 dark:text-slate-400">{event.location.address}</p>
 							{/if}
-							{#if event.location.lat && event.location.lng}
-								<a
-									href={`https://www.google.com/maps/dir/?api=1&destination=${event.location.lat},${event.location.lng}`}
-									target="_blank"
-									rel="noopener noreferrer"
-									class="mt-2.5 inline-flex items-center gap-1.5 text-[11px] font-black text-blue-600 dark:text-blue-400 hover:underline"
-								>
-									<svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-										<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#EA4335" />
-										<circle cx="12" cy="9" r="3" fill="#34A853" />
-										<path d="M12 2c2.1 0 4 .9 5.3 2.3L15 6.5C14.2 5.6 13.2 5 12 5c-2.2 0-4 1.8-4 4 0 .5.1 1 .3 1.5L6.1 12.2C5.4 11.2 5 10.1 5 9c0-3.87 3.13-7 7-7z" fill="#FBBC05" />
-										<path d="M12 22s7-7.75 7-13c0-.4-.1-.8-.2-1.2l-2.2 2.2c.2.6.4 1.3.4 2 0 3.2-3.5 8.1-5 9.8z" fill="#4285F4" />
-									</svg>
-									<span>Obter Direções</span>
-								</a>
-							{/if}
+							<div class="mt-2.5 flex flex-wrap items-center gap-3">
+								{#if event.location.lat && event.location.lng}
+									<a
+										href={`https://www.google.com/maps/dir/?api=1&destination=${event.location.lat},${event.location.lng}`}
+										target="_blank"
+										rel="noopener noreferrer"
+										class="inline-flex items-center gap-1.5 text-[11px] font-black text-blue-600 dark:text-blue-400 hover:underline"
+									>
+										<svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+											<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#EA4335" />
+											<circle cx="12" cy="9" r="3" fill="#34A853" />
+											<path d="M12 2c2.1 0 4 .9 5.3 2.3L15 6.5C14.2 5.6 13.2 5 12 5c-2.2 0-4 1.8-4 4 0 .5.1 1 .3 1.5L6.1 12.2C5.4 11.2 5 10.1 5 9c0-3.87 3.13-7 7-7z" fill="#FBBC05" />
+											<path d="M12 22s7-7.75 7-13c0-.4-.1-.8-.2-1.2l-2.2 2.2c.2.6.4 1.3.4 2 0 3.2-3.5 8.1-5 9.8z" fill="#4285F4" />
+										</svg>
+										<span>Get Directions</span>
+									</a>
+								{/if}
+								<EventWeather lat={event.location.lat} lng={event.location.lng} startAt={event.startAt} size="sm" />
+							</div>
 						</div>
 
 						<div class="shrink-0 text-right">
@@ -1161,7 +1165,7 @@
 									<path d="M12 2c2.1 0 4 .9 5.3 2.3L15 6.5C14.2 5.6 13.2 5 12 5c-2.2 0-4 1.8-4 4 0 .5.1 1 .3 1.5L6.1 12.2C5.4 11.2 5 10.1 5 9c0-3.87 3.13-7 7-7z" fill="#FBBC05" />
 									<path d="M12 22s7-7.75 7-13c0-.4-.1-.8-.2-1.2l-2.2 2.2c.2.6.4 1.3.4 2 0 3.2-3.5 8.1-5 9.8z" fill="#4285F4" />
 								</svg>
-								<span>Obter Direções</span>
+								<span>Get Directions</span>
 							</a>
 						{/if}
 					</div>
@@ -1185,6 +1189,13 @@
 						<p class="mt-2 font-bold text-slate-950 dark:text-slate-50">
 							{formatPriceLabel(event)}
 						</p>
+					</div>
+
+					<div class="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800 flex flex-col justify-between">
+						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Weather</p>
+						<div class="mt-2.5">
+							<EventWeather lat={event.location.lat} lng={event.location.lng} startAt={event.startAt} size="md" />
+						</div>
 					</div>
 				</div>
 

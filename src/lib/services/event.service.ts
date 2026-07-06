@@ -2078,3 +2078,76 @@ export async function notifyEventFinished(event: SportEvent): Promise<void> {
 		updatedAt: serverTimestamp()
 	});
 }
+
+export interface WeatherForecast {
+	temp: number;
+	icon: string;
+	description: string;
+}
+
+export async function getWeatherForEvent(
+	lat: number | null | undefined,
+	lng: number | null | undefined,
+	startAt: any
+): Promise<WeatherForecast | null> {
+	if (lat === null || lat === undefined || lng === null || lng === undefined || !startAt) {
+		return null;
+	}
+
+	try {
+		let date: Date;
+		if (startAt && typeof startAt.toDate === 'function') {
+			date = startAt.toDate();
+		} else if (startAt instanceof Date) {
+			date = startAt;
+		} else if (typeof startAt === 'string' || typeof startAt === 'number') {
+			date = new Date(startAt);
+		} else {
+			return null;
+		}
+
+		const dateStr = date.toISOString().split('T')[0];
+		const eventHour = date.getHours();
+
+		const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=temperature_2m,weather_code&start_date=${dateStr}&end_date=${dateStr}&timezone=auto`;
+
+		const response = await fetch(url);
+		if (!response.ok) return null;
+
+		const data = await response.json();
+		if (!data.hourly || !data.hourly.temperature_2m || !data.hourly.weather_code) {
+			return null;
+		}
+
+		const temp = data.hourly.temperature_2m[eventHour];
+		const code = data.hourly.weather_code[eventHour];
+
+		if (temp === undefined || code === undefined) return null;
+
+		let icon = '☀️';
+		let description = 'Clean sky';
+
+		if (code >= 1 && code <= 3) {
+			icon = '🌤️';
+			description = 'Partly cloudy';
+		} else if (code === 45 || code === 48) {
+			icon = '🌫️';
+			description = 'Foggy';
+		} else if ((code >= 51 && code <= 55) || (code >= 61 && code <= 65)) {
+			icon = '🌧️';
+			description = 'Rainy';
+		} else if (code >= 71 && code <= 77) {
+			icon = '❄️';
+			description = 'Snowy';
+		} else if (code >= 95) {
+			icon = '⚡';
+			description = 'Thunderstorm';
+		}
+
+		return { temp, icon, description };
+	} catch (error) {
+		console.error('Error fetching weather:', error);
+		return null;
+	}
+}
+

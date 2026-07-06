@@ -9,6 +9,7 @@
 		trackEventPromotionClick,
 		trackEventPromotionView
 	} from '$lib/services/event.service';
+	import EventWeather from '$lib/components/EventWeather.svelte';
 
 	let {
 		event,
@@ -451,6 +452,8 @@
 							Protected payment
 						</span>
 					{/if}
+
+					<EventWeather lat={event.location.lat} lng={event.location.lng} startAt={event.startAt} size="sm" />
 				</div>
 
 				<h3 class="mt-0.5 line-clamp-1 text-sm font-black leading-tight text-slate-950 dark:text-slate-50 sm:mt-1 sm:line-clamp-2 sm:text-lg">

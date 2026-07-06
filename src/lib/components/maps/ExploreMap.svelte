@@ -27,6 +27,7 @@
 	let mapReady = $state(false);
 	import { getUserProfile } from '$lib/services/user.service';
 	import Marker from './Marker.svelte';
+	import Supercluster from 'supercluster';
 
 	let selectedEvent = $state<SportEvent | null>(null);
 	let markers: mapboxgl.Marker[] = [];
@@ -34,6 +35,9 @@
 	let showFilters = $state(false);
 	let selectedSports = $state<Sport[]>([]);
 	let selectedLevels = $state<SportLevel[]>([]);
+
+	let clusterIndex = $state<any>(null);
+	let hasFitBoundsForCurrentEvents = false;
 
 	let creatorProfiles = $state<Record<string, { photoURL?: string | null; displayName?: string }>>(
 		{}
@@ -105,6 +109,42 @@
 			!filteredEvents.some((event: SportEvent) => event.id === selectedEvent?.id)
 		) {
 			clearSelectedEvent();
+		}
+	});
+
+	$effect(() => {
+		if (filteredEvents) {
+			hasFitBoundsForCurrentEvents = false;
+
+			const points = filteredEvents
+				.map((event: SportEvent) => {
+					const coords = getCoords(event);
+					if (!coords) return null;
+					return {
+						type: 'Feature' as const,
+						properties: {
+							eventId: event.id,
+							event: event,
+							isCluster: false
+						},
+						geometry: {
+							type: 'Point' as const,
+							coordinates: [coords.lng, coords.lat]
+						}
+					};
+				})
+				.filter((pt): pt is NonNullable<typeof pt> => pt !== null);
+
+			const index = new Supercluster({
+				radius: 50,
+				maxZoom: 15
+			});
+			index.load(points);
+			clusterIndex = index;
+
+			if (mapReady) {
+				renderMarkers();
+			}
 		}
 	});
 
@@ -194,66 +234,137 @@
 	}
 
 	function renderMarkers() {
-		if (!map || !mapReady) return;
+		if (!map || !mapReady || !clusterIndex) return;
+
+		if (!hasFitBoundsForCurrentEvents && filteredEvents.length > 0) {
+			const bounds = new mapboxgl.LngLatBounds();
+			let hasCoords = false;
+			for (const event of filteredEvents) {
+				const coords = getCoords(event);
+				if (coords) {
+					bounds.extend([coords.lng, coords.lat]);
+					hasCoords = true;
+				}
+			}
+			if (hasCoords) {
+				hasFitBoundsForCurrentEvents = true;
+				map.fitBounds(bounds, {
+					padding: 80,
+					maxZoom: 13
+				});
+				return;
+			}
+		}
 
 		clearMarkers();
 
-		const eventsWithCoords = filteredEvents
-			.map((event: SportEvent) => ({
-				event,
-				coords: getCoords(event)
-			}))
-			.filter(
-				(item): item is { event: SportEvent; coords: { lat: number; lng: number } } =>
-					item.coords !== null
-			);
+		const zoom = Math.floor(map.getZoom());
+		const mapBounds = map.getBounds();
+		const bbox: [number, number, number, number] = [
+			mapBounds.getWest(),
+			mapBounds.getSouth(),
+			mapBounds.getEast(),
+			mapBounds.getNorth()
+		];
 
-		if (eventsWithCoords.length === 0) return;
+		const features = clusterIndex.getClusters(bbox, zoom);
 
-		const bounds = new mapboxgl.LngLatBounds();
+		for (const feature of features) {
+			const [lng, lat] = feature.geometry.coordinates;
 
-		for (const item of eventsWithCoords) {
-			if (!item.coords) continue;
+			if (feature.properties.cluster) {
+				const count = feature.properties.point_count;
+				const clusterId = feature.id;
 
-			 // Get your photo URL (using your previously commented logic)
-            const creator = creatorProfiles[item.event.creatorId];
-            const photoURL = item.event.groupPhotoURL || item.event.organizationLogoURL || creator?.photoURL || '';
+				const leaves = clusterIndex.getLeaves(clusterId, Infinity);
+				const sortedLeaves = leaves.slice().sort((a: any, b: any) => {
+					const eventA = a.properties.event;
+					const eventB = b.properties.event;
+					
+					const isPriorityA = eventA.creatorId === currentUserId || friendIds.includes(eventA.creatorId);
+					const isPriorityB = eventB.creatorId === currentUserId || friendIds.includes(eventB.creatorId);
+					
+					if (isPriorityA !== isPriorityB) {
+						return isPriorityA ? -1 : 1;
+					}
+					
+					const attendeesA = eventA.participantIds?.length || 0;
+					const attendeesB = eventB.participantIds?.length || 0;
+					return attendeesB - attendeesA;
+				});
 
-            // 3. Create a wrapper element for Mapbox
-            const el = document.createElement('div');
-            el.className = 'custom-marker';
-            el.style.cursor = 'pointer';
+				const priorityEvent = sortedLeaves[0].properties.event;
+				const creator = creatorProfiles[priorityEvent.creatorId];
+				const photoURL = priorityEvent.groupPhotoURL || priorityEvent.organizationLogoURL || creator?.photoURL || '';
 
-            // 4. Mount the Svelte 5 component to the wrapper element
-            const markerComponent = mount(Marker, {
-                target: el,
-                props: {
-                    profile_url: photoURL,
-					sport: item.event.sport,
-                    n_confirmed_attendees: item.event.participantIds?.length || 0,
-                    max_occupancy: item.event.maxParticipants || 0,
-                    marker_color: getMarkerColor(item.event)
-                }
-            });
-            svelteMarkers.push(markerComponent);
+				const el = document.createElement('div');
+				el.className = 'custom-marker custom-cluster-marker';
+				el.style.cursor = 'pointer';
 
-            // 5. Add event listener to the wrapper and add it to Mapbox
-            el.addEventListener('click', () => {
-                selectEvent(item.event);
-            });
+				const markerComponent = mount(Marker, {
+					target: el,
+					props: {
+						profile_url: photoURL,
+						name_letter: (creator?.displayName || creator?.email || 'U').charAt(0).toUpperCase(),
+						sport: priorityEvent.sport,
+						n_confirmed_attendees: priorityEvent.participantIds?.length || 0,
+						max_occupancy: priorityEvent.maxParticipants || 0,
+						marker_color: getMarkerColor(priorityEvent),
+						cluster_count: count - 1
+					}
+				});
+				svelteMarkers.push(markerComponent);
 
-            const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
-                .setLngLat([item.coords.lng, item.coords.lat])
-                .addTo(map);
+				el.addEventListener('click', () => {
+					try {
+						const expansionZoom = clusterIndex.getClusterExpansionZoom(clusterId);
+						map.flyTo({
+							center: [lng, lat],
+							zoom: expansionZoom,
+							speed: 1.2
+						});
+					} catch (e) {
+						console.error('Expansion zoom error:', e);
+					}
+				});
 
-            markers.push(marker);
-            bounds.extend([item.coords.lng, item.coords.lat]);
-        }
+				const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+					.setLngLat([lng, lat])
+					.addTo(map);
+				markers.push(marker);
+			} else {
+				const event = feature.properties.event;
+				const creator = creatorProfiles[event.creatorId];
+				const photoURL = event.groupPhotoURL || event.organizationLogoURL || creator?.photoURL || '';
 
-		map.fitBounds(bounds, {
-			padding: 80,
-			maxZoom: 13
-		});
+				const el = document.createElement('div');
+				el.className = 'custom-marker';
+				el.style.cursor = 'pointer';
+
+				const markerComponent = mount(Marker, {
+					target: el,
+					props: {
+						profile_url: photoURL,
+						name_letter: (creator?.displayName || creator?.email || 'U').charAt(0).toUpperCase(),
+						sport: event.sport,
+						n_confirmed_attendees: event.participantIds?.length || 0,
+						max_occupancy: event.maxParticipants || 0,
+						marker_color: getMarkerColor(event)
+					}
+				});
+				svelteMarkers.push(markerComponent);
+
+				el.addEventListener('click', () => {
+					selectEvent(event);
+				});
+
+				const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+					.setLngLat([lng, lat])
+					.addTo(map);
+
+				markers.push(marker);
+			}
+		}
 	}
 
 	onMount(() => {
@@ -278,13 +389,17 @@
 			const minZoom = 7;
 			const maxZoom = 10;
 			let scale = (0.6 * (zoom - minZoom)) / (maxZoom - minZoom);
-			if (zoom < minZoom) {
-				scale += 2.0;
-			}
+			scale = Math.max(0.45, Math.min(scale, 1.45));
 			map.getContainer().style.setProperty('--map-zoom-scale', scale.toFixed(3));
 		};
 
-		map.on('zoom', updateZoomScale);
+		map.on('zoom', () => {
+			updateZoomScale();
+			renderMarkers();
+		});
+		map.on('moveend', () => {
+			renderMarkers();
+		});
 
 		const unsubscribeThemeState = themeState.subscribe((state) => {
 			const lightPreset = state ? 'night' : 'day';
