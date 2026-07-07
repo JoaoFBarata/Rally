@@ -49,19 +49,32 @@
 	let inviteActionLoading = $state('');
 	let activeTab = $state<'hosting' | 'joined'>('hosting');
 	let showPastEvents = $state(false);
+	let showCancelledEvents = $state(false);
 	let showUpcomingRallies = $state(false);
 	let nearbyIndex = $state(0);
 	let radiusKm = $state(20);
+	let discoverTab = $state<'nearby' | 'recommended'>('nearby');
 	let userDeviceLocation = $state<{ lat: number; lng: number } | null>(null);
 	let locationStatus = $state<'idle' | 'loading' | 'ready' | 'blocked' | 'unsupported'>('idle');
 
-	let hostingEvents = $derived(events.filter((event) => !isEventFinished(event)));
+	let hostingEvents = $derived(
+		events.filter((event) => !isEventFinished(event) && event.status !== 'cancelled')
+	);
 	let pastHostingEvents = $derived(events.filter((event) => isEventFinished(event)));
+	let cancelledHostingEvents = $derived(events.filter((event) => event.status === 'cancelled'));
 	let currentHostingEvents = $derived(showPastEvents ? pastHostingEvents : hostingEvents);
 
-	let participantEvents = $derived(joinedEvents.filter((event) => !isEventFinished(event)));
+	let participantEvents = $derived(
+		joinedEvents.filter((event) => !isEventFinished(event) && event.status !== 'cancelled')
+	);
 	let pastParticipantEvents = $derived(joinedEvents.filter((event) => isEventFinished(event)));
+	let cancelledJoinedEvents = $derived(
+		joinedEvents.filter((event) => event.status === 'cancelled')
+	);
 	let currentJoinedEvents = $derived(showPastEvents ? pastParticipantEvents : participantEvents);
+	let cancelledEventsForActiveTab = $derived(
+		activeTab === 'hosting' ? cancelledHostingEvents : cancelledJoinedEvents
+	);
 	let visiblePromotedEvents = $derived.by(() => {
 		const eventsById = new Map<string, SportEvent>();
 
@@ -473,140 +486,160 @@
 			</div>
 		{/if}
 
-			<section class="mb-6 grid gap-5 xl:grid-cols-[1fr_360px]">
-				<div class="min-w-0 space-y-6">
-					<nav class="flex gap-2 overflow-x-auto pb-1">
-						<a href={resolve('/explore')} class="inline-flex shrink-0 items-center gap-2 rounded-full bg-blue-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700">
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
-									<circle cx="11" cy="11" r="8" />
-									<path d="m21 21-4.35-4.35" />
-								</svg>
-								Find events
-							</a>
-							<a href={resolve('/events/create')} class="inline-flex shrink-0 items-center gap-2 rounded-full bg-slate-950 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-slate-950/15 transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200">
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
-									<path d="M12 5v14" />
-									<path d="M5 12h14" />
-								</svg>
-								Create event
-							</a>
-							<a href={resolve('/profile')} class="inline-flex shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:border-blue-200 hover:text-blue-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-800">
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
-									<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-									<circle cx="9" cy="7" r="4" />
-									<path d="M19 8v6" />
-									<path d="M22 11h-6" />
-								</svg>
-								Invite friends
-							</a>
-					</nav>
+			{#if pendingInvites.length > 0}
+				<div class="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm dark:border-emerald-950/60 dark:bg-slate-900 sm:mb-7">
+					<a
+						href={resolve(invitePreviewEvent ? `/events/${invitePreviewEvent.id}` : '/messages')}
+						class="flex min-w-0 flex-1 items-center gap-3 rounded-2xl transition hover:opacity-80"
+					>
+						<UserAvatar
+							photoURL={invitePreviewUser?.photoURL}
+							displayName={invitePreviewUser?.displayName ?? 'Rally user'}
+							email={invitePreviewUser?.email}
+							size="sm"
+						/>
+						<div class="min-w-0 flex-1">
+							<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">
+								{invitePreviewUser?.displayName ?? 'Someone'} invited you
+								{#if pendingInvites.length > 1}
+									<span class="font-semibold text-slate-400 dark:text-slate-500">
+										+{pendingInvites.length - 1} more
+									</span>
+								{/if}
+							</p>
+							<p class="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
+								{invitePreviewEvent?.title ?? 'Event invite'}
+								{#if invitePreviewEvent}
+									- {formatCompactDate(invitePreviewEvent.startAt)}
+								{/if}
+							</p>
+						</div>
+					</a>
 
-					<section class="space-y-3">
-						<div class="flex items-end justify-between gap-4">
-							<div>
-								<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">Featured event</p>
-								<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">Your next rally</h2>
-							</div>
-							{#if upcomingRallies.length > 1}
-								<button
-									type="button"
-									onclick={() => (showUpcomingRallies = !showUpcomingRallies)}
-									class="shrink-0 text-sm font-black text-blue-600 dark:text-blue-400"
-								>
-									{showUpcomingRallies ? 'Hide' : 'View all'}
-								</button>
+					<div class="flex shrink-0 gap-2">
+						<button
+							type="button"
+							onclick={() => handleInviteResponse('declined')}
+							disabled={Boolean(inviteActionLoading)}
+							class="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-500 transition hover:bg-slate-200 disabled:opacity-60 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+							aria-label="Decline invite"
+						>
+							{#if inviteActionLoading === 'declined'}
+								...
 							{:else}
-								<a href={resolve('/explore')} class="shrink-0 text-sm font-black text-blue-600 dark:text-blue-400">Explore</a>
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+									<path d="M18 6 6 18" />
+									<path d="m6 6 12 12" />
+								</svg>
 							{/if}
-						</div>
-
-						{#if nextEvent}
-							<div class="max-w-2xl">
-								<EventCard
-									event={nextEvent}
-									variant="hero"
-									heroCtaLabel="Already in event"
-									heroCtaTone="muted"
-								/>
-							</div>
-
-							{#if showUpcomingRallies && upcomingRallies.length > 1}
-								<div class="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-									{#each upcomingRallies.slice(1) as event (event.id)}
-										<div class="w-[17rem] shrink-0 sm:w-[23rem]">
-											<EventCard
-												{event}
-												variant="hero"
-												miniHero
-												heroCtaLabel="Already in event"
-												heroCtaTone="muted"
-											/>
-										</div>
-									{/each}
-								</div>
+						</button>
+						<button
+							type="button"
+							onclick={() => handleInviteResponse('accepted')}
+							disabled={Boolean(inviteActionLoading)}
+							class="grid h-9 w-9 place-items-center rounded-xl bg-emerald-500 font-black text-white shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-600 disabled:opacity-60"
+							aria-label="Accept invite"
+						>
+							{#if inviteActionLoading === 'accepted'}
+								...
+							{:else}
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+									<path d="m20 6-11 11-5-5" />
+								</svg>
 							{/if}
-						{:else}
-							<div class="rounded-[1.5rem] border border-dashed border-blue-200 bg-white/80 p-5 dark:border-blue-900/60 dark:bg-slate-900/80">
-								<p class="font-black text-slate-950 dark:text-slate-50">No upcoming games yet</p>
-								<p class="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">Create your next game or find something nearby.</p>
-								<div class="mt-4 flex gap-2">
-									<a href={resolve('/events/create')} class="rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700">Create</a>
-									<a href={resolve('/explore')} class="rounded-full bg-slate-100 px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200">Explore</a>
+						</button>
+					</div>
+				</div>
+			{/if}
+
+			<nav class="flex gap-2 overflow-x-auto pb-1">
+				<a href={resolve('/explore')} class="inline-flex shrink-0 items-center gap-2 rounded-full bg-blue-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+							<circle cx="11" cy="11" r="8" />
+							<path d="m21 21-4.35-4.35" />
+						</svg>
+						Find events
+					</a>
+					<a href={resolve('/events/create')} class="inline-flex shrink-0 items-center gap-2 rounded-full bg-slate-950 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-slate-950/15 transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+							<path d="M12 5v14" />
+							<path d="M5 12h14" />
+						</svg>
+						Create event
+					</a>
+					<a href={resolve('/profile')} class="inline-flex shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:border-blue-200 hover:text-blue-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-800">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+							<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+							<circle cx="9" cy="7" r="4" />
+							<path d="M19 8v6" />
+							<path d="M22 11h-6" />
+						</svg>
+						Invite friends
+					</a>
+			</nav>
+
+			<section class="mt-6 space-y-3">
+				<div class="flex items-end justify-between gap-4">
+					<div>
+						<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">Featured event</p>
+						<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">Your next rally</h2>
+					</div>
+					{#if upcomingRallies.length > 1}
+						<button
+							type="button"
+							onclick={() => (showUpcomingRallies = !showUpcomingRallies)}
+							class="shrink-0 text-sm font-black text-blue-600 dark:text-blue-400"
+						>
+							{showUpcomingRallies ? 'Hide' : 'View all'}
+						</button>
+					{:else}
+						<a href={resolve('/explore')} class="shrink-0 text-sm font-black text-blue-600 dark:text-blue-400">Explore</a>
+					{/if}
+				</div>
+
+				{#if nextEvent}
+					<div class="max-w-2xl">
+						<EventCard
+							event={nextEvent}
+							variant="hero"
+							heroCtaLabel="Already in event"
+							heroCtaTone="muted"
+						/>
+					</div>
+
+					{#if showUpcomingRallies && upcomingRallies.length > 1}
+						<div class="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
+							{#each upcomingRallies.slice(1) as event (event.id)}
+								<div class="w-[17rem] shrink-0 sm:w-[23rem]">
+									<EventCard
+										{event}
+										variant="hero"
+										miniHero
+										heroCtaLabel="Already in event"
+										heroCtaTone="muted"
+									/>
 								</div>
-							</div>
-						{/if}
-					</section>
-
-					<section class="space-y-3">
-						<div class="flex items-center justify-between gap-4">
-							<div>
-								<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Friends up for something</h2>
-								<p class="text-sm font-semibold text-slate-500 dark:text-slate-400">Invite someone to your next game.</p>
-							</div>
-							<a href={resolve('/profile')} class="shrink-0 text-sm font-black text-blue-600 dark:text-blue-400">See all</a>
-						</div>
-
-						<div class="flex gap-4 overflow-x-auto pb-2">
-							{#each friends.slice(0, 8) as friend (friend.id)}
-								<a href={resolve(`/users/${friend.id}`)} class="w-16 shrink-0 text-center">
-									<UserAvatar photoURL={friend.photoURL} displayName={friend.displayName} email={friend.email} size="lg" />
-									<p class="mt-2 truncate text-xs font-black text-slate-800 dark:text-slate-200">{friend.displayName}</p>
-									<p class="truncate text-[11px] font-semibold text-slate-500 dark:text-slate-400">Friend</p>
-								</a>
 							{/each}
-
-							<a href={resolve('/friends/add')} class="w-16 shrink-0 text-center">
-								<span class="mx-auto grid h-14 w-14 place-items-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
-									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
-										<path d="M12 5v14" />
-										<path d="M5 12h14" />
-									</svg>
-								</span>
-								<p class="mt-2 text-xs font-black text-slate-800 dark:text-slate-200">Invite</p>
-								<p class="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Friends</p>
-							</a>
 						</div>
-					</section>
+					{/if}
+				{:else}
+					<div class="rounded-[1.5rem] border border-dashed border-blue-200 bg-white/80 p-5 dark:border-blue-900/60 dark:bg-slate-900/80">
+						<p class="font-black text-slate-950 dark:text-slate-50">No upcoming games yet</p>
+						<p class="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">Find something nearby to join.</p>
+						<div class="mt-4">
+							<a href={resolve('/explore')} class="rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700">Explore</a>
+						</div>
+					</div>
+				{/if}
+			</section>
 
-					<section class="space-y-3">
-						<div class="flex flex-wrap items-end justify-between gap-3">
-							<div>
-								<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Nearby events</h2>
-								<p class="text-sm font-semibold text-slate-500 dark:text-slate-400">
-									{#if locationStatus === 'ready'}
-										Within {radiusKm} km of your current location.
-									{:else if locationStatus === 'loading'}
-										Checking your location...
-									{:else if locationStatus === 'blocked'}
-										Location is blocked. Enable it in your browser to use the radius.
-									{:else if locationStatus === 'unsupported'}
-										Your browser does not support location for nearby events.
-									{:else}
-										Allow location to find events around you.
-									{/if}
-								</p>
-							</div>
-							<div class="flex flex-wrap items-center gap-2">
+			<section class="mt-6 grid gap-5 lg:grid-cols-[1fr_300px]">
+				<div class="min-w-0 space-y-3">
+					<div class="flex flex-wrap items-end justify-between gap-3">
+						<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Discover</h2>
+
+						<div class="flex flex-wrap items-center gap-2">
+							{#if discoverTab === 'nearby'}
 								{#if locationStatus === 'blocked' || locationStatus === 'idle' || locationStatus === 'unsupported'}
 									<button
 										type="button"
@@ -655,19 +688,67 @@
 										</button>
 									{/each}
 								</div>
-							</div>
+							{:else}
+								<a href={resolve('/explore')} class="shrink-0 text-sm font-black text-blue-600 hover:text-blue-700 dark:text-blue-400">View all</a>
+							{/if}
 						</div>
+					</div>
+
+					<div class="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800">
+						<button
+							type="button"
+							onclick={() => (discoverTab = 'nearby')}
+							class={`relative pb-3 pr-5 text-sm font-bold transition ${
+								discoverTab === 'nearby'
+									? 'text-slate-950 dark:text-slate-50'
+									: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
+							}`}
+						>
+							Nearby
+							{#if discoverTab === 'nearby'}
+								<span class="absolute bottom-0 left-0 right-5 h-0.5 rounded-full bg-slate-950 dark:bg-white"></span>
+							{/if}
+						</button>
+
+						<button
+							type="button"
+							onclick={() => (discoverTab = 'recommended')}
+							class={`relative pb-3 pr-5 text-sm font-bold transition ${
+								discoverTab === 'recommended'
+									? 'text-slate-950 dark:text-slate-50'
+									: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
+							}`}
+						>
+							{visiblePromotedEvents.length > 0 ? 'Promoted' : 'For you'}
+							{#if discoverTab === 'recommended'}
+								<span class="absolute bottom-0 left-0 right-5 h-0.5 rounded-full bg-slate-950 dark:bg-white"></span>
+							{/if}
+						</button>
+					</div>
+
+					{#if discoverTab === 'nearby'}
+						<p class="text-sm font-semibold text-slate-500 dark:text-slate-400">
+							{#if locationStatus === 'ready'}
+								Within {radiusKm} km of your current location.
+							{:else if locationStatus === 'loading'}
+								Checking your location...
+							{:else if locationStatus === 'blocked'}
+								Location is blocked. Enable it in your browser to use the radius.
+							{:else if locationStatus === 'unsupported'}
+								Your browser does not support location for nearby events.
+							{:else}
+								Allow location to find events around you.
+							{/if}
+						</p>
 
 						{#if currentNearbyEvent}
 							<div class="space-y-3">
-								<div class="max-w-2xl">
-									<EventCard
-										event={currentNearbyEvent}
-										variant="hero"
-										compactHero
-										heroCtaLabel="View event"
-									/>
-								</div>
+								<EventCard
+									event={currentNearbyEvent}
+									variant="hero"
+									compactHero
+									heroCtaLabel="View event"
+								/>
 
 								{#if nearbyEvents.length > 1}
 									<div class="flex flex-wrap items-center justify-center gap-1.5">
@@ -694,96 +775,7 @@
 								</p>
 							</div>
 						{/if}
-					</section>
-				</div>
-
-			<aside class="grid content-start items-start gap-4 sm:grid-cols-2 xl:grid-cols-1">
-				{#if pendingInvites.length > 0}
-					<div class="h-fit self-start rounded-[1.5rem] border border-emerald-100 bg-white p-3 shadow-sm dark:border-emerald-950/60 dark:bg-slate-900">
-						<a
-							href={resolve(invitePreviewEvent ? `/events/${invitePreviewEvent.id}` : '/messages')}
-							class="flex items-center gap-3 rounded-2xl transition hover:opacity-80"
-						>
-							<UserAvatar
-								photoURL={invitePreviewUser?.photoURL}
-								displayName={invitePreviewUser?.displayName ?? 'Rally user'}
-								email={invitePreviewUser?.email}
-								size="sm"
-							/>
-							<div class="min-w-0 flex-1">
-								<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">
-									{invitePreviewUser?.displayName ?? 'Someone'} invited you
-								</p>
-								<p class="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
-									{invitePreviewEvent?.title ?? 'Event invite'}
-									{#if invitePreviewEvent}
-										- {formatCompactDate(invitePreviewEvent.startAt)}
-									{/if}
-								</p>
-							</div>
-							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true">
-								<path d="m9 18 6-6-6-6" />
-							</svg>
-						</a>
-
-						<div class="mt-3 flex gap-2">
-							<button
-								type="button"
-								onclick={() => handleInviteResponse('declined')}
-								disabled={Boolean(inviteActionLoading)}
-								class="grid h-9 flex-1 place-items-center rounded-xl bg-slate-100 text-slate-500 transition hover:bg-slate-200 disabled:opacity-60 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-								aria-label="Decline invite"
-							>
-								{#if inviteActionLoading === 'declined'}
-									...
-								{:else}
-									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
-										<path d="M18 6 6 18" />
-										<path d="m6 6 12 12" />
-									</svg>
-								{/if}
-							</button>
-							<button
-								type="button"
-								onclick={() => handleInviteResponse('accepted')}
-								disabled={Boolean(inviteActionLoading)}
-								class="grid h-9 flex-1 place-items-center rounded-xl bg-emerald-500 font-black text-white shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-600 disabled:opacity-60"
-								aria-label="Accept invite"
-							>
-								{#if inviteActionLoading === 'accepted'}
-									...
-								{:else}
-									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
-										<path d="m20 6-11 11-5-5" />
-									</svg>
-								{/if}
-							</button>
-						</div>
-
-						{#if pendingInvites.length > 1}
-							<a href={resolve('/messages')} class="mt-3 block text-center text-xs font-black text-blue-600 dark:text-blue-400">
-								View {pendingInvites.length - 1} more
-							</a>
-						{/if}
-					</div>
-				{/if}
-			</aside>
-		</section>
-
-		<div class="grid gap-6 xl:grid-cols-[1fr_360px]">
-			<div class="min-w-0 space-y-6">
-				<section class="space-y-3">
-					<div class="flex items-end justify-between gap-4">
-						<div>
-							<p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Recommended</p>
-							<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">
-								{visiblePromotedEvents.length > 0 ? 'Promoted for you' : 'Recommended for you'}
-							</h2>
-						</div>
-						<a href={resolve('/explore')} class="shrink-0 text-sm font-black text-blue-600 hover:text-blue-700 dark:text-blue-400">View all</a>
-					</div>
-
-					{#if recommendedEvents.length > 0}
+					{:else if recommendedEvents.length > 0}
 						<PromotedEventCarousel events={recommendedEvents} cardVariant="profile" />
 					{:else}
 						<div class="rounded-[1.5rem] border border-dashed border-slate-200 bg-white/70 p-5 text-sm dark:border-slate-800 dark:bg-slate-900/70">
@@ -802,117 +794,175 @@
 							{/if}
 						</div>
 					{/if}
-				</section>
+				</div>
 
-					<section class="space-y-4">
-					<div class="flex items-end justify-between gap-4">
-						<div>
-							<p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Upcoming events</p>
-							<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">Your activity</h2>
-						</div>
+				<div class="space-y-3 rounded-[1.5rem] border border-slate-200 bg-white/60 p-4 dark:border-slate-800 dark:bg-slate-900/60">
+					<div class="flex items-center justify-between gap-2">
+						<h3 class="text-sm font-black text-slate-950 dark:text-slate-50">Friends</h3>
+						<a href={resolve('/profile')} class="shrink-0 text-xs font-black text-blue-600 dark:text-blue-400">See all</a>
 					</div>
 
-					<div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800">
-						<div class="flex items-center gap-1">
-							<button
-								type="button"
-								onclick={() => (activeTab = 'hosting')}
-								class={`relative pb-3 pr-5 text-sm font-bold transition ${
-									activeTab === 'hosting'
-										? 'text-slate-950 dark:text-slate-50'
-										: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
-								}`}
+					<div class="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
+						{#each friends.slice(0, 8) as friend (friend.id)}
+							<a
+								href={resolve(`/users/${friend.id}`)}
+								class="flex items-center gap-3 py-2.5 transition hover:opacity-80"
 							>
-								Hosting
-								<span class="ml-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-									{currentHostingEvents.length}
-								</span>
-								{#if activeTab === 'hosting'}
-									<span class="absolute bottom-0 left-0 right-5 h-0.5 rounded-full bg-slate-950 dark:bg-white"></span>
-								{/if}
-							</button>
+								<UserAvatar photoURL={friend.photoURL} displayName={friend.displayName} email={friend.email} size="sm" />
+								<p class="min-w-0 flex-1 truncate text-sm font-bold text-slate-800 dark:text-slate-200">
+									{friend.displayName}
+								</p>
+							</a>
+						{/each}
 
-							<button
-								type="button"
-								onclick={() => (activeTab = 'joined')}
-								class={`relative pb-3 pr-5 text-sm font-bold transition ${
-									activeTab === 'joined'
-										? 'text-slate-950 dark:text-slate-50'
-										: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
-								}`}
-							>
-								Joined
-								<span class="ml-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-									{currentJoinedEvents.length}
-								</span>
-								{#if activeTab === 'joined'}
-									<span class="absolute bottom-0 left-0 right-5 h-0.5 rounded-full bg-slate-950 dark:bg-white"></span>
-								{/if}
-							</button>
-						</div>
+						<a
+							href={resolve('/friends/add')}
+							class="flex items-center gap-3 py-2.5 transition hover:opacity-80"
+						>
+							<span class="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+									<path d="M12 5v14" />
+									<path d="M5 12h14" />
+								</svg>
+							</span>
+							<p class="text-sm font-bold text-slate-800 dark:text-slate-200">Invite friends</p>
+						</a>
+					</div>
+				</div>
+			</section>
+
+			<section class="mt-6 space-y-4">
+				<div class="flex items-end justify-between gap-4">
+					<div>
+						<p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Upcoming events</p>
+						<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">Your activity</h2>
+					</div>
+				</div>
+
+				<div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800">
+					<div class="flex items-center gap-1">
+						<button
+							type="button"
+							onclick={() => (activeTab = 'hosting')}
+							class={`relative pb-3 pr-5 text-sm font-bold transition ${
+								activeTab === 'hosting'
+									? 'text-slate-950 dark:text-slate-50'
+									: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
+							}`}
+						>
+							Hosting
+							<span class="ml-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+								{currentHostingEvents.length}
+							</span>
+							{#if activeTab === 'hosting'}
+								<span class="absolute bottom-0 left-0 right-5 h-0.5 rounded-full bg-slate-950 dark:bg-white"></span>
+							{/if}
+						</button>
 
 						<button
 							type="button"
-							onclick={() => (showPastEvents = !showPastEvents)}
-							class={`mb-3 rounded-full border px-4 py-1.5 text-xs font-bold shadow-sm transition active:scale-95 ${
-								showPastEvents
-									? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300'
-									: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
+							onclick={() => (activeTab = 'joined')}
+							class={`relative pb-3 pr-5 text-sm font-bold transition ${
+								activeTab === 'joined'
+									? 'text-slate-950 dark:text-slate-50'
+									: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
 							}`}
 						>
-							{showPastEvents ? 'View active events' : 'View past events'}
+							Joined
+							<span class="ml-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+								{currentJoinedEvents.length}
+							</span>
+							{#if activeTab === 'joined'}
+								<span class="absolute bottom-0 left-0 right-5 h-0.5 rounded-full bg-slate-950 dark:bg-white"></span>
+							{/if}
 						</button>
 					</div>
 
-					{#if activeTab === 'hosting'}
-						{#if currentHostingEvents.length === 0}
-							<div class="rounded-[1.7rem] border border-dashed border-slate-200 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
-								<p class="text-sm text-slate-500 dark:text-slate-400">
-									{showPastEvents
-										? 'No past events found.'
-										: events.length === 0
-											? 'No events created yet.'
-											: 'No upcoming events right now. Create another one when you are ready.'}
-								</p>
-								{#if !showPastEvents}
-									<a href={resolve('/events/create')} class="mt-3 inline-flex rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700">
-										{events.length === 0 ? 'Create your first event' : 'Create another event'}
-									</a>
-								{/if}
-							</div>
-						{:else}
-							<div class="grid gap-3 lg:grid-cols-2">
-								{#each currentHostingEvents as event (event.id)}
-									<EventCard {event} variant="profile" />
-								{/each}
-							</div>
-						{/if}
-					{:else}
-						{#if currentJoinedEvents.length === 0}
-							<div class="rounded-[1.7rem] border border-dashed border-slate-200 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
-								<p class="text-sm text-slate-500 dark:text-slate-400">
-									{showPastEvents
-										? 'No past joined events found.'
-										: "You haven't joined any upcoming events yet."}
-								</p>
-								{#if !showPastEvents}
-									<a href={resolve('/explore')} class="mt-3 inline-flex rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700">
-										Find events near you
-									</a>
-								{/if}
-							</div>
-						{:else}
-							<div class="grid gap-3 lg:grid-cols-2">
-								{#each currentJoinedEvents as event (event.id)}
-									<EventCard {event} variant="profile" />
-								{/each}
-							</div>
-						{/if}
-					{/if}
-				</section>
-			</div>
+					<button
+						type="button"
+						onclick={() => (showPastEvents = !showPastEvents)}
+						class={`mb-3 rounded-full border px-4 py-1.5 text-xs font-bold shadow-sm transition active:scale-95 ${
+							showPastEvents
+								? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300'
+								: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
+						}`}
+					>
+						{showPastEvents ? 'View active events' : 'View past events'}
+					</button>
+				</div>
 
-			<div class="hidden xl:block"></div>
+				{#if activeTab === 'hosting'}
+					{#if currentHostingEvents.length === 0}
+						<div class="rounded-[1.7rem] border border-dashed border-slate-200 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
+							<p class="text-sm text-slate-500 dark:text-slate-400">
+								{showPastEvents
+									? 'No past events found.'
+									: events.length === 0
+										? 'No events created yet.'
+										: 'No upcoming events right now. Create another one when you are ready.'}
+							</p>
+						</div>
+					{:else}
+						<div class="grid gap-3 lg:grid-cols-2">
+							{#each currentHostingEvents as event (event.id)}
+								<EventCard {event} variant="profile" />
+							{/each}
+						</div>
+					{/if}
+				{:else}
+					{#if currentJoinedEvents.length === 0}
+						<div class="rounded-[1.7rem] border border-dashed border-slate-200 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
+							<p class="text-sm text-slate-500 dark:text-slate-400">
+								{showPastEvents
+									? 'No past joined events found.'
+									: "You haven't joined any upcoming events yet."}
+							</p>
+							{#if !showPastEvents}
+								<a href={resolve('/explore')} class="mt-3 inline-flex rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700">
+									Find events near you
+								</a>
+							{/if}
+						</div>
+					{:else}
+						<div class="grid gap-3 lg:grid-cols-2">
+							{#each currentJoinedEvents as event (event.id)}
+								<EventCard {event} variant="profile" />
+							{/each}
+						</div>
+					{/if}
+
+					{#if !showPastEvents && cancelledEventsForActiveTab.length > 0}
+						<div class="mt-2">
+							<button
+								type="button"
+								onclick={() => (showCancelledEvents = !showCancelledEvents)}
+								class="flex items-center gap-1.5 text-sm font-bold text-slate-500 transition hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+							>
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2.4"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									class={`h-4 w-4 transition-transform ${showCancelledEvents ? 'rotate-90' : ''}`}
+									aria-hidden="true"
+								>
+									<path d="m9 18 6-6-6-6" />
+								</svg>
+								Cancelled ({cancelledEventsForActiveTab.length})
+							</button>
+
+							{#if showCancelledEvents}
+								<div class="mt-3 grid gap-3 opacity-70 lg:grid-cols-2">
+									{#each cancelledEventsForActiveTab as event (event.id)}
+										<EventCard {event} variant="profile" />
+									{/each}
+								</div>
+							{/if}
+						</div>
+					{/if}
+				{/if}
+			</section>
 		</div>
-	</div>
 {/if}
