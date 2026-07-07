@@ -1,24 +1,26 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage'
+import { getStorage } from 'firebase/storage';
+import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
+import { dev } from '$app/environment';
 
 import {
-  PUBLIC_FIREBASE_API_KEY,
-  PUBLIC_FIREBASE_AUTH_DOMAIN,
-  PUBLIC_FIREBASE_PROJECT_ID,
-  PUBLIC_FIREBASE_STORAGE_BUCKET,
-  PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  PUBLIC_FIREBASE_APP_ID
+	PUBLIC_FIREBASE_API_KEY,
+	PUBLIC_FIREBASE_AUTH_DOMAIN,
+	PUBLIC_FIREBASE_PROJECT_ID,
+	PUBLIC_FIREBASE_STORAGE_BUCKET,
+	PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+	PUBLIC_FIREBASE_APP_ID
 } from '$env/static/public';
 
 const firebaseConfig = {
-  apiKey: PUBLIC_FIREBASE_API_KEY,
-  authDomain: PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: PUBLIC_FIREBASE_APP_ID
+	apiKey: PUBLIC_FIREBASE_API_KEY,
+	authDomain: PUBLIC_FIREBASE_AUTH_DOMAIN,
+	projectId: PUBLIC_FIREBASE_PROJECT_ID,
+	storageBucket: PUBLIC_FIREBASE_STORAGE_BUCKET,
+	messagingSenderId: PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+	appId: PUBLIC_FIREBASE_APP_ID
 };
 
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
@@ -26,3 +28,10 @@ const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+export const functions = getFunctions(app);
+
+// In local dev, call the Functions emulator instead of the deployed function.
+// Start it with: firebase emulators:start --only functions
+if (dev) {
+	connectFunctionsEmulator(functions, '127.0.0.1', 5001);
+}

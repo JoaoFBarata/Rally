@@ -4,9 +4,11 @@
 	import { resolve } from '$app/paths';
 	import { auth } from '$lib/firebase';
 	import LocationPickerMap from '$lib/components/maps/LocationPickerMap.svelte';
+	import VoiceRecordButton from '$lib/components/VoiceRecordButton.svelte';
 	import { createSportEvent } from '$lib/services/event.service';
 	import { getFriendsForUser } from '$lib/services/social.service';
 	import { inviteUsersToEvent } from '$lib/services/invite.service';
+	import type { VoiceExtractedFields } from '$lib/services/voice-event.service';
 	import TimeSelect from '$lib/components/TimeSelect.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import { goBack } from '$lib/utils/navigation';
@@ -30,6 +32,7 @@
 	let level = $state<SportLevel>('casual');
 	let loading = $state(false);
 	let error = $state('');
+	let voiceLocationHint = $state('');
 
 	const todayStr = new Date().toLocaleDateString('en-CA');
 
@@ -124,6 +127,25 @@
 		}
 	}
 
+	function handleVoiceExtracted(fields: VoiceExtractedFields) {
+		if (fields.title) title = fields.title;
+		if (fields.sport) sport = fields.sport;
+		if (fields.customSport) customSport = fields.customSport;
+		if (fields.level) level = fields.level;
+		if (fields.description) description = fields.description;
+		if (fields.location) {
+			locationName = fields.location;
+			voiceLocationHint = fields.location;
+		}
+		if (fields.date) startDate = fields.date;
+		if (fields.time) startTime = fields.time;
+		if (fields.durationMinutes) durationMinutes = fields.durationMinutes;
+		if (fields.maxParticipants) maxParticipants = fields.maxParticipants;
+		if (fields.priceTotal !== null && fields.priceTotal !== undefined) {
+			priceTotal = fields.priceTotal;
+		}
+	}
+
 	function toggleFriend(friendId: string) {
 		if (selectedFriendIds.includes(friendId)) {
 			selectedFriendIds = selectedFriendIds.filter((id) => id !== friendId);
@@ -181,6 +203,10 @@
 				{error}
 			</div>
 		{/if}
+
+		<div class="mb-5 sm:mb-8">
+			<VoiceRecordButton onExtracted={handleVoiceExtracted} />
+		</div>
 
 		<div>
 			<form
@@ -300,7 +326,10 @@
 					</div>
 
 					<div class="min-w-0">
-						<label for="durationMinutes" class="text-sm font-bold text-slate-700 dark:text-slate-300">
+						<label
+							for="durationMinutes"
+							class="text-sm font-bold text-slate-700 dark:text-slate-300"
+						>
 							Duration (minutes)
 						</label>
 
@@ -367,7 +396,7 @@
 					</div>
 				</div>
 				<div class="mt-5 sm:mt-8">
-					<LocationPickerMap bind:lat bind:lng bind:address />
+					<LocationPickerMap bind:lat bind:lng bind:address autofillAddress={voiceLocationHint} />
 				</div>
 				<button
 					type="submit"
