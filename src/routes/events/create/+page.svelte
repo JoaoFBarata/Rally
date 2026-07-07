@@ -33,6 +33,7 @@
 	let loading = $state(false);
 	let error = $state('');
 	let voiceLocationHint = $state('');
+	let step = $state<'choice' | 'form'>('choice');
 
 	const todayStr = new Date().toLocaleDateString('en-CA');
 
@@ -144,6 +145,8 @@
 		if (fields.priceTotal !== null && fields.priceTotal !== undefined) {
 			priceTotal = fields.priceTotal;
 		}
+
+		step = 'form';
 	}
 
 	function toggleFriend(friendId: string) {
@@ -188,28 +191,59 @@
 	<div
 		class="min-w-0 rounded-3xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-4xl sm:p-8"
 	>
-		<div class="mb-5 sm:mb-8">
-			<h2 class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">Create event</h2>
+		{#if step === 'choice'}
+			<div class="mb-5 sm:mb-8">
+				<h2 class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">Create event</h2>
 
-			<p class="mt-2 text-slate-500 dark:text-slate-400">
-				Fill in the event details and start inviting people.
-			</p>
-		</div>
-
-		{#if error}
-			<div
-				class="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
-			>
-				{error}
+				<p class="mt-2 text-slate-500 dark:text-slate-400">How do you want to create it?</p>
 			</div>
-		{/if}
 
-		<div class="mb-5 sm:mb-8">
-			<VoiceRecordButton onExtracted={handleVoiceExtracted} />
-		</div>
+			<div class="grid gap-4 sm:grid-cols-2">
+				<div
+					class="flex flex-col items-start rounded-2xl border-2 border-blue-200 bg-blue-50 p-5 dark:border-blue-900 dark:bg-blue-950/40"
+				>
+					<p class="text-sm font-bold text-blue-700 dark:text-blue-300">🎤 Use your voice</p>
 
-		<div>
-			<form
+					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+						Describe the event out loud — we'll fill in the form for you.
+					</p>
+
+					<div class="mt-4">
+						<VoiceRecordButton onExtracted={handleVoiceExtracted} />
+					</div>
+				</div>
+
+				<button
+					type="button"
+					onclick={() => (step = 'form')}
+					class="flex flex-col items-start rounded-2xl border-2 border-slate-200 bg-slate-50 p-5 text-left transition hover:border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700"
+				>
+					<p class="text-sm font-bold text-slate-700 dark:text-slate-300">✍️ Enter manually</p>
+
+					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+						Fill in the details yourself.
+					</p>
+				</button>
+			</div>
+		{:else}
+			<div class="mb-5 sm:mb-8">
+				<h2 class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">Create event</h2>
+
+				<p class="mt-2 text-slate-500 dark:text-slate-400">
+					Fill in the event details and start inviting people.
+				</p>
+			</div>
+
+			{#if error}
+				<div
+					class="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
+				>
+					{error}
+				</div>
+			{/if}
+
+			<div>
+				<form
 				class="space-y-5"
 				onsubmit={(e) => {
 					e.preventDefault();
@@ -407,6 +441,7 @@
 				</button>
 			</form>
 		</div>
+		{/if}
 	</div>
 </div>
 
