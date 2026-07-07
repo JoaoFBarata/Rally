@@ -85,6 +85,9 @@ export interface UserProfile {
 
 	rallyPointsTotal?: number;
 
+	isPrivate?: boolean;
+	connections?: string[]; // user IDs this user has shared at least one event with (permanent once added)
+
 	createdAt: Timestamp;
 	updatedAt: Timestamp;
 }

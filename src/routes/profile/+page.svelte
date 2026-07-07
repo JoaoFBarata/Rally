@@ -4,11 +4,9 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { auth } from '$lib/firebase';
-	import { authService } from '$lib/services/auth.service';
 	import type { Sport, UserProfile } from '$lib/schema';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import RallyWordmark from '$lib/components/RallyWordmark.svelte';
-	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import {
 		ensureUserProfile,
 		updateUserProfileDetails,
@@ -30,10 +28,8 @@
 	} from '$lib/services/realtime.service';
 	import { getUserPointTransactions, RALLY_POINTS_CONFIG } from '$lib/services/points.service';
 	import {
-		canFastSwitchDeviceAccount,
 		getDeviceAccounts,
 		rememberDeviceAccount,
-		removeDeviceAccount,
 		type DeviceAccount
 	} from '$lib/services/device-accounts.service';
 	import type { RallyPointTransaction } from '$lib/schema';
@@ -66,7 +62,6 @@
 	let loading = $state(true);
 	let saving = $state(false);
 	let photoSaving = $state(false);
-	let logoutLoading = $state(false);
 	let friendLoading = $state(false);
 	let editMode = $state(false);
 	let error = $state('');
@@ -76,12 +71,7 @@
 	let showQrModal = $state(false);
 	let pointTransactions = $state<RallyPointTransaction[]>([]);
 	let showPointsBreakdown = $state(false);
-	let showSettingsModal = $state(false);
-	let notificationsEnabled = $state(true);
-	let selectedLanguage = $state('en');
-	let showAccountSwitcher = $state(false);
 	let deviceAccounts = $state<DeviceAccount[]>([]);
-	let switchingAccountId = $state<string | null>(null);
 
 	let showPhotoModal = $state(false);
 	let avatarSelectionMode = $state(false);
@@ -340,77 +330,6 @@
 		success = 'Rally tag copied.';
 	}
 
-	async function handleLogout() {
-		logoutLoading = true;
-
-		try {
-			await authService.logout();
-			await goto('/');
-		} finally {
-			logoutLoading = false;
-		}
-	}
-
-	async function handleAddAccount() {
-		logoutLoading = true;
-
-		try {
-			if (profile) deviceAccounts = rememberDeviceAccount(profile, auth.currentUser);
-			await authService.logout();
-			showSettingsModal = false;
-			showAccountSwitcher = false;
-			await goto('/login?returnTo=/profile&mode=addAccount');
-		} finally {
-			logoutLoading = false;
-		}
-	}
-
-	async function handleSwitchAccount(account: DeviceAccount) {
-		if (account.id === auth.currentUser?.uid) {
-			showAccountSwitcher = false;
-			return;
-		}
-
-		logoutLoading = true;
-		switchingAccountId = account.id;
-		error = '';
-
-		try {
-			if (profile) deviceAccounts = rememberDeviceAccount(profile, auth.currentUser);
-
-			if (canFastSwitchDeviceAccount(account)) {
-				await authService.logout();
-				const switchedUser = await authService.signInWithGoogle();
-
-				if (switchedUser.uid !== account.id) {
-					deviceAccounts = getDeviceAccounts();
-					error = `You signed in as ${switchedUser.email ?? 'another account'}. Choose ${account.email} to switch to ${account.displayName}.`;
-					return;
-				}
-
-				showSettingsModal = false;
-				showAccountSwitcher = false;
-				await goto('/profile');
-				return;
-			}
-
-			await authService.logout();
-			showSettingsModal = false;
-			showAccountSwitcher = false;
-			await goto(`/login?returnTo=/profile&email=${encodeURIComponent(account.email)}&switchAccount=${encodeURIComponent(account.id)}`);
-		} catch (err) {
-			console.error('Switch account error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not switch account.');
-		} finally {
-			logoutLoading = false;
-			switchingAccountId = null;
-		}
-	}
-
-	function handleForgetDeviceAccount(accountId: string) {
-		deviceAccounts = removeDeviceAccount(accountId);
-	}
-
 	async function generateProfileQrCode(userId: string) {
 		if (!browser || !profile?.rallyTag) return;
 
@@ -443,33 +362,21 @@
 <main class="mx-auto w-full max-w-6xl px-5 py-5 sm:px-5 sm:py-6">
 	<header class="mb-4 md:mb-6">
 		<div class="hidden md:block">
-			<div class="flex items-center justify-between gap-3">
-				<RallyWordmark size="sm" />
-				<button
-					type="button"
-					onclick={() => (showSettingsModal = true)}
-					class="rounded-full bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-800 dark:hover:bg-slate-800"
-				>
-					Settings
-				</button>
-			</div>
+			<RallyWordmark size="sm" />
 			<h1 class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">Profile</h1>
 			<p class="mt-1 text-slate-500 dark:text-slate-400">
 				Your Rally identity, sports profile and friends.
 			</p>
 		</div>
 
-		<div class="flex items-center justify-between md:hidden">
+		<div class="flex items-center justify-between gap-3 md:hidden">
 			<p class="text-base font-black text-slate-950 dark:text-slate-50">Profile</p>
-
-			<button
-				type="button"
-				onclick={() => (showSettingsModal = true)}
-				class="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-800"
-				aria-label="Open settings"
+			<a
+				href={resolve('/settings')}
+				class="text-sm font-bold text-blue-600 dark:text-blue-400"
 			>
-				⚙
-			</button>
+				Settings
+			</a>
 		</div>
 	</header>
 
@@ -1397,213 +1304,6 @@
 						</button>
 					</div>
 				{/if}
-			</div>
-		</dialog>
-	{/if}
-
-	{#if showSettingsModal}
-		<dialog
-			open
-			class="fixed inset-0 z-[120] m-0 flex h-full w-full max-w-none items-end justify-center border-0 bg-slate-950/60 px-0 backdrop-blur-sm sm:items-center sm:px-5"
-			onclick={(event) => {
-				if (event.target === event.currentTarget) {
-					showSettingsModal = false;
-					showAccountSwitcher = false;
-				}
-			}}
-			aria-labelledby="profile-settings-title"
-		>
-			<div
-				class="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-[2rem] bg-white p-5 shadow-2xl dark:bg-slate-900 sm:rounded-[2rem] sm:p-6"
-			>
-				<div class="flex items-start justify-between gap-4">
-					<div>
-						<h2 id="profile-settings-title" class="text-2xl font-black text-slate-950 dark:text-slate-50">Settings</h2>
-						<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Notifications, appearance, language and account.</p>
-					</div>
-					<button
-						type="button"
-						onclick={() => {
-							showSettingsModal = false;
-							showAccountSwitcher = false;
-						}}
-						class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-xl font-black text-slate-500 transition hover:bg-slate-200 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-						aria-label="Close settings"
-					>
-						×
-					</button>
-				</div>
-
-				<div class="mt-6 space-y-5">
-					<section>
-						<p class="mb-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">App</p>
-
-						<div class="divide-y divide-slate-200 overflow-hidden rounded-3xl bg-slate-50 dark:divide-slate-700 dark:bg-slate-800">
-							<div class="flex items-center justify-between gap-4 p-4">
-								<div>
-									<p class="font-black text-slate-950 dark:text-slate-50">Notifications</p>
-									<p class="text-xs text-slate-500 dark:text-slate-400">Event invites, messages and friend requests.</p>
-								</div>
-								<button
-									type="button"
-									onclick={() => (notificationsEnabled = !notificationsEnabled)}
-									class={`relative h-7 w-12 rounded-full transition ${notificationsEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}
-									aria-label="Toggle notifications"
-								>
-									<span class={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${notificationsEnabled ? 'left-6' : 'left-1'}`}></span>
-								</button>
-							</div>
-
-							<div class="flex items-center justify-between gap-4 p-4">
-								<div>
-									<p class="font-black text-slate-950 dark:text-slate-50">Appearance</p>
-									<p class="text-xs text-slate-500 dark:text-slate-400">Switch light or dark mode.</p>
-								</div>
-								<ThemeToggle />
-							</div>
-
-							<label class="flex items-center justify-between gap-4 p-4">
-								<div>
-									<p class="font-black text-slate-950 dark:text-slate-50">Language</p>
-									<p class="text-xs text-slate-500 dark:text-slate-400">App language.</p>
-								</div>
-								<select
-									bind:value={selectedLanguage}
-									class="rounded-2xl border-slate-200 bg-white py-2 pl-3 pr-8 text-sm font-bold text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-								>
-									<option value="en">English</option>
-									<option value="pt">Português</option>
-								</select>
-							</label>
-						</div>
-					</section>
-
-					<section>
-						<div class="mb-2 flex items-center justify-between gap-3">
-							<p class="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Account</p>
-							{#if showAccountSwitcher}
-								<button
-									type="button"
-									onclick={() => (showAccountSwitcher = false)}
-									class="text-xs font-black text-blue-600 dark:text-blue-400"
-								>
-									Back
-								</button>
-							{/if}
-						</div>
-
-						{#if showAccountSwitcher}
-							<div class="overflow-hidden rounded-3xl bg-slate-50 dark:bg-slate-800">
-								<div class="divide-y divide-slate-200 dark:divide-slate-700">
-									{#each deviceAccounts as account (account.id)}
-										<div class="flex items-center gap-3 p-4">
-											<button
-												type="button"
-												onclick={() => handleSwitchAccount(account)}
-												disabled={logoutLoading}
-												class="flex min-w-0 flex-1 items-center gap-3 text-left disabled:opacity-60"
-											>
-												<UserAvatar
-													photoURL={account.photoURL}
-													displayName={account.displayName}
-													email={account.email}
-													size="md"
-												/>
-												<div class="min-w-0 flex-1">
-													<div class="flex min-w-0 items-center gap-2">
-														<p class="truncate font-black text-slate-950 dark:text-slate-50">{account.displayName}</p>
-														{#if account.accountType === 'organization'}
-															<span class="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[0.65rem] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300">Org</span>
-														{/if}
-													</div>
-													<p class="truncate text-xs text-slate-500 dark:text-slate-400">
-														{account.rallyTag ? `@${account.rallyTag}` : account.email}
-													</p>
-													{#if account.id !== auth.currentUser?.uid}
-														<p class="mt-0.5 text-[0.68rem] font-bold text-slate-400 dark:text-slate-500">
-															{#if switchingAccountId === account.id}
-																Switching...
-															{:else if canFastSwitchDeviceAccount(account)}
-																Quick switch with Google
-															{:else}
-																Password required
-															{/if}
-														</p>
-													{/if}
-												</div>
-											</button>
-
-											{#if account.id === auth.currentUser?.uid}
-												<span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-black text-white">✓</span>
-											{:else}
-												<button
-													type="button"
-													onclick={() => handleForgetDeviceAccount(account.id)}
-													class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-white hover:text-red-500 dark:hover:bg-slate-900"
-													aria-label="Forget account on this device"
-												>
-													×
-												</button>
-											{/if}
-										</div>
-									{/each}
-								</div>
-
-								<button
-									type="button"
-									onclick={handleAddAccount}
-									disabled={logoutLoading}
-									class="flex w-full items-center gap-3 border-t border-slate-200 p-4 text-left transition hover:bg-slate-100 disabled:opacity-60 dark:border-slate-700 dark:hover:bg-slate-700"
-								>
-									<span class="flex h-11 w-11 items-center justify-center rounded-full bg-white text-2xl font-light text-slate-700 shadow-sm dark:bg-slate-900 dark:text-slate-200">+</span>
-									<span>
-										<span class="block font-black text-slate-950 dark:text-slate-50">Add another account</span>
-										<span class="block text-xs text-slate-500 dark:text-slate-400">It will be saved on this device.</span>
-									</span>
-								</button>
-
-								<div class="px-4 pb-4 pt-1">
-									<p class="text-[0.7rem] leading-relaxed text-slate-400 dark:text-slate-500">
-										Google accounts can quick switch. Email/password accounts still require the password for security.
-									</p>
-								</div>
-							</div>
-						{:else}
-							<div class="overflow-hidden rounded-3xl bg-slate-50 dark:bg-slate-800">
-								<div class="flex items-center gap-3 p-4">
-									<UserAvatar
-										photoURL={profile?.photoURL ?? auth.currentUser?.photoURL ?? null}
-										displayName={profile?.displayName ?? ''}
-										email={profile?.email}
-										size="md"
-									/>
-									<div class="min-w-0 flex-1">
-										<p class="truncate font-black text-slate-950 dark:text-slate-50">{profile?.displayName}</p>
-										<p class="truncate text-xs text-slate-500 dark:text-slate-400">{profile?.email}</p>
-									</div>
-							</div>
-
-							<div class="grid grid-cols-2 gap-2 p-3 pt-0">
-								<button
-									type="button"
-									onclick={() => (showAccountSwitcher = true)}
-									class="rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-900 shadow-sm transition hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-50 dark:hover:bg-slate-700"
-								>
-									Switch
-								</button>
-
-								<button
-									onclick={handleLogout}
-									disabled={logoutLoading}
-									class="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-slate-50 dark:text-slate-950 dark:hover:bg-slate-200"
-								>
-									{logoutLoading ? '...' : 'Log out'}
-								</button>
-							</div>
-							</div>
-						{/if}
-					</section>
-				</div>
 			</div>
 		</dialog>
 	{/if}

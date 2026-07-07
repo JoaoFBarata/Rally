@@ -422,6 +422,23 @@ async function awardPoints(
 }
 
 // Trigger: Event updated (Completion / Cancellation)
+// Records that every pair of members in `memberIds` has shared an event.
+// Connections are additive and permanent (used to gate private-profile
+// visibility) — no removal logic when someone later leaves an event.
+async function syncEventConnections(memberIds) {
+    const uniqueMembers = [...new Set(memberIds)].filter(Boolean);
+    if (uniqueMembers.length < 2) return;
+
+    await Promise.all(
+        uniqueMembers.map((memberId) => {
+            const others = uniqueMembers.filter((id) => id !== memberId);
+            return db.collection("users").doc(memberId).update({
+                connections: FieldValue.arrayUnion(...others)
+            });
+        })
+    );
+}
+
 exports.onEventUpdated = onDocumentUpdated("events/{eventId}", async (event) => {
     const change = event.data;
     if (!change) return;
@@ -429,6 +446,20 @@ exports.onEventUpdated = onDocumentUpdated("events/{eventId}", async (event) => 
     const before = change.before.data();
     const after = change.after.data();
     const eventId = event.params.eventId;
+
+    // Someone joined: sync connections so co-participants can see each
+    // other's profile even if one of them is private.
+    const beforeParticipantIds = new Set(before.participantIds || []);
+    const afterParticipantIds = after.participantIds || [];
+    const hasNewParticipant = afterParticipantIds.some((id) => !beforeParticipantIds.has(id));
+
+    if (hasNewParticipant) {
+        try {
+            await syncEventConnections([after.creatorId, ...afterParticipantIds]);
+        } catch (err) {
+            console.error(`Error syncing connections for event ${eventId}:`, err);
+        }
+    }
 
     // Execute only if the event status changed
     if (before.status !== after.status) {

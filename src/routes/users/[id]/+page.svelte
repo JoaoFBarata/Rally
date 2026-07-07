@@ -6,7 +6,9 @@
 	import { resolve } from '$app/paths';
 	import { onAuthStateChanged } from 'firebase/auth';
 	import { PUBLIC_MAPBOX_ACCESS_TOKEN } from '$env/static/public';
-	import { auth } from '$lib/firebase';
+	import { doc, getDoc } from 'firebase/firestore';
+	import { FirebaseError } from 'firebase/app';
+	import { auth, db } from '$lib/firebase';
 	import type { Sport, SportEvent, UserProfile } from '$lib/schema';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import RallyWordmark from '$lib/components/RallyWordmark.svelte';
@@ -35,6 +37,7 @@
 
 	let loading = $state(true);
 	let actionLoading = $state(false);
+	let isPrivateProfile = $state(false);
 	let error = $state('');
 	let success = $state('');
 	let showRemoveConfirmModal = $state(false);
@@ -133,6 +136,7 @@
 		if (showLoading) loading = true;
 		error = '';
 		success = '';
+		isPrivateProfile = false;
 
 		try {
 			const targetUserId = page.params.id;
@@ -147,10 +151,30 @@
 				return;
 			}
 
+			let targetProfileIsPrivate = false;
+
 			const [loadedTargetProfile, loadedCurrentProfile] = await Promise.all([
-				getUserProfile(targetUserId),
+				(async () => {
+					try {
+						const targetSnap = await getDoc(doc(db, 'users', targetUserId));
+						return targetSnap.exists()
+							? ({ ...targetSnap.data(), id: targetSnap.id } as UserProfile)
+							: null;
+					} catch (err) {
+						if (err instanceof FirebaseError && err.code === 'permission-denied') {
+							targetProfileIsPrivate = true;
+							return null;
+						}
+						throw err;
+					}
+				})(),
 				getUserProfile(currentUserId)
 			]);
+
+			if (targetProfileIsPrivate) {
+				isPrivateProfile = true;
+				return;
+			}
 
 			if (!loadedTargetProfile) {
 				error = 'User not found.';
@@ -333,6 +357,14 @@
 	{#if loading}
 		<section class="mt-8 rounded-[2rem] bg-white p-6 shadow-sm dark:bg-slate-900">
 			<p class="font-bold text-slate-500 dark:text-slate-400">Loading user...</p>
+		</section>
+	{:else if isPrivateProfile}
+		<section class="mt-8 rounded-[2rem] bg-white p-6 text-center shadow-sm dark:bg-slate-900">
+			<p class="text-3xl">🔒</p>
+			<p class="mt-3 font-black text-slate-950 dark:text-slate-50">This profile is private</p>
+			<p class="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+				You'll be able to see it once you share an event together.
+			</p>
 		</section>
 	{:else if error && !targetProfile}
 		<section class="mt-8 rounded-[2rem] bg-red-50 p-6 font-bold text-red-700 dark:bg-red-950/40 dark:text-red-300">

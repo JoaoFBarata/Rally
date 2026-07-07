@@ -56,10 +56,16 @@ service cloud.firestore {
 
 
     // ── Users ────────────────────────────────────────────────────────────────
-    // Any signed-in user can read profiles (needed for friend search, event pages, chat).
-    // Only the owner can write their own profile.
+    // Any signed-in user can read a profile unless its owner made it private —
+    // in that case only the owner and users who share an event with them
+    // (tracked in `connections`, kept in sync by the onEventUpdated function)
+    // can read it. Only the owner can write their own profile.
     match /users/{userId} {
-      allow read:   if isAuth();
+      allow read:   if isAuth() && (
+        request.auth.uid == userId
+        || resource.data.get('isPrivate', false) != true
+        || request.auth.uid in resource.data.get('connections', [])
+      );
       allow create: if isMe(userId) && request.resource.data.id == userId;
       allow update: if isMe(userId);
       allow delete: if false;
