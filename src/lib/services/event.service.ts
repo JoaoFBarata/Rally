@@ -592,7 +592,13 @@ export async function getEventsCreatedByOrganization(organizationId: string) {
 		eventsById.set(enrichedEvent.id, enrichedEvent);
 	}
 
-	const adminIds = organization.adminIds ?? [];
+	const adminIds = [
+		...new Set([
+			...(organization.adminIds ?? []),
+			...(organization.memberIds ?? []),
+			organization.ownerId
+		].filter(Boolean))
+	];
 
 	for (const chunk of chunkArray(adminIds, 10)) {
 		if (chunk.length === 0) continue;
@@ -2150,4 +2156,3 @@ export async function getWeatherForEvent(
 		return null;
 	}
 }
-

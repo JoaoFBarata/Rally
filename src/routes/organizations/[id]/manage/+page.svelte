@@ -45,6 +45,8 @@
 	let saving = $state(false);
 	let requesting = $state(false);
 	let uploadingLogo = $state(false);
+	let uploadingCover = $state(false);
+	let uploadingGallery = $state(false);
 	let logoutLoading = $state(false);
 	let showSettingsModal = $state(false);
 	let notificationsEnabled = $state(true);
@@ -57,6 +59,8 @@
 	let success = $state('');
 
 	let logoInput = $state<HTMLInputElement | null>(null);
+	let coverInput = $state<HTMLInputElement | null>(null);
+	let galleryInput = $state<HTMLInputElement | null>(null);
 
 	let name = $state('');
 	let type = $state<OrganizationType>('company');
@@ -282,6 +286,113 @@
 			error = getFriendlyErrorMessage(err, 'Could not upload logo.');
 		} finally {
 			uploadingLogo = false;
+			input.value = '';
+		}
+	}
+
+	async function handleCoverUpload(event: Event) {
+		const user = auth.currentUser;
+		if (!user || !organization) return;
+
+		const input = event.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+
+		uploadingCover = true;
+		error = '';
+		success = '';
+
+		try {
+			const uploaded = await uploadOrganizationLogo({
+				organizationId: organization.id,
+				userId: user.uid,
+				file
+			});
+
+			await updateOrganizationProfile({
+				organizationId: organization.id,
+				userId: user.uid,
+				name,
+				type,
+				description,
+				contactEmail,
+				phone,
+				website,
+				address,
+				city,
+				nif,
+				logoURL: organization.logoURL ?? null,
+				logoPath: organization.logoPath ?? null,
+				coverPhotoURL: uploaded.url,
+				coverPhotoPath: uploaded.path
+			});
+
+			success = 'Organization cover updated.';
+			await loadManagePage(user.uid);
+		} catch (err) {
+			console.error('Upload organization cover error:', err);
+			error = getFriendlyErrorMessage(err, 'Could not upload cover image.');
+		} finally {
+			uploadingCover = false;
+			input.value = '';
+		}
+	}
+
+	async function handleGalleryUpload(event: Event) {
+		const user = auth.currentUser;
+		if (!user || !organization) return;
+		const currentOrganization = organization;
+
+		const input = event.currentTarget as HTMLInputElement;
+		const files = Array.from(input.files ?? []);
+		if (files.length === 0) return;
+
+		uploadingGallery = true;
+		error = '';
+		success = '';
+
+		try {
+			const uploads = await Promise.all(
+				files.slice(0, 6).map((file) =>
+					uploadOrganizationLogo({
+						organizationId: currentOrganization.id,
+						userId: user.uid,
+						file
+					})
+				)
+			);
+
+			await updateOrganizationProfile({
+				organizationId: currentOrganization.id,
+				userId: user.uid,
+				name,
+				type,
+				description,
+				contactEmail,
+				phone,
+				website,
+				address,
+				city,
+				nif,
+				logoURL: currentOrganization.logoURL ?? null,
+				logoPath: currentOrganization.logoPath ?? null,
+				galleryPhotoURLs: [...(currentOrganization.galleryPhotoURLs ?? []), ...uploads.map((item) => item.url)].slice(
+					0,
+					12
+				),
+				galleryPhotoPaths: [...(currentOrganization.galleryPhotoPaths ?? []), ...uploads.map((item) => item.path)].slice(
+					0,
+					12
+				)
+			});
+
+			success = 'Gallery updated.';
+			await loadManagePage(user.uid);
+		} catch (err) {
+			console.error('Upload organization gallery error:', err);
+			error = getFriendlyErrorMessage(err, 'Could not upload gallery images.');
+		} finally {
+			uploadingGallery = false;
 			input.value = '';
 		}
 	}
@@ -756,6 +867,61 @@
 							class="rounded-2xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-200 disabled:opacity-60 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 sm:px-4 sm:py-3 sm:text-sm"
 						>
 							{uploadingLogo ? 'Uploading...' : 'Change logo'}
+						</button>
+					</div>
+				</div>
+
+				<div class="mt-5 grid gap-3 sm:grid-cols-2">
+					<div class="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950">
+						<div class="h-28 overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-500 to-slate-950">
+							{#if organization.coverPhotoURL}
+								<img src={organization.coverPhotoURL} alt="" class="h-full w-full object-cover" />
+							{/if}
+						</div>
+						<input
+							bind:this={coverInput}
+							type="file"
+							accept="image/*"
+							class="hidden"
+							onchange={handleCoverUpload}
+						/>
+						<button
+							type="button"
+							onclick={() => coverInput?.click()}
+							disabled={uploadingCover}
+							class="mt-3 w-full rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
+						>
+							{uploadingCover ? 'Uploading...' : 'Change cover photo'}
+						</button>
+					</div>
+
+					<div class="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950">
+						<div class="flex h-28 gap-2 overflow-hidden">
+							{#if organization.galleryPhotoURLs?.length}
+								{#each organization.galleryPhotoURLs.slice(0, 3) as photoURL}
+									<img src={photoURL} alt="" class="min-w-0 flex-1 rounded-2xl object-cover" />
+								{/each}
+							{:else}
+								<div class="grid h-full flex-1 place-items-center rounded-2xl border border-dashed border-slate-200 text-xs font-black text-slate-400 dark:border-slate-800">
+									No gallery photos
+								</div>
+							{/if}
+						</div>
+						<input
+							bind:this={galleryInput}
+							type="file"
+							accept="image/*"
+							multiple
+							class="hidden"
+							onchange={handleGalleryUpload}
+						/>
+						<button
+							type="button"
+							onclick={() => galleryInput?.click()}
+							disabled={uploadingGallery}
+							class="mt-3 w-full rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+						>
+							{uploadingGallery ? 'Uploading...' : 'Add gallery photos'}
 						</button>
 					</div>
 				</div>

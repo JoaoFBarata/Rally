@@ -204,10 +204,12 @@
 
 	function renderEventMarkers() {
 		if (!map || !mapReady || !userLocation || !clusterIndex) return;
+		const currentMap = map;
 		clearEventMarkers();
 
-		const zoom = Math.floor(map.getZoom());
-		const mapBounds = map.getBounds();
+		const zoom = Math.floor(currentMap.getZoom());
+		const mapBounds = currentMap.getBounds();
+		if (!mapBounds) return;
 		const bbox: [number, number, number, number] = [
 			mapBounds.getWest(),
 			mapBounds.getSouth(),
@@ -260,7 +262,7 @@
 					target: el,
 					props: {
 						profile_url: photoURL,
-						name_letter: (creator?.displayName || creator?.email || 'U').charAt(0).toUpperCase(),
+						name_letter: (creator?.displayName || 'U').charAt(0).toUpperCase(),
 						sport: priorityEvent.sport,
 						n_confirmed_attendees: priorityEvent.participantIds?.length || 0,
 						max_occupancy: priorityEvent.maxParticipants || 0,
@@ -273,7 +275,7 @@
 				el.addEventListener('click', () => {
 					try {
 						const expansionZoom = clusterIndex.getClusterExpansionZoom(clusterId);
-						map.flyTo({
+						currentMap.flyTo({
 							center: [lng, lat],
 							zoom: expansionZoom,
 							speed: 1.2
@@ -285,7 +287,7 @@
 
 				const m = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
 					.setLngLat([lng, lat])
-					.addTo(map);
+					.addTo(currentMap);
 				eventMarkers.push(m);
 			} else {
 				const event = feature.properties.event;
@@ -316,7 +318,7 @@
 					target: el,
 					props: {
 						profile_url: photoURL,
-						name_letter: (creator?.displayName || creator?.email || 'U').charAt(0).toUpperCase(),
+						name_letter: (creator?.displayName || 'U').charAt(0).toUpperCase(),
 						sport: event.sport,
 						n_confirmed_attendees: event.participantIds?.length || 0,
 						max_occupancy: event.maxParticipants || 0,
@@ -328,7 +330,7 @@
 				const m = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
 					.setLngLat([lng, lat])
 					.setPopup(popup)
-					.addTo(map);
+					.addTo(currentMap);
 
 				eventMarkers.push(m);
 			}

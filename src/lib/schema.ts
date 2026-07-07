@@ -118,6 +118,10 @@ export interface Organization {
 	description?: string;
 	logoURL?: string | null;
 	logoPath?: string | null;
+	coverPhotoURL?: string | null;
+	coverPhotoPath?: string | null;
+	galleryPhotoURLs?: string[];
+	galleryPhotoPaths?: string[];
 
 	website?: string;
 	phone?: string;
@@ -149,6 +153,18 @@ export interface OrganizationFollower {
 	organizationId: string;
 	userId: string;
 	createdAt: Timestamp;
+}
+
+export interface OrganizationReview {
+	id: string;
+	organizationId: string;
+	userId: string;
+	authorName?: string;
+	authorPhotoURL?: string | null;
+	rating: number;
+	comment: string;
+	createdAt: Timestamp;
+	updatedAt: Timestamp;
 }
 
 export interface OrganizationVerificationRequest {

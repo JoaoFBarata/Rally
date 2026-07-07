@@ -234,6 +234,7 @@
 
 	function renderMarkers() {
 		if (!map || !mapReady || !clusterIndex) return;
+		const currentMap = map;
 
 		if (!hasFitBoundsForCurrentEvents && filteredEvents.length > 0) {
 			const bounds = new mapboxgl.LngLatBounds();
@@ -247,7 +248,7 @@
 			}
 			if (hasCoords) {
 				hasFitBoundsForCurrentEvents = true;
-				map.fitBounds(bounds, {
+				currentMap.fitBounds(bounds, {
 					padding: 80,
 					maxZoom: 13
 				});
@@ -257,8 +258,9 @@
 
 		clearMarkers();
 
-		const zoom = Math.floor(map.getZoom());
-		const mapBounds = map.getBounds();
+		const zoom = Math.floor(currentMap.getZoom());
+		const mapBounds = currentMap.getBounds();
+		if (!mapBounds) return;
 		const bbox: [number, number, number, number] = [
 			mapBounds.getWest(),
 			mapBounds.getSouth(),
@@ -304,7 +306,7 @@
 					target: el,
 					props: {
 						profile_url: photoURL,
-						name_letter: (creator?.displayName || creator?.email || 'U').charAt(0).toUpperCase(),
+						name_letter: (creator?.displayName || 'U').charAt(0).toUpperCase(),
 						sport: priorityEvent.sport,
 						n_confirmed_attendees: priorityEvent.participantIds?.length || 0,
 						max_occupancy: priorityEvent.maxParticipants || 0,
@@ -318,7 +320,7 @@
 					clearSelectedEvent();
 					try {
 						const expansionZoom = clusterIndex.getClusterExpansionZoom(clusterId);
-						map.flyTo({
+						currentMap.flyTo({
 							center: [lng, lat],
 							zoom: expansionZoom,
 							speed: 1.2
@@ -330,7 +332,7 @@
 
 				const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
 					.setLngLat([lng, lat])
-					.addTo(map);
+					.addTo(currentMap);
 				markers.push(marker);
 			} else {
 				const event = feature.properties.event;
@@ -345,7 +347,7 @@
 					target: el,
 					props: {
 						profile_url: photoURL,
-						name_letter: (creator?.displayName || creator?.email || 'U').charAt(0).toUpperCase(),
+						name_letter: (creator?.displayName || 'U').charAt(0).toUpperCase(),
 						sport: event.sport,
 						n_confirmed_attendees: event.participantIds?.length || 0,
 						max_occupancy: event.maxParticipants || 0,
@@ -360,7 +362,7 @@
 
 				const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
 					.setLngLat([lng, lat])
-					.addTo(map);
+					.addTo(currentMap);
 
 				markers.push(marker);
 			}
