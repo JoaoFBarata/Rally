@@ -71,9 +71,9 @@
 					icon: 'messages'
 				},
 				{
-					label: 'Public page',
+					label: 'Profile',
 					href: organizationPublicHref,
-					icon: 'public'
+					icon: 'profile'
 				}
 			];
 		} else {
@@ -150,7 +150,6 @@
 	function mobileLabel(label: string) {
 		if (label === 'Create event') return 'Create';
 		if (label === 'Organization') return 'Org';
-		if (label === 'Public page') return 'Public';
 		return label;
 	}
 

@@ -49,9 +49,9 @@
 	let reviewComment = $state('');
 	let reviewSubmitting = $state(false);
 	let reviewMessage = $state('');
+	let logoInput = $state<HTMLInputElement | null>(null);
 	let coverInput = $state<HTMLInputElement | null>(null);
 	let galleryInput = $state<HTMLInputElement | null>(null);
-	let uploadingCover = $state(false);
 	let uploadingGallery = $state(false);
 	let savingSports = $state(false);
 	let mutualFollowerFriends = $state<UserProfile[]>([]);
@@ -59,6 +59,22 @@
 	let showGalleryModal = $state(false);
 	let selectedGalleryPhoto = $state('');
 	let selectedOrganizationSports = $state<Sport[]>([]);
+	let showEditProfile = $state(false);
+	let editName = $state('');
+	let editType = $state<Organization['type']>('company');
+	let editDescription = $state('');
+	let editContactEmail = $state('');
+	let editPhone = $state('');
+	let editWebsite = $state('');
+	let editAddress = $state('');
+	let editCity = $state('');
+	let editNif = $state('');
+	let savingProfile = $state(false);
+	let removingGalleryPhoto = $state('');
+	let draftLogoFile = $state<File | null>(null);
+	let draftLogoPreview = $state('');
+	let draftCoverFile = $state<File | null>(null);
+	let draftCoverPreview = $state('');
 	let reviewPage = $state(0);
 	let replyingToReviewId = $state<string | null>(null);
 	let replyComment = $state('');
@@ -271,6 +287,124 @@
 		}
 	}
 
+	function clearDraftMedia() {
+		if (draftLogoPreview) URL.revokeObjectURL(draftLogoPreview);
+		if (draftCoverPreview) URL.revokeObjectURL(draftCoverPreview);
+		draftLogoFile = null;
+		draftLogoPreview = '';
+		draftCoverFile = null;
+		draftCoverPreview = '';
+	}
+
+	function handleDraftLogoUpload(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+
+		if (draftLogoPreview) URL.revokeObjectURL(draftLogoPreview);
+		draftLogoFile = file;
+		draftLogoPreview = URL.createObjectURL(file);
+		input.value = '';
+	}
+
+	function handleDraftCoverUpload(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+
+		if (draftCoverPreview) URL.revokeObjectURL(draftCoverPreview);
+		draftCoverFile = file;
+		draftCoverPreview = URL.createObjectURL(file);
+		input.value = '';
+	}
+
+	function resetEditProfileForm() {
+		if (!organization) return;
+		clearDraftMedia();
+		editName = organization.name;
+		editType = organization.type;
+		editDescription = organization.description ?? '';
+		editContactEmail = organization.contactEmail;
+		editPhone = organization.phone ?? '';
+		editWebsite = organization.website ?? '';
+		editAddress = organization.address ?? '';
+		editCity = organization.city ?? '';
+		editNif = organization.nif ?? '';
+		selectedOrganizationSports = organization.sports ?? [];
+	}
+
+	function openEditProfile() {
+		resetEditProfileForm();
+		showEditProfile = true;
+		error = '';
+	}
+
+	function closeEditProfile() {
+		clearDraftMedia();
+		showEditProfile = false;
+	}
+
+	async function saveEditableOrganizationProfile() {
+		const user = auth.currentUser;
+		if (!user || !organization) return;
+
+		savingProfile = true;
+		error = '';
+
+		try {
+			let logoURL = organization.logoURL ?? null;
+			let logoPath = organization.logoPath ?? null;
+			let coverPhotoURL = organization.coverPhotoURL ?? null;
+			let coverPhotoPath = organization.coverPhotoPath ?? null;
+
+			if (draftLogoFile) {
+				const uploadedLogo = await uploadOrganizationLogo({
+					organizationId: organization.id,
+					userId: user.uid,
+					file: draftLogoFile
+				});
+				logoURL = uploadedLogo.url;
+				logoPath = uploadedLogo.path;
+			}
+
+			if (draftCoverFile) {
+				const uploadedCover = await uploadOrganizationLogo({
+					organizationId: organization.id,
+					userId: user.uid,
+					file: draftCoverFile
+				});
+				coverPhotoURL = uploadedCover.url;
+				coverPhotoPath = uploadedCover.path;
+			}
+
+			await updateOrganizationProfile({
+				organizationId: organization.id,
+				userId: user.uid,
+				name: editName,
+				type: editType,
+				description: editDescription,
+				contactEmail: editContactEmail,
+				phone: editPhone,
+				website: editWebsite,
+				address: editAddress,
+				city: editCity,
+				nif: editNif,
+				logoURL,
+				logoPath,
+				coverPhotoURL,
+				coverPhotoPath,
+				sports: selectedOrganizationSports
+			});
+			closeEditProfile();
+			await loadPage(user.uid);
+		} catch (err) {
+			console.error('Save organization profile error:', err);
+			error = getFriendlyErrorMessage(err, 'Could not save organization profile.');
+		} finally {
+			savingProfile = false;
+		}
+	}
+
 	async function saveOrganizationSports() {
 		const user = auth.currentUser;
 		if (!user || !organization) return;
@@ -304,6 +438,44 @@
 		}
 	}
 
+	async function removeGalleryPhoto(photoURL: string) {
+		const user = auth.currentUser;
+		if (!user || !organization) return;
+
+		removingGalleryPhoto = photoURL;
+		error = '';
+
+		try {
+			const index = (organization.galleryPhotoURLs ?? []).indexOf(photoURL);
+			await updateOrganizationProfile({
+				organizationId: organization.id,
+				userId: user.uid,
+				name: organization.name,
+				type: organization.type,
+				description: organization.description ?? '',
+				contactEmail: organization.contactEmail,
+				phone: organization.phone ?? '',
+				website: organization.website ?? '',
+				address: organization.address ?? '',
+				city: organization.city ?? '',
+				nif: organization.nif ?? '',
+				logoURL: organization.logoURL ?? null,
+				logoPath: organization.logoPath ?? null,
+				galleryPhotoURLs: (organization.galleryPhotoURLs ?? []).filter((item) => item !== photoURL),
+				galleryPhotoPaths: (organization.galleryPhotoPaths ?? []).filter((_, pathIndex) => pathIndex !== index)
+			});
+			if (selectedGalleryPhoto === photoURL) {
+				selectedGalleryPhoto = '';
+			}
+			await loadPage(user.uid);
+		} catch (err) {
+			console.error('Remove organization gallery photo error:', err);
+			error = getFriendlyErrorMessage(err, 'Could not remove gallery photo.');
+		} finally {
+			removingGalleryPhoto = '';
+		}
+	}
+
 	function formatPrice(event: SportEvent) {
 		if (event.entryFeeAmount && event.entryFeeAmount > 0) return `€${event.entryFeeAmount}`;
 		if (event.pricePerPerson && event.pricePerPerson > 0) return `€${event.pricePerPerson}`;
@@ -328,8 +500,6 @@
 
 	function getOrganizationLocation() {
 		return (
-			organization?.publicLocation?.name ||
-			organization?.publicLocation?.address ||
 			organization?.city ||
 			organization?.address ||
 			'Location not set'
@@ -509,52 +679,6 @@
 					: friendlyMessage;
 		} finally {
 			reviewSubmitting = false;
-		}
-	}
-
-	async function handleCoverUpload(event: Event) {
-		const user = auth.currentUser;
-		if (!user || !organization) return;
-
-		const input = event.currentTarget as HTMLInputElement;
-		const file = input.files?.[0];
-		if (!file) return;
-
-		uploadingCover = true;
-		error = '';
-
-		try {
-			const uploaded = await uploadOrganizationLogo({
-				organizationId: organization.id,
-				userId: user.uid,
-				file
-			});
-
-			await updateOrganizationProfile({
-				organizationId: organization.id,
-				userId: user.uid,
-				name: organization.name,
-				type: organization.type,
-				description: organization.description ?? '',
-				contactEmail: organization.contactEmail,
-				phone: organization.phone ?? '',
-				website: organization.website ?? '',
-				address: organization.address ?? '',
-				city: organization.city ?? '',
-				nif: organization.nif ?? '',
-				logoURL: organization.logoURL ?? null,
-				logoPath: organization.logoPath ?? null,
-				coverPhotoURL: uploaded.url,
-				coverPhotoPath: uploaded.path
-			});
-
-			await loadPage(user.uid);
-		} catch (err) {
-			console.error('Upload organization cover error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not upload cover image.');
-		} finally {
-			uploadingCover = false;
-			input.value = '';
 		}
 	}
 
@@ -967,164 +1091,113 @@
 					</section>
 				</div>
 			{:else}
-		<section class="max-w-full px-0 md:px-0">
-			{#if coverPhotoURL}
-				<div class="mb-6 h-40 overflow-hidden rounded-[2rem] bg-slate-100 shadow-sm dark:bg-slate-900 sm:h-56 md:h-72">
+		<section class="-mx-6 -mt-5 sm:-mx-6 sm:-mt-8">
+			<div class="relative h-36 overflow-hidden bg-gradient-to-br from-blue-500 via-blue-700 to-slate-950 shadow-sm sm:h-48 md:h-64">
+				{#if coverPhotoURL}
 					<img src={coverPhotoURL} alt="" class="h-full w-full object-cover" />
-				</div>
-			{/if}
-
-			<div class="mb-6 rounded-[1.7rem] bg-white p-4 shadow-sm dark:bg-slate-900">
-				<div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-					<div>
-						<h2 class="font-black text-slate-950 dark:text-slate-50">Public profile media</h2>
-						<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">
-							Change the cover image and add gallery photos shown on your organization profile.
-						</p>
-					</div>
-					<div class="flex flex-wrap gap-2">
-						<input
-							bind:this={coverInput}
-							type="file"
-							accept="image/*"
-							class="hidden"
-							onchange={handleCoverUpload}
-						/>
-						<button
-							type="button"
-							onclick={() => coverInput?.click()}
-							disabled={uploadingCover}
-							class="rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
-						>
-							{uploadingCover ? 'Uploading...' : 'Change cover'}
-						</button>
-
-						<input
-							bind:this={galleryInput}
-							type="file"
-							accept="image/*"
-							multiple
-							class="hidden"
-							onchange={handleGalleryUpload}
-						/>
-						<button
-							type="button"
-							onclick={() => galleryInput?.click()}
-							disabled={uploadingGallery}
-							class="rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
-						>
-							{uploadingGallery ? 'Uploading...' : 'Add gallery photos'}
-						</button>
-					</div>
-				</div>
-
-				{#if galleryPhotoURLs.length > 0}
-					<div class="mt-4 flex gap-2 overflow-x-auto pb-1">
-						{#each galleryPhotoURLs.slice(0, 6) as photoURL}
-							<img src={photoURL} alt="" class="h-20 w-32 shrink-0 rounded-2xl object-cover" />
-						{/each}
-					</div>
 				{/if}
-
-				<div class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-800">
-					<div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-						<div>
-							<h3 class="font-black text-slate-950 dark:text-slate-50">Public sports</h3>
-							<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">
-								Choose the sports shown on the public organization profile.
-							</p>
-						</div>
-						<button
-							type="button"
-							onclick={saveOrganizationSports}
-							disabled={savingSports}
-							class="rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
-						>
-							{savingSports ? 'Saving...' : 'Save sports'}
-						</button>
-					</div>
-
-					<div class="mt-3 flex flex-wrap gap-2">
-						{#each availableSports as sport}
-							<button
-								type="button"
-								onclick={() => toggleOrganizationSport(sport)}
-								class={`rounded-full px-3.5 py-2 text-sm font-black transition ${
-									selectedOrganizationSports.includes(sport)
-										? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-										: 'bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-blue-950 dark:hover:text-blue-300'
-								}`}
-							>
-								{formatSport(sport)}
-							</button>
-						{/each}
-					</div>
-				</div>
+				<div class="absolute inset-0 bg-gradient-to-t from-white via-white/10 to-transparent dark:from-slate-950"></div>
+				<input
+					bind:this={coverInput}
+					type="file"
+					accept="image/*"
+					class="hidden"
+					onchange={handleDraftCoverUpload}
+				/>
+				<button
+					type="button"
+					onclick={openEditProfile}
+					class="absolute bottom-4 right-4 z-10 grid h-10 w-10 place-items-center rounded-full bg-white/95 text-slate-950 shadow-lg transition hover:bg-white disabled:opacity-60 md:hidden"
+					aria-label="Change cover photo"
+				>
+					<svg viewBox="0 0 24 24" class="h-5 w-5" aria-hidden="true">
+						<path fill="currentColor" d="M4 17.7V20h2.3L17.1 9.2l-2.3-2.3L4 17.7Zm14.8-10.3c.3-.3.3-.8 0-1.1l-1.1-1.1c-.3-.3-.8-.3-1.1 0l-.9.9L18 8.3l.8-.9Z" />
+					</svg>
+				</button>
 			</div>
 
-			<div class="flex items-start justify-between gap-3 md:gap-6">
-				<div class="flex min-w-0 flex-1 items-center gap-4 md:gap-5">
-					<div class="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-[1.6rem] bg-slate-100 text-3xl font-black text-blue-600 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-blue-300 dark:ring-slate-700 md:h-28 md:w-28 md:rounded-[2rem] md:text-5xl">
+			<div class="mx-auto max-w-5xl px-6 pb-5">
+				<div class="-mt-12 flex items-end justify-between gap-4 sm:-mt-16">
+					<div class="relative z-10 ml-4 grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-full border-4 border-white bg-slate-100 text-4xl font-black text-blue-600 shadow-xl dark:border-slate-950 dark:bg-slate-800 dark:text-blue-300 sm:ml-8 sm:h-32 sm:w-32">
 						{#if organization.logoURL}
 							<img src={organization.logoURL} alt={organization.name} class="h-full w-full object-cover" />
 						{:else}
 							{organization.name.charAt(0).toUpperCase()}
 						{/if}
 					</div>
-
-					<div class="min-w-0 flex-1">
-						<div class="flex min-w-0 items-center gap-2">
-							<h1 class="truncate text-2xl font-black tracking-tight text-slate-950 dark:text-slate-50 md:text-4xl">
-								{organization.name}
-							</h1>
-							{#if organization.verificationStatus === 'verified'}
-								<span class="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-blue-600 text-[11px] font-black text-white md:h-6 md:w-6">✓</span>
-							{/if}
-						</div>
-
-						<p class="mt-1 truncate text-sm font-bold text-slate-500 dark:text-slate-400">
-							@{organization.handle}
-						</p>
-						<p class="mt-0.5 text-sm font-bold text-slate-500 dark:text-slate-400">
-							{formatOrganizationType(organization.type)}
-						</p>
+					<div class="relative z-10 hidden gap-2 self-end md:flex">
+						<button type="button" onclick={openEditProfile} class="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-slate-950/15 transition hover:-translate-y-0.5 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200" aria-label="Edit organization profile">
+							<svg viewBox="0 0 24 24" class="h-4 w-4" aria-hidden="true">
+								<path fill="currentColor" d="M4 17.7V20h2.3L17.1 9.2l-2.3-2.3L4 17.7Zm14.8-10.3c.3-.3.3-.8 0-1.1l-1.1-1.1c-.3-.3-.8-.3-1.1 0l-.9.9L18 8.3l.8-.9Z" />
+							</svg>
+							<span>Edit profile</span>
+						</button>
 					</div>
 				</div>
 
-				{#if canManage}
-					<a href={resolve(`/organizations/${organization.id}/manage`)} class="shrink-0 rounded-full bg-slate-950 px-4 py-2 text-sm font-black text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950">
-						Manage
-					</a>
-				{:else}
-					<button type="button" onclick={toggleFollow} disabled={actionLoading} class="shrink-0 rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:opacity-60">
-						{actionLoading ? '...' : following ? 'Following' : 'Follow'}
-					</button>
-				{/if}
-			</div>
+				<div class="mt-3">
+					<div class="flex min-w-0 items-center gap-2">
+						<h1 class="min-w-0 text-3xl font-black leading-none tracking-tight text-slate-950 dark:text-slate-50 sm:text-5xl">
+							{organization.name}
+						</h1>
+						{#if organization.verificationStatus === 'verified'}
+							<span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-blue-600 text-xs font-black text-white sm:h-7 sm:w-7">✓</span>
+						{/if}
+					</div>
+					<p class="mt-2 text-base font-black text-blue-600 dark:text-blue-400 sm:text-lg">
+						{organization.description || `${formatOrganizationType(organization.type)} on Rally.`}
+					</p>
+					<div class="mt-3 flex flex-wrap gap-2 text-sm font-bold text-slate-600 dark:text-slate-300">
+						<span class="inline-flex max-w-full items-center gap-2 rounded-full bg-white px-3 py-2 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+							<span class="text-blue-600">⌖</span>
+							<span class="truncate">{getOrganizationLocation()}</span>
+						</span>
+						{#if organization.website}
+							<a href={organization.website} target="_blank" rel="noreferrer" class="inline-flex max-w-full items-center gap-2 rounded-full bg-blue-50 px-3 py-2 text-blue-700 ring-1 ring-blue-100 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:ring-blue-900">
+								<span>↗</span>
+								<span class="truncate">{organization.website.replace(/^https?:\/\//, '')}</span>
+							</a>
+						{/if}
+						<span class={`inline-flex items-center gap-2 rounded-full px-3 py-2 shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 ${verificationClasses()}`}>
+							<span>✓</span>
+							<span>{verificationLabel()}</span>
+						</span>
+					</div>
+				</div>
 
-			<div class="mt-5 grid max-w-xl grid-cols-3 divide-x divide-slate-200 border-y border-slate-200 py-4 text-center dark:divide-slate-800 dark:border-slate-800 md:mt-7">
-				<div>
-					<p class="text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">{events.length}</p>
+				<div class="mt-4 flex gap-2 overflow-x-auto pb-1">
+					{#each organizationSports as sport}
+						<span class="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-sm font-bold text-slate-800 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
+							{formatSport(sport)}
+						</span>
+					{/each}
+					{#if extraSportCount > 0}
+						<span class="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-sm font-bold text-slate-800 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
+							+ {extraSportCount} more
+						</span>
+					{:else if organizationSports.length === 0}
+						<span class="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-sm font-bold text-slate-800 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
+							{formatOrganizationType(organization.type)}
+						</span>
+					{/if}
+				</div>
+
+				<div class="mt-5 grid grid-cols-3 gap-2 border-y border-slate-200 py-4 text-center dark:border-slate-800 md:mt-7 md:gap-4">
+				<div class="rounded-2xl bg-white px-2 py-3 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+					<p class="mx-auto grid h-8 w-8 place-items-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-300">📅</p>
+					<p class="mt-2 text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">{events.length}</p>
 					<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Events</p>
 				</div>
-				<div>
-					<p class="text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">{upcomingEvents.length}</p>
+				<div class="rounded-2xl bg-white px-2 py-3 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+					<p class="mx-auto grid h-8 w-8 place-items-center rounded-full bg-orange-50 text-orange-600 dark:bg-orange-950 dark:text-orange-300">⏱</p>
+					<p class="mt-2 text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">{upcomingEvents.length}</p>
 					<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Upcoming</p>
 				</div>
-				<div>
-					<p class="text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">{displayedFollowersCount}</p>
+				<div class="rounded-2xl bg-white px-2 py-3 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+					<p class="mx-auto grid h-8 w-8 place-items-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300">👥</p>
+					<p class="mt-2 text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">{displayedFollowersCount}</p>
 					<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Followers</p>
 				</div>
-			</div>
-
-			<p class="mt-5 max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-300 md:text-base">
-				{organization.description || 'Follow this organization to keep up with new events, tournaments and community updates.'}
-			</p>
-
-			<div class="mt-4 flex flex-wrap gap-2 text-xs font-black text-slate-500 dark:text-slate-400">
-				{#if organization.city}<span class="rounded-full bg-white px-3 py-2 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">📍 {organization.city}</span>{/if}
-				{#if organization.website}<a href={organization.website} target="_blank" rel="noreferrer" class="rounded-full bg-blue-50 px-3 py-2 text-blue-700 ring-1 ring-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:ring-blue-900">Website</a>{/if}
-				<span class={`rounded-full px-3 py-2 shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 ${verificationClasses()}`}>{verificationLabel()}</span>
 			</div>
 
 			{#if !canManage}
@@ -1132,6 +1205,7 @@
 					{messageLoading ? 'Opening...' : 'Contact organizer'}
 				</button>
 			{/if}
+			</div>
 		</section>
 
 		<div class="mt-5 grid max-w-full gap-5 md:mt-8 md:grid-cols-[minmax(0,1fr)_22rem]">
@@ -1170,54 +1244,122 @@
 					<div class="max-w-full overflow-hidden rounded-[1.7rem] bg-white p-4 shadow-sm dark:bg-slate-900">
 						<div class="flex items-center justify-between gap-3">
 							<div>
-								<h3 class="font-black text-slate-950 dark:text-slate-50">Manage club</h3>
-								<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">Create, message and update your organization.</p>
+								<h3 class="font-black text-slate-950 dark:text-slate-50">Organization tools</h3>
+								<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">Create events, answer messages and boost visibility.</p>
 							</div>
 						</div>
 
 						<div class="mt-4 grid grid-cols-2 gap-2 text-center sm:grid-cols-4 md:grid-cols-2">
-							<a href={resolve(`/organizations/${organization.id}/events/create`)} class="rounded-2xl bg-slate-50 p-3 text-xs font-black text-slate-600 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-blue-950 dark:hover:text-blue-300">📅<br />Events</a>
-							<a href={resolve(`/organizations/${organization.id}/tournaments/create`)} class="rounded-2xl bg-slate-50 p-3 text-xs font-black text-slate-600 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-blue-950 dark:hover:text-blue-300">🏆<br />Tournaments</a>
+							<a href={resolve(`/organizations/${organization.id}/events/create`)} class="rounded-2xl bg-blue-50 p-3 text-xs font-black text-blue-700 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300">📅<br />Event</a>
+							<a href={resolve(`/organizations/${organization.id}/tournaments/create`)} class="rounded-2xl bg-orange-50 p-3 text-xs font-black text-orange-700 transition hover:bg-orange-100 dark:bg-orange-950 dark:text-orange-300">🏆<br />Tournament</a>
 							<a href={resolve('/messages')} class="rounded-2xl bg-slate-50 p-3 text-xs font-black text-slate-600 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-blue-950 dark:hover:text-blue-300">💬<br />Inbox</a>
-							<button type="button" onclick={() => (showOrganizationSettings = true)} class="rounded-2xl bg-slate-50 p-3 text-xs font-black text-slate-600 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-blue-950 dark:hover:text-blue-300">⚙️<br />Settings</button>
+							<a href={resolve(`/organizations/${organization.id}/manage#upcoming-events`)} class="rounded-2xl bg-slate-950 p-3 text-xs font-black text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200">📣<br />Promote</a>
 						</div>
 					</div>
-
-					<a href={resolve(`/organizations/${organization.id}/manage`)} class="block max-w-full overflow-hidden rounded-[1.7rem] bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:bg-slate-900">
-						<div class="flex items-center gap-3">
-							<div class="grid h-11 w-11 place-items-center rounded-2xl bg-blue-50 text-lg dark:bg-blue-950">📣</div>
-							<div class="min-w-0 flex-1">
-								<p class="font-black text-slate-950 dark:text-slate-50">Promote an event</p>
-								<p class="truncate text-sm font-bold text-slate-500 dark:text-slate-400">Choose an event to boost from manage.</p>
-							</div>
-							<span class="text-xl text-slate-300">›</span>
-						</div>
-					</a>
 				{/if}
-
-				<div class="max-w-full overflow-hidden rounded-[1.7rem] bg-white p-4 shadow-sm dark:bg-slate-900">
-					<h3 class="font-black text-slate-950 dark:text-slate-50">Club info</h3>
-					<div class="mt-3 space-y-3 text-sm font-bold text-slate-500 dark:text-slate-400">
-						<p>Type · {formatOrganizationType(organization.type)}</p>
-						<p>Status · {verificationLabel()}</p>
-						{#if organization.phone}<p>Phone · {organization.phone}</p>{/if}
-						{#if organization.city}<p>City · {organization.city}</p>{/if}
-						{#if organization.contactEmail}<p class="truncate">Email · {organization.contactEmail}</p>{/if}
-					</div>
-				</div>
 			</aside>
 		</div>
 
-		{#if galleryPhotoURLs.length > 0}
-			<section class="mt-8 max-w-full overflow-hidden">
-				<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">Gallery</h2>
-				<div class="mt-3 flex gap-3 overflow-x-auto pb-1">
+		<section class="mt-8 max-w-full overflow-hidden border-t border-slate-200 pt-5 dark:border-slate-800">
+			<div class="flex items-center justify-between gap-3">
+				<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">About</h2>
+				<span class={`rounded-full px-3 py-1 text-xs font-black ${verificationClasses()}`}>{verificationLabel()}</span>
+			</div>
+			<p class="mt-2 max-w-3xl leading-relaxed text-slate-700 dark:text-slate-300">
+				{organization.description || 'Add a short description so players know what your organization offers.'}
+			</p>
+
+			<div class="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_16rem]">
+				<div class="space-y-3">
+					<div class="flex gap-3">
+						<div class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-300">📍</div>
+						<div>
+							<p class="font-black text-slate-950 dark:text-slate-50">{organization.publicLocation?.name || organization.name}</p>
+							<p class="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+								{organization.publicLocation?.address || organization.address || organization.city || 'No public location set yet.'}
+							</p>
+						</div>
+					</div>
+
+					<div class="flex flex-wrap gap-2 text-sm font-bold">
+						<span class="rounded-full bg-slate-50 px-3 py-2 text-slate-700 dark:bg-slate-900 dark:text-slate-200">
+							{formatOrganizationType(organization.type)}
+						</span>
+						{#if organization.contactEmail}
+							<a href={`mailto:${organization.contactEmail}`} class="rounded-full bg-slate-50 px-3 py-2 text-slate-700 transition hover:text-blue-600 dark:bg-slate-900 dark:text-slate-200">✉️ {organization.contactEmail}</a>
+						{/if}
+						{#if organization.phone}
+							<a href={`tel:${organization.phone}`} class="rounded-full bg-slate-50 px-3 py-2 text-slate-700 transition hover:text-blue-600 dark:bg-slate-900 dark:text-slate-200">📞 {organization.phone}</a>
+						{/if}
+						{#if organization.website}
+							<a href={organization.website} target="_blank" rel="noreferrer" class="rounded-full bg-blue-50 px-3 py-2 text-blue-700 dark:bg-blue-950 dark:text-blue-300">Website</a>
+						{/if}
+					</div>
+				</div>
+
+				{#if getVenueMapUrl()}
+					<img src={getVenueMapUrl()} alt="Venue map" class="h-32 w-full rounded-2xl object-cover md:h-full" />
+				{/if}
+			</div>
+		</section>
+
+		<section class="mt-8 max-w-full overflow-hidden border-t border-slate-200 pt-5 dark:border-slate-800">
+			<div class="flex items-start justify-between gap-2">
+				<div>
+					<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">Gallery</h2>
+					<p class="max-w-[13rem] text-xs font-bold text-slate-500 dark:text-slate-400 sm:max-w-none sm:text-sm">Photos shown on your public profile.</p>
+				</div>
+				<div class="flex shrink-0 items-center justify-end gap-2">
+					{#if galleryPhotoURLs.length > 0}
+						<button type="button" onclick={() => openGallery()} class="rounded-2xl bg-white px-3 py-2 text-xs font-black text-blue-600 shadow-sm ring-1 ring-slate-200 transition hover:text-blue-700 dark:bg-slate-900 dark:text-blue-400 dark:ring-slate-800 sm:px-4 sm:py-2.5 sm:text-sm">
+							<span class="sm:hidden">All</span>
+							<span class="hidden sm:inline">View all photos</span>
+						</button>
+					{/if}
+					{#if canManage}
+						<input
+							bind:this={galleryInput}
+							type="file"
+							accept="image/*"
+							multiple
+							class="hidden"
+							onchange={handleGalleryUpload}
+						/>
+						<button type="button" onclick={() => galleryInput?.click()} disabled={uploadingGallery} class="rounded-2xl bg-blue-600 px-3 py-2 text-xs font-black text-white transition hover:bg-blue-700 disabled:opacity-60 sm:px-4 sm:py-2.5 sm:text-sm">
+							<span class="sm:hidden">{uploadingGallery ? '...' : '+'}</span>
+							<span class="hidden sm:inline">{uploadingGallery ? 'Uploading...' : '+ Add photos'}</span>
+						</button>
+					{/if}
+				</div>
+			</div>
+			{#if galleryPhotoURLs.length > 0}
+				<div class="mt-3 flex gap-3 overflow-x-auto pb-4 pt-1">
 					{#each galleryPhotoURLs as photoURL}
-						<img src={photoURL} alt="" class="h-28 w-44 shrink-0 rounded-[1.4rem] object-cover shadow-sm sm:h-36 sm:w-56" />
+						<div class="group relative h-28 w-44 shrink-0 overflow-hidden rounded-[1.4rem] shadow-sm sm:h-36 sm:w-56">
+							<button type="button" onclick={() => openGallery(photoURL)} class="h-full w-full">
+								<img src={photoURL} alt="" class="h-full w-full object-cover" />
+							</button>
+							{#if canManage}
+								<button
+									type="button"
+									onclick={() => removeGalleryPhoto(photoURL)}
+									disabled={removingGalleryPhoto === photoURL}
+									class="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-slate-950/75 text-sm font-black text-white opacity-100 shadow-lg transition hover:bg-red-600 disabled:opacity-60 md:opacity-0 md:group-hover:opacity-100"
+									aria-label="Remove gallery photo"
+								>
+									×
+								</button>
+							{/if}
+						</div>
 					{/each}
 				</div>
-			</section>
-		{/if}
+			{:else}
+				<div class="mt-3 rounded-[1.5rem] border border-dashed border-slate-200 p-5 text-center dark:border-slate-800">
+					<p class="font-black text-slate-950 dark:text-slate-50">No gallery photos yet</p>
+					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Add a few real photos from your organization events or venue.</p>
+				</div>
+			{/if}
+		</section>
 
 		<section class="mt-8 max-w-full overflow-hidden">
 			<div class="flex flex-wrap items-end justify-between gap-3">
@@ -1333,6 +1475,146 @@
 				{/if}
 			{/if}
 		</section>
+
+		{#if showEditProfile && canManage}
+			<div class="fixed inset-0 z-[120] bg-white dark:bg-slate-950 md:flex md:items-center md:justify-center md:bg-slate-950/50 md:p-6 md:backdrop-blur-sm" role="dialog" aria-modal="true">
+				<div class="flex h-full w-full flex-col overflow-hidden bg-white dark:bg-slate-950 md:h-auto md:max-h-[calc(100svh-3rem)] md:max-w-3xl md:rounded-[2rem] md:shadow-2xl">
+					<div class="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+						<div>
+							<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">Organization</p>
+							<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Edit profile</h2>
+						</div>
+						<button type="button" onclick={closeEditProfile} class="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-xl font-black text-slate-600 transition hover:text-slate-950 dark:bg-slate-900 dark:text-slate-300">
+							×
+						</button>
+					</div>
+
+					<div class="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+						<div class="mb-4 overflow-hidden rounded-[1.5rem] bg-slate-50 dark:bg-slate-900">
+							<div class="h-32 bg-gradient-to-br from-blue-500 via-blue-700 to-slate-950 md:h-44">
+								{#if draftCoverPreview || coverPhotoURL}
+									<img src={draftCoverPreview || coverPhotoURL} alt="" class="h-full w-full object-cover" />
+								{/if}
+							</div>
+							<div class="flex items-center justify-between gap-3 p-4">
+								<div>
+									<p class="font-black text-slate-950 dark:text-slate-50">Cover photo</p>
+									<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">Appears at the top of your public profile.</p>
+								</div>
+								<button type="button" onclick={() => coverInput?.click()} disabled={savingProfile} class="shrink-0 rounded-2xl bg-white px-4 py-2 text-sm font-black text-slate-800 shadow-sm transition hover:bg-slate-100 disabled:opacity-60 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700">
+									Change
+								</button>
+							</div>
+						</div>
+
+						<div class="flex items-center gap-4 rounded-[1.5rem] bg-slate-50 p-4 dark:bg-slate-900">
+							<div class="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-full bg-white text-3xl font-black text-blue-600 shadow-sm dark:bg-slate-800 dark:text-blue-300">
+								{#if draftLogoPreview || organization.logoURL}
+									<img src={draftLogoPreview || organization.logoURL} alt={organization.name} class="h-full w-full object-cover" />
+								{:else}
+									{organization.name.charAt(0).toUpperCase()}
+								{/if}
+							</div>
+								<div class="min-w-0 flex-1">
+								<p class="font-black text-slate-950 dark:text-slate-50">Profile photo</p>
+								<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">Shown beside your organization name.</p>
+								<input bind:this={logoInput} type="file" accept="image/*" class="hidden" onchange={handleDraftLogoUpload} />
+								<button type="button" onclick={() => logoInput?.click()} disabled={savingProfile} class="mt-3 rounded-2xl bg-white px-4 py-2 text-sm font-black text-slate-800 shadow-sm transition hover:bg-slate-100 disabled:opacity-60 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700">
+									Change logo
+								</button>
+							</div>
+						</div>
+
+						<div class="mt-4 grid gap-4 md:grid-cols-2">
+							<label class="block">
+								<span class="text-sm font-black text-slate-700 dark:text-slate-300">Name</span>
+								<input bind:value={editName} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
+							</label>
+
+							<label class="block">
+								<span class="text-sm font-black text-slate-700 dark:text-slate-300">Type</span>
+								<select bind:value={editType} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950">
+									<option value="company">Company / Brand</option>
+									<option value="sports_club">Sports club</option>
+									<option value="venue">Sports venue / Courts</option>
+									<option value="gym">Gym</option>
+									<option value="event_organizer">Event organizer</option>
+									<option value="university">University group</option>
+									<option value="community_group">Community group</option>
+									<option value="other">Other</option>
+								</select>
+							</label>
+
+							<label class="block md:col-span-2">
+								<span class="text-sm font-black text-slate-700 dark:text-slate-300">Description</span>
+								<textarea bind:value={editDescription} rows="3" class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" placeholder="Tell players what your organization does."></textarea>
+							</label>
+
+							<label class="block">
+								<span class="text-sm font-black text-slate-700 dark:text-slate-300">Contact email</span>
+								<input bind:value={editContactEmail} type="email" class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
+							</label>
+
+							<label class="block">
+								<span class="text-sm font-black text-slate-700 dark:text-slate-300">Phone</span>
+								<input bind:value={editPhone} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
+							</label>
+
+							<label class="block">
+								<span class="text-sm font-black text-slate-700 dark:text-slate-300">Website</span>
+								<input bind:value={editWebsite} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
+							</label>
+
+							<label class="block">
+								<span class="text-sm font-black text-slate-700 dark:text-slate-300">City</span>
+								<input bind:value={editCity} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
+							</label>
+
+							<label class="block md:col-span-2">
+								<span class="text-sm font-black text-slate-700 dark:text-slate-300">Address</span>
+								<input bind:value={editAddress} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
+							</label>
+
+							<label class="block md:col-span-2">
+								<span class="text-sm font-black text-slate-700 dark:text-slate-300">NIF</span>
+								<input bind:value={editNif} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
+							</label>
+						</div>
+
+						<div class="mt-5 rounded-[1.5rem] bg-slate-50 p-4 dark:bg-slate-900">
+							<p class="font-black text-slate-950 dark:text-slate-50">Sports shown publicly</p>
+							<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">These chips appear below the organization name.</p>
+							<div class="mt-3 flex flex-wrap gap-2">
+								{#each availableSports as sport}
+									<button
+										type="button"
+										onclick={() => toggleOrganizationSport(sport)}
+										class={`rounded-full px-3.5 py-2 text-sm font-black transition ${
+											selectedOrganizationSports.includes(sport)
+												? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+												: 'bg-white text-slate-700 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-blue-950 dark:hover:text-blue-300'
+										}`}
+									>
+										{formatSport(sport)}
+									</button>
+								{/each}
+							</div>
+						</div>
+					</div>
+
+					<div class="border-t border-slate-200 p-4 dark:border-slate-800">
+						<div class="flex gap-3">
+							<button type="button" onclick={closeEditProfile} class="flex-1 rounded-2xl bg-slate-100 px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
+								Cancel
+							</button>
+							<button type="button" onclick={saveEditableOrganizationProfile} disabled={savingProfile} class="flex-1 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:opacity-60">
+								{savingProfile ? 'Saving...' : 'Save'}
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		{/if}
 
 		{#if showOrganizationSettings}
 			<div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm sm:p-6" role="dialog" aria-modal="true">
