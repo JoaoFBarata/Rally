@@ -36,6 +36,9 @@ export type EventHostType = 'user' | 'organization';
 export type EventPaymentMode = 'none' | 'split' | 'official';
 export type EventPromotionStatus = 'none' | 'active' | 'paused' | 'ended';
 export type EventPromotionPlan = 'local' | 'sport' | 'featured';
+export type EventJoinPolicy = 'open' | 'approval';
+export type RecurringFrequency = 'weekly' | 'biweekly' | 'monthly';
+export type JoinRequestStatus = 'pending' | 'accepted' | 'declined';
 
 export interface OrganizationPublicLocation {
 	name: string;
@@ -85,6 +88,9 @@ export interface UserProfile {
 
 	rallyPointsTotal?: number;
 
+	isPrivate?: boolean;
+	connections?: string[]; // user IDs this user has shared at least one event with (permanent once added)
+
 	createdAt: Timestamp;
 	updatedAt: Timestamp;
 }
@@ -115,6 +121,10 @@ export interface Organization {
 	description?: string;
 	logoURL?: string | null;
 	logoPath?: string | null;
+	coverPhotoURL?: string | null;
+	coverPhotoPath?: string | null;
+	galleryPhotoURLs?: string[];
+	galleryPhotoPaths?: string[];
 
 	website?: string;
 	phone?: string;
@@ -145,6 +155,29 @@ export interface OrganizationFollower {
 	id: string;
 	organizationId: string;
 	userId: string;
+	createdAt: Timestamp;
+}
+
+export interface OrganizationReview {
+	id: string;
+	organizationId: string;
+	userId: string;
+	authorName?: string;
+	authorPhotoURL?: string | null;
+	rating: number;
+	comment: string;
+	replies?: OrganizationReviewReply[];
+	createdAt: Timestamp;
+	updatedAt: Timestamp;
+}
+
+export interface OrganizationReviewReply {
+	id: string;
+	userId: string;
+	authorName?: string;
+	authorPhotoURL?: string | null;
+	authorRole: 'user' | 'organization';
+	comment: string;
 	createdAt: Timestamp;
 }
 
@@ -186,6 +219,15 @@ export interface SportEvent {
 
 	groupPhotoURL?: string | null;
 	groupPhotoPath?: string | null;
+
+	whatToBring?: string;
+
+	joinPolicy?: EventJoinPolicy;
+
+	recurringGroupId?: string | null;
+	recurringIndex?: number | null;
+	recurringTotal?: number | null;
+	recurringFrequency?: RecurringFrequency | null;
 
 	location: {
 		name: string;
@@ -272,6 +314,15 @@ export interface EventInvite {
 	teamName?: string | null;
 
 	status: InviteStatus;
+	createdAt: Timestamp;
+	updatedAt: Timestamp;
+}
+
+export interface EventJoinRequest {
+	id: string;
+	eventId: string;
+	userId: string;
+	status: JoinRequestStatus;
 	createdAt: Timestamp;
 	updatedAt: Timestamp;
 }

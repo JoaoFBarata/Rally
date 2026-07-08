@@ -26,6 +26,12 @@
 		updateEventGroupPhoto
 	} from '$lib/services/event.service';
 	import {
+		listenJoinRequestForUser,
+		listenJoinRequestsForEvent,
+		requestToJoinEvent,
+		respondToJoinRequest
+	} from '$lib/services/join-request.service';
+	import {
 		clearUserTyping,
 		listenConversationById,
 		listenMessagesForConversation,
@@ -35,9 +41,11 @@
 	import { getUserProfilesByIds } from '$lib/services/user.service';
 	import EventMap from '$lib/components/maps/EventMap.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
+	import EventWeather from '$lib/components/EventWeather.svelte';
 	import type {
 		ChatConversation,
 		ChatMessage,
+		EventJoinRequest,
 		SportEvent,
 		UserProfile,
 		EventPromotionPlan
@@ -69,6 +77,13 @@
 	let unsubscribeGroupConversation: Unsubscribe | null = null;
 	let groupTypingTimeout: ReturnType<typeof setTimeout> | null = null;
 	let groupLastTypingSentAt = 0;
+
+	let myJoinRequest = $state<EventJoinRequest | null>(null);
+	let pendingJoinRequests = $state<EventJoinRequest[]>([]);
+	let pendingRequesters = $state<UserProfile[]>([]);
+	let joinRequestActionLoading = $state(false);
+	let unsubscribeMyJoinRequest: Unsubscribe | null = null;
+	let unsubscribeJoinRequests: Unsubscribe | null = null;
 
 	type ConfirmDialogConfig = {
 		title: string;
@@ -142,8 +157,25 @@
 		return (
 			!!event &&
 			event.eventKind !== 'tournament' &&
+			(event.joinPolicy ?? 'open') === 'open' &&
 			!isCreator &&
 			!isParticipant &&
+			effectiveStatus !== 'full' &&
+			effectiveStatus !== 'cancelled' &&
+			effectiveStatus !== 'finished'
+		);
+	});
+
+	let hasPendingJoinRequest = $derived(myJoinRequest?.status === 'pending');
+
+	let canRequestJoin = $derived.by(() => {
+		return (
+			!!event &&
+			event.eventKind !== 'tournament' &&
+			event.joinPolicy === 'approval' &&
+			!isCreator &&
+			!isParticipant &&
+			!hasPendingJoinRequest &&
 			effectiveStatus !== 'full' &&
 			effectiveStatus !== 'cancelled' &&
 			effectiveStatus !== 'finished'
@@ -496,6 +528,7 @@
 
 			event = loadedEvent;
 			participants = await getUserProfilesByIds(loadedEvent.participantIds ?? []);
+			syncJoinRequestsListener(loadedEvent, currentUser.uid);
 
 			if (
 				isEventFinished(loadedEvent) &&
@@ -519,6 +552,28 @@
 		}
 	}
 
+	function syncJoinRequestsListener(loadedEvent: SportEvent, userId: string) {
+		unsubscribeJoinRequests?.();
+		unsubscribeJoinRequests = null;
+		pendingJoinRequests = [];
+		pendingRequesters = [];
+
+		if (loadedEvent.creatorId !== userId || (loadedEvent.joinPolicy ?? 'open') !== 'approval') {
+			return;
+		}
+
+		unsubscribeJoinRequests = listenJoinRequestsForEvent(
+			loadedEvent.id,
+			async (requests) => {
+				pendingJoinRequests = requests;
+				pendingRequesters = requests.length
+					? await getUserProfilesByIds(requests.map((request) => request.userId))
+					: [];
+			},
+			(err) => console.error('Join requests listener error:', err)
+		);
+	}
+
 	async function handleJoinEvent() {
 		const currentUser = auth.currentUser;
 
@@ -535,6 +590,49 @@
 			error = getFriendlyErrorMessage(err, 'Could not join event.');
 		} finally {
 			actionLoading = false;
+		}
+	}
+
+	async function handleRequestToJoin() {
+		const currentUser = auth.currentUser;
+
+		if (!currentUser || !event) return;
+
+		actionLoading = true;
+		error = '';
+
+		try {
+			await requestToJoinEvent({ eventId: event.id, userId: currentUser.uid });
+			await reloadEvent();
+		} catch (err) {
+			console.error('Request to join error:', err);
+			error = getFriendlyErrorMessage(err, 'Could not request to join event.');
+		} finally {
+			actionLoading = false;
+		}
+	}
+
+	async function handleRespondToJoinRequest(requestId: string, status: 'accepted' | 'declined') {
+		const currentUser = auth.currentUser;
+
+		if (!currentUser || !event) return;
+
+		joinRequestActionLoading = true;
+		error = '';
+
+		try {
+			await respondToJoinRequest({
+				requestId,
+				eventId: event.id,
+				hostId: currentUser.uid,
+				status
+			});
+			await reloadEvent();
+		} catch (err) {
+			console.error('Respond to join request error:', err);
+			error = getFriendlyErrorMessage(err, 'Could not update join request.');
+		} finally {
+			joinRequestActionLoading = false;
 		}
 	}
 
@@ -801,6 +899,15 @@
 		void loadEventPage();
 		const eventId = page.params.id;
 		if (eventId) stopEventListener = subscribeToEventChanges(eventId, () => void loadEventPage());
+
+		const currentUser = auth.currentUser;
+		if (eventId && currentUser) {
+			unsubscribeMyJoinRequest = listenJoinRequestForUser(
+				{ eventId, userId: currentUser.uid },
+				(request) => (myJoinRequest = request),
+				(err) => console.error('My join request listener error:', err)
+			);
+		}
 	});
 
 	onDestroy(() => {
@@ -810,6 +917,8 @@
 		stopGroupConversationListener();
 		stopGroupTypingTimeout();
 		stopEventListener();
+		unsubscribeMyJoinRequest?.();
+		unsubscribeJoinRequests?.();
 	});
 </script>
 
@@ -918,6 +1027,25 @@
 							{#if event.location.address}
 								<p class="mt-0.5 line-clamp-2 text-xs leading-5 text-slate-500 dark:text-slate-400">{event.location.address}</p>
 							{/if}
+							<div class="mt-2.5 flex flex-wrap items-center gap-3">
+								{#if event.location.lat && event.location.lng}
+									<a
+										href={`https://www.google.com/maps/dir/?api=1&destination=${event.location.lat},${event.location.lng}`}
+										target="_blank"
+										rel="noopener noreferrer"
+										class="inline-flex items-center gap-1.5 text-[11px] font-black text-blue-600 dark:text-blue-400 hover:underline"
+									>
+										<svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+											<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#EA4335" />
+											<circle cx="12" cy="9" r="3" fill="#34A853" />
+											<path d="M12 2c2.1 0 4 .9 5.3 2.3L15 6.5C14.2 5.6 13.2 5 12 5c-2.2 0-4 1.8-4 4 0 .5.1 1 .3 1.5L6.1 12.2C5.4 11.2 5 10.1 5 9c0-3.87 3.13-7 7-7z" fill="#FBBC05" />
+											<path d="M12 22s7-7.75 7-13c0-.4-.1-.8-.2-1.2l-2.2 2.2c.2.6.4 1.3.4 2 0 3.2-3.5 8.1-5 9.8z" fill="#4285F4" />
+										</svg>
+										<span>Get Directions</span>
+									</a>
+								{/if}
+								<EventWeather lat={event.location.lat} lng={event.location.lng} startAt={event.startAt} size="sm" />
+							</div>
 						</div>
 
 						<div class="shrink-0 text-right">
@@ -1021,6 +1149,25 @@
 								<button onclick={handleJoinEvent} disabled={actionLoading} class="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:opacity-60">
 									{actionLoading ? 'Joining...' : 'Join event'}
 								</button>
+							{:else if canRequestJoin}
+								<button onclick={handleRequestToJoin} disabled={actionLoading} class="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:opacity-60">
+									{actionLoading ? 'Requesting...' : 'Request to join'}
+								</button>
+							{:else if hasPendingJoinRequest}
+								<button disabled class="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+									Request pending
+								</button>
+							{/if}
+
+							{#if isParticipant && !isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
+								<button
+									type="button"
+									onclick={handleLeaveEvent}
+									disabled={actionLoading}
+									class="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-black text-red-700 transition hover:bg-red-100 disabled:opacity-60 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950"
+								>
+									{actionLoading ? 'Leaving...' : 'Leave event'}
+								</button>
 							{/if}
 
 							{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
@@ -1095,6 +1242,14 @@
 							{event.title}
 						</h1>
 
+						{#if event.recurringGroupId}
+							<span
+								class="mt-2 inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+							>
+								🔁 Part of a recurring series ({event.recurringIndex}/{event.recurringTotal})
+							</span>
+						{/if}
+
 						<p class="mt-4 text-slate-600 dark:text-slate-300">
 							{event.description || 'No description provided.'}
 						</p>
@@ -1120,6 +1275,23 @@
 								{event.location.address}
 							</p>
 						{/if}
+
+						{#if event.location.lat && event.location.lng}
+							<a
+								href={`https://www.google.com/maps/dir/?api=1&destination=${event.location.lat},${event.location.lng}`}
+								target="_blank"
+								rel="noopener noreferrer"
+								class="mt-3 inline-flex items-center gap-1.5 text-xs font-black text-blue-600 dark:text-blue-400 hover:underline"
+							>
+								<svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+									<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#EA4335" />
+									<circle cx="12" cy="9" r="3" fill="#34A853" />
+									<path d="M12 2c2.1 0 4 .9 5.3 2.3L15 6.5C14.2 5.6 13.2 5 12 5c-2.2 0-4 1.8-4 4 0 .5.1 1 .3 1.5L6.1 12.2C5.4 11.2 5 10.1 5 9c0-3.87 3.13-7 7-7z" fill="#FBBC05" />
+									<path d="M12 22s7-7.75 7-13c0-.4-.1-.8-.2-1.2l-2.2 2.2c.2.6.4 1.3.4 2 0 3.2-3.5 8.1-5 9.8z" fill="#4285F4" />
+								</svg>
+								<span>Get Directions</span>
+							</a>
+						{/if}
 					</div>
 
 					<div class="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800">
@@ -1142,7 +1314,23 @@
 							{formatPriceLabel(event)}
 						</p>
 					</div>
+
+					<div class="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800 flex flex-col justify-between">
+						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Weather</p>
+						<div class="mt-2.5">
+							<EventWeather lat={event.location.lat} lng={event.location.lng} startAt={event.startAt} size="md" />
+						</div>
+					</div>
 				</div>
+
+				{#if event.whatToBring}
+					<div class="mt-6 rounded-2xl bg-slate-50 p-5 dark:bg-slate-800">
+						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">What to bring</p>
+						<p class="mt-2 whitespace-pre-line font-bold text-slate-950 dark:text-slate-50">
+							{event.whatToBring}
+						</p>
+					</div>
+				{/if}
 
 				{#if event?.eventKind !== 'tournament'}
 					<div
@@ -1233,6 +1421,91 @@
 					</div>
 				{/if}
 			</section>
+
+			{#if isCreator && event?.joinPolicy === 'approval'}
+				<section
+					class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-4xl sm:p-6 sm:shadow-xl sm:shadow-slate-200/70"
+				>
+					<div class="flex items-center justify-between gap-4">
+						<div>
+							<p
+								class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400"
+							>
+								Requests
+							</p>
+							<h2 class="mt-2 text-xl font-black text-slate-950 dark:text-slate-50 sm:text-2xl">
+								Join requests
+							</h2>
+						</div>
+
+						{#if pendingJoinRequests.length > 0}
+							<div class="rounded-2xl bg-blue-50 px-4 py-2 text-center dark:bg-blue-950">
+								<p class="text-lg font-black text-blue-600 dark:text-blue-300">
+									{pendingJoinRequests.length}
+								</p>
+								<p class="text-xs font-medium text-slate-500 dark:text-slate-400">pending</p>
+							</div>
+						{/if}
+					</div>
+
+					{#if pendingJoinRequests.length === 0}
+						<div class="mt-5 rounded-2xl bg-slate-50 p-5 text-center dark:bg-slate-800">
+							<p class="text-sm font-semibold text-slate-500 dark:text-slate-400">
+								No pending requests.
+							</p>
+						</div>
+					{:else}
+						<div class="mt-5 space-y-3">
+							{#each pendingJoinRequests as request (request.id)}
+								{@const requester = pendingRequesters.find((p) => p.id === request.userId)}
+								<div
+									class="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800"
+								>
+									<div class="flex min-w-0 items-center gap-3">
+										<UserAvatar
+											photoURL={requester?.photoURL}
+											displayName={requester?.displayName ?? 'Rally user'}
+											email={requester?.email}
+											size="md"
+										/>
+
+										<div class="min-w-0">
+											<p class="truncate font-bold text-slate-950 dark:text-slate-50">
+												{requester?.displayName ?? 'Rally user'}
+											</p>
+											{#if requester?.rallyTag}
+												<p class="truncate text-xs text-slate-500 dark:text-slate-400">
+													@{requester.rallyTag}
+												</p>
+											{/if}
+										</div>
+									</div>
+
+									<div class="flex shrink-0 items-center gap-2">
+										<button
+											type="button"
+											onclick={() => handleRespondToJoinRequest(request.id, 'declined')}
+											disabled={joinRequestActionLoading}
+											class="rounded-full px-3 py-2 text-sm font-black text-red-600 transition hover:bg-red-50 disabled:opacity-60 dark:text-red-400 dark:hover:bg-red-950"
+										>
+											Decline
+										</button>
+
+										<button
+											type="button"
+											onclick={() => handleRespondToJoinRequest(request.id, 'accepted')}
+											disabled={joinRequestActionLoading}
+											class="rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
+										>
+											Approve
+										</button>
+									</div>
+								</div>
+							{/each}
+						</div>
+					{/if}
+				</section>
+			{/if}
 
 			{#if event?.eventKind === 'tournament'}
 				<TournamentPanel {event} {currentUserId} canManage={canManageTournament} />
@@ -1511,6 +1784,21 @@
 							class="mt-5 w-full rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-700 disabled:opacity-60"
 						>
 							{actionLoading ? 'Joining...' : 'Join event'}
+						</button>
+					{:else if canRequestJoin}
+						<button
+							onclick={handleRequestToJoin}
+							disabled={actionLoading}
+							class="mt-5 w-full rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-700 disabled:opacity-60"
+						>
+							{actionLoading ? 'Requesting...' : 'Request to join'}
+						</button>
+					{:else if hasPendingJoinRequest}
+						<button
+							disabled
+							class="mt-5 w-full rounded-2xl bg-slate-100 px-5 py-3 font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+						>
+							Request pending
 						</button>
 					{/if}
 

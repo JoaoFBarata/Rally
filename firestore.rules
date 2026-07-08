@@ -56,10 +56,16 @@ service cloud.firestore {
 
 
     // ── Users ────────────────────────────────────────────────────────────────
-    // Any signed-in user can read profiles (needed for friend search, event pages, chat).
-    // Only the owner can write their own profile.
+    // Any signed-in user can read a profile unless its owner made it private —
+    // in that case only the owner and users who share an event with them
+    // (tracked in `connections`, kept in sync by the onEventUpdated function)
+    // can read it. Only the owner can write their own profile.
     match /users/{userId} {
-      allow read:   if isAuth();
+      allow read:   if isAuth() && (
+        request.auth.uid == userId
+        || resource.data.get('isPrivate', false) != true
+        || request.auth.uid in resource.data.get('connections', [])
+      );
       allow create: if isMe(userId) && request.resource.data.id == userId;
       allow update: if isMe(userId);
       allow delete: if false;
@@ -82,6 +88,15 @@ service cloud.firestore {
       allow create: if isAuth() && request.resource.data.ownerId == request.auth.uid;
       allow update: if isAuth() && (
         isOrgAdmin(orgId)
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'followersCount',
+              'updatedAt'
+            ])
+            && (
+              request.resource.data.followersCount == resource.data.followersCount + 1 ||
+              request.resource.data.followersCount == resource.data.followersCount - 1
+            )
+            && request.resource.data.followersCount >= 0)
         || (isPlatformAdmin()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'verificationStatus',
@@ -105,6 +120,34 @@ service cloud.firestore {
       allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
       allow delete: if isAuth() && resource.data.userId == request.auth.uid;
       allow update: if false;
+    }
+
+
+    // ── Organization Reviews ────────────────────────────────────────────────
+    // Users can review an organization once, and can edit/delete only their own review.
+    match /organizationReviews/{reviewId} {
+      allow read: if isAuth();
+      allow create: if isAuth()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5;
+      allow update: if isAuth()
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.organizationId == resource.data.organizationId
+        && (
+          (
+            (resource.data.userId == request.auth.uid || isOrgAdmin(resource.data.organizationId))
+            && request.resource.data.rating >= 1
+            && request.resource.data.rating <= 5
+          )
+          ||
+          (
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replies', 'updatedAt'])
+            && request.resource.data.rating == resource.data.rating
+            && request.resource.data.comment == resource.data.comment
+          )
+        );
+      allow delete: if isAuth() && resource.data.userId == request.auth.uid;
     }
 
 
@@ -196,6 +239,23 @@ service cloud.firestore {
       );
       allow create: if isAuth() && request.resource.data.fromUserId == request.auth.uid;
       allow update: if isAuth() && resource.data.toUserId == request.auth.uid;
+      allow delete: if false;
+    }
+
+
+    // ── Event Join Requests ──────────────────────────────────────────────────
+    // Used when an event's joinPolicy is 'approval'. Only the requester and
+    // the event's manager (creator or org admin) can see a request. Only the
+    // requester can create it. Only the event manager can update it (approve
+    // or decline), and only the status/updatedAt fields.
+    match /eventJoinRequests/{requestId} {
+      allow read: if isAuth() && (
+        resource.data.userId == request.auth.uid ||
+        isEventManager(resource.data.eventId)
+      );
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuth() && isEventManager(resource.data.eventId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']);
       allow delete: if false;
     }
 

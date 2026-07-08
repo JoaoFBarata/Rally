@@ -9,6 +9,7 @@
 	import MapboxWorker from 'mapbox-gl/dist/mapbox-gl-csp-worker?worker';
 	import { getUserProfile } from '$lib/services/user.service';
 	import Marker from './Marker.svelte';
+	import Supercluster from 'supercluster';
 
 	let { userId = '' }: { userId?: string } = $props();
 
@@ -22,6 +23,7 @@
 	let eventMarkers: mapboxgl.Marker[] = [];
 	let svelteMarkers: any[] = [];
 	let mapReady = $state(false);
+	let clusterIndex: any = null;
 	let userLocation = $state<[number, number] | null>(null); // [lng, lat]
 	let allEvents = $state<SportEvent[]>([]);
 	let unsubscribeThemeState: () => void = () => {};
@@ -66,6 +68,40 @@
 	$effect(() => {
 		if (nearbyEvents.length > 0) {
 			loadCreatorProfiles(nearbyEvents);
+		}
+	});
+
+	$effect(() => {
+		if (nearbyEvents) {
+			const points = nearbyEvents
+				.map((event: SportEvent) => {
+					const coords = getCoords(event);
+					if (!coords) return null;
+					return {
+						type: 'Feature' as const,
+						properties: {
+							eventId: event.id,
+							event: event,
+							isCluster: false
+						},
+						geometry: {
+							type: 'Point' as const,
+							coordinates: [coords.lng, coords.lat]
+						}
+					};
+				})
+				.filter((pt): pt is NonNullable<typeof pt> => pt !== null);
+
+			const index = new Supercluster({
+				radius: 50,
+				maxZoom: 15
+			});
+			index.load(points);
+			clusterIndex = index;
+
+			if (mapReady) {
+				renderEventMarkers();
+			}
 		}
 	});
 
@@ -167,57 +203,137 @@
 	}
 
 	function renderEventMarkers() {
-		if (!map || !mapReady || !userLocation) return;
+		if (!map || !mapReady || !userLocation || !clusterIndex) return;
+		const currentMap = map;
 		clearEventMarkers();
 
-		for (const event of nearbyEvents) {
-			const coords = getCoords(event);
-			if (!coords) continue;
+		const zoom = Math.floor(currentMap.getZoom());
+		const mapBounds = currentMap.getBounds();
+		if (!mapBounds) return;
+		const bbox: [number, number, number, number] = [
+			mapBounds.getWest(),
+			mapBounds.getSouth(),
+			mapBounds.getEast(),
+			mapBounds.getNorth()
+		];
 
-			const popup = new mapboxgl.Popup({ offset: 10 }).setHTML(`
-					<div class="p-2 font-sans text-slate-900 min-w-[150px]">
-						<p class="text-xs font-bold uppercase tracking-wider text-blue-600">${event.sport}</p>
-						<p class="font-bold text-sm leading-tight mt-0.5">${event.title}</p>
-						<p class="text-xs text-slate-500 mt-1">${event.location?.name || ''}</p>
-						<a href="/events/${event.id}" class="mt-2.5 block text-center text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-xl transition">View Event</a>
-					</div>
-				`);
+		const features = clusterIndex.getClusters(bbox, zoom);
 
-            // Get your photo URL (using your previously commented logic)
-            const creator = creatorProfiles[event.creatorId];
-            const photoURL = event.groupPhotoURL || event.organizationLogoURL || creator?.photoURL || '';
+		for (const feature of features) {
+			const [lng, lat] = feature.geometry.coordinates;
 
-            // 3. Create a wrapper element for Mapbox
-            const el = document.createElement('div');
-            el.className = 'custom-marker';
-            el.style.cursor = 'pointer';
+			if (feature.properties.cluster) {
+				const count = feature.properties.point_count;
+				const clusterId = feature.id;
 
-            const getMarkerColor = (ev: SportEvent) => {
-                if (ev.creatorId === userId) {
-                    return '#2563eb'; // Blue - My events
-                }
-                return '#64748b'; // Gray - Public/other events
-            };
+				const leaves = clusterIndex.getLeaves(clusterId, Infinity);
+				const sortedLeaves = leaves.slice().sort((a: any, b: any) => {
+					const eventA = a.properties.event;
+					const eventB = b.properties.event;
+					
+					const isPriorityA = eventA.creatorId === userId;
+					const isPriorityB = eventB.creatorId === userId;
+					
+					if (isPriorityA !== isPriorityB) {
+						return isPriorityA ? -1 : 1;
+					}
+					
+					const attendeesA = eventA.participantIds?.length || 0;
+					const attendeesB = eventB.participantIds?.length || 0;
+					return attendeesB - attendeesA;
+				});
 
-            // 4. Mount the Svelte 5 component to the wrapper element
-            const markerComponent = mount(Marker, {
-                target: el,
-                props: {
-                    profile_url: photoURL,
-					sport: event.sport,
-                    n_confirmed_attendees: event.participantIds?.length || 0,
-                    max_occupancy: event.maxParticipants || 0,
-                    marker_color: getMarkerColor(event)
-                }
-            });
-            svelteMarkers.push(markerComponent);
+				const priorityEvent = sortedLeaves[0].properties.event;
+				const creator = creatorProfiles[priorityEvent.creatorId];
+				const photoURL = priorityEvent.groupPhotoURL || priorityEvent.organizationLogoURL || creator?.photoURL || '';
 
-			const m = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
-				.setLngLat([coords.lng, coords.lat])
-				.setPopup(popup)
-				.addTo(map);
+				const el = document.createElement('div');
+				el.className = 'custom-marker custom-cluster-marker';
+				el.style.cursor = 'pointer';
 
-			eventMarkers.push(m);
+				const getMarkerColor = (ev: SportEvent) => {
+					if (ev.creatorId === userId) {
+						return '#2563eb'; // Blue - My events
+					}
+					return '#64748b'; // Gray - Public/other events
+				};
+
+				const markerComponent = mount(Marker, {
+					target: el,
+					props: {
+						profile_url: photoURL,
+						name_letter: (creator?.displayName || 'U').charAt(0).toUpperCase(),
+						sport: priorityEvent.sport,
+						n_confirmed_attendees: priorityEvent.participantIds?.length || 0,
+						max_occupancy: priorityEvent.maxParticipants || 0,
+						marker_color: getMarkerColor(priorityEvent),
+						cluster_count: count - 1
+					}
+				});
+				svelteMarkers.push(markerComponent);
+
+				el.addEventListener('click', () => {
+					try {
+						const expansionZoom = clusterIndex.getClusterExpansionZoom(clusterId);
+						currentMap.flyTo({
+							center: [lng, lat],
+							zoom: expansionZoom,
+							speed: 1.2
+						});
+					} catch (e) {
+						console.error('Expansion zoom error:', e);
+					}
+				});
+
+				const m = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+					.setLngLat([lng, lat])
+					.addTo(currentMap);
+				eventMarkers.push(m);
+			} else {
+				const event = feature.properties.event;
+				const popup = new mapboxgl.Popup({ offset: 10 }).setHTML(`
+						<div class="p-2 font-sans text-slate-900 min-w-[150px]">
+							<p class="text-xs font-bold uppercase tracking-wider text-blue-600">${event.sport}</p>
+							<p class="font-bold text-sm leading-tight mt-0.5">${event.title}</p>
+							<p class="text-xs text-slate-500 mt-1">${event.location?.name || ''}</p>
+							<a href="/events/${event.id}" class="mt-2.5 block text-center text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-xl transition">View Event</a>
+						</div>
+					`);
+
+				const creator = creatorProfiles[event.creatorId];
+				const photoURL = event.groupPhotoURL || event.organizationLogoURL || creator?.photoURL || '';
+
+				const el = document.createElement('div');
+				el.className = 'custom-marker';
+				el.style.cursor = 'pointer';
+
+				const getMarkerColor = (ev: SportEvent) => {
+					if (ev.creatorId === userId) {
+						return '#2563eb'; // Blue - My events
+					}
+					return '#64748b'; // Gray - Public/other events
+				};
+
+				const markerComponent = mount(Marker, {
+					target: el,
+					props: {
+						profile_url: photoURL,
+						name_letter: (creator?.displayName || 'U').charAt(0).toUpperCase(),
+						sport: event.sport,
+						n_confirmed_attendees: event.participantIds?.length || 0,
+						max_occupancy: event.maxParticipants || 0,
+						marker_color: getMarkerColor(event)
+					}
+				});
+				svelteMarkers.push(markerComponent);
+
+				const m = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+					.setLngLat([lng, lat])
+					.setPopup(popup)
+					.addTo(currentMap);
+
+				eventMarkers.push(m);
+			}
 		}
 	}
 
@@ -311,15 +427,19 @@
 			if (!map) return;
 			const zoom = map.getZoom();
 			const minZoom = 7;
-			const maxZoom = 13;
-			let scale = (0.6 * (zoom - minZoom)) / (maxZoom - minZoom);
-			if (zoom < minZoom) {
-				scale += 2.0;
-			}
+			const maxZoom = 15;
+			let scale = 0.85 + (0.75 * (zoom - minZoom)) / (maxZoom - minZoom);
+			scale = Math.max(0.8, Math.min(scale, 1.65));
 			map.getContainer().style.setProperty('--map-zoom-scale', scale.toFixed(3));
 		};
 
-		map.on('zoom', updateZoomScale);
+		map.on('zoom', () => {
+			updateZoomScale();
+			renderEventMarkers();
+		});
+		map.on('moveend', () => {
+			renderEventMarkers();
+		});
 
 		unsubscribeThemeState = themeState.subscribe((state) => {
 			const lPreset = state ? 'night' : 'day';

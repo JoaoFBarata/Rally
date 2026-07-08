@@ -11,13 +11,17 @@
 	} from '$lib/services/explore.service';
 	import { getFriendsForUser } from '$lib/services/social.service';
 	import { ensureUserProfile } from '$lib/services/user.service';
-	import type { SportEvent, UserProfile } from '$lib/schema';
+	import type { Sport, SportEvent, SportLevel, UserProfile } from '$lib/schema';
 	import ExploreMap from '$lib/components/maps/ExploreMap.svelte';
 	import RallyWordmark from '$lib/components/RallyWordmark.svelte';
 	import EventCard from '$lib/components/EventCard.svelte';
-	import { isPromotionActive } from '$lib/services/event.service';
+	import { getEventStartAtMillis, isPromotionActive } from '$lib/services/event.service';
 	import { subscribeToEventCatalogChanges } from '$lib/services/realtime.service';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
+
+	type DateFilter = 'today' | '7' | '14' | '30' | 'all';
+	type PriceFilter = 'all' | 'free' | 'paid';
+	type AudienceFilter = 'all' | 'mine' | 'friends' | 'public' | 'joined';
 
 	let events = $state<SportEvent[]>([]);
 	let promotedCampaignEvents = $state<SportEvent[]>([]);
@@ -28,38 +32,148 @@
 	let friendIds = $state<string[]>([]);
 	let filteredEventCount = $state(0);
 	let selectedMapEventId = $state<string | null>(null);
+	let selectedSports = $state<Sport[]>([]);
+	let selectedLevels = $state<SportLevel[]>([]);
+	let dateFilter = $state<DateFilter>('30');
+	let priceFilter = $state<PriceFilter>('all');
+	let maxPrice = $state(50);
+	let audienceFilter = $state<AudienceFilter>('all');
 	let searchTerm = $derived(page.url.searchParams.get('search')?.trim() ?? '');
-	let visibleEvents = $derived.by(() => {
+
+	const defaultDateFilter: DateFilter = '30';
+	const defaultPriceFilter: PriceFilter = 'all';
+	const defaultAudienceFilter: AudienceFilter = 'all';
+	const availableLevels: SportLevel[] = ['beginner', 'casual', 'intermediate', 'advanced'];
+	const dateFilterOptions = [
+		{ value: 'today' as const, label: 'Today' },
+		{ value: '7' as const, label: '7 days' },
+		{ value: '14' as const, label: '14 days' },
+		{ value: '30' as const, label: '30 days' },
+		{ value: 'all' as const, label: 'All' }
+	];
+	const priceFilterOptions = [
+		{ value: 'all' as const, label: 'All' },
+		{ value: 'free' as const, label: 'Free' },
+		{ value: 'paid' as const, label: 'Paid' }
+	];
+	const audienceFilterOptions = [
+		{ value: 'all' as const, label: 'All' },
+		{ value: 'mine' as const, label: 'My events' },
+		{ value: 'friends' as const, label: 'Friends' },
+		{ value: 'public' as const, label: 'Public' },
+		{ value: 'joined' as const, label: 'Joined' }
+	];
+
+	let availableSports = $derived.by((): Sport[] => {
+		const sports = events.map((event) => event.sport);
+		return [...new Set<Sport>(sports)].sort();
+	});
+
+	let highestPrice = $derived.by(() => {
+		const prices = events
+			.map((event) => event.pricePerPerson ?? 0)
+			.filter((price) => price > 0);
+		return Math.max(10, Math.ceil(Math.max(...prices, 0)));
+	});
+
+	let activeFilterCount = $derived.by(() => {
+		return (
+			selectedSports.length +
+			selectedLevels.length +
+			(dateFilter === defaultDateFilter ? 0 : 1) +
+			(priceFilter === defaultPriceFilter ? 0 : 1) +
+			(audienceFilter === defaultAudienceFilter ? 0 : 1)
+		);
+	});
+
+	function getWindowDays(filter: DateFilter) {
+		if (filter === 'all') return null;
+		if (filter === 'today') return 1;
+		return Number(filter);
+	}
+
+	function matchesDateFilter(event: SportEvent) {
+		const startAtMs = getEventStartAtMillis(event);
+		const now = new Date();
+		const eventDate = new Date(startAtMs);
+
+		if (dateFilter === 'all') return startAtMs >= Date.now();
+		if (dateFilter === 'today') {
+			return (
+				eventDate.getFullYear() === now.getFullYear() &&
+				eventDate.getMonth() === now.getMonth() &&
+				eventDate.getDate() === now.getDate()
+			);
+		}
+
+		const days = Number(dateFilter);
+		return startAtMs >= Date.now() && startAtMs <= Date.now() + days * 24 * 60 * 60 * 1000;
+	}
+
+	function matchesPriceFilter(event: SportEvent) {
+		const price = event.pricePerPerson ?? 0;
+		if (priceFilter === 'free') return price <= 0;
+		if (priceFilter === 'paid') return price > 0 && price <= maxPrice;
+		return true;
+	}
+
+	function matchesAudienceFilter(event: SportEvent) {
+		if (audienceFilter === 'mine') return event.creatorId === currentUserId;
+		if (audienceFilter === 'friends') {
+			return friendIds.includes(event.creatorId) || event.visibility === 'friends';
+		}
+		if (audienceFilter === 'public') return event.visibility === 'public';
+		if (audienceFilter === 'joined') return event.participantIds.includes(currentUserId);
+		return true;
+	}
+
+	let filteredEvents = $derived.by(() => {
 		const term = searchTerm.toLocaleLowerCase('pt-PT');
-		if (!term) return events;
 
 		return events.filter((event) => {
-			const haystack = [
-				event.title,
-				event.description,
-				event.sport,
-				event.customSport,
-				event.location?.name,
-				event.location?.address,
-				event.organizationName
-			]
-				.filter(Boolean)
-				.join(' ')
-				.toLocaleLowerCase('pt-PT');
+			const matchesSearch =
+				!term ||
+				[
+					event.title,
+					event.description,
+					event.sport,
+					event.customSport,
+					event.location?.name,
+					event.location?.address,
+					event.organizationName
+				]
+					.filter(Boolean)
+					.join(' ')
+					.toLocaleLowerCase('pt-PT')
+					.includes(term);
+			const matchesSport = selectedSports.length === 0 || selectedSports.includes(event.sport);
+			const eventLevel = event.level ?? 'casual';
+			const matchesLevel = selectedLevels.length === 0 || selectedLevels.includes(eventLevel);
 
-			return haystack.includes(term);
+			return (
+				matchesSearch &&
+				matchesSport &&
+				matchesLevel &&
+				matchesDateFilter(event) &&
+				matchesPriceFilter(event) &&
+				matchesAudienceFilter(event)
+			);
 		});
 	});
 	let promotedEvents = $derived.by(() => {
 		const eventsById = new Map<string, SportEvent>();
 
 		for (const event of promotedCampaignEvents) {
-			if (event.visibility === 'public' && isPromotionActive(event)) {
+			if (
+				event.visibility === 'public' &&
+				isPromotionActive(event) &&
+				filteredEvents.some((filteredEvent) => filteredEvent.id === event.id)
+			) {
 				eventsById.set(event.id, event);
 			}
 		}
 
-		for (const event of visibleEvents) {
+		for (const event of filteredEvents) {
 			if (event.visibility === 'public' && isPromotionActive(event)) {
 				eventsById.set(event.id, event);
 			}
@@ -73,13 +187,64 @@
 		if (refreshing) return;
 		refreshing = true;
 		try {
-			events = await getVisibleEventsForUser(userId);
-			filteredEventCount = events.length;
+			events = await getVisibleEventsForUser(userId, { windowDays: getWindowDays(dateFilter) });
+			filteredEventCount = filteredEvents.length;
 			const friends = await getFriendsForUser(userId);
 			friendIds = friends.map((friend) => friend.id).filter(Boolean);
 		} finally {
 			refreshing = false;
 		}
+	}
+
+	function clearSelectedEvent() {
+		selectedMapEventId = null;
+	}
+
+	function toggleSportFilter(sport: Sport) {
+		selectedSports = selectedSports.includes(sport)
+			? selectedSports.filter((item) => item !== sport)
+			: [...selectedSports, sport];
+		clearSelectedEvent();
+	}
+
+	function toggleLevelFilter(level: SportLevel) {
+		selectedLevels = selectedLevels.includes(level)
+			? selectedLevels.filter((item) => item !== level)
+			: [...selectedLevels, level];
+		clearSelectedEvent();
+	}
+
+	function setDateFilter(value: DateFilter) {
+		dateFilter = value;
+		clearSelectedEvent();
+		if (currentUserId) void loadExploreData(currentUserId);
+	}
+
+	function setPriceFilter(value: PriceFilter) {
+		priceFilter = value;
+		if (value === 'paid' && maxPrice > highestPrice) maxPrice = highestPrice;
+		clearSelectedEvent();
+	}
+
+	function setMaxPrice(value: number) {
+		maxPrice = value;
+		clearSelectedEvent();
+	}
+
+	function setAudienceFilter(value: AudienceFilter) {
+		audienceFilter = value;
+		clearSelectedEvent();
+	}
+
+	function clearAllFilters() {
+		selectedSports = [];
+		selectedLevels = [];
+		dateFilter = defaultDateFilter;
+		priceFilter = defaultPriceFilter;
+		audienceFilter = defaultAudienceFilter;
+		maxPrice = highestPrice;
+		clearSelectedEvent();
+		if (currentUserId) void loadExploreData(currentUserId);
 	}
 
 	onMount(() => {
@@ -143,9 +308,29 @@
 			<!-- Positioning container for Map and Desktop Promoted Overlay -->
 			<div class="relative flex-1 min-h-0 flex flex-col">
 				<ExploreMap
-					events={visibleEvents}
+					events={filteredEvents}
 					{currentUserId}
 					{friendIds}
+					{availableSports}
+					{availableLevels}
+					{selectedSports}
+					{selectedLevels}
+					{dateFilter}
+					{priceFilter}
+					{maxPrice}
+					{highestPrice}
+					{audienceFilter}
+					{activeFilterCount}
+					{dateFilterOptions}
+					{priceFilterOptions}
+					{audienceFilterOptions}
+					onToggleSport={toggleSportFilter}
+					onToggleLevel={toggleLevelFilter}
+					onDateFilterChange={setDateFilter}
+					onPriceFilterChange={setPriceFilter}
+					onMaxPriceChange={setMaxPrice}
+					onAudienceFilterChange={setAudienceFilter}
+					onClearFilters={clearAllFilters}
 					onFilteredCountChange={(count) => (filteredEventCount = count)}
 					onSelectedEventChange={(eventId) => (selectedMapEventId = eventId)}
 				/>
@@ -175,7 +360,7 @@
 							{#if promotedEvents.length}
 								<div class="max-h-[52dvh] space-y-3 overflow-y-auto pr-1 md:max-h-[520px]">
 									{#each promotedEvents as event (event.id)}
-										<EventCard {event} />
+										<EventCard {event} variant="profile" />
 									{/each}
 								</div>
 							{:else}

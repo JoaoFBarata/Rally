@@ -1,11 +1,116 @@
 const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/firestore");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { defineSecret } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 const { getMessaging } = require("firebase-admin/messaging");
+const { GoogleGenAI, Type } = require("@google/genai");
 
 initializeApp();
 const db = getFirestore();
 const messaging = getMessaging();
+
+const openaiApiKey = defineSecret("OPENAI_API_KEY");
+const geminiApiKey = defineSecret("GEMINI_API_KEY");
+
+const VOICE_EVENT_SPORTS = [
+    "football", "padel", "basketball", "running", "gym", "tennis", "cycling", "volleyball", "other"
+];
+const VOICE_EVENT_LEVELS = ["beginner", "casual", "intermediate", "advanced"];
+
+// JSON schema for structured extraction of event fields from a voice transcript.
+// Every field is nullable — the model must leave unmentioned details as null rather than guessing.
+const VOICE_EVENT_SCHEMA = {
+    type: Type.OBJECT,
+    properties: {
+        title: { type: Type.STRING, nullable: true },
+        sport: { type: Type.STRING, enum: VOICE_EVENT_SPORTS, nullable: true },
+        customSport: { type: Type.STRING, nullable: true },
+        level: { type: Type.STRING, enum: VOICE_EVENT_LEVELS, nullable: true },
+        description: { type: Type.STRING, nullable: true },
+        location: { type: Type.STRING, nullable: true },
+        date: { type: Type.STRING, nullable: true },
+        time: { type: Type.STRING, nullable: true },
+        durationMinutes: { type: Type.INTEGER, nullable: true },
+        maxParticipants: { type: Type.INTEGER, nullable: true },
+        priceTotal: { type: Type.NUMBER, nullable: true }
+    },
+    required: [
+        "title", "sport", "customSport", "level", "description",
+        "location", "date", "time", "durationMinutes", "maxParticipants", "priceTotal"
+    ]
+};
+
+// Callable: transcribes a recorded voice clip and extracts structured event fields from it.
+exports.transcribeVoiceEvent = onCall(
+    { secrets: [openaiApiKey, geminiApiKey] },
+    async (request) => {
+        if (!request.auth) {
+            throw new HttpsError("unauthenticated", "You must be signed in to use voice event creation.");
+        }
+
+        const { audioBase64, mimeType } = request.data || {};
+        if (!audioBase64 || typeof audioBase64 !== "string") {
+            throw new HttpsError("invalid-argument", "Missing audio data.");
+        }
+
+        let transcript;
+        try {
+            const audioBuffer = Buffer.from(audioBase64, "base64");
+            const audioBlob = new Blob([audioBuffer], { type: mimeType || "audio/webm" });
+
+            const formData = new FormData();
+            formData.append("file", audioBlob, "recording.webm");
+            formData.append("model", "whisper-1");
+
+            const whisperResponse = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${openaiApiKey.value()}` },
+                body: formData
+            });
+
+            if (!whisperResponse.ok) {
+                console.error("Whisper transcription failed:", await whisperResponse.text());
+                throw new Error("Transcription request failed.");
+            }
+
+            const whisperResult = await whisperResponse.json();
+            transcript = (whisperResult.text || "").trim();
+        } catch (err) {
+            console.error("Error transcribing audio:", err);
+            throw new HttpsError("internal", "Could not transcribe the recording. Please try again.");
+        }
+
+        if (!transcript) {
+            throw new HttpsError("invalid-argument", "Didn't catch that — please try recording again.");
+        }
+
+        try {
+            const genAI = new GoogleGenAI({ apiKey: geminiApiKey.value() });
+            const today = new Date().toISOString().slice(0, 10);
+
+            const response = await genAI.models.generateContent({
+                model: "gemini-2.5-flash",
+                contents: transcript,
+                config: {
+                    systemInstruction:
+                        "Extract sport event details from a spoken transcript describing an event someone wants to create. " +
+                        `Today's date is ${today} (YYYY-MM-DD) — resolve relative dates like "tomorrow" or "next Saturday" against it. ` +
+                        "Only fill in fields explicitly stated or clearly implied in the transcript. Set anything unmentioned to null — never invent details.",
+                    responseMimeType: "application/json",
+                    responseSchema: VOICE_EVENT_SCHEMA
+                }
+            });
+
+            const fields = JSON.parse(response.text);
+
+            return { transcript, fields };
+        } catch (err) {
+            console.error("Error extracting event fields:", err);
+            throw new HttpsError("internal", "Could not understand the event details. Please try again.");
+        }
+    }
+);
 
 // Trigger: New message created in conversations/{conversationId}/messages/{messageId}
 exports.onMessageCreated = onDocumentCreated("conversations/{conversationId}/messages/{messageId}", async (event) => {
@@ -317,6 +422,23 @@ async function awardPoints(
 }
 
 // Trigger: Event updated (Completion / Cancellation)
+// Records that every pair of members in `memberIds` has shared an event.
+// Connections are additive and permanent (used to gate private-profile
+// visibility) — no removal logic when someone later leaves an event.
+async function syncEventConnections(memberIds) {
+    const uniqueMembers = [...new Set(memberIds)].filter(Boolean);
+    if (uniqueMembers.length < 2) return;
+
+    await Promise.all(
+        uniqueMembers.map((memberId) => {
+            const others = uniqueMembers.filter((id) => id !== memberId);
+            return db.collection("users").doc(memberId).update({
+                connections: FieldValue.arrayUnion(...others)
+            });
+        })
+    );
+}
+
 exports.onEventUpdated = onDocumentUpdated("events/{eventId}", async (event) => {
     const change = event.data;
     if (!change) return;
@@ -324,6 +446,20 @@ exports.onEventUpdated = onDocumentUpdated("events/{eventId}", async (event) => 
     const before = change.before.data();
     const after = change.after.data();
     const eventId = event.params.eventId;
+
+    // Someone joined: sync connections so co-participants can see each
+    // other's profile even if one of them is private.
+    const beforeParticipantIds = new Set(before.participantIds || []);
+    const afterParticipantIds = after.participantIds || [];
+    const hasNewParticipant = afterParticipantIds.some((id) => !beforeParticipantIds.has(id));
+
+    if (hasNewParticipant) {
+        try {
+            await syncEventConnections([after.creatorId, ...afterParticipantIds]);
+        } catch (err) {
+            console.error(`Error syncing connections for event ${eventId}:`, err);
+        }
+    }
 
     // Execute only if the event status changed
     if (before.status !== after.status) {

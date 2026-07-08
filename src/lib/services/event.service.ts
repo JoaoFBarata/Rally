@@ -18,10 +18,12 @@ import {
 import { db } from '$lib/firebase';
 import type {
 	EventHostType,
+	EventJoinPolicy,
 	EventPaymentMode,
 	EventPromotionPlan,
 	EventStatus,
 	EventVisibility,
+	RecurringFrequency,
 	Sport,
 	SportEvent,
 	SportLevel,
@@ -299,7 +301,7 @@ export async function ensureTournamentTeamConversation(params: {
 	return getTournamentTeamConversationId(entry.id);
 }
 
-async function assertCanManageEvent(event: SportEvent, userId: string) {
+export async function assertCanManageEvent(event: SportEvent, userId: string) {
 	if (event.creatorId === userId) return;
 
 	if (event.hostType === 'organization' && event.organizationId) {
@@ -331,6 +333,13 @@ export async function createSportEvent(params: {
 	priceTotal?: number;
 	paymentMode?: EventPaymentMode;
 	groupPhotoURL?: string | null;
+	groupPhotoPath?: string | null;
+	whatToBring?: string;
+	joinPolicy?: EventJoinPolicy;
+	recurringGroupId?: string | null;
+	recurringIndex?: number | null;
+	recurringTotal?: number | null;
+	recurringFrequency?: RecurringFrequency | null;
 }) {
 	const hostType = params.hostType ?? 'user';
 	const paymentMode: EventPaymentMode =
@@ -394,7 +403,15 @@ export async function createSportEvent(params: {
 		hostType,
 		...organizationSnapshot,
 		groupPhotoURL: params.groupPhotoURL ?? null,
-		groupPhotoPath: null,
+		groupPhotoPath: params.groupPhotoPath ?? null,
+
+		whatToBring: params.whatToBring ?? '',
+		joinPolicy: params.joinPolicy ?? 'open',
+
+		recurringGroupId: params.recurringGroupId ?? null,
+		recurringIndex: params.recurringIndex ?? null,
+		recurringTotal: params.recurringTotal ?? null,
+		recurringFrequency: params.recurringFrequency ?? null,
 
 		location: {
 			name: params.locationName,
@@ -446,6 +463,59 @@ export async function createSportEvent(params: {
 	await syncEventGroupConversation(createdEvent);
 
 	return createdEvent;
+}
+
+const MAX_RECURRING_OCCURRENCES = 12;
+const MIN_RECURRING_OCCURRENCES = 2;
+
+function addRecurringOffset(date: Date, frequency: RecurringFrequency, occurrenceIndex: number) {
+	const next = new Date(date.getTime());
+
+	if (frequency === 'weekly') {
+		next.setDate(next.getDate() + 7 * occurrenceIndex);
+	} else if (frequency === 'biweekly') {
+		next.setDate(next.getDate() + 14 * occurrenceIndex);
+	} else {
+		next.setMonth(next.getMonth() + occurrenceIndex);
+	}
+
+	return next;
+}
+
+export async function createRecurringSportEvents(
+	params: Parameters<typeof createSportEvent>[0] & {
+		frequency: RecurringFrequency;
+		occurrences: number;
+	}
+) {
+	const occurrences = Math.min(
+		Math.max(Math.round(params.occurrences), MIN_RECURRING_OCCURRENCES),
+		MAX_RECURRING_OCCURRENCES
+	);
+
+	const recurringGroupId = crypto.randomUUID();
+	const createdEvents: SportEvent[] = [];
+
+	for (let index = 0; index < occurrences; index++) {
+		const occurrenceStartAt = addRecurringOffset(params.startAt, params.frequency, index);
+		const occurrenceEndAt = params.endAt
+			? addRecurringOffset(params.endAt, params.frequency, index)
+			: undefined;
+
+		const createdEvent = await createSportEvent({
+			...params,
+			startAt: occurrenceStartAt,
+			endAt: occurrenceEndAt,
+			recurringGroupId,
+			recurringIndex: index + 1,
+			recurringTotal: occurrences,
+			recurringFrequency: params.frequency
+		});
+
+		createdEvents.push(createdEvent);
+	}
+
+	return createdEvents;
 }
 
 export async function updateSportEvent(params: {
@@ -592,7 +662,13 @@ export async function getEventsCreatedByOrganization(organizationId: string) {
 		eventsById.set(enrichedEvent.id, enrichedEvent);
 	}
 
-	const adminIds = organization.adminIds ?? [];
+	const adminIds = [
+		...new Set([
+			...(organization.adminIds ?? []),
+			...(organization.memberIds ?? []),
+			organization.ownerId
+		].filter(Boolean))
+	];
 
 	for (const chunk of chunkArray(adminIds, 10)) {
 		if (chunk.length === 0) continue;
@@ -2077,4 +2153,76 @@ export async function notifyEventFinished(event: SportEvent): Promise<void> {
 			: {}),
 		updatedAt: serverTimestamp()
 	});
+}
+
+export interface WeatherForecast {
+	temp: number;
+	icon: string;
+	description: string;
+}
+
+export async function getWeatherForEvent(
+	lat: number | null | undefined,
+	lng: number | null | undefined,
+	startAt: any
+): Promise<WeatherForecast | null> {
+	if (lat === null || lat === undefined || lng === null || lng === undefined || !startAt) {
+		return null;
+	}
+
+	try {
+		let date: Date;
+		if (startAt && typeof startAt.toDate === 'function') {
+			date = startAt.toDate();
+		} else if (startAt instanceof Date) {
+			date = startAt;
+		} else if (typeof startAt === 'string' || typeof startAt === 'number') {
+			date = new Date(startAt);
+		} else {
+			return null;
+		}
+
+		const dateStr = date.toISOString().split('T')[0];
+		const eventHour = date.getHours();
+
+		const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=temperature_2m,weather_code&start_date=${dateStr}&end_date=${dateStr}&timezone=auto`;
+
+		const response = await fetch(url);
+		if (!response.ok) return null;
+
+		const data = await response.json();
+		if (!data.hourly || !data.hourly.temperature_2m || !data.hourly.weather_code) {
+			return null;
+		}
+
+		const temp = data.hourly.temperature_2m[eventHour];
+		const code = data.hourly.weather_code[eventHour];
+
+		if (temp === undefined || code === undefined) return null;
+
+		let icon = '☀️';
+		let description = 'Clean sky';
+
+		if (code >= 1 && code <= 3) {
+			icon = '🌤️';
+			description = 'Partly cloudy';
+		} else if (code === 45 || code === 48) {
+			icon = '🌫️';
+			description = 'Foggy';
+		} else if ((code >= 51 && code <= 55) || (code >= 61 && code <= 65)) {
+			icon = '🌧️';
+			description = 'Rainy';
+		} else if (code >= 71 && code <= 77) {
+			icon = '❄️';
+			description = 'Snowy';
+		} else if (code >= 95) {
+			icon = '⚡';
+			description = 'Thunderstorm';
+		}
+
+		return { temp, icon, description };
+	} catch (error) {
+		console.error('Error fetching weather:', error);
+		return null;
+	}
 }

@@ -9,12 +9,24 @@
 		trackEventPromotionClick,
 		trackEventPromotionView
 	} from '$lib/services/event.service';
+	import EventWeather from '$lib/components/EventWeather.svelte';
 
-	let { event, showImage = true, variant = 'default', compactHero = false } = $props<{
+	let {
+		event,
+		showImage = true,
+		variant = 'default',
+		compactHero = false,
+		miniHero = false,
+		heroCtaLabel = 'Join game',
+		heroCtaTone = 'primary'
+	} = $props<{
 		event: SportEvent;
 		showImage?: boolean;
 		variant?: 'default' | 'profile' | 'hero';
 		compactHero?: boolean;
+		miniHero?: boolean;
+		heroCtaLabel?: string;
+		heroCtaTone?: 'primary' | 'muted';
 	}>();
 
 	let showPromotion = $derived(isPromotionActive(event) && event.promotionAudienceMatch !== false);
@@ -211,7 +223,11 @@
 		href={`/events/${event.id}`}
 		onclick={handleClick}
 		class={`group relative block overflow-hidden rounded-[1.75rem] border border-white/10 bg-gradient-to-br ${getHeroBackgroundClasses()} text-white shadow-xl shadow-slate-300/40 transition hover:-translate-y-0.5 hover:shadow-2xl dark:shadow-none ${
-			compactHero ? 'min-h-[13rem]' : 'min-h-[15.5rem] sm:min-h-[18rem]'
+			miniHero
+				? 'min-h-[7.8rem] sm:min-h-[11.5rem]'
+				: compactHero
+					? 'min-h-[10.5rem] sm:min-h-[13rem]'
+					: 'min-h-[12rem] sm:min-h-[18rem]'
 		}`}
 	>
 		<div class="absolute inset-0 opacity-70">
@@ -235,39 +251,45 @@
 			<div class="absolute bottom-8 left-8 h-28 w-28 rounded-full bg-blue-400/30 blur-3xl"></div>
 		</div>
 
-		<div class={`relative flex h-full min-h-[inherit] flex-col justify-between p-4 ${compactHero ? 'sm:p-4' : 'sm:p-5'}`}>
+		<div class={`relative flex h-full min-h-[inherit] flex-col justify-between ${miniHero ? 'p-3 sm:p-4' : `p-4 ${compactHero ? 'sm:p-4' : 'sm:p-5'}`}`}>
 			<div class="flex items-start justify-between gap-3">
-				<span class="rounded-full bg-emerald-500/90 px-3 py-1 text-xs font-black text-white shadow-lg shadow-emerald-950/20">
+				<span class={`rounded-full bg-emerald-500/90 font-black text-white shadow-lg shadow-emerald-950/20 ${miniHero ? 'px-2.5 py-0.5 text-[10px] sm:px-3 sm:py-1 sm:text-xs' : 'px-3 py-1 text-xs'}`}>
 					{formatDate(event.startAt)}
 				</span>
-				<span class="rounded-full bg-white/90 px-3 py-1 text-xs font-black text-slate-950">
+				<span class={`rounded-full bg-white/90 font-black text-slate-950 ${miniHero ? 'px-2.5 py-0.5 text-[10px] sm:px-3 sm:py-1 sm:text-xs' : 'px-3 py-1 text-xs'}`}>
 					{formatHeroCapacity()}
 				</span>
 			</div>
 
 			<div>
-				<div class="mb-3 flex flex-wrap gap-2">
-					<span class="rounded-full bg-white/15 px-3 py-1 text-xs font-black backdrop-blur">
+				<div class={`${miniHero ? 'mb-1.5 sm:mb-3' : 'mb-3'} flex flex-wrap gap-2`}>
+					<span class={`rounded-full bg-white/15 font-black backdrop-blur ${miniHero ? 'px-2 py-0.5 text-[10px] sm:px-3 sm:py-1 sm:text-xs' : 'px-3 py-1 text-xs'}`}>
 						{formatSportLabel()}
 					</span>
-					<span class="rounded-full bg-white/15 px-3 py-1 text-xs font-black capitalize backdrop-blur">
+					<span class={`rounded-full bg-white/15 font-black capitalize backdrop-blur ${miniHero ? 'hidden px-2 py-0.5 text-[10px] sm:inline-flex sm:px-3 sm:py-1 sm:text-xs' : 'px-3 py-1 text-xs'}`}>
 						{event.level ?? 'casual'}
 					</span>
 				</div>
 
-				<h3 class={`${compactHero ? 'text-xl' : 'text-2xl sm:text-3xl'} max-w-[18rem] font-black leading-tight text-white`}>
+				<h3 class={`${miniHero ? 'line-clamp-1 text-base sm:text-xl' : compactHero ? 'text-lg sm:text-xl' : 'text-xl sm:text-3xl'} max-w-[18rem] font-black leading-tight text-white`}>
 					{event.title}
 				</h3>
-				<p class="mt-2 truncate text-sm font-bold text-white/80">
+				<p class={`${miniHero ? 'mt-1 text-xs sm:mt-2 sm:text-sm' : 'mt-2 text-sm'} truncate font-bold text-white/80`}>
 					{event.location.name}
 				</p>
 
-				<div class="mt-4 flex items-center justify-between gap-3">
-					<span class="truncate text-sm font-bold text-white/75">
+				<div class={`${miniHero ? 'mt-2 sm:mt-4' : 'mt-3 sm:mt-4'} flex items-center justify-between gap-3`}>
+					<span class={`${miniHero ? 'text-xs sm:text-sm' : 'text-sm'} truncate font-bold text-white/75`}>
 						{formatPrice()}
 					</span>
-					<span class="shrink-0 rounded-2xl bg-blue-600 px-4 py-2 text-sm font-black text-white shadow-lg shadow-blue-950/25 transition group-hover:bg-blue-500">
-						Join game
+					<span
+						class={`shrink-0 rounded-2xl font-black shadow-lg transition ${miniHero ? 'px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm' : 'px-4 py-2 text-sm'} ${
+							heroCtaTone === 'muted'
+								? 'bg-white/90 text-slate-950 shadow-slate-950/15'
+								: 'bg-blue-600 text-white shadow-blue-950/25 group-hover:bg-blue-500'
+						}`}
+					>
+						{heroCtaLabel}
 					</span>
 				</div>
 			</div>
@@ -430,6 +452,8 @@
 							Protected payment
 						</span>
 					{/if}
+
+					<EventWeather lat={event.location.lat} lng={event.location.lng} startAt={event.startAt} size="sm" />
 				</div>
 
 				<h3 class="mt-0.5 line-clamp-1 text-sm font-black leading-tight text-slate-950 dark:text-slate-50 sm:mt-1 sm:line-clamp-2 sm:text-lg">

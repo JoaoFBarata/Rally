@@ -4,14 +4,24 @@
 	import { resolve } from '$app/paths';
 	import { auth } from '$lib/firebase';
 	import LocationPickerMap from '$lib/components/maps/LocationPickerMap.svelte';
-	import { createSportEvent } from '$lib/services/event.service';
+	import VoiceRecordButton from '$lib/components/VoiceRecordButton.svelte';
+	import { createRecurringSportEvents, createSportEvent } from '$lib/services/event.service';
 	import { getFriendsForUser } from '$lib/services/social.service';
 	import { inviteUsersToEvent } from '$lib/services/invite.service';
+	import { uploadEventGroupPhoto } from '$lib/services/storage.service';
+	import type { VoiceExtractedFields } from '$lib/services/voice-event.service';
 	import TimeSelect from '$lib/components/TimeSelect.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import { goBack } from '$lib/utils/navigation';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
-	import type { Sport, EventVisibility, SportLevel, UserProfile } from '$lib/schema';
+	import type {
+		Sport,
+		EventVisibility,
+		SportLevel,
+		UserProfile,
+		EventJoinPolicy,
+		RecurringFrequency
+	} from '$lib/schema';
 
 	let title = $state('');
 	let description = $state('');
@@ -30,6 +40,38 @@
 	let level = $state<SportLevel>('casual');
 	let loading = $state(false);
 	let error = $state('');
+	let voiceLocationHint = $state('');
+	let step = $state<'choice' | 'form'>('choice');
+
+	let whatToBring = $state('');
+	let joinPolicy = $state<EventJoinPolicy>('open');
+
+	let groupPhotoURL = $state<string | null>(null);
+	let groupPhotoPath = $state<string | null>(null);
+	let groupPhotoUploading = $state(false);
+	let groupPhotoUploadId = crypto.randomUUID();
+
+	let isRecurring = $state(false);
+	let recurringFrequency = $state<RecurringFrequency>('weekly');
+	let recurringOccurrences = $state(4);
+
+	let recurringEndDateLabel = $derived.by(() => {
+		if (!isRecurring || !startDate) return '';
+
+		const start = new Date(`${startDate}T00:00:00`);
+		if (isNaN(start.getTime())) return '';
+
+		const end = new Date(start.getTime());
+
+		if (recurringFrequency === 'monthly') {
+			end.setMonth(end.getMonth() + (recurringOccurrences - 1));
+		} else {
+			const offsetDays = recurringFrequency === 'weekly' ? 7 : 14;
+			end.setDate(end.getDate() + offsetDays * (recurringOccurrences - 1));
+		}
+
+		return end.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+	});
 
 	const todayStr = new Date().toLocaleDateString('en-CA');
 
@@ -95,7 +137,7 @@
 		loading = true;
 
 		try {
-			const createdEvent = await createSportEvent({
+			const baseParams = {
 				title,
 				description,
 				sport,
@@ -109,8 +151,22 @@
 				endAt,
 				maxParticipants,
 				visibility,
-				priceTotal: priceTotal ?? undefined
-			});
+				priceTotal: priceTotal ?? undefined,
+				groupPhotoURL,
+				groupPhotoPath,
+				whatToBring: whatToBring.trim() || undefined,
+				joinPolicy
+			};
+
+			const createdEvent = isRecurring
+				? (
+						await createRecurringSportEvents({
+							...baseParams,
+							frequency: recurringFrequency,
+							occurrences: recurringOccurrences
+						})
+					)[0]
+				: await createSportEvent(baseParams);
 
 			createdEventId = createdEvent.id;
 			createdEventTitle = createdEvent.title;
@@ -122,6 +178,56 @@
 		} finally {
 			loading = false;
 		}
+	}
+
+	async function handleGroupPhotoFileChange(e: Event) {
+		const input = e.target as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+
+		const currentUser = auth.currentUser;
+		if (!currentUser) return;
+
+		groupPhotoUploading = true;
+		error = '';
+
+		try {
+			const uploaded = await uploadEventGroupPhoto({
+				eventId: groupPhotoUploadId,
+				userId: currentUser.uid,
+				file
+			});
+
+			groupPhotoURL = uploaded.url;
+			groupPhotoPath = uploaded.path;
+		} catch (err) {
+			console.error('Group photo upload error:', err);
+			error = getFriendlyErrorMessage(err, 'Could not upload group photo.');
+		} finally {
+			groupPhotoUploading = false;
+			input.value = '';
+		}
+	}
+
+	function handleVoiceExtracted(fields: VoiceExtractedFields) {
+		if (fields.title) title = fields.title;
+		if (fields.sport) sport = fields.sport;
+		if (fields.customSport) customSport = fields.customSport;
+		if (fields.level) level = fields.level;
+		if (fields.description) description = fields.description;
+		if (fields.location) {
+			locationName = fields.location;
+			voiceLocationHint = fields.location;
+		}
+		if (fields.date) startDate = fields.date;
+		if (fields.time) startTime = fields.time;
+		if (fields.durationMinutes) durationMinutes = fields.durationMinutes;
+		if (fields.maxParticipants) maxParticipants = fields.maxParticipants;
+		if (fields.priceTotal !== null && fields.priceTotal !== undefined) {
+			priceTotal = fields.priceTotal;
+		}
+
+		step = 'form';
 	}
 
 	function toggleFriend(friendId: string) {
@@ -166,24 +272,59 @@
 	<div
 		class="min-w-0 rounded-3xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-4xl sm:p-8"
 	>
-		<div class="mb-5 sm:mb-8">
-			<h2 class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">Create event</h2>
+		{#if step === 'choice'}
+			<div class="mb-5 sm:mb-8">
+				<h2 class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">Create event</h2>
 
-			<p class="mt-2 text-slate-500 dark:text-slate-400">
-				Fill in the event details and start inviting people.
-			</p>
-		</div>
-
-		{#if error}
-			<div
-				class="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
-			>
-				{error}
+				<p class="mt-2 text-slate-500 dark:text-slate-400">How do you want to create it?</p>
 			</div>
-		{/if}
 
-		<div>
-			<form
+			<div class="grid gap-4 sm:grid-cols-2">
+				<div
+					class="flex flex-col items-start rounded-2xl border-2 border-blue-200 bg-blue-50 p-5 dark:border-blue-900 dark:bg-blue-950/40"
+				>
+					<p class="text-sm font-bold text-blue-700 dark:text-blue-300">🎤 Use your voice</p>
+
+					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+						Describe the event out loud — we'll fill in the form for you.
+					</p>
+
+					<div class="mt-4">
+						<VoiceRecordButton onExtracted={handleVoiceExtracted} />
+					</div>
+				</div>
+
+				<button
+					type="button"
+					onclick={() => (step = 'form')}
+					class="flex flex-col items-start rounded-2xl border-2 border-slate-200 bg-slate-50 p-5 text-left transition hover:border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700"
+				>
+					<p class="text-sm font-bold text-slate-700 dark:text-slate-300">✍️ Enter manually</p>
+
+					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+						Fill in the details yourself.
+					</p>
+				</button>
+			</div>
+		{:else}
+			<div class="mb-5 sm:mb-8">
+				<h2 class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">Create event</h2>
+
+				<p class="mt-2 text-slate-500 dark:text-slate-400">
+					Fill in the event details and start inviting people.
+				</p>
+			</div>
+
+			{#if error}
+				<div
+					class="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
+				>
+					{error}
+				</div>
+			{/if}
+
+			<div>
+				<form
 				class="space-y-5"
 				onsubmit={(e) => {
 					e.preventDefault();
@@ -201,6 +342,64 @@
 						placeholder="Saturday football match"
 						class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
 					/>
+				</div>
+
+				<div class="flex items-center gap-4">
+					<div class="relative h-16 w-16 shrink-0">
+						{#if groupPhotoURL}
+							<img
+								src={groupPhotoURL}
+								alt={title || 'Event group'}
+								class="h-16 w-16 rounded-full object-cover ring-4 ring-slate-100 dark:ring-slate-800"
+							/>
+						{:else}
+							<div
+								class="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 text-2xl font-black text-blue-600 ring-4 ring-slate-100 dark:bg-blue-950 dark:text-blue-300 dark:ring-slate-800"
+							>
+								📷
+							</div>
+						{/if}
+
+						<label
+							title="Add group photo"
+							class="absolute -bottom-1 -right-1 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-white text-xs text-blue-600 shadow-lg ring-2 ring-slate-100 transition hover:bg-blue-50 dark:bg-white dark:text-blue-600 dark:ring-slate-800"
+						>
+							{#if groupPhotoUploading}
+								…
+							{:else}
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke-width="2.4"
+									stroke="currentColor"
+									class="h-3.5 w-3.5"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18A2.25 2.25 0 0 0 4.5 20.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z"
+									/>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z"
+									/>
+								</svg>
+							{/if}
+							<input
+								type="file"
+								accept="image/*"
+								class="hidden"
+								onchange={handleGroupPhotoFileChange}
+							/>
+						</label>
+					</div>
+
+					<div class="min-w-0">
+						<p class="text-sm font-bold text-slate-700 dark:text-slate-300">Group photo</p>
+						<p class="text-sm text-slate-500 dark:text-slate-400">Optional, shown on the event page.</p>
+					</div>
 				</div>
 
 				<div class="grid grid-cols-2 gap-3 sm:gap-5">
@@ -264,6 +463,19 @@
 				</div>
 
 				<div>
+					<label for="whatToBring" class="text-sm font-bold text-slate-700 dark:text-slate-300">
+						What to bring
+					</label>
+
+					<textarea
+						id="whatToBring"
+						bind:value={whatToBring}
+						placeholder="Football boots, water bottle, your own racket..."
+						class="mt-2 min-h-20 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+					></textarea>
+				</div>
+
+				<div>
 					<label for="location" class="text-sm font-bold text-slate-700 dark:text-slate-300">
 						Location name
 					</label>
@@ -300,7 +512,10 @@
 					</div>
 
 					<div class="min-w-0">
-						<label for="durationMinutes" class="text-sm font-bold text-slate-700 dark:text-slate-300">
+						<label
+							for="durationMinutes"
+							class="text-sm font-bold text-slate-700 dark:text-slate-300"
+						>
 							Duration (minutes)
 						</label>
 
@@ -331,6 +546,74 @@
 							class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
 						/>
 					</div>
+				</div>
+
+				<div
+					class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800"
+				>
+					<label class="flex cursor-pointer items-center justify-between gap-4">
+						<div>
+							<p class="text-sm font-bold text-slate-700 dark:text-slate-300">
+								Repeat this event
+							</p>
+							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+								Creates a series of separate events people join individually.
+							</p>
+						</div>
+
+						<input
+							type="checkbox"
+							bind:checked={isRecurring}
+							class="h-5 w-5 shrink-0 rounded border-slate-300 text-blue-600 accent-blue-600 dark:border-slate-600"
+						/>
+					</label>
+
+					{#if isRecurring}
+						<div class="mt-4 grid grid-cols-2 gap-3">
+							<div class="min-w-0">
+								<label
+									for="recurringFrequency"
+									class="text-sm font-bold text-slate-700 dark:text-slate-300"
+								>
+									Repeats
+								</label>
+
+								<select
+									id="recurringFrequency"
+									bind:value={recurringFrequency}
+									class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950"
+								>
+									<option value="weekly">Every week</option>
+									<option value="biweekly">Every 2 weeks</option>
+									<option value="monthly">Every month</option>
+								</select>
+							</div>
+
+							<div class="min-w-0">
+								<label
+									for="recurringOccurrences"
+									class="text-sm font-bold text-slate-700 dark:text-slate-300"
+								>
+									Number of events
+								</label>
+
+								<input
+									id="recurringOccurrences"
+									type="number"
+									min="2"
+									max="12"
+									bind:value={recurringOccurrences}
+									class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950"
+								/>
+							</div>
+						</div>
+
+						{#if recurringEndDateLabel}
+							<p class="mt-3 text-sm font-medium text-slate-500 dark:text-slate-400">
+								Creates {recurringOccurrences} events, the last one on {recurringEndDateLabel}.
+							</p>
+						{/if}
+					{/if}
 				</div>
 
 				<div class="grid grid-cols-2 gap-3 sm:gap-5">
@@ -366,18 +649,56 @@
 						/>
 					</div>
 				</div>
+
+				<div>
+					<p class="text-sm font-bold text-slate-700 dark:text-slate-300">Who can join</p>
+
+					<div class="mt-2 grid grid-cols-2 gap-3">
+						<button
+							type="button"
+							onclick={() => (joinPolicy = 'open')}
+							class={`rounded-2xl border p-3 text-left transition ${
+								joinPolicy === 'open'
+									? 'border-blue-500 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/40'
+									: 'border-slate-200 bg-white hover:border-blue-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-blue-500'
+							}`}
+						>
+							<p class="font-bold text-slate-950 dark:text-slate-50">Open</p>
+							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+								Anyone can join instantly.
+							</p>
+						</button>
+
+						<button
+							type="button"
+							onclick={() => (joinPolicy = 'approval')}
+							class={`rounded-2xl border p-3 text-left transition ${
+								joinPolicy === 'approval'
+									? 'border-blue-500 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/40'
+									: 'border-slate-200 bg-white hover:border-blue-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-blue-500'
+							}`}
+						>
+							<p class="font-bold text-slate-950 dark:text-slate-50">Request to join</p>
+							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+								You approve each request.
+							</p>
+						</button>
+					</div>
+				</div>
+
 				<div class="mt-5 sm:mt-8">
-					<LocationPickerMap bind:lat bind:lng bind:address />
+					<LocationPickerMap bind:lat bind:lng bind:address autofillAddress={voiceLocationHint} />
 				</div>
 				<button
 					type="submit"
-					disabled={loading}
+					disabled={loading || groupPhotoUploading}
 					class="mt-3 w-full rounded-2xl bg-blue-600 px-5 py-4 font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:shadow-blue-950/40"
 				>
-					{loading ? 'Creating...' : 'Create event'}
+					{loading ? 'Creating...' : groupPhotoUploading ? 'Uploading photo...' : 'Create event'}
 				</button>
 			</form>
 		</div>
+		{/if}
 	</div>
 </div>
 

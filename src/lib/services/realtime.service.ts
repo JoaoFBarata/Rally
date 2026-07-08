@@ -91,13 +91,20 @@ export function subscribeToEventChanges(eventId: string, onChange: () => void): 
 
 export function subscribeToUserChanges(userId: string, onChange: () => void): Unsubscribe {
 	let initialized = false;
-	return onSnapshot(doc(db, 'users', userId), () => {
-		if (!initialized) {
-			initialized = true;
-			return;
+	return onSnapshot(
+		doc(db, 'users', userId),
+		() => {
+			if (!initialized) {
+				initialized = true;
+				return;
+			}
+			onChange();
+		},
+		() => {
+			// A private profile the viewer isn't connected to denies this read —
+			// expected, not an error worth surfacing.
 		}
-		onChange();
-	});
+	);
 }
 
 export function subscribeToTournamentChanges(eventId: string, onChange: () => void): Unsubscribe {

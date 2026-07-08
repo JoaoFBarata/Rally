@@ -1,5 +1,6 @@
 import {
 	addDoc,
+	arrayUnion,
 	collection,
 	deleteDoc,
 	doc,
@@ -9,6 +10,7 @@ import {
 	query,
 	serverTimestamp,
 	setDoc,
+	Timestamp,
 	updateDoc,
 	where
 } from 'firebase/firestore';
@@ -16,6 +18,8 @@ import { db } from '$lib/firebase';
 import type {
 	Organization,
 	OrganizationPublicLocation,
+	OrganizationReview,
+	OrganizationReviewReply,
 	OrganizationType,
 	OrganizationVerificationRequest,
 	VerificationLevel,
@@ -33,6 +37,10 @@ function slugify(value: string) {
 }
 
 function followerIdFor(organizationId: string, userId: string) {
+	return `${organizationId}_${userId}`;
+}
+
+function reviewIdFor(organizationId: string, userId: string) {
 	return `${organizationId}_${userId}`;
 }
 
@@ -68,6 +76,10 @@ export async function createOrganization(params: {
 		description: params.description?.trim() ?? '',
 		logoURL: params.logoURL ?? null,
 		logoPath: null,
+		coverPhotoURL: null,
+		coverPhotoPath: null,
+		galleryPhotoURLs: [],
+		galleryPhotoPaths: [],
 		website: params.website?.trim() ?? '',
 		phone: params.phone?.trim() ?? '',
 		contactEmail: params.contactEmail.trim().toLowerCase(),
@@ -135,6 +147,18 @@ export async function getOrganizationsFollowedByUser(userId: string) {
 	);
 }
 
+export async function getOrganizationFollowerIds(organizationId: string) {
+	const q = query(
+		collection(db, 'organizationFollowers'),
+		where('organizationId', '==', organizationId)
+	);
+	const snap = await getDocs(q);
+
+	return snap.docs
+		.map((docSnap) => (docSnap.data() as { userId?: string }).userId)
+		.filter((id): id is string => Boolean(id));
+}
+
 export async function assertCanManageOrganization(params: {
 	organizationId: string;
 	userId: string;
@@ -163,6 +187,10 @@ export async function updateOrganizationProfile(params: {
 	nif?: string;
 	logoURL?: string | null;
 	logoPath?: string | null;
+	coverPhotoURL?: string | null;
+	coverPhotoPath?: string | null;
+	galleryPhotoURLs?: string[];
+	galleryPhotoPaths?: string[];
 	hasPublicVenue?: boolean;
 	publicLocation?: OrganizationPublicLocation | null;
 }) {
@@ -184,6 +212,10 @@ export async function updateOrganizationProfile(params: {
 		nif: params.nif?.trim() ?? '',
 		logoURL: params.logoURL ?? null,
 		logoPath: params.logoPath ?? null,
+		...(params.coverPhotoURL !== undefined ? { coverPhotoURL: params.coverPhotoURL } : {}),
+		...(params.coverPhotoPath !== undefined ? { coverPhotoPath: params.coverPhotoPath } : {}),
+		...(params.galleryPhotoURLs !== undefined ? { galleryPhotoURLs: params.galleryPhotoURLs } : {}),
+		...(params.galleryPhotoPaths !== undefined ? { galleryPhotoPaths: params.galleryPhotoPaths } : {}),
 		...(params.hasPublicVenue !== undefined
 			? {
 					hasPublicVenue: params.hasPublicVenue,
@@ -379,10 +411,14 @@ export async function followOrganization(params: { organizationId: string; userI
 		createdAt: serverTimestamp()
 	});
 
-	await updateDoc(doc(db, 'organizations', params.organizationId), {
-		followersCount: increment(1),
-		updatedAt: serverTimestamp()
-	});
+	try {
+		await updateDoc(doc(db, 'organizations', params.organizationId), {
+			followersCount: increment(1),
+			updatedAt: serverTimestamp()
+		});
+	} catch (err) {
+		console.warn('Could not update organization followers count:', err);
+	}
 }
 
 export async function unfollowOrganization(params: { organizationId: string; userId: string }) {
@@ -396,8 +432,102 @@ export async function unfollowOrganization(params: { organizationId: string; use
 	if (!snap.exists()) return;
 
 	await deleteDoc(followerRef);
-	await updateDoc(doc(db, 'organizations', params.organizationId), {
-		followersCount: increment(-1),
+	try {
+		await updateDoc(doc(db, 'organizations', params.organizationId), {
+			followersCount: increment(-1),
+			updatedAt: serverTimestamp()
+		});
+	} catch (err) {
+		console.warn('Could not update organization followers count:', err);
+	}
+}
+
+export async function getOrganizationReviews(organizationId: string) {
+	const q = query(
+		collection(db, 'organizationReviews'),
+		where('organizationId', '==', organizationId)
+	);
+	const snap = await getDocs(q);
+
+	return snap.docs
+		.map((docSnap) => ({ ...docSnap.data(), id: docSnap.id }) as OrganizationReview)
+		.sort((a, b) => {
+			const aMs = (a.updatedAt as unknown as { toMillis?: () => number })?.toMillis?.() ?? 0;
+			const bMs = (b.updatedAt as unknown as { toMillis?: () => number })?.toMillis?.() ?? 0;
+			return bMs - aMs;
+		});
+}
+
+export async function getUserOrganizationReview(params: { organizationId: string; userId: string }) {
+	const reviewRef = doc(
+		db,
+		'organizationReviews',
+		reviewIdFor(params.organizationId, params.userId)
+	);
+	const snap = await getDoc(reviewRef);
+	if (!snap.exists()) return null;
+	return { ...snap.data(), id: snap.id } as OrganizationReview;
+}
+
+export async function submitOrganizationReview(params: {
+	organizationId: string;
+	userId: string;
+	rating: number;
+	comment: string;
+	authorName?: string;
+	authorPhotoURL?: string | null;
+}) {
+	const rating = Math.max(1, Math.min(5, Math.round(params.rating)));
+	const reviewRef = doc(
+		db,
+		'organizationReviews',
+		reviewIdFor(params.organizationId, params.userId)
+	);
+	const existing = await getDoc(reviewRef);
+
+	await setDoc(
+		reviewRef,
+		{
+			id: reviewRef.id,
+			organizationId: params.organizationId,
+			userId: params.userId,
+			authorName: params.authorName ?? 'Rally user',
+			authorPhotoURL: params.authorPhotoURL ?? null,
+			rating,
+			comment: params.comment.trim(),
+			createdAt: existing.exists()
+				? ((existing.data() as OrganizationReview).createdAt ?? serverTimestamp())
+				: serverTimestamp(),
+			updatedAt: serverTimestamp()
+		},
+		{ merge: true }
+	);
+}
+
+export async function replyToOrganizationReview(params: {
+	reviewId: string;
+	userId: string;
+	authorName?: string;
+	authorPhotoURL?: string | null;
+	authorRole: 'user' | 'organization';
+	comment: string;
+}) {
+	const reply: OrganizationReviewReply = {
+		id: `${params.userId}_${Date.now()}`,
+		userId: params.userId,
+		authorName: params.authorName ?? (params.authorRole === 'organization' ? 'Organization' : 'Rally user'),
+		authorPhotoURL: params.authorPhotoURL ?? null,
+		authorRole: params.authorRole,
+		comment: params.comment.trim(),
+		createdAt: Timestamp.now()
+	};
+
+	if (!reply.comment) {
+		throw new Error('Write a reply before sending.');
+	}
+
+	await updateDoc(doc(db, 'organizationReviews', params.reviewId), {
+		replies: arrayUnion(reply),
 		updatedAt: serverTimestamp()
 	});
 }

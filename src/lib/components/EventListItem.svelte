@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { PUBLIC_MAPBOX_ACCESS_TOKEN } from '$env/static/public';
 	import type { EventStatus, SportEvent } from '$lib/schema';
+	import EventWeather from '$lib/components/EventWeather.svelte';
 
 	let { event, label = '' } = $props<{
 		event: SportEvent;
@@ -153,7 +154,10 @@
 		</p>
 
 		<div class="mt-2 flex min-w-0 items-center justify-between gap-3 text-xs font-black text-slate-400 dark:text-slate-500">
-			<span class="truncate">{formatDate(event.startAt)}</span>
+			<div class="min-w-0 flex-1 flex items-center gap-1.5 overflow-hidden">
+				<span class="truncate">{formatDate(event.startAt)}</span>
+				<EventWeather lat={event.location.lat} lng={event.location.lng} startAt={event.startAt} size="sm" />
+			</div>
 			<span class="shrink-0">{formatPrice()}</span>
 		</div>
 

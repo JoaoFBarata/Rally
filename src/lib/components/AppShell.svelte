@@ -319,7 +319,7 @@
 		<div class="flex min-h-screen min-w-0 overflow-x-clip">
 			<!-- Desktop sidebar -->
 			<aside
-				class="hidden w-72 border-r border-slate-200 bg-white px-5 py-6 dark:border-slate-800 dark:bg-slate-900 md:block"
+				class="hidden w-72 shrink-0 border-r border-slate-200 bg-white px-5 py-6 dark:border-slate-800 dark:bg-slate-900 md:sticky md:top-0 md:flex md:h-screen md:flex-col md:overflow-y-auto"
 			>
 				<div>
 					<div class="flex items-center justify-between gap-3">
@@ -368,6 +368,20 @@
 						</a>
 					{/each}
 				</nav>
+
+				<a
+					href={resolveNavHref('/settings')}
+					class={`-ml-5 mr-3 mt-auto flex w-auto items-center gap-5 rounded-l-none rounded-r-full py-3 pl-10 pr-5 text-sm font-semibold transition ${
+						isActive('/settings')
+							? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+							: 'text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
+					}`}
+				>
+					<span class="flex h-7 w-7 items-center justify-center rounded-xl text-lg">
+						<NavIcon name="settings" />
+					</span>
+					<span>Settings</span>
+				</a>
 			</aside>
 
 			<div class="flex min-w-0 flex-1 flex-col overflow-x-clip">
