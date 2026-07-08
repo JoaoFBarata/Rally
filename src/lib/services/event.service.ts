@@ -18,10 +18,12 @@ import {
 import { db } from '$lib/firebase';
 import type {
 	EventHostType,
+	EventJoinPolicy,
 	EventPaymentMode,
 	EventPromotionPlan,
 	EventStatus,
 	EventVisibility,
+	RecurringFrequency,
 	Sport,
 	SportEvent,
 	SportLevel,
@@ -299,7 +301,7 @@ export async function ensureTournamentTeamConversation(params: {
 	return getTournamentTeamConversationId(entry.id);
 }
 
-async function assertCanManageEvent(event: SportEvent, userId: string) {
+export async function assertCanManageEvent(event: SportEvent, userId: string) {
 	if (event.creatorId === userId) return;
 
 	if (event.hostType === 'organization' && event.organizationId) {
@@ -331,6 +333,13 @@ export async function createSportEvent(params: {
 	priceTotal?: number;
 	paymentMode?: EventPaymentMode;
 	groupPhotoURL?: string | null;
+	groupPhotoPath?: string | null;
+	whatToBring?: string;
+	joinPolicy?: EventJoinPolicy;
+	recurringGroupId?: string | null;
+	recurringIndex?: number | null;
+	recurringTotal?: number | null;
+	recurringFrequency?: RecurringFrequency | null;
 }) {
 	const hostType = params.hostType ?? 'user';
 	const paymentMode: EventPaymentMode =
@@ -394,7 +403,15 @@ export async function createSportEvent(params: {
 		hostType,
 		...organizationSnapshot,
 		groupPhotoURL: params.groupPhotoURL ?? null,
-		groupPhotoPath: null,
+		groupPhotoPath: params.groupPhotoPath ?? null,
+
+		whatToBring: params.whatToBring ?? '',
+		joinPolicy: params.joinPolicy ?? 'open',
+
+		recurringGroupId: params.recurringGroupId ?? null,
+		recurringIndex: params.recurringIndex ?? null,
+		recurringTotal: params.recurringTotal ?? null,
+		recurringFrequency: params.recurringFrequency ?? null,
 
 		location: {
 			name: params.locationName,
@@ -446,6 +463,59 @@ export async function createSportEvent(params: {
 	await syncEventGroupConversation(createdEvent);
 
 	return createdEvent;
+}
+
+const MAX_RECURRING_OCCURRENCES = 12;
+const MIN_RECURRING_OCCURRENCES = 2;
+
+function addRecurringOffset(date: Date, frequency: RecurringFrequency, occurrenceIndex: number) {
+	const next = new Date(date.getTime());
+
+	if (frequency === 'weekly') {
+		next.setDate(next.getDate() + 7 * occurrenceIndex);
+	} else if (frequency === 'biweekly') {
+		next.setDate(next.getDate() + 14 * occurrenceIndex);
+	} else {
+		next.setMonth(next.getMonth() + occurrenceIndex);
+	}
+
+	return next;
+}
+
+export async function createRecurringSportEvents(
+	params: Parameters<typeof createSportEvent>[0] & {
+		frequency: RecurringFrequency;
+		occurrences: number;
+	}
+) {
+	const occurrences = Math.min(
+		Math.max(Math.round(params.occurrences), MIN_RECURRING_OCCURRENCES),
+		MAX_RECURRING_OCCURRENCES
+	);
+
+	const recurringGroupId = crypto.randomUUID();
+	const createdEvents: SportEvent[] = [];
+
+	for (let index = 0; index < occurrences; index++) {
+		const occurrenceStartAt = addRecurringOffset(params.startAt, params.frequency, index);
+		const occurrenceEndAt = params.endAt
+			? addRecurringOffset(params.endAt, params.frequency, index)
+			: undefined;
+
+		const createdEvent = await createSportEvent({
+			...params,
+			startAt: occurrenceStartAt,
+			endAt: occurrenceEndAt,
+			recurringGroupId,
+			recurringIndex: index + 1,
+			recurringTotal: occurrences,
+			recurringFrequency: params.frequency
+		});
+
+		createdEvents.push(createdEvent);
+	}
+
+	return createdEvents;
 }
 
 export async function updateSportEvent(params: {

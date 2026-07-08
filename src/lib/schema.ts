@@ -36,6 +36,9 @@ export type EventHostType = 'user' | 'organization';
 export type EventPaymentMode = 'none' | 'split' | 'official';
 export type EventPromotionStatus = 'none' | 'active' | 'paused' | 'ended';
 export type EventPromotionPlan = 'local' | 'sport' | 'featured';
+export type EventJoinPolicy = 'open' | 'approval';
+export type RecurringFrequency = 'weekly' | 'biweekly' | 'monthly';
+export type JoinRequestStatus = 'pending' | 'accepted' | 'declined';
 
 export interface OrganizationPublicLocation {
 	name: string;
@@ -190,6 +193,15 @@ export interface SportEvent {
 	groupPhotoURL?: string | null;
 	groupPhotoPath?: string | null;
 
+	whatToBring?: string;
+
+	joinPolicy?: EventJoinPolicy;
+
+	recurringGroupId?: string | null;
+	recurringIndex?: number | null;
+	recurringTotal?: number | null;
+	recurringFrequency?: RecurringFrequency | null;
+
 	location: {
 		name: string;
 		address?: string;
@@ -275,6 +287,15 @@ export interface EventInvite {
 	teamName?: string | null;
 
 	status: InviteStatus;
+	createdAt: Timestamp;
+	updatedAt: Timestamp;
+}
+
+export interface EventJoinRequest {
+	id: string;
+	eventId: string;
+	userId: string;
+	status: JoinRequestStatus;
 	createdAt: Timestamp;
 	updatedAt: Timestamp;
 }

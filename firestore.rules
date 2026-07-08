@@ -206,6 +206,23 @@ service cloud.firestore {
     }
 
 
+    // ── Event Join Requests ──────────────────────────────────────────────────
+    // Used when an event's joinPolicy is 'approval'. Only the requester and
+    // the event's manager (creator or org admin) can see a request. Only the
+    // requester can create it. Only the event manager can update it (approve
+    // or decline), and only the status/updatedAt fields.
+    match /eventJoinRequests/{requestId} {
+      allow read: if isAuth() && (
+        resource.data.userId == request.auth.uid ||
+        isEventManager(resource.data.eventId)
+      );
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuth() && isEventManager(resource.data.eventId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']);
+      allow delete: if false;
+    }
+
+
     // ── Friend Requests ──────────────────────────────────────────────────────
     // Only the two parties involved can see a request.
     // Only sender can create. Recipient can accept/decline. Sender can re-send

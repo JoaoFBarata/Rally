@@ -26,6 +26,12 @@
 		updateEventGroupPhoto
 	} from '$lib/services/event.service';
 	import {
+		listenJoinRequestForUser,
+		listenJoinRequestsForEvent,
+		requestToJoinEvent,
+		respondToJoinRequest
+	} from '$lib/services/join-request.service';
+	import {
 		clearUserTyping,
 		listenConversationById,
 		listenMessagesForConversation,
@@ -39,6 +45,7 @@
 	import type {
 		ChatConversation,
 		ChatMessage,
+		EventJoinRequest,
 		SportEvent,
 		UserProfile,
 		EventPromotionPlan
@@ -70,6 +77,13 @@
 	let unsubscribeGroupConversation: Unsubscribe | null = null;
 	let groupTypingTimeout: ReturnType<typeof setTimeout> | null = null;
 	let groupLastTypingSentAt = 0;
+
+	let myJoinRequest = $state<EventJoinRequest | null>(null);
+	let pendingJoinRequests = $state<EventJoinRequest[]>([]);
+	let pendingRequesters = $state<UserProfile[]>([]);
+	let joinRequestActionLoading = $state(false);
+	let unsubscribeMyJoinRequest: Unsubscribe | null = null;
+	let unsubscribeJoinRequests: Unsubscribe | null = null;
 
 	type ConfirmDialogConfig = {
 		title: string;
@@ -143,8 +157,25 @@
 		return (
 			!!event &&
 			event.eventKind !== 'tournament' &&
+			(event.joinPolicy ?? 'open') === 'open' &&
 			!isCreator &&
 			!isParticipant &&
+			effectiveStatus !== 'full' &&
+			effectiveStatus !== 'cancelled' &&
+			effectiveStatus !== 'finished'
+		);
+	});
+
+	let hasPendingJoinRequest = $derived(myJoinRequest?.status === 'pending');
+
+	let canRequestJoin = $derived.by(() => {
+		return (
+			!!event &&
+			event.eventKind !== 'tournament' &&
+			event.joinPolicy === 'approval' &&
+			!isCreator &&
+			!isParticipant &&
+			!hasPendingJoinRequest &&
 			effectiveStatus !== 'full' &&
 			effectiveStatus !== 'cancelled' &&
 			effectiveStatus !== 'finished'
@@ -497,6 +528,7 @@
 
 			event = loadedEvent;
 			participants = await getUserProfilesByIds(loadedEvent.participantIds ?? []);
+			syncJoinRequestsListener(loadedEvent, currentUser.uid);
 
 			if (
 				isEventFinished(loadedEvent) &&
@@ -520,6 +552,28 @@
 		}
 	}
 
+	function syncJoinRequestsListener(loadedEvent: SportEvent, userId: string) {
+		unsubscribeJoinRequests?.();
+		unsubscribeJoinRequests = null;
+		pendingJoinRequests = [];
+		pendingRequesters = [];
+
+		if (loadedEvent.creatorId !== userId || (loadedEvent.joinPolicy ?? 'open') !== 'approval') {
+			return;
+		}
+
+		unsubscribeJoinRequests = listenJoinRequestsForEvent(
+			loadedEvent.id,
+			async (requests) => {
+				pendingJoinRequests = requests;
+				pendingRequesters = requests.length
+					? await getUserProfilesByIds(requests.map((request) => request.userId))
+					: [];
+			},
+			(err) => console.error('Join requests listener error:', err)
+		);
+	}
+
 	async function handleJoinEvent() {
 		const currentUser = auth.currentUser;
 
@@ -536,6 +590,49 @@
 			error = getFriendlyErrorMessage(err, 'Could not join event.');
 		} finally {
 			actionLoading = false;
+		}
+	}
+
+	async function handleRequestToJoin() {
+		const currentUser = auth.currentUser;
+
+		if (!currentUser || !event) return;
+
+		actionLoading = true;
+		error = '';
+
+		try {
+			await requestToJoinEvent({ eventId: event.id, userId: currentUser.uid });
+			await reloadEvent();
+		} catch (err) {
+			console.error('Request to join error:', err);
+			error = getFriendlyErrorMessage(err, 'Could not request to join event.');
+		} finally {
+			actionLoading = false;
+		}
+	}
+
+	async function handleRespondToJoinRequest(requestId: string, status: 'accepted' | 'declined') {
+		const currentUser = auth.currentUser;
+
+		if (!currentUser || !event) return;
+
+		joinRequestActionLoading = true;
+		error = '';
+
+		try {
+			await respondToJoinRequest({
+				requestId,
+				eventId: event.id,
+				hostId: currentUser.uid,
+				status
+			});
+			await reloadEvent();
+		} catch (err) {
+			console.error('Respond to join request error:', err);
+			error = getFriendlyErrorMessage(err, 'Could not update join request.');
+		} finally {
+			joinRequestActionLoading = false;
 		}
 	}
 
@@ -802,6 +899,15 @@
 		void loadEventPage();
 		const eventId = page.params.id;
 		if (eventId) stopEventListener = subscribeToEventChanges(eventId, () => void loadEventPage());
+
+		const currentUser = auth.currentUser;
+		if (eventId && currentUser) {
+			unsubscribeMyJoinRequest = listenJoinRequestForUser(
+				{ eventId, userId: currentUser.uid },
+				(request) => (myJoinRequest = request),
+				(err) => console.error('My join request listener error:', err)
+			);
+		}
 	});
 
 	onDestroy(() => {
@@ -811,6 +917,8 @@
 		stopGroupConversationListener();
 		stopGroupTypingTimeout();
 		stopEventListener();
+		unsubscribeMyJoinRequest?.();
+		unsubscribeJoinRequests?.();
 	});
 </script>
 
@@ -1041,6 +1149,14 @@
 								<button onclick={handleJoinEvent} disabled={actionLoading} class="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:opacity-60">
 									{actionLoading ? 'Joining...' : 'Join event'}
 								</button>
+							{:else if canRequestJoin}
+								<button onclick={handleRequestToJoin} disabled={actionLoading} class="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:opacity-60">
+									{actionLoading ? 'Requesting...' : 'Request to join'}
+								</button>
+							{:else if hasPendingJoinRequest}
+								<button disabled class="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+									Request pending
+								</button>
 							{/if}
 
 							{#if isParticipant && !isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
@@ -1126,6 +1242,14 @@
 							{event.title}
 						</h1>
 
+						{#if event.recurringGroupId}
+							<span
+								class="mt-2 inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+							>
+								🔁 Part of a recurring series ({event.recurringIndex}/{event.recurringTotal})
+							</span>
+						{/if}
+
 						<p class="mt-4 text-slate-600 dark:text-slate-300">
 							{event.description || 'No description provided.'}
 						</p>
@@ -1198,6 +1322,15 @@
 						</div>
 					</div>
 				</div>
+
+				{#if event.whatToBring}
+					<div class="mt-6 rounded-2xl bg-slate-50 p-5 dark:bg-slate-800">
+						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">What to bring</p>
+						<p class="mt-2 whitespace-pre-line font-bold text-slate-950 dark:text-slate-50">
+							{event.whatToBring}
+						</p>
+					</div>
+				{/if}
 
 				{#if event?.eventKind !== 'tournament'}
 					<div
@@ -1288,6 +1421,91 @@
 					</div>
 				{/if}
 			</section>
+
+			{#if isCreator && event?.joinPolicy === 'approval'}
+				<section
+					class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-4xl sm:p-6 sm:shadow-xl sm:shadow-slate-200/70"
+				>
+					<div class="flex items-center justify-between gap-4">
+						<div>
+							<p
+								class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400"
+							>
+								Requests
+							</p>
+							<h2 class="mt-2 text-xl font-black text-slate-950 dark:text-slate-50 sm:text-2xl">
+								Join requests
+							</h2>
+						</div>
+
+						{#if pendingJoinRequests.length > 0}
+							<div class="rounded-2xl bg-blue-50 px-4 py-2 text-center dark:bg-blue-950">
+								<p class="text-lg font-black text-blue-600 dark:text-blue-300">
+									{pendingJoinRequests.length}
+								</p>
+								<p class="text-xs font-medium text-slate-500 dark:text-slate-400">pending</p>
+							</div>
+						{/if}
+					</div>
+
+					{#if pendingJoinRequests.length === 0}
+						<div class="mt-5 rounded-2xl bg-slate-50 p-5 text-center dark:bg-slate-800">
+							<p class="text-sm font-semibold text-slate-500 dark:text-slate-400">
+								No pending requests.
+							</p>
+						</div>
+					{:else}
+						<div class="mt-5 space-y-3">
+							{#each pendingJoinRequests as request (request.id)}
+								{@const requester = pendingRequesters.find((p) => p.id === request.userId)}
+								<div
+									class="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800"
+								>
+									<div class="flex min-w-0 items-center gap-3">
+										<UserAvatar
+											photoURL={requester?.photoURL}
+											displayName={requester?.displayName ?? 'Rally user'}
+											email={requester?.email}
+											size="md"
+										/>
+
+										<div class="min-w-0">
+											<p class="truncate font-bold text-slate-950 dark:text-slate-50">
+												{requester?.displayName ?? 'Rally user'}
+											</p>
+											{#if requester?.rallyTag}
+												<p class="truncate text-xs text-slate-500 dark:text-slate-400">
+													@{requester.rallyTag}
+												</p>
+											{/if}
+										</div>
+									</div>
+
+									<div class="flex shrink-0 items-center gap-2">
+										<button
+											type="button"
+											onclick={() => handleRespondToJoinRequest(request.id, 'declined')}
+											disabled={joinRequestActionLoading}
+											class="rounded-full px-3 py-2 text-sm font-black text-red-600 transition hover:bg-red-50 disabled:opacity-60 dark:text-red-400 dark:hover:bg-red-950"
+										>
+											Decline
+										</button>
+
+										<button
+											type="button"
+											onclick={() => handleRespondToJoinRequest(request.id, 'accepted')}
+											disabled={joinRequestActionLoading}
+											class="rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
+										>
+											Approve
+										</button>
+									</div>
+								</div>
+							{/each}
+						</div>
+					{/if}
+				</section>
+			{/if}
 
 			{#if event?.eventKind === 'tournament'}
 				<TournamentPanel {event} {currentUserId} canManage={canManageTournament} />
@@ -1566,6 +1784,21 @@
 							class="mt-5 w-full rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-700 disabled:opacity-60"
 						>
 							{actionLoading ? 'Joining...' : 'Join event'}
+						</button>
+					{:else if canRequestJoin}
+						<button
+							onclick={handleRequestToJoin}
+							disabled={actionLoading}
+							class="mt-5 w-full rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-700 disabled:opacity-60"
+						>
+							{actionLoading ? 'Requesting...' : 'Request to join'}
+						</button>
+					{:else if hasPendingJoinRequest}
+						<button
+							disabled
+							class="mt-5 w-full rounded-2xl bg-slate-100 px-5 py-3 font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+						>
+							Request pending
 						</button>
 					{/if}
 
