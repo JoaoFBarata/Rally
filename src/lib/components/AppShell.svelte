@@ -122,7 +122,7 @@
 	let mobileNavItems = $derived.by(() => {
 		let filtered = navItems;
 		if (navItems.length > 5 && !isPlatformAdmin) {
-			const replaceableHref = organizationPublicHref ?? '/profile';
+			const replaceableHref = organizationId ? organizationManageHref : '/profile';
 			filtered = navItems.filter((item) => item.href !== replaceableHref);
 		}
 

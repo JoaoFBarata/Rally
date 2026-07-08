@@ -467,7 +467,7 @@
 			showSettingsModal = false;
 			showAccountSwitcher = false;
 			await authService.logout();
-			await goto(resolve('/login'));
+			await goto(resolve('/login?returnTo=/dashboard'));
 		} finally {
 			logoutLoading = false;
 		}
@@ -493,13 +493,18 @@
 				deviceAccounts = getDeviceAccounts();
 				showSettingsModal = false;
 				showAccountSwitcher = false;
+				await goto(getPostSwitchHref(account));
 				return;
 			}
 
 			await authService.logout();
 			showSettingsModal = false;
 			showAccountSwitcher = false;
-			await goto(resolve(`/login?email=${encodeURIComponent(account.email)}`));
+			await goto(
+				resolve(
+					`/login?returnTo=${encodeURIComponent(getPostSwitchHref(account))}&email=${encodeURIComponent(account.email)}`
+				)
+			);
 		} finally {
 			logoutLoading = false;
 			switchingAccountId = null;
@@ -508,6 +513,13 @@
 
 	function handleForgetDeviceAccount(accountId: string) {
 		deviceAccounts = removeDeviceAccount(accountId);
+	}
+
+	function getPostSwitchHref(account?: DeviceAccount | null) {
+		if (account?.accountType === 'organization' && account.activeOrganizationId) {
+			return `/organizations/${account.activeOrganizationId}/manage`;
+		}
+		return '/dashboard';
 	}
 
 	async function handleStopPromotion(eventId: string) {
@@ -614,26 +626,13 @@
 				</div>
 			</div>
 
-			<div
-				class="flex flex-wrap items-center gap-2 sm:justify-end sm:gap-3"
+			<a
+				href={resolve('/settings')}
+				class="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-800 dark:hover:bg-slate-800 md:hidden"
+				aria-label="Open settings"
 			>
-				<a
-					href={resolve(`/organizations/${organization.id}`)}
-					class="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 sm:rounded-2xl sm:px-5 sm:py-3 sm:text-sm"
-				>
-					Public page
-				</a>
-
-				<button
-					type="button"
-					onclick={() => (showSettingsModal = true)}
-					class="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-800 dark:hover:bg-slate-800 md:h-auto md:w-auto md:rounded-2xl md:bg-slate-950 md:px-5 md:py-3 md:text-sm md:font-black md:text-white md:ring-0 md:dark:bg-white md:dark:text-slate-950 md:dark:hover:bg-slate-200"
-					aria-label="Open settings"
-				>
-					<span class="md:hidden">⚙</span>
-					<span class="hidden md:inline">Settings</span>
-				</button>
-			</div>
+				⚙
+			</a>
 		</section>
 
 		{#if error}
@@ -867,61 +866,6 @@
 							class="rounded-2xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-200 disabled:opacity-60 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 sm:px-4 sm:py-3 sm:text-sm"
 						>
 							{uploadingLogo ? 'Uploading...' : 'Change logo'}
-						</button>
-					</div>
-				</div>
-
-				<div class="mt-5 grid gap-3 sm:grid-cols-2">
-					<div class="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950">
-						<div class="h-28 overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-500 to-slate-950">
-							{#if organization.coverPhotoURL}
-								<img src={organization.coverPhotoURL} alt="" class="h-full w-full object-cover" />
-							{/if}
-						</div>
-						<input
-							bind:this={coverInput}
-							type="file"
-							accept="image/*"
-							class="hidden"
-							onchange={handleCoverUpload}
-						/>
-						<button
-							type="button"
-							onclick={() => coverInput?.click()}
-							disabled={uploadingCover}
-							class="mt-3 w-full rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
-						>
-							{uploadingCover ? 'Uploading...' : 'Change cover photo'}
-						</button>
-					</div>
-
-					<div class="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950">
-						<div class="flex h-28 gap-2 overflow-hidden">
-							{#if organization.galleryPhotoURLs?.length}
-								{#each organization.galleryPhotoURLs.slice(0, 3) as photoURL}
-									<img src={photoURL} alt="" class="min-w-0 flex-1 rounded-2xl object-cover" />
-								{/each}
-							{:else}
-								<div class="grid h-full flex-1 place-items-center rounded-2xl border border-dashed border-slate-200 text-xs font-black text-slate-400 dark:border-slate-800">
-									No gallery photos
-								</div>
-							{/if}
-						</div>
-						<input
-							bind:this={galleryInput}
-							type="file"
-							accept="image/*"
-							multiple
-							class="hidden"
-							onchange={handleGalleryUpload}
-						/>
-						<button
-							type="button"
-							onclick={() => galleryInput?.click()}
-							disabled={uploadingGallery}
-							class="mt-3 w-full rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
-						>
-							{uploadingGallery ? 'Uploading...' : 'Add gallery photos'}
 						</button>
 					</div>
 				</div>
@@ -1235,21 +1179,6 @@
 							<div
 								class="divide-y divide-slate-200 overflow-hidden rounded-3xl bg-slate-50 dark:divide-slate-700 dark:bg-slate-800"
 							>
-								<a
-									href={resolve(`/organizations/${organization.id}`)}
-									class="flex items-center justify-between gap-4 p-4 transition hover:bg-slate-100 dark:hover:bg-slate-700"
-								>
-									<span>
-										<span class="block font-black text-slate-950 dark:text-slate-50">
-											Public page
-										</span>
-										<span class="block text-xs text-slate-500 dark:text-slate-400">
-											View what players see.
-										</span>
-									</span>
-									<span class="text-slate-300">›</span>
-								</a>
-
 								<a
 									href="#upcoming-events"
 									onclick={() => (showSettingsModal = false)}

@@ -7,6 +7,7 @@
 	import type { Sport, UserProfile } from '$lib/schema';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import RallyWordmark from '$lib/components/RallyWordmark.svelte';
+	import NavIcon from '$lib/components/NavIcon.svelte';
 	import {
 		ensureUserProfile,
 		updateUserProfileDetails,
@@ -373,9 +374,10 @@
 			<p class="text-base font-black text-slate-950 dark:text-slate-50">Profile</p>
 			<a
 				href={resolve('/settings')}
-				class="text-sm font-bold text-blue-600 dark:text-blue-400"
+				class="grid h-10 w-10 place-items-center rounded-full bg-white text-slate-600 shadow-sm ring-1 ring-slate-200 transition hover:text-blue-600 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-800 dark:hover:text-blue-400"
+				aria-label="Settings"
 			>
-				Settings
+				<NavIcon name="settings" />
 			</a>
 		</div>
 	</header>

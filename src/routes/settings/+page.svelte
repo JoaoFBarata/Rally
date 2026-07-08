@@ -114,7 +114,7 @@
 		try {
 			if (profile) deviceAccounts = rememberDeviceAccount(profile, auth.currentUser);
 			await authService.logout();
-			await goto('/login?returnTo=/settings&mode=addAccount');
+			await goto('/login?returnTo=/dashboard&mode=addAccount');
 		} finally {
 			logoutLoading = false;
 		}
@@ -143,15 +143,17 @@
 					return;
 				}
 
+				const switchedProfile = await ensureUserProfile(switchedUser);
+				deviceAccounts = rememberDeviceAccount(switchedProfile, switchedUser);
 				showAccountSwitcher = false;
-				await goto('/settings');
+				await goto(getPostSwitchHref(deviceAccounts.find((item) => item.id === switchedUser.uid) ?? account));
 				return;
 			}
 
 			await authService.logout();
 			showAccountSwitcher = false;
 			await goto(
-				`/login?returnTo=/settings&email=${encodeURIComponent(account.email)}&switchAccount=${encodeURIComponent(account.id)}`
+				`/login?returnTo=${encodeURIComponent(getPostSwitchHref(account))}&email=${encodeURIComponent(account.email)}&switchAccount=${encodeURIComponent(account.id)}`
 			);
 		} catch (err) {
 			console.error('Switch account error:', err);
@@ -164,6 +166,13 @@
 
 	function handleForgetDeviceAccount(accountId: string) {
 		deviceAccounts = removeDeviceAccount(accountId);
+	}
+
+	function getPostSwitchHref(account?: DeviceAccount | null) {
+		if (account?.accountType === 'organization' && account.activeOrganizationId) {
+			return `/organizations/${account.activeOrganizationId}/manage`;
+		}
+		return '/dashboard';
 	}
 
 	onMount(() => {
@@ -248,6 +257,48 @@
 				</label>
 			</div>
 		</section>
+
+		{#if profile?.accountType === 'organization' && profile.activeOrganizationId}
+			<section>
+				<p class="mb-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+					Organization
+				</p>
+
+				<div
+					class="divide-y divide-slate-200 overflow-hidden rounded-3xl bg-slate-50 dark:divide-slate-700 dark:bg-slate-800"
+				>
+					<a
+						href={resolve(`/organizations/${profile.activeOrganizationId}/manage`)}
+						class="flex items-center justify-between gap-4 p-4 transition hover:bg-slate-100 dark:hover:bg-slate-700"
+					>
+						<span>
+							<span class="block font-black text-slate-950 dark:text-slate-50">
+								Manage organization
+							</span>
+							<span class="block text-xs text-slate-500 dark:text-slate-400">
+								Edit profile, verification, events and promotions.
+							</span>
+						</span>
+						<span class="text-slate-300">›</span>
+					</a>
+
+					<a
+						href={resolve(`/organizations/${profile.activeOrganizationId}/manage#upcoming-events`)}
+						class="flex items-center justify-between gap-4 p-4 transition hover:bg-slate-100 dark:hover:bg-slate-700"
+					>
+						<span>
+							<span class="block font-black text-slate-950 dark:text-slate-50">
+								Promote events
+							</span>
+							<span class="block text-xs text-slate-500 dark:text-slate-400">
+								Choose an organization event to boost.
+							</span>
+						</span>
+						<span class="text-slate-300">›</span>
+					</a>
+				</div>
+			</section>
+		{/if}
 
 		<section>
 			<p class="mb-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">

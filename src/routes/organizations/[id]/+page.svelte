@@ -7,7 +7,7 @@
 	import { onAuthStateChanged } from 'firebase/auth';
 	import { PUBLIC_MAPBOX_ACCESS_TOKEN } from '$env/static/public';
 	import { auth } from '$lib/firebase';
-	import type { EventStatus, Organization, OrganizationReview, SportEvent, UserProfile } from '$lib/schema';
+	import type { EventStatus, Organization, OrganizationReview, Sport, SportEvent, UserProfile } from '$lib/schema';
 	import {
 		followOrganization,
 		getOrganizationById,
@@ -53,10 +53,12 @@
 	let galleryInput = $state<HTMLInputElement | null>(null);
 	let uploadingCover = $state(false);
 	let uploadingGallery = $state(false);
+	let savingSports = $state(false);
 	let mutualFollowerFriends = $state<UserProfile[]>([]);
 	let followerIds = $state<string[]>([]);
 	let showGalleryModal = $state(false);
 	let selectedGalleryPhoto = $state('');
+	let selectedOrganizationSports = $state<Sport[]>([]);
 	let reviewPage = $state(0);
 	let replyingToReviewId = $state<string | null>(null);
 	let replyComment = $state('');
@@ -73,11 +75,17 @@
 	);
 	let featuredEvents = $derived([...promotedEvents, ...normalUpcomingEvents].slice(0, 3));
 	let organizationSports = $derived.by(() => {
+		if (organization?.sports?.length) return organization.sports.slice(0, 3);
 		const sports = new Set<string>();
 		for (const event of events) sports.add(event.sport);
 		return Array.from(sports).slice(0, 3);
 	});
-	let extraSportCount = $derived(Math.max(0, new Set(events.map((event) => event.sport)).size - 3));
+	let extraSportCount = $derived.by(() => {
+		const allSports = organization?.sports?.length
+			? organization.sports
+			: Array.from(new Set(events.map((event) => event.sport)));
+		return Math.max(0, allSports.length - 3);
+	});
 	let playersReached = $derived(
 		new Set(events.flatMap((event) => event.participantIds ?? [])).size
 	);
@@ -96,6 +104,18 @@
 
 	let coverPhotoURL = $derived(organization?.coverPhotoURL ?? '');
 	let galleryPhotoURLs = $derived((organization?.galleryPhotoURLs ?? []).filter(Boolean));
+
+	const availableSports: Sport[] = [
+		'football',
+		'padel',
+		'basketball',
+		'running',
+		'gym',
+		'tennis',
+		'cycling',
+		'volleyball',
+		'other'
+	];
 
 	function formatOrganizationType(type: string) {
 		return type.replaceAll('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase());
@@ -243,6 +263,47 @@
 		return sport.charAt(0).toUpperCase() + sport.slice(1);
 	}
 
+	function toggleOrganizationSport(sport: Sport) {
+		if (selectedOrganizationSports.includes(sport)) {
+			selectedOrganizationSports = selectedOrganizationSports.filter((item) => item !== sport);
+		} else {
+			selectedOrganizationSports = [...selectedOrganizationSports, sport];
+		}
+	}
+
+	async function saveOrganizationSports() {
+		const user = auth.currentUser;
+		if (!user || !organization) return;
+
+		savingSports = true;
+		error = '';
+
+		try {
+			await updateOrganizationProfile({
+				organizationId: organization.id,
+				userId: user.uid,
+				name: organization.name,
+				type: organization.type,
+				description: organization.description ?? '',
+				contactEmail: organization.contactEmail,
+				phone: organization.phone ?? '',
+				website: organization.website ?? '',
+				address: organization.address ?? '',
+				city: organization.city ?? '',
+				nif: organization.nif ?? '',
+				logoURL: organization.logoURL ?? null,
+				logoPath: organization.logoPath ?? null,
+				sports: selectedOrganizationSports
+			});
+			organization = { ...organization, sports: selectedOrganizationSports };
+		} catch (err) {
+			console.error('Save organization sports error:', err);
+			error = getFriendlyErrorMessage(err, 'Could not update organization sports.');
+		} finally {
+			savingSports = false;
+		}
+	}
+
 	function formatPrice(event: SportEvent) {
 		if (event.entryFeeAmount && event.entryFeeAmount > 0) return `€${event.entryFeeAmount}`;
 		if (event.pricePerPerson && event.pricePerPerson > 0) return `€${event.pricePerPerson}`;
@@ -353,6 +414,7 @@
 			}
 
 			organization = loadedOrganization;
+			selectedOrganizationSports = loadedOrganization.sports ?? [];
 			canManage = isOrganizationAdmin(loadedOrganization, userId);
 
 			const [
@@ -963,6 +1025,41 @@
 						{/each}
 					</div>
 				{/if}
+
+				<div class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-800">
+					<div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+						<div>
+							<h3 class="font-black text-slate-950 dark:text-slate-50">Public sports</h3>
+							<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">
+								Choose the sports shown on the public organization profile.
+							</p>
+						</div>
+						<button
+							type="button"
+							onclick={saveOrganizationSports}
+							disabled={savingSports}
+							class="rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
+						>
+							{savingSports ? 'Saving...' : 'Save sports'}
+						</button>
+					</div>
+
+					<div class="mt-3 flex flex-wrap gap-2">
+						{#each availableSports as sport}
+							<button
+								type="button"
+								onclick={() => toggleOrganizationSport(sport)}
+								class={`rounded-full px-3.5 py-2 text-sm font-black transition ${
+									selectedOrganizationSports.includes(sport)
+										? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+										: 'bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-blue-950 dark:hover:text-blue-300'
+								}`}
+							>
+								{formatSport(sport)}
+							</button>
+						{/each}
+					</div>
+				</div>
 			</div>
 
 			<div class="flex items-start justify-between gap-3 md:gap-6">

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import RallyLogo from '$lib/components/RallyLogo.svelte';
@@ -16,6 +16,7 @@
 	let error = $state('');
 	let success = $state('');
 	let switchingAccount = $state(false);
+	let passwordInput = $state<HTMLInputElement | null>(null);
 
 	async function handleLogin() {
 		error = '';
@@ -40,6 +41,7 @@
 
 		if (accountEmail) {
 			email = accountEmail;
+			void tick().then(() => passwordInput?.focus());
 		}
 	});
 
@@ -175,6 +177,7 @@
 
 						<input
 							id="password"
+							bind:this={passwordInput}
 							type="password"
 							bind:value={password}
 							class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
