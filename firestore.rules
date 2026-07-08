@@ -132,10 +132,21 @@ service cloud.firestore {
         && request.resource.data.rating >= 1
         && request.resource.data.rating <= 5;
       allow update: if isAuth()
-        && resource.data.userId == request.auth.uid
-        && request.resource.data.userId == request.auth.uid
-        && request.resource.data.rating >= 1
-        && request.resource.data.rating <= 5;
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.organizationId == resource.data.organizationId
+        && (
+          (
+            (resource.data.userId == request.auth.uid || isOrgAdmin(resource.data.organizationId))
+            && request.resource.data.rating >= 1
+            && request.resource.data.rating <= 5
+          )
+          ||
+          (
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replies', 'updatedAt'])
+            && request.resource.data.rating == resource.data.rating
+            && request.resource.data.comment == resource.data.comment
+          )
+        );
       allow delete: if isAuth() && resource.data.userId == request.auth.uid;
     }
 

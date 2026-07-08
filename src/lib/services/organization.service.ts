@@ -1,5 +1,6 @@
 import {
 	addDoc,
+	arrayUnion,
 	collection,
 	deleteDoc,
 	doc,
@@ -9,6 +10,7 @@ import {
 	query,
 	serverTimestamp,
 	setDoc,
+	Timestamp,
 	updateDoc,
 	where
 } from 'firebase/firestore';
@@ -17,6 +19,7 @@ import type {
 	Organization,
 	OrganizationPublicLocation,
 	OrganizationReview,
+	OrganizationReviewReply,
 	OrganizationType,
 	OrganizationVerificationRequest,
 	VerificationLevel,
@@ -142,6 +145,18 @@ export async function getOrganizationsFollowedByUser(userId: string) {
 	return organizations.filter(
 		(organization): organization is Organization => organization !== null
 	);
+}
+
+export async function getOrganizationFollowerIds(organizationId: string) {
+	const q = query(
+		collection(db, 'organizationFollowers'),
+		where('organizationId', '==', organizationId)
+	);
+	const snap = await getDocs(q);
+
+	return snap.docs
+		.map((docSnap) => (docSnap.data() as { userId?: string }).userId)
+		.filter((id): id is string => Boolean(id));
 }
 
 export async function assertCanManageOrganization(params: {
@@ -396,10 +411,14 @@ export async function followOrganization(params: { organizationId: string; userI
 		createdAt: serverTimestamp()
 	});
 
-	await updateDoc(doc(db, 'organizations', params.organizationId), {
-		followersCount: increment(1),
-		updatedAt: serverTimestamp()
-	});
+	try {
+		await updateDoc(doc(db, 'organizations', params.organizationId), {
+			followersCount: increment(1),
+			updatedAt: serverTimestamp()
+		});
+	} catch (err) {
+		console.warn('Could not update organization followers count:', err);
+	}
 }
 
 export async function unfollowOrganization(params: { organizationId: string; userId: string }) {
@@ -413,10 +432,14 @@ export async function unfollowOrganization(params: { organizationId: string; use
 	if (!snap.exists()) return;
 
 	await deleteDoc(followerRef);
-	await updateDoc(doc(db, 'organizations', params.organizationId), {
-		followersCount: increment(-1),
-		updatedAt: serverTimestamp()
-	});
+	try {
+		await updateDoc(doc(db, 'organizations', params.organizationId), {
+			followersCount: increment(-1),
+			updatedAt: serverTimestamp()
+		});
+	} catch (err) {
+		console.warn('Could not update organization followers count:', err);
+	}
 }
 
 export async function getOrganizationReviews(organizationId: string) {
@@ -479,4 +502,32 @@ export async function submitOrganizationReview(params: {
 		},
 		{ merge: true }
 	);
+}
+
+export async function replyToOrganizationReview(params: {
+	reviewId: string;
+	userId: string;
+	authorName?: string;
+	authorPhotoURL?: string | null;
+	authorRole: 'user' | 'organization';
+	comment: string;
+}) {
+	const reply: OrganizationReviewReply = {
+		id: `${params.userId}_${Date.now()}`,
+		userId: params.userId,
+		authorName: params.authorName ?? (params.authorRole === 'organization' ? 'Organization' : 'Rally user'),
+		authorPhotoURL: params.authorPhotoURL ?? null,
+		authorRole: params.authorRole,
+		comment: params.comment.trim(),
+		createdAt: Timestamp.now()
+	};
+
+	if (!reply.comment) {
+		throw new Error('Write a reply before sending.');
+	}
+
+	await updateDoc(doc(db, 'organizationReviews', params.reviewId), {
+		replies: arrayUnion(reply),
+		updatedAt: serverTimestamp()
+	});
 }

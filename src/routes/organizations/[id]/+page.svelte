@@ -7,18 +7,21 @@
 	import { onAuthStateChanged } from 'firebase/auth';
 	import { PUBLIC_MAPBOX_ACCESS_TOKEN } from '$env/static/public';
 	import { auth } from '$lib/firebase';
-	import type { EventStatus, Organization, OrganizationReview, SportEvent } from '$lib/schema';
+	import type { EventStatus, Organization, OrganizationReview, SportEvent, UserProfile } from '$lib/schema';
 	import {
 		followOrganization,
 		getOrganizationById,
+		getOrganizationFollowerIds,
 		getOrganizationReviews,
 		getUserOrganizationReview,
 		isFollowingOrganization,
 		isOrganizationAdmin,
+		replyToOrganizationReview,
 		submitOrganizationReview,
 		unfollowOrganization,
 		updateOrganizationProfile
 	} from '$lib/services/organization.service';
+	import { getFriendsForUser } from '$lib/services/social.service';
 	import { uploadOrganizationLogo } from '$lib/services/storage.service';
 	import { getEventsCreatedByOrganization, getUpcomingEvents } from '$lib/services/event.service';
 	import { getOrCreateOrganizationConversation } from '$lib/services/chat.service';
@@ -50,6 +53,16 @@
 	let galleryInput = $state<HTMLInputElement | null>(null);
 	let uploadingCover = $state(false);
 	let uploadingGallery = $state(false);
+	let mutualFollowerFriends = $state<UserProfile[]>([]);
+	let followerIds = $state<string[]>([]);
+	let showGalleryModal = $state(false);
+	let selectedGalleryPhoto = $state('');
+	let reviewPage = $state(0);
+	let replyingToReviewId = $state<string | null>(null);
+	let replyComment = $state('');
+	let replySubmitting = $state(false);
+	let replyMessage = $state('');
+	const reviewsPerPage = 4;
 
 	let upcomingEvents = $derived(getUpcomingEvents(events));
 	let promotedEvents = $derived(
@@ -72,6 +85,13 @@
 		reviews.length > 0
 			? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
 			: 0
+	);
+	let displayedFollowersCount = $derived(
+		Math.max(organization?.followersCount ?? 0, followerIds.length)
+	);
+	let reviewPages = $derived(Math.max(1, Math.ceil(reviews.length / reviewsPerPage)));
+	let paginatedReviews = $derived(
+		reviews.slice(reviewPage * reviewsPerPage, reviewPage * reviewsPerPage + reviewsPerPage)
 	);
 
 	let coverPhotoURL = $derived(organization?.coverPhotoURL ?? '');
@@ -143,6 +163,66 @@
 			});
 		} catch {
 			return 'Date not set';
+		}
+	}
+
+	function openGallery(photoURL = '') {
+		if (galleryPhotoURLs.length === 0) return;
+		selectedGalleryPhoto = photoURL || galleryPhotoURLs[0];
+		showGalleryModal = true;
+	}
+
+	function closeGallery() {
+		showGalleryModal = false;
+		selectedGalleryPhoto = '';
+	}
+
+	function goToReviewPage(pageNumber: number) {
+		reviewPage = Math.min(Math.max(pageNumber, 0), reviewPages - 1);
+		replyingToReviewId = null;
+		replyComment = '';
+		replyMessage = '';
+	}
+
+	function getReplyAuthorName() {
+		const user = auth.currentUser;
+		if (canManage && organization) return organization.name;
+		return user?.displayName ?? user?.email?.split('@')[0] ?? 'Rally user';
+	}
+
+	function reviewCanReply() {
+		return Boolean(auth.currentUser && organization);
+	}
+
+	async function submitReviewReply(review: OrganizationReview) {
+		const user = auth.currentUser;
+		if (!user || !organization || !replyComment.trim()) return;
+
+		replySubmitting = true;
+		replyMessage = '';
+
+		try {
+			await replyToOrganizationReview({
+				reviewId: review.id,
+				userId: user.uid,
+				authorName: getReplyAuthorName(),
+				authorPhotoURL: canManage ? organization.logoURL ?? null : user.photoURL ?? null,
+				authorRole: canManage ? 'organization' : 'user',
+				comment: replyComment
+			});
+			reviews = await getOrganizationReviews(organization.id);
+			replyingToReviewId = null;
+			replyComment = '';
+			replyMessage = '';
+		} catch (err) {
+			console.error('Reply to organization review error:', err);
+			const friendlyMessage = getFriendlyErrorMessage(err, 'Could not save your reply.');
+			replyMessage =
+				friendlyMessage.includes('permission') || friendlyMessage.includes('permiss')
+					? 'Reply permissions are not active yet. Deploy the Firestore rules and try again.'
+					: friendlyMessage;
+		} finally {
+			replySubmitting = false;
 		}
 	}
 
@@ -275,18 +355,31 @@
 			organization = loadedOrganization;
 			canManage = isOrganizationAdmin(loadedOrganization, userId);
 
-			const [loadedEvents, loadedFollowing, loadedReviews, ownReview] = await Promise.all([
+			const [
+				loadedEvents,
+				loadedFollowing,
+				loadedReviews,
+				ownReview,
+				friends,
+				loadedFollowerIds
+			] = await Promise.all([
 				getEventsCreatedByOrganization(loadedOrganization.id),
 				isFollowingOrganization({ organizationId: loadedOrganization.id, userId }),
 				getOrganizationReviews(loadedOrganization.id),
-				getUserOrganizationReview({ organizationId: loadedOrganization.id, userId })
+				getUserOrganizationReview({ organizationId: loadedOrganization.id, userId }),
+				getFriendsForUser(userId),
+				getOrganizationFollowerIds(loadedOrganization.id)
 			]);
 
 			events = loadedEvents;
 			following = loadedFollowing;
 			reviews = loadedReviews;
+			reviewPage = 0;
 			reviewRating = ownReview?.rating ?? 0;
 			reviewComment = ownReview?.comment ?? '';
+			followerIds = loadedFollowerIds;
+			const followerIdSet = new Set(loadedFollowerIds);
+			mutualFollowerFriends = friends.filter((friend) => followerIdSet.has(friend.id)).slice(0, 5);
 		} catch (err) {
 			console.error('Organization public page error:', err);
 			error = getFriendlyErrorMessage(err, 'Could not load organization.');
@@ -304,6 +397,7 @@
 			if (following) {
 				await unfollowOrganization({ organizationId: organization.id, userId: currentUserId });
 				following = false;
+				followerIds = followerIds.filter((id) => id !== currentUserId);
 				organization = {
 					...organization,
 					followersCount: Math.max((organization.followersCount ?? 1) - 1, 0)
@@ -311,6 +405,9 @@
 			} else {
 				await followOrganization({ organizationId: organization.id, userId: currentUserId });
 				following = true;
+				followerIds = followerIds.includes(currentUserId)
+					? followerIds
+					: [...followerIds, currentUserId];
 				organization = { ...organization, followersCount: (organization.followersCount ?? 0) + 1 };
 			}
 		} catch (err) {
@@ -339,6 +436,7 @@
 				authorPhotoURL: user.photoURL ?? null
 			});
 			reviews = await getOrganizationReviews(organization.id);
+			reviewPage = 0;
 			reviewMessage = 'Review saved.';
 		} catch (err) {
 			console.error('Submit organization review error:', err);
@@ -498,177 +596,236 @@
 		<section class="rounded-[2rem] bg-red-50 p-6 font-bold text-red-700 dark:bg-red-950/40 dark:text-red-300">
 			{error}
 		</section>
-	{:else if organization}
-		{#if !canManage}
-			<section class="max-w-full overflow-hidden">
-				{#if coverPhotoURL}
-					<div class="relative h-36 overflow-hidden rounded-[2rem] bg-slate-100 shadow-sm dark:bg-slate-900 sm:h-48 md:h-56">
-						<img src={coverPhotoURL} alt="" class="h-full w-full object-cover" />
-						<div class="absolute inset-0 bg-gradient-to-t from-slate-950/65 via-slate-950/10 to-transparent"></div>
-					</div>
-				{/if}
+		{:else if organization}
+			{#if !canManage}
+				<div class="-mx-6 -mt-5 sm:-mx-6 sm:-mt-8">
+					<section>
+						<div class="relative h-36 overflow-hidden bg-gradient-to-br from-blue-500 via-blue-700 to-slate-950 shadow-sm sm:h-48 md:h-64">
+							{#if coverPhotoURL}
+								<img src={coverPhotoURL} alt="" class="h-full w-full object-cover" />
+							{/if}
+							<div class="absolute inset-0 bg-gradient-to-t from-white via-white/10 to-transparent dark:from-slate-950"></div>
+							<button
+								type="button"
+								onclick={() => history.back()}
+								class="absolute left-4 top-4 z-20 grid h-10 w-10 place-items-center rounded-full text-3xl font-black text-slate-950 drop-shadow-[0_1px_0_rgba(255,255,255,0.75)] transition hover:bg-white/20 dark:text-white"
+								aria-label="Go back"
+							>
+								‹
+							</button>
+						</div>
 
-				<div class={coverPhotoURL ? 'mt-5 px-0' : 'px-0'}>
-					<div class="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-						<div class="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end">
-							<div class="grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-[1.75rem] border-4 border-white bg-slate-100 text-4xl font-black text-blue-600 shadow-xl dark:border-slate-950 dark:bg-slate-800 dark:text-blue-300 sm:h-28 sm:w-28">
-								{#if organization.logoURL}
-									<img src={organization.logoURL} alt={organization.name} class="h-full w-full object-cover" />
-								{:else}
-									{organization.name.charAt(0).toUpperCase()}
-								{/if}
+						<div class="mx-auto max-w-5xl px-6 pb-5">
+							<div class="-mt-12 flex items-end gap-4 sm:-mt-16">
+								<div class="relative z-10 ml-4 grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-full border-4 border-white bg-slate-100 text-4xl font-black text-blue-600 shadow-xl dark:border-slate-950 dark:bg-slate-800 dark:text-blue-300 sm:ml-8 sm:h-32 sm:w-32">
+									{#if organization.logoURL}
+										<img src={organization.logoURL} alt={organization.name} class="h-full w-full object-cover" />
+									{:else}
+										{organization.name.charAt(0).toUpperCase()}
+									{/if}
+								</div>
 							</div>
 
-							<div class="min-w-0 pb-1">
+							<div class="mt-3 px-0 sm:px-0">
 								<div class="flex min-w-0 items-center gap-2">
-									<h1 class="min-w-0 truncate text-3xl font-black tracking-tight text-slate-950 dark:text-slate-50 sm:text-5xl">
+									<h1 class="min-w-0 text-3xl font-black leading-none tracking-tight text-slate-950 dark:text-slate-50 sm:text-5xl">
 										{organization.name}
 									</h1>
 									{#if organization.verificationStatus === 'verified'}
-										<span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-blue-600 text-sm font-black text-white">✓</span>
+										<span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-blue-600 text-xs font-black text-white sm:h-7 sm:w-7">✓</span>
 									{/if}
 								</div>
-								<p class="mt-1 max-w-2xl text-base font-black text-blue-600 dark:text-blue-400 sm:text-lg">
+								<p class="mt-2 text-base font-black text-blue-600 dark:text-blue-400 sm:text-lg">
 									{organization.description || `${formatOrganizationType(organization.type)} on Rally.`}
 								</p>
 								<p class="mt-3 flex items-center gap-2 text-sm font-bold text-slate-500 dark:text-slate-400">
 									<span>📍</span>
-									<span>{getOrganizationLocation()}</span>
+									<span class="truncate">{getOrganizationLocation()}</span>
 								</p>
 							</div>
-						</div>
-					</div>
 
-					<div class="mt-5 flex gap-2 overflow-x-auto pb-1">
-						{#each organizationSports as sport}
-							<span class="shrink-0 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-800 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
-								{formatSport(sport)}
-							</span>
-						{/each}
-						{#if extraSportCount > 0}
-							<span class="shrink-0 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-800 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
-								+ {extraSportCount} more
-							</span>
-						{:else if organizationSports.length === 0}
-							<span class="shrink-0 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-800 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
-								{formatOrganizationType(organization.type)}
-							</span>
-						{/if}
-					</div>
+							<div class="mt-4 flex gap-2 overflow-x-auto pb-1">
+								{#each organizationSports as sport}
+									<span class="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-sm font-bold text-slate-800 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
+										{formatSport(sport)}
+									</span>
+								{/each}
+								{#if extraSportCount > 0}
+									<span class="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-sm font-bold text-slate-800 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
+										+ {extraSportCount} more
+									</span>
+								{:else if organizationSports.length === 0}
+									<span class="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-sm font-bold text-slate-800 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
+										{formatOrganizationType(organization.type)}
+									</span>
+								{/if}
+							</div>
 
-					<div class="mt-6 grid grid-cols-3 divide-x divide-slate-200 rounded-[1.75rem] border border-slate-200 bg-white py-4 text-center shadow-sm dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900">
-						<div>
-							<p class="text-2xl font-black text-slate-950 dark:text-slate-50">{playersReached}</p>
-							<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Players</p>
-						</div>
-						<div>
-							<p class="text-2xl font-black text-slate-950 dark:text-slate-50">{organization.followersCount ?? 0}</p>
-							<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Followers</p>
-						</div>
-						<div>
-							<p class="text-2xl font-black text-slate-950 dark:text-slate-50">{events.length}</p>
-							<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Events</p>
-						</div>
-					</div>
+							<div class="mt-5 grid grid-cols-3 divide-x divide-slate-200 border-y border-slate-200 py-3 dark:divide-slate-800 dark:border-slate-800">
+								<div class="text-center">
+									<p class="text-xl font-black text-slate-950 dark:text-slate-50">{playersReached}</p>
+									<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Players</p>
+								</div>
+								<div class="text-center">
+									<p class="text-xl font-black text-slate-950 dark:text-slate-50">{displayedFollowersCount}</p>
+									<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Followers</p>
+								</div>
+								<div class="text-center">
+									<p class="text-xl font-black text-slate-950 dark:text-slate-50">{events.length}</p>
+									<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Events</p>
+								</div>
+							</div>
 
-					<div class="mt-5 grid gap-3 sm:grid-cols-3">
-						<button type="button" onclick={toggleFollow} disabled={actionLoading} class="rounded-2xl bg-blue-600 px-5 py-3 font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:opacity-60">
-							{actionLoading ? '...' : following ? 'Following' : '+ Follow'}
-						</button>
-						<button type="button" onclick={messageOrganization} disabled={messageLoading} class="rounded-2xl border border-blue-200 bg-white px-5 py-3 font-black text-blue-700 transition hover:bg-blue-50 disabled:opacity-60 dark:border-blue-900 dark:bg-slate-900 dark:text-blue-300 dark:hover:bg-blue-950">
-							{messageLoading ? 'Opening...' : 'Message'}
-						</button>
-						<a href="#organization-events" class="rounded-2xl bg-orange-500 px-5 py-3 text-center font-black text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600">
-							View Events
-						</a>
-					</div>
-				</div>
-			</section>
+							{#if mutualFollowerFriends.length > 0}
+								<div class="mt-3 flex items-center gap-2 text-sm font-bold text-slate-500 dark:text-slate-400">
+									<div class="flex -space-x-2">
+										{#each mutualFollowerFriends.slice(0, 3) as friend (friend.id)}
+											<div class="grid h-7 w-7 place-items-center overflow-hidden rounded-full border-2 border-white bg-blue-100 text-xs font-black text-blue-700 dark:border-slate-950 dark:bg-blue-950 dark:text-blue-200">
+												{#if friend.photoURL}
+													<img src={friend.photoURL} alt={friend.displayName} class="h-full w-full object-cover" />
+												{:else}
+													{friend.displayName?.charAt(0).toUpperCase() ?? 'U'}
+												{/if}
+											</div>
+										{/each}
+									</div>
+									<p class="min-w-0 truncate">
+										Followed by {mutualFollowerFriends.map((friend) => friend.displayName).slice(0, 2).join(', ')}
+										{mutualFollowerFriends.length > 2 ? ` and ${mutualFollowerFriends.length - 2} more` : ''}
+									</p>
+								</div>
+							{/if}
 
-			<div class="mt-8 grid gap-8 md:grid-cols-[minmax(0,1fr)_22rem]">
-				<div class="min-w-0 space-y-8">
-					<section id="organization-events" class="border-t border-slate-200 pt-6 dark:border-slate-800">
-						<div class="mb-4 flex items-center justify-between">
-							<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">Upcoming Events</h2>
+							<div class="mt-5 grid grid-cols-3 gap-2">
+								<button type="button" onclick={toggleFollow} disabled={actionLoading} class="rounded-2xl bg-blue-600 px-3 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:opacity-60">
+									{actionLoading ? '...' : following ? 'Following' : '+ Follow'}
+								</button>
+								<button type="button" onclick={messageOrganization} disabled={messageLoading} class="rounded-2xl border border-blue-200 bg-white px-3 py-3 text-sm font-black text-blue-700 transition hover:bg-blue-50 disabled:opacity-60 dark:border-blue-900 dark:bg-slate-950 dark:text-blue-300 dark:hover:bg-blue-950">
+									{messageLoading ? '...' : 'Message'}
+								</button>
+								{#if galleryPhotoURLs.length > 0}
+									<button type="button" onclick={() => openGallery()} class="rounded-2xl bg-orange-500 px-3 py-3 text-center text-sm font-black text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600">
+										Photos
+									</button>
+								{:else}
+									<a href="#organization-reviews" class="rounded-2xl bg-orange-500 px-3 py-3 text-center text-sm font-black text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600">
+										Reviews
+									</a>
+								{/if}
+							</div>
+						</div>
+					</section>
+
+					<section id="organization-events" class="mx-auto max-w-5xl border-t border-slate-200 px-6 py-5 dark:border-slate-800">
+						<div class="mb-3 flex items-center justify-between gap-3">
+							<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Upcoming Events</h2>
+							{#if upcomingEvents.length > 2}
+								<a href="#organization-events" class="text-sm font-black text-blue-600 dark:text-blue-400">View All Events ›</a>
+							{/if}
 						</div>
 
 						{#if featuredEvents.length === 0}
-							<div class="rounded-[1.75rem] border border-dashed border-slate-200 p-6 text-center dark:border-slate-800">
+							<div class="rounded-[1.5rem] border border-dashed border-slate-200 p-5 text-center dark:border-slate-800">
 								<p class="font-black text-slate-950 dark:text-slate-50">No upcoming events yet</p>
 								<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">New events from this organization will appear here.</p>
 							</div>
 						{:else}
-							<div class="grid gap-4">
+							<div class="grid max-w-3xl gap-4">
 								{#each featuredEvents as event (event.id)}
-									<EventCard {event} variant="hero" compactHero heroCtaLabel="View event" />
+									<EventCard {event} variant="hero" miniHero heroCtaLabel="View event" />
 								{/each}
 							</div>
 						{/if}
 					</section>
 
-					<section class="border-t border-slate-200 pt-6 dark:border-slate-800">
+					<section class="mx-auto max-w-5xl border-t border-slate-200 px-6 py-5 dark:border-slate-800">
 						<div class="flex items-center justify-between gap-3">
-							<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">About</h2>
+							<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">About</h2>
 							<span class={`rounded-full px-3 py-1 text-xs font-black ${verificationClasses()}`}>{verificationLabel()}</span>
 						</div>
-						<p class="mt-3 max-w-3xl leading-relaxed text-slate-700 dark:text-slate-300">
+						<p class="mt-2 max-w-3xl leading-relaxed text-slate-700 dark:text-slate-300">
 							{organization.description || 'This organization has not added an about description yet.'}
 						</p>
 
-						<div class="mt-5 grid gap-4 lg:grid-cols-[1fr_16rem]">
-							<div class="flex gap-3">
-								<div class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-300">📍</div>
-								<div>
-									<p class="font-black text-slate-950 dark:text-slate-50">{organization.publicLocation?.name || 'Venue / location'}</p>
-									<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-										{organization.publicLocation?.address || organization.address || organization.city || 'No public venue set yet.'}
-									</p>
+						<div class="mt-4 grid gap-4 sm:grid-cols-[1fr_11rem]">
+							<div class="space-y-3">
+								<div class="flex gap-3">
+									<div class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-300">📍</div>
+									<div>
+										<p class="font-black text-slate-950 dark:text-slate-50">{organization.publicLocation?.name || 'Home venue'}</p>
+										<p class="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+											{organization.publicLocation?.address || organization.address || organization.city || 'No public venue set yet.'}
+										</p>
+									</div>
+								</div>
+
+								<div class="flex flex-wrap gap-2 text-sm font-bold">
+									{#if organization.contactEmail}
+										<a href={`mailto:${organization.contactEmail}`} class="rounded-full bg-slate-50 px-3 py-2 text-slate-700 transition hover:text-blue-600 dark:bg-slate-900 dark:text-slate-200">✉️ {organization.contactEmail}</a>
+									{/if}
+									{#if organization.phone}
+										<a href={`tel:${organization.phone}`} class="rounded-full bg-slate-50 px-3 py-2 text-slate-700 transition hover:text-blue-600 dark:bg-slate-900 dark:text-slate-200">📞 {organization.phone}</a>
+									{/if}
+									{#if organization.website}
+										<a href={organization.website} target="_blank" rel="noreferrer" class="rounded-full bg-blue-50 px-3 py-2 text-blue-700 dark:bg-blue-950 dark:text-blue-300">Website</a>
+									{/if}
 								</div>
 							</div>
 
 							{#if getVenueMapUrl()}
-								<img src={getVenueMapUrl()} alt="Venue map" class="h-28 w-full rounded-2xl object-cover" />
+								<img src={getVenueMapUrl()} alt="Venue map" class="h-24 w-full rounded-2xl object-cover sm:h-full" />
 							{/if}
 						</div>
 					</section>
 
 					{#if galleryPhotoURLs.length > 0}
-						<section class="border-t border-slate-200 pt-6 dark:border-slate-800">
-							<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">Gallery</h2>
-							<div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+						<section class="mx-auto max-w-5xl border-t border-slate-200 px-6 py-5 dark:border-slate-800">
+							<div class="flex items-center justify-between gap-3">
+								<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Gallery</h2>
+								<button type="button" onclick={() => openGallery()} class="text-sm font-black text-blue-600 transition hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
+									View All Photos ›
+								</button>
+							</div>
+							<div class="mt-3 flex gap-2 overflow-x-auto pb-1">
 								{#each galleryPhotoURLs as photoURL}
-									<img
-										src={photoURL}
-										alt=""
-										class="aspect-[4/3] w-full rounded-2xl object-cover shadow-sm"
-										onerror={(event) => ((event.currentTarget as HTMLImageElement).hidden = true)}
-									/>
+									<button type="button" onclick={() => openGallery(photoURL)} class="shrink-0 overflow-hidden rounded-2xl shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+										<img
+											src={photoURL}
+											alt=""
+											class="h-20 w-32 object-cover sm:h-24 sm:w-40"
+											onerror={(event) => ((event.currentTarget as HTMLImageElement).hidden = true)}
+										/>
+									</button>
 								{/each}
 							</div>
 						</section>
 					{/if}
 
-					<section class="border-t border-slate-200 pt-6 dark:border-slate-800">
-						<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">Reviews</h2>
-						<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">
-							{#if reviews.length > 0}
-								⭐ {averageRating.toFixed(1)} from {reviews.length} {reviews.length === 1 ? 'review' : 'reviews'}
-							{:else}
-								No reviews yet
-							{/if}
-						</p>
+					<section id="organization-reviews" class="mx-auto max-w-5xl border-t border-slate-200 px-6 py-5 dark:border-slate-800">
+						<div class="flex flex-wrap items-end justify-between gap-3">
+							<div>
+								<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Reviews</h2>
+								<p class="text-sm font-bold text-slate-500 dark:text-slate-400">
+									{#if reviews.length > 0}
+										⭐ {averageRating.toFixed(1)} from {reviews.length} {reviews.length === 1 ? 'review' : 'reviews'}
+									{:else}
+										No reviews yet
+									{/if}
+								</p>
+							</div>
+						</div>
 
-						<div class="mt-4 rounded-[1.7rem] bg-white p-4 shadow-sm dark:bg-slate-900">
+						<div class="mt-4 rounded-[1.5rem] bg-slate-50 p-4 dark:bg-slate-900">
 							<p class="font-black text-slate-950 dark:text-slate-50">Rate this organization</p>
-							<div class="mt-3 flex gap-1">
+							<div class="mt-2 flex gap-1">
 								{#each [1, 2, 3, 4, 5] as star}
-									<button type="button" onclick={() => (reviewRating = star)} class={`text-3xl transition ${reviewRating >= star ? 'text-yellow-400' : 'text-slate-300 dark:text-slate-700'}`} aria-label={`Rate ${star} stars`}>
+									<button type="button" onclick={() => (reviewRating = star)} class={`text-2xl transition ${reviewRating >= star ? 'text-yellow-400' : 'text-slate-300 dark:text-slate-700'}`} aria-label={`Rate ${star} stars`}>
 										★
 									</button>
 								{/each}
 							</div>
-							<textarea bind:value={reviewComment} rows="3" class="mt-3 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-950 outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:ring-blue-950" placeholder="Leave a comment..."></textarea>
-							<button type="button" onclick={submitReview} disabled={reviewSubmitting || reviewRating < 1} class="mt-3 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:opacity-60">
+							<textarea bind:value={reviewComment} rows="2" class="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-950 outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:focus:ring-blue-950" placeholder="Leave a comment..."></textarea>
+							<button type="button" onclick={submitReview} disabled={reviewSubmitting || reviewRating < 1} class="mt-3 rounded-2xl bg-blue-600 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:opacity-60">
 								{reviewSubmitting ? 'Saving...' : 'Save review'}
 							</button>
 							{#if reviewMessage}
@@ -680,8 +837,8 @@
 
 						{#if reviews.length > 0}
 							<div class="mt-4 grid gap-3 sm:grid-cols-2">
-								{#each reviews.slice(0, 6) as review (review.id)}
-									<div class="rounded-[1.5rem] bg-white p-4 shadow-sm dark:bg-slate-900">
+								{#each paginatedReviews as review (review.id)}
+									<div class="rounded-[1.35rem] bg-slate-50 p-4 dark:bg-slate-900">
 										<div class="flex items-center justify-between gap-3">
 											<p class="truncate font-black text-slate-950 dark:text-slate-50">{review.authorName ?? 'Rally user'}</p>
 											<p class="shrink-0 text-sm font-black text-yellow-500">{'★'.repeat(review.rating)}</p>
@@ -689,60 +846,65 @@
 										{#if review.comment}
 											<p class="mt-2 text-sm font-bold leading-relaxed text-slate-500 dark:text-slate-400">{review.comment}</p>
 										{/if}
+										{#if review.replies?.length}
+											<div class="mt-3 space-y-2 border-l-2 border-blue-100 pl-3 dark:border-blue-950">
+												{#each review.replies.slice(-3) as reply (reply.id)}
+													<div class="rounded-2xl bg-white px-3 py-2 dark:bg-slate-950">
+														<div class="flex items-center gap-2">
+															<p class="text-xs font-black text-slate-950 dark:text-slate-50">{reply.authorName ?? 'Rally user'}</p>
+															{#if reply.authorRole === 'organization'}
+																<span class="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-blue-700 dark:bg-blue-950 dark:text-blue-300">Org</span>
+															{/if}
+														</div>
+														<p class="mt-1 text-xs font-bold leading-relaxed text-slate-500 dark:text-slate-400">{reply.comment}</p>
+													</div>
+												{/each}
+											</div>
+										{/if}
+										{#if reviewCanReply()}
+											<div class="mt-3">
+												{#if replyingToReviewId === review.id}
+													<textarea bind:value={replyComment} rows="2" class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:focus:ring-blue-950" placeholder="Reply to this review..."></textarea>
+													<div class="mt-2 flex gap-2">
+														<button type="button" onclick={() => submitReviewReply(review)} disabled={replySubmitting || !replyComment.trim()} class="rounded-full bg-blue-600 px-4 py-2 text-xs font-black text-white transition hover:bg-blue-700 disabled:opacity-60">
+															{replySubmitting ? 'Sending...' : 'Reply'}
+														</button>
+														<button type="button" onclick={() => { replyingToReviewId = null; replyComment = ''; replyMessage = ''; }} class="rounded-full bg-white px-4 py-2 text-xs font-black text-slate-600 transition hover:text-slate-950 dark:bg-slate-950 dark:text-slate-300">
+															Cancel
+														</button>
+													</div>
+													{#if replyMessage}
+														<p class="mt-2 text-xs font-bold text-red-600 dark:text-red-400">{replyMessage}</p>
+													{/if}
+												{:else}
+													<button type="button" onclick={() => { replyingToReviewId = review.id; replyComment = ''; replyMessage = ''; }} class="text-xs font-black text-blue-600 transition hover:text-blue-700 dark:text-blue-400">
+														Reply
+													</button>
+												{/if}
+											</div>
+										{/if}
 									</div>
 								{/each}
 							</div>
+							{#if reviewPages > 1}
+								<div class="mt-4 flex items-center justify-center gap-2">
+									<button type="button" onclick={() => goToReviewPage(reviewPage - 1)} disabled={reviewPage === 0} class="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600 transition hover:text-blue-600 disabled:opacity-40 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
+										Previous
+									</button>
+									{#each Array(reviewPages) as _, index}
+										<button type="button" onclick={() => goToReviewPage(index)} class={`h-8 min-w-8 rounded-full px-3 text-xs font-black transition ${reviewPage === index ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 hover:text-blue-600 dark:bg-slate-950 dark:text-slate-300'}`}>
+											{index + 1}
+										</button>
+									{/each}
+									<button type="button" onclick={() => goToReviewPage(reviewPage + 1)} disabled={reviewPage >= reviewPages - 1} class="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600 transition hover:text-blue-600 disabled:opacity-40 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
+										Next
+									</button>
+								</div>
+							{/if}
 						{/if}
 					</section>
 				</div>
-
-				<aside class="space-y-4">
-					<section class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-						<h2 class="text-lg font-black text-slate-950 dark:text-slate-50">Contact</h2>
-						<div class="mt-4 space-y-3 text-sm">
-							{#if organization.contactEmail}
-								<a href={`mailto:${organization.contactEmail}`} class="flex items-center gap-3 rounded-2xl bg-slate-50 p-3 font-bold text-slate-700 transition hover:text-blue-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:text-blue-300">
-									<span>✉️</span>
-									<span class="min-w-0 truncate">{organization.contactEmail}</span>
-								</a>
-							{/if}
-							{#if organization.phone}
-								<a href={`tel:${organization.phone}`} class="flex items-center gap-3 rounded-2xl bg-slate-50 p-3 font-bold text-slate-700 transition hover:text-blue-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:text-blue-300">
-									<span>📞</span>
-									<span>{organization.phone}</span>
-								</a>
-							{/if}
-							{#if organization.website}
-								<a href={organization.website} target="_blank" rel="noreferrer" class="flex items-center gap-3 rounded-2xl bg-slate-50 p-3 font-bold text-slate-700 transition hover:text-blue-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:text-blue-300">
-									<span>🌐</span>
-									<span class="min-w-0 truncate">{organization.website}</span>
-								</a>
-							{/if}
-						</div>
-					</section>
-
-					<section class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-						<h2 class="text-lg font-black text-slate-950 dark:text-slate-50">Profile details</h2>
-						<div class="mt-4 space-y-3 text-sm font-bold text-slate-600 dark:text-slate-300">
-							<div class="flex justify-between gap-3">
-								<span>Type</span>
-								<span class="text-right text-slate-950 dark:text-slate-50">{formatOrganizationType(organization.type)}</span>
-							</div>
-							<div class="flex justify-between gap-3">
-								<span>Verification</span>
-								<span class="text-right text-slate-950 dark:text-slate-50">{verificationLabel()}</span>
-							</div>
-							{#if organization.publicLocation?.verificationStatus}
-								<div class="flex justify-between gap-3">
-									<span>Venue</span>
-									<span class="text-right text-slate-950 dark:text-slate-50">{organization.publicLocation.verificationStatus}</span>
-								</div>
-							{/if}
-						</div>
-					</section>
-				</aside>
-			</div>
-		{:else}
+			{:else}
 		<section class="max-w-full px-0 md:px-0">
 			{#if coverPhotoURL}
 				<div class="mb-6 h-40 overflow-hidden rounded-[2rem] bg-slate-100 shadow-sm dark:bg-slate-900 sm:h-56 md:h-72">
@@ -853,7 +1015,7 @@
 					<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Upcoming</p>
 				</div>
 				<div>
-					<p class="text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">{organization.followersCount ?? 0}</p>
+					<p class="text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">{displayedFollowersCount}</p>
 					<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Followers</p>
 				</div>
 			</div>
@@ -1008,7 +1170,7 @@
 
 			{#if reviews.length > 0}
 				<div class="mt-4 grid gap-3 sm:grid-cols-2">
-					{#each reviews.slice(0, 6) as review (review.id)}
+					{#each paginatedReviews as review (review.id)}
 						<div class="rounded-[1.5rem] bg-white p-4 shadow-sm dark:bg-slate-900">
 							<div class="flex items-center justify-between gap-3">
 								<p class="truncate font-black text-slate-950 dark:text-slate-50">{review.authorName ?? 'Rally user'}</p>
@@ -1017,9 +1179,61 @@
 							{#if review.comment}
 								<p class="mt-2 text-sm font-bold leading-relaxed text-slate-500 dark:text-slate-400">{review.comment}</p>
 							{/if}
+							{#if review.replies?.length}
+								<div class="mt-3 space-y-2 border-l-2 border-blue-100 pl-3 dark:border-blue-950">
+									{#each review.replies.slice(-3) as reply (reply.id)}
+										<div class="rounded-2xl bg-slate-50 px-3 py-2 dark:bg-slate-950">
+											<div class="flex items-center gap-2">
+												<p class="text-xs font-black text-slate-950 dark:text-slate-50">{reply.authorName ?? 'Rally user'}</p>
+												{#if reply.authorRole === 'organization'}
+													<span class="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-blue-700 dark:bg-blue-950 dark:text-blue-300">Org</span>
+												{/if}
+											</div>
+											<p class="mt-1 text-xs font-bold leading-relaxed text-slate-500 dark:text-slate-400">{reply.comment}</p>
+										</div>
+									{/each}
+								</div>
+							{/if}
+							{#if reviewCanReply()}
+								<div class="mt-3">
+									{#if replyingToReviewId === review.id}
+										<textarea bind:value={replyComment} rows="2" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:ring-blue-950" placeholder="Reply to this review..."></textarea>
+										<div class="mt-2 flex gap-2">
+											<button type="button" onclick={() => submitReviewReply(review)} disabled={replySubmitting || !replyComment.trim()} class="rounded-full bg-blue-600 px-4 py-2 text-xs font-black text-white transition hover:bg-blue-700 disabled:opacity-60">
+												{replySubmitting ? 'Sending...' : 'Reply'}
+											</button>
+											<button type="button" onclick={() => { replyingToReviewId = null; replyComment = ''; replyMessage = ''; }} class="rounded-full bg-slate-50 px-4 py-2 text-xs font-black text-slate-600 transition hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300">
+												Cancel
+											</button>
+										</div>
+										{#if replyMessage}
+											<p class="mt-2 text-xs font-bold text-red-600 dark:text-red-400">{replyMessage}</p>
+										{/if}
+									{:else}
+										<button type="button" onclick={() => { replyingToReviewId = review.id; replyComment = ''; replyMessage = ''; }} class="text-xs font-black text-blue-600 transition hover:text-blue-700 dark:text-blue-400">
+											Reply
+										</button>
+									{/if}
+								</div>
+							{/if}
 						</div>
 					{/each}
 				</div>
+				{#if reviewPages > 1}
+					<div class="mt-4 flex items-center justify-center gap-2">
+						<button type="button" onclick={() => goToReviewPage(reviewPage - 1)} disabled={reviewPage === 0} class="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600 transition hover:text-blue-600 disabled:opacity-40 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
+							Previous
+						</button>
+						{#each Array(reviewPages) as _, index}
+							<button type="button" onclick={() => goToReviewPage(index)} class={`h-8 min-w-8 rounded-full px-3 text-xs font-black transition ${reviewPage === index ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 hover:text-blue-600 dark:bg-slate-950 dark:text-slate-300'}`}>
+								{index + 1}
+							</button>
+						{/each}
+						<button type="button" onclick={() => goToReviewPage(reviewPage + 1)} disabled={reviewPage >= reviewPages - 1} class="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600 transition hover:text-blue-600 disabled:opacity-40 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
+							Next
+						</button>
+					</div>
+				{/if}
 			{/if}
 		</section>
 
@@ -1061,6 +1275,52 @@
 				</div>
 			</div>
 		{/if}
+		{/if}
+		{#if showGalleryModal && galleryPhotoURLs.length > 0}
+			<div
+				class="fixed inset-0 z-50 flex items-center justify-center p-4"
+				role="dialog"
+				aria-modal="true"
+				tabindex="-1"
+			>
+				<button
+					type="button"
+					class="absolute inset-0 bg-slate-950/85 backdrop-blur-sm"
+					aria-label="Close gallery"
+					onclick={closeGallery}
+				></button>
+				<div
+					class="relative z-10 flex max-h-[calc(100svh-2rem)] w-full max-w-5xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl dark:bg-slate-950"
+				>
+					<div class="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-800 sm:px-5">
+						<div>
+							<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">Gallery</p>
+							<h2 class="text-lg font-black text-slate-950 dark:text-slate-50">{organization.name} photos</h2>
+						</div>
+						<button type="button" onclick={closeGallery} class="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-xl font-black text-slate-600 transition hover:text-slate-950 dark:bg-slate-900 dark:text-slate-300">
+							×
+						</button>
+					</div>
+
+					<div class="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+						{#if selectedGalleryPhoto}
+							<img src={selectedGalleryPhoto} alt="" class="mx-auto max-h-[56svh] w-full rounded-[1.5rem] object-contain bg-slate-100 dark:bg-slate-900" />
+						{/if}
+
+						<div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+							{#each galleryPhotoURLs as photoURL}
+								<button
+									type="button"
+									onclick={() => (selectedGalleryPhoto = photoURL)}
+									class={`overflow-hidden rounded-2xl ring-2 transition ${selectedGalleryPhoto === photoURL ? 'ring-blue-600' : 'ring-transparent hover:ring-blue-200'}`}
+								>
+									<img src={photoURL} alt="" class="h-28 w-full object-cover sm:h-32" />
+								</button>
+							{/each}
+						</div>
+					</div>
+				</div>
+			</div>
 		{/if}
 	{/if}
 </main>

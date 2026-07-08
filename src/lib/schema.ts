@@ -166,8 +166,19 @@ export interface OrganizationReview {
 	authorPhotoURL?: string | null;
 	rating: number;
 	comment: string;
+	replies?: OrganizationReviewReply[];
 	createdAt: Timestamp;
 	updatedAt: Timestamp;
+}
+
+export interface OrganizationReviewReply {
+	id: string;
+	userId: string;
+	authorName?: string;
+	authorPhotoURL?: string | null;
+	authorRole: 'user' | 'organization';
+	comment: string;
+	createdAt: Timestamp;
 }
 
 export interface OrganizationVerificationRequest {
