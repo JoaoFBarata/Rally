@@ -1,8 +1,29 @@
 <script lang="ts">
-    // TODO: Add linear scaling for marker size based on map zoom level
+    import { onMount } from 'svelte';
+
     const { profile_url, sport, n_confirmed_attendees, max_occupancy, marker_scale = 0.6, marker_color = '#00B4D8FF' } = $props();
+
+    // Responsive multiplier to make markers larger on narrow viewports (mobile)
+    let scaleMultiplier = $state(1);
+
+    function updateScaleMultiplier() {
+        if (typeof window === 'undefined') return;
+        const w = window.innerWidth;
+        // At >= 900px use multiplier 1, at 320px use ~1.6 — linear interpolation
+        const minW = 320;
+        const maxW = 900;
+        const t = Math.min(Math.max((w - minW) / (maxW - minW), 0), 1);
+        // invert so small widths get larger multiplier
+        scaleMultiplier = 1 + (1 - t) * 0.6; // range [1, 1.6]
+    }
+
+    onMount(() => {
+        updateScaleMultiplier();
+        window.addEventListener('resize', updateScaleMultiplier);
+        return () => window.removeEventListener('resize', updateScaleMultiplier);
+    });
 </script>
-<div id="marker" class="w-[calc(var(--marker-scale)*8vw)]" style="--marker-scale: calc({marker_scale}*var(--map-zoom-scale)); --marker-color: {marker_color}">
+<div id="marker" class="w-[calc(var(--marker-scale)*8vw)]" style="--marker-scale: calc({marker_scale*scaleMultiplier} * var(--map-zoom-scale)); --marker-color: {marker_color}">
     <div id="marker-icon-wrapper" class="relative w-full h-[calc(var(--marker-scale)*8vw)]">
         <div id="marker-icon" class="w-full h-full">
             <div id="outer-marker-icon" class="w-full h-full border-[calc(var(--marker-scale)*7px)] border-solid border-(--marker-color) rounded-full">

@@ -275,11 +275,11 @@
 		const updateZoomScale = () => {
 			if (!map) return;
 			const zoom = map.getZoom();
-			const minZoom = 7;
+			const minZoom = 8.5;
 			const maxZoom = 10;
 			let scale = (0.6 * (zoom - minZoom)) / (maxZoom - minZoom);
 			if (zoom < minZoom) {
-				scale += 2.0;
+				scale += 0.8;
 			}
 			map.getContainer().style.setProperty('--map-zoom-scale', scale.toFixed(3));
 		};
