@@ -10,6 +10,26 @@
 		events,
 		currentUserId = '',
 		friendIds = [],
+		availableSports = [],
+		availableLevels = ['beginner', 'casual', 'intermediate', 'advanced'],
+		selectedSports = [],
+		selectedLevels = [],
+		dateFilter = '30',
+		priceFilter = 'all',
+		maxPrice = 50,
+		highestPrice = 50,
+		audienceFilter = 'all',
+		activeFilterCount = 0,
+		dateFilterOptions = [],
+		priceFilterOptions = [],
+		audienceFilterOptions = [],
+		onToggleSport,
+		onToggleLevel,
+		onDateFilterChange,
+		onPriceFilterChange,
+		onMaxPriceChange,
+		onAudienceFilterChange,
+		onClearFilters,
 		onFilteredCountChange,
 		onSelectedEventChange,
 		getEventHref = (event: SportEvent) => `/events/${event.id}`
@@ -17,6 +37,29 @@
 		events: SportEvent[];
 		currentUserId?: string;
 		friendIds?: string[];
+		availableSports?: Sport[];
+		availableLevels?: SportLevel[];
+		selectedSports?: Sport[];
+		selectedLevels?: SportLevel[];
+		dateFilter?: 'today' | '7' | '14' | '30' | 'all';
+		priceFilter?: 'all' | 'free' | 'paid';
+		maxPrice?: number;
+		highestPrice?: number;
+		audienceFilter?: 'all' | 'mine' | 'friends' | 'public' | 'joined';
+		activeFilterCount?: number;
+		dateFilterOptions?: { value: 'today' | '7' | '14' | '30' | 'all'; label: string }[];
+		priceFilterOptions?: { value: 'all' | 'free' | 'paid'; label: string }[];
+		audienceFilterOptions?: {
+			value: 'all' | 'mine' | 'friends' | 'public' | 'joined';
+			label: string;
+		}[];
+		onToggleSport?: (sport: Sport) => void;
+		onToggleLevel?: (level: SportLevel) => void;
+		onDateFilterChange?: (value: 'today' | '7' | '14' | '30' | 'all') => void;
+		onPriceFilterChange?: (value: 'all' | 'free' | 'paid') => void;
+		onMaxPriceChange?: (value: number) => void;
+		onAudienceFilterChange?: (value: 'all' | 'mine' | 'friends' | 'public' | 'joined') => void;
+		onClearFilters?: () => void;
 		onFilteredCountChange?: (count: number) => void;
 		onSelectedEventChange?: (eventId: string | null) => void;
 		getEventHref?: (event: SportEvent) => string;
@@ -33,11 +76,21 @@
 	let markers: mapboxgl.Marker[] = [];
 	let svelteMarkers: any[] = [];
 	let showFilters = $state(false);
-	let selectedSports = $state<Sport[]>([]);
-	let selectedLevels = $state<SportLevel[]>([]);
 
 	let clusterIndex: any = null;
 	let hasFitBoundsForCurrentEvents = false;
+	type EventPointFeature = {
+		type: 'Feature';
+		properties: {
+			eventId: string;
+			event: SportEvent;
+			isCluster: false;
+		};
+		geometry: {
+			type: 'Point';
+			coordinates: [number, number];
+		};
+	};
 
 	let creatorProfiles = $state<Record<string, { photoURL?: string | null; displayName?: string }>>(
 		{}
@@ -82,42 +135,23 @@
 		}
 	});
 
-	const availableLevels: SportLevel[] = ['beginner', 'casual', 'intermediate', 'advanced'];
-
-	let availableSports = $derived.by((): Sport[] => {
-		const sports = events.map((event: SportEvent): Sport => event.sport);
-		return [...new Set<Sport>(sports)].sort();
-	});
-
-	let filteredEvents = $derived.by((): SportEvent[] => {
-		return events.filter((event: SportEvent) => {
-			const matchesSport = selectedSports.length === 0 || selectedSports.includes(event.sport);
-
-			const eventLevel = event.level ?? 'casual';
-
-			const matchesLevel = selectedLevels.length === 0 || selectedLevels.includes(eventLevel);
-
-			return matchesSport && matchesLevel;
-		});
-	});
-
 	$effect(() => {
-		onFilteredCountChange?.(filteredEvents.length);
+		onFilteredCountChange?.(events.length);
 
 		if (
 			selectedEvent &&
-			!filteredEvents.some((event: SportEvent) => event.id === selectedEvent?.id)
+			!events.some((event: SportEvent) => event.id === selectedEvent?.id)
 		) {
 			clearSelectedEvent();
 		}
 	});
 
 	$effect(() => {
-		if (filteredEvents) {
+		if (events) {
 			hasFitBoundsForCurrentEvents = false;
 
-			const points = filteredEvents
-				.map((event: SportEvent) => {
+			const points: EventPointFeature[] = events
+				.map((event: SportEvent): EventPointFeature | null => {
 					const coords = getCoords(event);
 					if (!coords) return null;
 					return {
@@ -133,7 +167,7 @@
 						}
 					};
 				})
-				.filter((pt): pt is NonNullable<typeof pt> => pt !== null);
+				.filter((pt: EventPointFeature | null): pt is EventPointFeature => pt !== null);
 
 			const index = new Supercluster({
 				radius: 50,
@@ -154,28 +188,17 @@
 	}
 
 	function toggleLevelFilter(level: SportLevel) {
-		if (selectedLevels.includes(level)) {
-			selectedLevels = selectedLevels.filter((item) => item !== level);
-		} else {
-			selectedLevels = [...selectedLevels, level];
-		}
-
+		onToggleLevel?.(level);
 		clearSelectedEvent();
 	}
 
 	function clearAllFilters() {
-		selectedSports = [];
-		selectedLevels = [];
+		onClearFilters?.();
 		clearSelectedEvent();
 	}
 
 	function toggleSportFilter(sport: Sport) {
-		if (selectedSports.includes(sport)) {
-			selectedSports = selectedSports.filter((item) => item !== sport);
-		} else {
-			selectedSports = [...selectedSports, sport];
-		}
-
+		onToggleSport?.(sport);
 		clearSelectedEvent();
 	}
 
@@ -192,6 +215,35 @@
 		if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
 
 		return { lat, lng };
+	}
+
+	function formatSelectedDate(event: SportEvent) {
+		const value = event.startAt;
+		const date = typeof value?.toDate === 'function' ? value.toDate() : new Date(value as unknown as string);
+		if (Number.isNaN(date.getTime())) return 'Date to confirm';
+
+		return new Intl.DateTimeFormat('en-GB', {
+			day: '2-digit',
+			month: 'short',
+			hour: '2-digit',
+			minute: '2-digit'
+		}).format(date);
+	}
+
+	function formatSelectedPrice(event: SportEvent) {
+		const price = event.pricePerPerson ?? 0;
+		return price > 0 ? `€${price.toFixed(2)} / person` : 'Free';
+	}
+
+	function getSelectedPreviewUrl(event: SportEvent) {
+		if (event.groupPhotoURL) return event.groupPhotoURL;
+
+		const coords = getCoords(event);
+		if (!coords || !PUBLIC_MAPBOX_ACCESS_TOKEN) return '';
+
+		const { lat, lng } = coords;
+		const marker = `pin-s+2563eb(${lng},${lat})`;
+		return `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${marker}/${lng},${lat},13,0/180x140@2x?access_token=${PUBLIC_MAPBOX_ACCESS_TOKEN}`;
 	}
 
 	function clearMarkers() {
@@ -234,11 +286,12 @@
 
 	function renderMarkers() {
 		if (!map || !mapReady || !clusterIndex) return;
+		const currentMap = map;
 
-		if (!hasFitBoundsForCurrentEvents && filteredEvents.length > 0) {
+		if (!hasFitBoundsForCurrentEvents && events.length > 0) {
 			const bounds = new mapboxgl.LngLatBounds();
 			let hasCoords = false;
-			for (const event of filteredEvents) {
+			for (const event of events) {
 				const coords = getCoords(event);
 				if (coords) {
 					bounds.extend([coords.lng, coords.lat]);
@@ -247,7 +300,7 @@
 			}
 			if (hasCoords) {
 				hasFitBoundsForCurrentEvents = true;
-				map.fitBounds(bounds, {
+				currentMap.fitBounds(bounds, {
 					padding: 80,
 					maxZoom: 13
 				});
@@ -257,8 +310,9 @@
 
 		clearMarkers();
 
-		const zoom = Math.floor(map.getZoom());
-		const mapBounds = map.getBounds();
+		const zoom = Math.floor(currentMap.getZoom());
+		const mapBounds = currentMap.getBounds();
+		if (!mapBounds) return;
 		const bbox: [number, number, number, number] = [
 			mapBounds.getWest(),
 			mapBounds.getSouth(),
@@ -304,7 +358,7 @@
 					target: el,
 					props: {
 						profile_url: photoURL,
-						name_letter: (creator?.displayName || creator?.email || 'U').charAt(0).toUpperCase(),
+						name_letter: (creator?.displayName || 'U').charAt(0).toUpperCase(),
 						sport: priorityEvent.sport,
 						n_confirmed_attendees: priorityEvent.participantIds?.length || 0,
 						max_occupancy: priorityEvent.maxParticipants || 0,
@@ -318,7 +372,7 @@
 					clearSelectedEvent();
 					try {
 						const expansionZoom = clusterIndex.getClusterExpansionZoom(clusterId);
-						map.flyTo({
+						currentMap.flyTo({
 							center: [lng, lat],
 							zoom: expansionZoom,
 							speed: 1.2
@@ -330,7 +384,7 @@
 
 				const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
 					.setLngLat([lng, lat])
-					.addTo(map);
+					.addTo(currentMap);
 				markers.push(marker);
 			} else {
 				const event = feature.properties.event;
@@ -345,7 +399,7 @@
 					target: el,
 					props: {
 						profile_url: photoURL,
-						name_letter: (creator?.displayName || creator?.email || 'U').charAt(0).toUpperCase(),
+						name_letter: (creator?.displayName || 'U').charAt(0).toUpperCase(),
 						sport: event.sport,
 						n_confirmed_attendees: event.participantIds?.length || 0,
 						max_occupancy: event.maxParticipants || 0,
@@ -360,7 +414,7 @@
 
 				const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
 					.setLngLat([lng, lat])
-					.addTo(map);
+					.addTo(currentMap);
 
 				markers.push(marker);
 			}
@@ -486,9 +540,9 @@
 
 			<span>Filters</span>
 
-			{#if selectedSports.length > 0 || selectedLevels.length > 0}
+			{#if activeFilterCount > 0}
 				<span class="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white">
-					{selectedSports.length + selectedLevels.length}
+					{activeFilterCount}
 				</span>
 			{/if}
 		</button>
@@ -502,7 +556,7 @@
 			<div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
 				<h3 class="text-base font-black text-slate-950 dark:text-slate-50">Filters</h3>
 				<div class="flex items-center gap-3">
-					{#if selectedSports.length > 0 || selectedLevels.length > 0}
+					{#if activeFilterCount > 0}
 						<button
 							type="button"
 							onclick={clearAllFilters}
@@ -522,8 +576,97 @@
 				</div>
 			</div>
 
-			<!-- Sports Filter -->
+			<!-- Date Filter -->
 			<div class="mt-4">
+				<p class="text-xs font-black uppercase tracking-wider text-slate-400">Date</p>
+				<div class="mt-2.5 flex flex-wrap gap-1.5">
+					{#each dateFilterOptions as option (option.value)}
+						<button
+							type="button"
+							onclick={() => {
+								onDateFilterChange?.(option.value);
+								clearSelectedEvent();
+							}}
+							class={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+								dateFilter === option.value
+									? 'bg-blue-600 text-white shadow-sm'
+									: 'bg-slate-50 text-slate-600 border border-slate-100 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-blue-950'
+							}`}
+						>
+							{option.label}
+						</button>
+					{/each}
+				</div>
+			</div>
+
+			<!-- Audience Filter -->
+			<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
+				<p class="text-xs font-black uppercase tracking-wider text-slate-400">Audience</p>
+				<div class="mt-2.5 flex flex-wrap gap-1.5">
+					{#each audienceFilterOptions as option (option.value)}
+						<button
+							type="button"
+							onclick={() => {
+								onAudienceFilterChange?.(option.value);
+								clearSelectedEvent();
+							}}
+							class={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+								audienceFilter === option.value
+									? 'bg-blue-600 text-white shadow-sm'
+									: 'bg-slate-50 text-slate-600 border border-slate-100 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-blue-950'
+							}`}
+						>
+							{option.label}
+						</button>
+					{/each}
+				</div>
+			</div>
+
+			<!-- Price Filter -->
+			<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
+				<p class="text-xs font-black uppercase tracking-wider text-slate-400">Price</p>
+				<div class="mt-2.5 flex flex-wrap gap-1.5">
+					{#each priceFilterOptions as option (option.value)}
+						<button
+							type="button"
+							onclick={() => {
+								onPriceFilterChange?.(option.value);
+								clearSelectedEvent();
+							}}
+							class={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+								priceFilter === option.value
+									? 'bg-blue-600 text-white shadow-sm'
+									: 'bg-slate-50 text-slate-600 border border-slate-100 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-blue-950'
+							}`}
+						>
+							{option.label}
+						</button>
+					{/each}
+				</div>
+
+				{#if priceFilter === 'paid'}
+					<label class="mt-3 block">
+						<div class="mb-1 flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400">
+							<span>Max price</span>
+							<span>€{maxPrice}</span>
+						</div>
+						<input
+							type="range"
+							min="1"
+							max={highestPrice}
+							value={maxPrice}
+							oninput={(event) => {
+								onMaxPriceChange?.(Number(event.currentTarget.value));
+								clearSelectedEvent();
+							}}
+							class="w-full accent-blue-600"
+						/>
+					</label>
+				{/if}
+			</div>
+
+			<!-- Sports Filter -->
+			<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
 				<div>
 					<p class="text-xs font-black uppercase tracking-wider text-slate-400">Sport</p>
 				</div>
@@ -598,14 +741,14 @@
 
 				<span>Filters</span>
 
-				{#if selectedSports.length > 0 || selectedLevels.length > 0}
+				{#if activeFilterCount > 0}
 					<span class="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white">
-						{selectedSports.length + selectedLevels.length}
+						{activeFilterCount}
 					</span>
 				{/if}
 			</button>
 
-			{#if selectedSports.length > 0 || selectedLevels.length > 0}
+			{#if activeFilterCount > 0}
 				<button
 					type="button"
 					onclick={clearAllFilters}
@@ -617,7 +760,104 @@
 		</div>
 
 		{#if showFilters}
-			<div class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700 max-h-[220px] overflow-y-auto">
+			<div class="mt-5 grid gap-4 border-t border-slate-200 pt-4 dark:border-slate-700 lg:grid-cols-3">
+				<div>
+					<p class="text-sm font-black text-slate-950 dark:text-slate-50">Date</p>
+					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+						Default keeps Explore light.
+					</p>
+					<div class="mt-3 flex flex-wrap gap-2">
+						{#each dateFilterOptions as option (option.value)}
+							<button
+								type="button"
+								onclick={() => {
+									onDateFilterChange?.(option.value);
+									clearSelectedEvent();
+								}}
+								class={`rounded-full px-4 py-2 text-sm font-bold transition ${
+									dateFilter === option.value
+										? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
+										: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950'
+								}`}
+							>
+								{option.label}
+							</button>
+						{/each}
+					</div>
+				</div>
+
+				<div>
+					<p class="text-sm font-black text-slate-950 dark:text-slate-50">Audience</p>
+					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+						Choose whose events appear.
+					</p>
+					<div class="mt-3 flex flex-wrap gap-2">
+						{#each audienceFilterOptions as option (option.value)}
+							<button
+								type="button"
+								onclick={() => {
+									onAudienceFilterChange?.(option.value);
+									clearSelectedEvent();
+								}}
+								class={`rounded-full px-4 py-2 text-sm font-bold transition ${
+									audienceFilter === option.value
+										? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
+										: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950'
+								}`}
+							>
+								{option.label}
+							</button>
+						{/each}
+					</div>
+				</div>
+
+				<div>
+					<p class="text-sm font-black text-slate-950 dark:text-slate-50">Price</p>
+					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+						Filter by entry cost.
+					</p>
+					<div class="mt-3 flex flex-wrap gap-2">
+						{#each priceFilterOptions as option (option.value)}
+							<button
+								type="button"
+								onclick={() => {
+									onPriceFilterChange?.(option.value);
+									clearSelectedEvent();
+								}}
+								class={`rounded-full px-4 py-2 text-sm font-bold transition ${
+									priceFilter === option.value
+										? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
+										: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950'
+								}`}
+							>
+								{option.label}
+							</button>
+						{/each}
+					</div>
+
+					{#if priceFilter === 'paid'}
+						<label class="mt-3 block">
+							<div class="mb-1 flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400">
+								<span>Max price</span>
+								<span>€{maxPrice}</span>
+							</div>
+							<input
+								type="range"
+								min="1"
+								max={highestPrice}
+								value={maxPrice}
+								oninput={(event) => {
+									onMaxPriceChange?.(Number(event.currentTarget.value));
+									clearSelectedEvent();
+								}}
+								class="w-full accent-blue-600"
+							/>
+						</label>
+					{/if}
+				</div>
+			</div>
+
+			<div class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700">
 				<div>
 					<p class="text-sm font-black text-slate-950 dark:text-slate-50">Sport</p>
 					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
@@ -673,75 +913,63 @@
 
 	{#if selectedEvent}
 		<aside
-			class="absolute inset-x-3 bottom-3 z-30 max-h-[65dvh] overflow-y-auto rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-2xl shadow-slate-300/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none md:inset-x-auto md:bottom-auto md:left-5 md:top-5 md:w-80 md:rounded-[1.75rem] md:p-5"
+			class="absolute inset-x-3 bottom-3 z-30 max-h-[70dvh] overflow-y-auto rounded-[1.5rem] border border-slate-200 bg-white p-3 shadow-2xl shadow-slate-300/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none md:inset-x-auto md:bottom-auto md:left-5 md:top-5 md:w-[24rem] md:rounded-[1.75rem] md:p-4"
 		>
-			<div class="flex items-start justify-between gap-4">
-				<div>
-					<p class="text-xs font-bold uppercase tracking-[0.25em] text-blue-600">
-						{selectedEvent.sport}
-					</p>
-
-					<h2 class="mt-2 text-2xl font-black leading-tight text-slate-950 dark:text-slate-50">
-						{selectedEvent.title}
-					</h2>
-
-					<span
-						class="mt-2 inline-block rounded-full bg-slate-100 px-3 py-1 text-xs font-bold capitalize text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-					>
-						{selectedEvent.level ?? 'casual'}
-					</span>
-				</div>
-
+			<div class="flex items-center justify-between gap-3">
+				<span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-black uppercase tracking-[0.16em] text-blue-600 dark:bg-blue-950/70 dark:text-blue-300">
+					{selectedEvent.sport}
+				</span>
 				<button
 					type="button"
 					onclick={clearSelectedEvent}
-					class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xl font-black text-slate-500 transition hover:bg-slate-200 hover:text-slate-900 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100"
+					class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xl font-black text-slate-500 transition hover:bg-slate-200 hover:text-slate-900 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100"
 					aria-label="Close event preview"
 				>
 					×
 				</button>
 			</div>
 
-			<div class="mt-5 space-y-4">
-				<div>
-					<p class="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-slate-400">
-						Location
-					</p>
-
-					<p class="mt-1 font-semibold text-slate-800 dark:text-slate-300">
-						{selectedEvent.location?.name ?? 'Location not set'}
-					</p>
-
-					{#if selectedEvent.location?.address}
-						<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-							{selectedEvent.location.address}
-						</p>
+			<div class="mt-3 flex gap-3">
+				<div class="h-28 w-28 shrink-0 overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800">
+					{#if getSelectedPreviewUrl(selectedEvent)}
+						<img src={getSelectedPreviewUrl(selectedEvent)} alt={selectedEvent.title} class="h-full w-full object-cover" />
+					{:else}
+						<div class="grid h-full w-full place-items-center text-3xl font-black text-blue-600 dark:text-blue-300">
+							{selectedEvent.title.charAt(0).toUpperCase()}
+						</div>
 					{/if}
 				</div>
 
-				<div class="rounded-2xl bg-blue-50 p-4 dark:bg-slate-800">
-					<p class="text-xs font-bold uppercase tracking-wide text-blue-500">Players</p>
-
-					<p class="mt-1 text-2xl font-black text-blue-600">
-						{selectedEvent.participantIds.length}/{selectedEvent.maxParticipants}
+				<div class="min-w-0 flex-1">
+					<h2 class="line-clamp-2 text-lg font-black leading-tight text-slate-950 dark:text-slate-50">
+						{selectedEvent.title}
+					</h2>
+					<p class="mt-1 truncate text-sm font-bold text-slate-500 dark:text-slate-400">
+						📍 {selectedEvent.location?.name ?? 'Location not set'}
+					</p>
+					<p class="mt-1 truncate text-xs font-semibold text-slate-400 dark:text-slate-500">
+						{formatSelectedDate(selectedEvent)}
 					</p>
 
-					<p class="text-sm font-medium text-slate-500 dark:text-slate-400">confirmed players</p>
-				</div>
-
-				{#if selectedEvent.pricePerPerson}
-					<div>
-						<p class="text-xs font-bold uppercase tracking-wide text-slate-400">Price</p>
-
-						<p class="mt-1 font-semibold text-slate-800 dark:text-slate-300">
-							€{selectedEvent.pricePerPerson.toFixed(2)} / person
-						</p>
+					<div class="mt-3 flex flex-wrap gap-1.5">
+						<span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black capitalize text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+							{selectedEvent.level ?? 'casual'}
+						</span>
+						<span class="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-black text-blue-600 dark:bg-blue-950/70 dark:text-blue-300">
+							{selectedEvent.participantIds.length}/{selectedEvent.maxParticipants} players
+						</span>
 					</div>
-				{/if}
+				</div>
+			</div>
+
+			<div class="mt-3 flex items-center justify-between gap-3">
+				<p class="truncate text-sm font-black text-slate-700 dark:text-slate-200">
+					{formatSelectedPrice(selectedEvent)}
+				</p>
 
 				<a
 					href={getEventHref(selectedEvent)}
-					class="block rounded-2xl bg-blue-600 px-5 py-3 text-center font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700"
+					class="shrink-0 rounded-2xl bg-blue-600 px-4 py-2.5 text-center text-sm font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700"
 				>
 					View event
 				</a>

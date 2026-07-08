@@ -88,6 +88,15 @@ service cloud.firestore {
       allow create: if isAuth() && request.resource.data.ownerId == request.auth.uid;
       allow update: if isAuth() && (
         isOrgAdmin(orgId)
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'followersCount',
+              'updatedAt'
+            ])
+            && (
+              request.resource.data.followersCount == resource.data.followersCount + 1 ||
+              request.resource.data.followersCount == resource.data.followersCount - 1
+            )
+            && request.resource.data.followersCount >= 0)
         || (isPlatformAdmin()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'verificationStatus',
@@ -111,6 +120,23 @@ service cloud.firestore {
       allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
       allow delete: if isAuth() && resource.data.userId == request.auth.uid;
       allow update: if false;
+    }
+
+
+    // ── Organization Reviews ────────────────────────────────────────────────
+    // Users can review an organization once, and can edit/delete only their own review.
+    match /organizationReviews/{reviewId} {
+      allow read: if isAuth();
+      allow create: if isAuth()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5;
+      allow update: if isAuth()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5;
+      allow delete: if isAuth() && resource.data.userId == request.auth.uid;
     }
 
 

@@ -23,15 +23,21 @@ function eventFromDoc(docSnap: { id: string; data: () => unknown }) {
 	} as SportEvent;
 }
 
-function isVisibleInExplore(event: SportEvent) {
+function isVisibleInExplore(event: SportEvent, windowDays?: number | null) {
 	const status = getEffectiveEventStatus(event);
 
 	if (status === 'cancelled') return false;
 	if (status === 'finished') return false;
 
 	const startAtMs = getEventStartAtMillis(event);
+	const now = Date.now();
 
-	return startAtMs >= Date.now();
+	if (startAtMs < now) return false;
+	if (windowDays && windowDays > 0) {
+		return startAtMs <= now + windowDays * 24 * 60 * 60 * 1000;
+	}
+
+	return true;
 }
 
 function chunkArray<T>(items: T[], size: number) {
@@ -239,7 +245,10 @@ export function subscribeToPromotedEventsForUser(
 	);
 }
 
-export async function getVisibleEventsForUser(userId: string) {
+export async function getVisibleEventsForUser(
+	userId: string,
+	options: { windowDays?: number | null } = {}
+) {
 	const profile = await getUserProfile(userId);
 	const eventsById = new Map<string, SportEvent>();
 
@@ -327,7 +336,9 @@ export async function getVisibleEventsForUser(userId: string) {
 	}
 
 	const events = await refreshOrganizationSnapshots(
-		Array.from(eventsById.values()).filter(isVisibleInExplore)
+		Array.from(eventsById.values()).filter((event) =>
+			isVisibleInExplore(event, options.windowDays ?? null)
+		)
 	);
 
 	const contextualEvents = events.map((event) => {
