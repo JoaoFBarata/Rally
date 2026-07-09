@@ -9,10 +9,12 @@
 	import { authService } from '$lib/services/auth.service';
 	import type { EventStatus, Organization, OrganizationType, SportEvent, UserProfile } from '$lib/schema';
 	import LocationPickerMap from '$lib/components/maps/LocationPickerMap.svelte';
+	import NavIcon from '$lib/components/NavIcon.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import {
 		assertCanManageOrganization,
+		getOrganizationFollowerIds,
 		requestOrganizationVerification,
 		updateOrganizationProfile
 	} from '$lib/services/organization.service';
@@ -39,6 +41,7 @@
 
 	let organization = $state<Organization | null>(null);
 	let organizationEvents = $state<SportEvent[]>([]);
+	let followerIds = $state<string[]>([]);
 
 	let loading = $state(true);
 	let saving = $state(false);
@@ -90,6 +93,9 @@
 	let stoppingPromotionId = $state('');
 
 	let activePromotedEvents = $derived(upcomingEvents.filter((event) => isPromotionActive(event)));
+	let displayedFollowersCount = $derived(
+		Math.max(organization?.followersCount ?? 0, followerIds.length)
+	);
 	let filteredManageEvents = $derived.by(() => {
 		if (eventFilter === 'promoted') return activePromotedEvents;
 		if (eventFilter === 'past') return pastEvents;
@@ -284,10 +290,14 @@
 				userId
 			});
 
-			const loadedEvents = await getEventsCreatedByOrganization(loadedOrganization.id);
+			const [loadedEvents, loadedFollowerIds] = await Promise.all([
+				getEventsCreatedByOrganization(loadedOrganization.id),
+				getOrganizationFollowerIds(loadedOrganization.id)
+			]);
 
 			organization = loadedOrganization;
 			organizationEvents = loadedEvents;
+			followerIds = loadedFollowerIds;
 			resetForm(loadedOrganization);
 		} catch (err) {
 			console.error('Organization manage error:', err);
@@ -682,7 +692,7 @@
 			{error}
 		</section>
 	{:else if organization}
-		<section class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+		<section class="relative flex flex-col gap-3 pr-12 md:flex-row md:items-center md:justify-between md:pr-0">
 			<div class="flex min-w-0 items-center gap-3 sm:gap-4">
 				<div
 					class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[1.35rem] bg-slate-100 text-xl font-black text-blue-600 shadow-sm dark:bg-slate-800 dark:text-blue-300 sm:h-20 sm:w-20 sm:rounded-[1.8rem] sm:text-3xl"
@@ -719,10 +729,10 @@
 
 			<a
 				href={resolve('/settings')}
-				class="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-800 dark:hover:bg-slate-800 md:hidden"
+				class="absolute right-0 top-0 flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-800 dark:hover:bg-slate-800 md:hidden"
 				aria-label="Open settings"
 			>
-				⚙
+				<NavIcon name="settings" class="h-5 w-5" />
 			</a>
 		</section>
 
@@ -761,26 +771,26 @@
 		</section>
 
 		{#if activeManageTab === 'overview'}
-			<section class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-				<div class="rounded-[1.5rem] bg-white p-4 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
-					<p class="text-xl">👥</p>
-					<p class="mt-3 text-2xl font-black text-slate-950 dark:text-slate-50">{organization.followersCount ?? 0}</p>
-					<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Followers</p>
+			<section class="mt-5 grid grid-cols-4 divide-x divide-slate-200 rounded-[1.4rem] border-y border-slate-200 bg-white/55 py-3 text-center shadow-sm dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900/45 sm:py-4">
+				<div class="px-2">
+					<p class="text-lg sm:text-2xl">👥</p>
+					<p class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{displayedFollowersCount}</p>
+					<p class="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 sm:text-xs">Followers</p>
 				</div>
-				<div class="rounded-[1.5rem] bg-white p-4 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
-					<p class="text-xl">📅</p>
-					<p class="mt-3 text-2xl font-black text-slate-950 dark:text-slate-50">{upcomingEvents.length}</p>
-					<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Upcoming</p>
+				<div class="px-2">
+					<p class="text-lg sm:text-2xl">📅</p>
+					<p class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{upcomingEvents.length}</p>
+					<p class="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 sm:text-xs">Upcoming</p>
 				</div>
-				<div class="rounded-[1.5rem] bg-white p-4 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
-					<p class="text-xl">📣</p>
-					<p class="mt-3 text-2xl font-black text-slate-950 dark:text-slate-50">{activePromotedEvents.length}</p>
-					<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Promoted</p>
+				<div class="px-2">
+					<p class="text-lg sm:text-2xl">📣</p>
+					<p class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{activePromotedEvents.length}</p>
+					<p class="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 sm:text-xs">Promoted</p>
 				</div>
-				<div class="rounded-[1.5rem] bg-white p-4 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
-					<p class="text-xl">📊</p>
-					<p class="mt-3 text-2xl font-black text-slate-950 dark:text-slate-50">{organizationEvents.length}</p>
-					<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Total events</p>
+				<div class="px-2">
+					<p class="text-lg sm:text-2xl">📊</p>
+					<p class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{organizationEvents.length}</p>
+					<p class="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 sm:text-xs">Total</p>
 				</div>
 			</section>
 
@@ -792,66 +802,66 @@
 					</div>
 				</div>
 
-				<div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
-					<a href={resolve(`/organizations/${organization.id}/events/create`)} class="rounded-[1.4rem] bg-white p-4 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800">
-						<span class="mx-auto grid h-10 w-10 place-items-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950">＋</span>
-						<span class="mt-3 block text-xs font-black text-slate-950 dark:text-slate-50">Create event</span>
+				<div class="mt-4 grid grid-cols-5 gap-2 sm:gap-3">
+					<a href={resolve(`/organizations/${organization.id}/events/create`)} class="rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.4rem] sm:p-4">
+						<span class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950 sm:h-10 sm:w-10 sm:rounded-2xl">＋</span>
+						<span class="mt-2 block truncate text-[0.65rem] font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-xs">Event</span>
 					</a>
-					<a href={resolve(`/organizations/${organization.id}/tournaments/create`)} class="rounded-[1.4rem] bg-white p-4 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-orange-200 dark:bg-slate-900 dark:ring-slate-800">
-						<span class="mx-auto grid h-10 w-10 place-items-center rounded-2xl bg-orange-50 text-orange-600 dark:bg-orange-950">🏆</span>
-						<span class="mt-3 block text-xs font-black text-slate-950 dark:text-slate-50">Tournament</span>
+					<a href={resolve(`/organizations/${organization.id}/tournaments/create`)} class="rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-orange-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.4rem] sm:p-4">
+						<span class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-orange-50 text-orange-600 dark:bg-orange-950 sm:h-10 sm:w-10 sm:rounded-2xl">🏆</span>
+						<span class="mt-2 block truncate text-[0.65rem] font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-xs">Tourney</span>
 					</a>
-					<a href={resolve(`/organizations/${organization.id}`)} class="rounded-[1.4rem] bg-white p-4 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800">
-						<span class="mx-auto grid h-10 w-10 place-items-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950">👤</span>
-						<span class="mt-3 block text-xs font-black text-slate-950 dark:text-slate-50">Public page</span>
+					<a href={resolve(`/organizations/${organization.id}`)} class="rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.4rem] sm:p-4">
+						<span class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950 sm:h-10 sm:w-10 sm:rounded-2xl">👤</span>
+						<span class="mt-2 block truncate text-[0.65rem] font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-xs">Profile</span>
 					</a>
-					<a href={resolve('/messages')} class="rounded-[1.4rem] bg-white p-4 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800">
-						<span class="mx-auto grid h-10 w-10 place-items-center rounded-2xl bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-200">💬</span>
-						<span class="mt-3 block text-xs font-black text-slate-950 dark:text-slate-50">Inbox</span>
+					<a href={resolve('/messages')} class="rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.4rem] sm:p-4">
+						<span class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-200 sm:h-10 sm:w-10 sm:rounded-2xl">💬</span>
+						<span class="mt-2 block truncate text-[0.65rem] font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-xs">Inbox</span>
 					</a>
-					<button type="button" onclick={() => (activeManageTab = 'events')} class="rounded-[1.4rem] bg-white p-4 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-orange-200 dark:bg-slate-900 dark:ring-slate-800">
-						<span class="mx-auto grid h-10 w-10 place-items-center rounded-2xl bg-orange-50 text-orange-600 dark:bg-orange-950">📣</span>
-						<span class="mt-3 block text-xs font-black text-slate-950 dark:text-slate-50">Promote</span>
+					<button type="button" onclick={() => (activeManageTab = 'events')} class="rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-orange-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.4rem] sm:p-4">
+						<span class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-orange-50 text-orange-600 dark:bg-orange-950 sm:h-10 sm:w-10 sm:rounded-2xl">📣</span>
+						<span class="mt-2 block truncate text-[0.65rem] font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-xs">Promote</span>
 					</button>
 				</div>
 			</section>
 
-			<section class="mt-6 grid gap-4 lg:grid-cols-[1fr_0.85fr]">
-				<div class="rounded-[1.7rem] bg-white p-4 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800 sm:p-5">
+			<section class="mt-5 grid gap-3 sm:mt-6 lg:grid-cols-[1fr_0.85fr]">
+				<div class="rounded-[1.35rem] bg-white p-3 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.7rem] sm:p-5">
 					<div class="flex items-center justify-between gap-3">
-						<div>
-							<p class="text-xs font-black uppercase tracking-[0.18em] text-orange-600">Promoted event performance</p>
-							<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">Advertising snapshot</h2>
+						<div class="min-w-0">
+							<p class="text-[0.65rem] font-black uppercase tracking-[0.14em] text-orange-600 sm:text-xs sm:tracking-[0.18em]">Promotions</p>
+							<h2 class="mt-0.5 truncate text-base font-black text-slate-950 dark:text-slate-50 sm:mt-1 sm:text-xl">Advertising snapshot</h2>
 						</div>
-						<button type="button" onclick={() => (activeManageTab = 'insights')} class="text-sm font-black text-blue-600 dark:text-blue-400">View details</button>
+						<button type="button" onclick={() => (activeManageTab = 'insights')} class="shrink-0 text-xs font-black text-blue-600 dark:text-blue-400 sm:text-sm">Details</button>
 					</div>
-					<div class="mt-4 grid grid-cols-4 gap-2">
+					<div class="mt-3 grid grid-cols-4 gap-2 sm:mt-4">
 						<div>
-							<p class="text-lg font-black text-slate-950 dark:text-slate-50">{totalPromotionViews}</p>
-							<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Views</p>
+							<p class="text-base font-black text-slate-950 dark:text-slate-50 sm:text-lg">{totalPromotionViews}</p>
+							<p class="text-[0.65rem] font-bold text-slate-500 dark:text-slate-400 sm:text-xs">Views</p>
 						</div>
 						<div>
-							<p class="text-lg font-black text-slate-950 dark:text-slate-50">{totalPromotionClicks}</p>
-							<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Clicks</p>
+							<p class="text-base font-black text-slate-950 dark:text-slate-50 sm:text-lg">{totalPromotionClicks}</p>
+							<p class="text-[0.65rem] font-bold text-slate-500 dark:text-slate-400 sm:text-xs">Clicks</p>
 						</div>
 						<div>
-							<p class="text-lg font-black text-slate-950 dark:text-slate-50">{averageCtr.toFixed(1)}%</p>
-							<p class="text-xs font-bold text-slate-500 dark:text-slate-400">CTR</p>
+							<p class="text-base font-black text-slate-950 dark:text-slate-50 sm:text-lg">{averageCtr.toFixed(1)}%</p>
+							<p class="text-[0.65rem] font-bold text-slate-500 dark:text-slate-400 sm:text-xs">CTR</p>
 						</div>
 						<div>
-							<p class="text-lg font-black text-slate-950 dark:text-slate-50">€{totalEstimatedSpend.toFixed(2)}</p>
-							<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Spend</p>
+							<p class="text-base font-black text-slate-950 dark:text-slate-50 sm:text-lg">€{totalEstimatedSpend.toFixed(2)}</p>
+							<p class="text-[0.65rem] font-bold text-slate-500 dark:text-slate-400 sm:text-xs">Spend</p>
 						</div>
 					</div>
 				</div>
 
-				<div class="rounded-[1.7rem] bg-white p-4 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800 sm:p-5">
-					<p class="text-xs font-black uppercase tracking-[0.18em] text-blue-600">Verification</p>
-					<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">{verificationLabel()}</h2>
-					<p class="mt-2 text-sm font-bold text-slate-500 dark:text-slate-400">
+				<div class="rounded-[1.35rem] bg-white p-3 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.7rem] sm:p-5">
+					<p class="text-[0.65rem] font-black uppercase tracking-[0.14em] text-blue-600 sm:text-xs sm:tracking-[0.18em]">Verification</p>
+					<h2 class="mt-0.5 text-base font-black text-slate-950 dark:text-slate-50 sm:mt-1 sm:text-xl">{verificationLabel()}</h2>
+					<p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-sm">
 						Verified organizations can create official paid events and promote events.
 					</p>
-					<button type="button" onclick={() => (activeManageTab = 'insights')} class="mt-4 w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950">
+					<button type="button" onclick={() => (activeManageTab = 'insights')} class="mt-3 w-full rounded-2xl bg-slate-950 px-4 py-2.5 text-xs font-black text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 sm:mt-4 sm:py-3 sm:text-sm">
 						Manage verification
 					</button>
 				</div>
@@ -871,24 +881,34 @@
 						{#each upcomingEvents.slice(0, 2) as event (event.id)}
 							<a
 								href={resolve(`/events/${event.id}`)}
-								class="group flex gap-3 overflow-hidden rounded-[1.2rem] bg-white p-2.5 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.35rem] sm:p-3"
+								class="group flex gap-2.5 overflow-hidden rounded-[1.15rem] bg-white p-2 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800 sm:gap-4 sm:rounded-[1.45rem] sm:p-3.5"
 							>
-								<img src={getManageEventImage(event)} alt="" class="h-16 w-20 shrink-0 rounded-[1rem] object-cover sm:h-20 sm:w-28 sm:rounded-2xl" />
+								<img src={getManageEventImage(event)} alt="" class="h-20 w-20 shrink-0 rounded-[0.95rem] object-cover sm:h-24 sm:w-36 sm:rounded-2xl lg:w-44" />
 								<div class="min-w-0 flex-1">
-									<div class="flex items-start justify-between gap-2">
+									<div class="flex items-start justify-between gap-2 sm:gap-3">
 										<div class="min-w-0">
-											<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">{event.title}</p>
-											<p class="mt-0.5 truncate text-[0.7rem] font-bold text-slate-500 dark:text-slate-400 sm:text-xs">
+											<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base">{event.title}</p>
+											<p class="mt-0.5 truncate text-[0.7rem] font-bold text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-xs">
 												{formatSportLabel(event.sport)} · {formatEventLocation(event)}
 											</p>
 										</div>
-										<span class="shrink-0 rounded-full bg-blue-50 px-2 py-1 text-[0.68rem] font-black text-blue-600 dark:bg-blue-950 dark:text-blue-300">{formatEventCapacity(event)}</span>
+										<div class="shrink-0 text-right">
+											<p class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-600 dark:bg-blue-950 dark:text-blue-300">{formatEventCapacity(event)}</p>
+											<p class="text-[0.68rem] font-bold text-slate-400">players</p>
+										</div>
 									</div>
-									<p class="mt-1 truncate text-[0.7rem] font-bold text-slate-500 dark:text-slate-400 sm:text-xs">{formatEventDate(event.startAt)}</p>
-									<div class="mt-1.5 flex items-center gap-2">
-										<span class={`rounded-full px-2.5 py-1 text-[0.68rem] font-black ${getStatusClasses(event)}`}>{getStatusLabel(event)}</span>
+									<div class="mt-1.5 flex items-center gap-1.5 overflow-hidden sm:gap-2">
+										<span class={`shrink-0 rounded-full px-2 py-0.5 text-[0.62rem] font-black sm:px-2.5 sm:py-1 sm:text-[0.68rem] ${getStatusClasses(event)}`}>{getStatusLabel(event)}</span>
 										{#if isPromotionActive(event)}
-											<span class="rounded-full bg-orange-50 px-2.5 py-1 text-[0.68rem] font-black text-orange-700 dark:bg-orange-950 dark:text-orange-300">Promoted</span>
+											<span class="shrink-0 rounded-full bg-orange-50 px-2 py-0.5 text-[0.62rem] font-black text-orange-700 dark:bg-orange-950 dark:text-orange-300 sm:px-2.5 sm:py-1 sm:text-[0.68rem]">Promoted</span>
+										{/if}
+									</div>
+									<div class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[0.68rem] font-bold text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-xs">
+										<span class="truncate">📅 {formatEventDate(event.startAt)}</span>
+										{#if event.pricePerPerson || event.priceTotal}
+											<span>€ {event.pricePerPerson ?? event.priceTotal}</span>
+										{:else}
+											<span>Free</span>
 										{/if}
 									</div>
 								</div>
@@ -899,16 +919,17 @@
 			</section>
 		{:else if activeManageTab === 'events'}
 			<section id="upcoming-events" class="mt-6 scroll-mt-8">
-				<div class="mb-4 flex items-center justify-between gap-3">
-					<div>
+				<div class="mb-3 flex items-center justify-between gap-3 sm:mb-4">
+					<div class="min-w-0">
 						<h2 class="text-xl font-black text-slate-950 dark:text-slate-50 sm:text-2xl">Events</h2>
-						<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">Promote, inspect and manage organization events.</p>
+						<p class="mt-0.5 truncate text-xs font-bold text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">Promote and manage organization events.</p>
 					</div>
-					<a href={resolve(`/organizations/${organization.id}/events/create`)} class="rounded-2xl bg-blue-600 px-4 py-2 text-xs font-black text-white shadow-sm shadow-blue-600/25 transition hover:bg-blue-700 sm:px-5 sm:py-3 sm:text-sm">
-						Create event
+					<a href={resolve(`/organizations/${organization.id}/events/create`)} class="shrink-0 rounded-2xl bg-blue-600 px-3 py-2 text-xs font-black text-white shadow-sm shadow-blue-600/25 transition hover:bg-blue-700 sm:px-5 sm:py-3 sm:text-sm">
+						<span class="sm:hidden">Create</span>
+						<span class="hidden sm:inline">Create event</span>
 					</a>
 				</div>
-				<div class="mb-4 flex gap-2 overflow-x-auto pb-1">
+				<div class="mb-4 flex gap-2 overflow-x-auto pb-3 pt-0.5">
 					{#each [
 						{ key: 'upcoming', label: 'Upcoming', count: upcomingEvents.length },
 						{ key: 'promoted', label: 'Promoted', count: activePromotedEvents.length },
@@ -918,7 +939,7 @@
 						<button
 							type="button"
 							onclick={() => (eventFilter = filter.key as 'upcoming' | 'promoted' | 'past' | 'all')}
-							class={`shrink-0 rounded-full px-4 py-2 text-sm font-black transition ${
+							class={`shrink-0 rounded-full px-3.5 py-2 text-xs font-black transition sm:px-4 sm:text-sm ${
 								eventFilter === filter.key
 									? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
 									: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:text-blue-600 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-800'
@@ -937,20 +958,14 @@
 						{#each filteredManageEvents as event (event.id)}
 							<a
 								href={resolve(`/events/${event.id}`)}
-								class="group flex gap-3 overflow-hidden rounded-[1.25rem] bg-white p-2.5 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800 sm:gap-4 sm:rounded-[1.45rem] sm:p-3.5"
+							class="group flex gap-2.5 overflow-hidden rounded-[1.15rem] bg-white p-2 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800 sm:gap-4 sm:rounded-[1.45rem] sm:p-3.5"
 							>
-								<img src={getManageEventImage(event)} alt="" class="h-20 w-24 shrink-0 rounded-[1rem] object-cover sm:h-24 sm:w-36 sm:rounded-2xl lg:w-44" />
+								<img src={getManageEventImage(event)} alt="" class="h-20 w-20 shrink-0 rounded-[0.95rem] object-cover sm:h-24 sm:w-36 sm:rounded-2xl lg:w-44" />
 								<div class="min-w-0 flex-1">
-									<div class="flex items-start justify-between gap-3">
+									<div class="flex items-start justify-between gap-2 sm:gap-3">
 										<div class="min-w-0">
-											<div class="flex flex-wrap items-center gap-2">
-												<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base">{event.title}</p>
-												<span class={`rounded-full px-2.5 py-1 text-[0.68rem] font-black ${getStatusClasses(event)}`}>{getStatusLabel(event)}</span>
-												{#if isPromotionActive(event)}
-													<span class="rounded-full bg-orange-50 px-2.5 py-1 text-[0.68rem] font-black text-orange-700 dark:bg-orange-950 dark:text-orange-300">Promoted</span>
-												{/if}
-											</div>
-											<p class="mt-1 truncate text-[0.72rem] font-bold text-slate-500 dark:text-slate-400 sm:text-xs">
+											<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base">{event.title}</p>
+											<p class="mt-0.5 truncate text-[0.7rem] font-bold text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-xs">
 												{formatSportLabel(event.sport)} · {formatEventLocation(event)}
 											</p>
 										</div>
@@ -959,8 +974,14 @@
 											<p class="text-[0.68rem] font-bold text-slate-400">players</p>
 										</div>
 									</div>
-									<div class="mt-2 flex flex-wrap items-center gap-2 text-[0.72rem] font-bold text-slate-500 dark:text-slate-400 sm:text-xs">
-										<span>📅 {formatEventDate(event.startAt)}</span>
+									<div class="mt-1.5 flex items-center gap-1.5 overflow-hidden sm:gap-2">
+										<span class={`shrink-0 rounded-full px-2 py-0.5 text-[0.62rem] font-black sm:px-2.5 sm:py-1 sm:text-[0.68rem] ${getStatusClasses(event)}`}>{getStatusLabel(event)}</span>
+										{#if isPromotionActive(event)}
+											<span class="shrink-0 rounded-full bg-orange-50 px-2 py-0.5 text-[0.62rem] font-black text-orange-700 dark:bg-orange-950 dark:text-orange-300 sm:px-2.5 sm:py-1 sm:text-[0.68rem]">Promoted</span>
+										{/if}
+									</div>
+									<div class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[0.68rem] font-bold text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-xs">
+										<span class="truncate">📅 {formatEventDate(event.startAt)}</span>
 										{#if event.pricePerPerson || event.priceTotal}
 											<span>€ {event.pricePerPerson ?? event.priceTotal}</span>
 										{:else}
@@ -974,74 +995,75 @@
 				{/if}
 			</section>
 		{:else}
-			<section class="mt-6 rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-6">
-				<div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-					<div>
-						<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400 sm:text-sm sm:tracking-[0.25em]">Insights</p>
-						<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:text-2xl">Performance dashboard</h2>
-						<p class="mt-1 text-xs text-slate-500 dark:text-slate-400 sm:text-sm">Track promotion reach, event capacity and organization activity.</p>
+			<section class="mt-5 rounded-[1.35rem] border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:mt-6 sm:rounded-[2rem] sm:p-6">
+				<div class="flex items-start justify-between gap-3">
+					<div class="min-w-0">
+						<p class="text-[0.65rem] font-black uppercase tracking-[0.16em] text-blue-600 dark:text-blue-400 sm:text-sm sm:tracking-[0.25em]">Insights</p>
+						<h2 class="mt-0.5 truncate text-lg font-black text-slate-950 dark:text-slate-50 sm:mt-1 sm:text-2xl">Performance dashboard</h2>
+						<p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">Promotion reach, event capacity and activity.</p>
 					</div>
-					<a href="#upcoming-events" onclick={() => (activeManageTab = 'events')} class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 sm:px-5 sm:py-3 sm:text-base">
-						Choose event to promote
+					<a href="#upcoming-events" onclick={() => (activeManageTab = 'events')} class="shrink-0 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 sm:px-5 sm:py-3 sm:text-base">
+						<span class="sm:hidden">Promote</span>
+						<span class="hidden sm:inline">Choose event to promote</span>
 					</a>
 				</div>
 
-				<div class="mt-4 grid grid-cols-2 gap-2 sm:mt-6 md:grid-cols-4 md:gap-4">
-					<div class="rounded-2xl bg-slate-50 p-3 dark:bg-slate-800 sm:p-4">
-						<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Active</p>
-						<p class="mt-2 text-2xl font-black text-slate-950 dark:text-slate-50">{activePromotedEvents.length}</p>
+				<div class="mt-3 grid grid-cols-2 gap-2 sm:mt-6 md:grid-cols-4 md:gap-4">
+					<div class="rounded-[1.1rem] bg-slate-50 p-2.5 dark:bg-slate-800 sm:rounded-2xl sm:p-4">
+						<p class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Active</p>
+						<p class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl">{activePromotedEvents.length}</p>
 					</div>
-					<div class="rounded-2xl bg-slate-50 p-3 dark:bg-slate-800 sm:p-4">
-						<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Views</p>
-						<p class="mt-2 text-2xl font-black text-slate-950 dark:text-slate-50">{totalPromotionViews}</p>
+					<div class="rounded-[1.1rem] bg-slate-50 p-2.5 dark:bg-slate-800 sm:rounded-2xl sm:p-4">
+						<p class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Views</p>
+						<p class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl">{totalPromotionViews}</p>
 					</div>
-					<div class="rounded-2xl bg-slate-50 p-3 dark:bg-slate-800 sm:p-4">
-						<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Clicks</p>
-						<p class="mt-2 text-2xl font-black text-slate-950 dark:text-slate-50">{totalPromotionClicks}</p>
+					<div class="rounded-[1.1rem] bg-slate-50 p-2.5 dark:bg-slate-800 sm:rounded-2xl sm:p-4">
+						<p class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Clicks</p>
+						<p class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl">{totalPromotionClicks}</p>
 					</div>
-					<div class="rounded-2xl bg-slate-50 p-3 dark:bg-slate-800 sm:p-4">
-						<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">CTR / Spend</p>
-						<p class="mt-2 text-lg font-black text-slate-950 dark:text-slate-50">{averageCtr.toFixed(1)}% · €{totalEstimatedSpend.toFixed(2)}</p>
+					<div class="rounded-[1.1rem] bg-slate-50 p-2.5 dark:bg-slate-800 sm:rounded-2xl sm:p-4">
+						<p class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">CTR / Spend</p>
+						<p class="mt-1 text-base font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-lg">{averageCtr.toFixed(1)}% · €{totalEstimatedSpend.toFixed(2)}</p>
 					</div>
 				</div>
 
 				<div class="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-4">
-					<div class="rounded-2xl bg-slate-50 p-3 dark:bg-slate-800 sm:p-4">
-						<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Total events</p>
-						<p class="mt-2 text-2xl font-black text-slate-950 dark:text-slate-50">{organizationEvents.length}</p>
+					<div class="rounded-[1.1rem] bg-slate-50 p-2.5 dark:bg-slate-800 sm:rounded-2xl sm:p-4">
+						<p class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Total events</p>
+						<p class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl">{organizationEvents.length}</p>
 					</div>
-					<div class="rounded-2xl bg-slate-50 p-3 dark:bg-slate-800 sm:p-4">
-						<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Participants</p>
-						<p class="mt-2 text-2xl font-black text-slate-950 dark:text-slate-50">{totalEventParticipants}</p>
+					<div class="rounded-[1.1rem] bg-slate-50 p-2.5 dark:bg-slate-800 sm:rounded-2xl sm:p-4">
+						<p class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Participants</p>
+						<p class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl">{totalEventParticipants}</p>
 					</div>
-					<div class="rounded-2xl bg-slate-50 p-3 dark:bg-slate-800 sm:p-4">
-						<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Avg fill</p>
-						<p class="mt-2 text-2xl font-black text-slate-950 dark:text-slate-50">{averageFillRate.toFixed(0)}%</p>
+					<div class="rounded-[1.1rem] bg-slate-50 p-2.5 dark:bg-slate-800 sm:rounded-2xl sm:p-4">
+						<p class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Avg fill</p>
+						<p class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl">{averageFillRate.toFixed(0)}%</p>
 					</div>
-					<div class="rounded-2xl bg-slate-50 p-3 dark:bg-slate-800 sm:p-4">
-						<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Past events</p>
-						<p class="mt-2 text-2xl font-black text-slate-950 dark:text-slate-50">{pastEvents.length}</p>
+					<div class="rounded-[1.1rem] bg-slate-50 p-2.5 dark:bg-slate-800 sm:rounded-2xl sm:p-4">
+						<p class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Past events</p>
+						<p class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl">{pastEvents.length}</p>
 					</div>
 				</div>
 
 				{#if activePromotedEvents.length}
-					<div class="mt-6 space-y-3">
+					<div class="mt-4 space-y-2.5 sm:mt-6 sm:space-y-3">
 						{#each activePromotedEvents as promotedEvent (promotedEvent.id)}
 							{@const stats = calculatePromotionStats(promotedEvent)}
-							<div class="rounded-2xl border border-blue-100 bg-white p-4 dark:border-blue-900 dark:bg-slate-900">
-								<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+							<div class="rounded-[1.1rem] border border-blue-100 bg-white p-3 dark:border-blue-900 dark:bg-slate-900 sm:rounded-2xl sm:p-4">
+								<div class="flex flex-col gap-2.5 md:flex-row md:items-center md:justify-between">
 									<div class="min-w-0">
-										<p class="truncate font-black text-slate-950 dark:text-slate-50">{promotedEvent.title}</p>
-										<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-											{promotedEvent.promotionPlan ?? 'boost'} · CPM €{promotedEvent.promotionCpm ?? 0} · remaining {stats.remainingImpressions ?? 0} impressions
+										<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base">{promotedEvent.title}</p>
+										<p class="mt-1 truncate text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
+											{promotedEvent.promotionPlan ?? 'boost'} · {stats.remainingImpressions ?? 0} impressions left
 										</p>
 									</div>
-									<div class="flex flex-wrap gap-2 text-sm font-bold text-slate-500 dark:text-slate-400">
+									<div class="flex flex-wrap gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">
 										<span>{stats.views} views</span>
 										<span>{stats.clicks} clicks</span>
 										<span>{stats.ctr.toFixed(1)}% CTR</span>
 									</div>
-									<button type="button" onclick={() => handleStopPromotion(promotedEvent.id)} disabled={stoppingPromotionId === promotedEvent.id} class="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-800 transition hover:border-red-300 hover:bg-red-50 hover:text-red-700 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-red-900 dark:hover:bg-red-950 dark:hover:text-red-300">
+									<button type="button" onclick={() => handleStopPromotion(promotedEvent.id)} disabled={stoppingPromotionId === promotedEvent.id} class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-800 transition hover:border-red-300 hover:bg-red-50 hover:text-red-700 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-red-900 dark:hover:bg-red-950 dark:hover:text-red-300 sm:px-4 sm:text-sm">
 										{stoppingPromotionId === promotedEvent.id ? 'Stopping...' : 'Stop'}
 									</button>
 								</div>

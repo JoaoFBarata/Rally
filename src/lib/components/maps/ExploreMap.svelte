@@ -14,7 +14,7 @@
 		availableLevels = ['beginner', 'casual', 'intermediate', 'advanced'],
 		selectedSports = [],
 		selectedLevels = [],
-		dateFilter = '30',
+		dateFilter = '7',
 		priceFilter = 'all',
 		maxPrice = 50,
 		highestPrice = 50,

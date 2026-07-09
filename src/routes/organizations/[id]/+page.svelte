@@ -279,6 +279,13 @@
 		return sport.charAt(0).toUpperCase() + sport.slice(1);
 	}
 
+	function getWebsiteHref(website?: string | null) {
+		if (!website) return '';
+		const trimmedWebsite = website.trim();
+		if (!trimmedWebsite) return '';
+		return /^https?:\/\//i.test(trimmedWebsite) ? trimmedWebsite : `https://${trimmedWebsite}`;
+	}
+
 	function toggleOrganizationSport(sport: Sport) {
 		if (selectedOrganizationSports.includes(sport)) {
 			selectedOrganizationSports = selectedOrganizationSports.filter((item) => item !== sport);
@@ -773,6 +780,12 @@
 	});
 </script>
 
+<svelte:head>
+	{#if coverPhotoURL}
+		<link rel="preload" as="image" href={coverPhotoURL} />
+	{/if}
+</svelte:head>
+
 <main class="mx-auto w-full max-w-6xl overflow-x-hidden px-6 pb-28 pt-5 sm:px-6 sm:py-8">
 	{#if loading}
 		<section class="rounded-[2rem] bg-white p-6 shadow-sm dark:bg-slate-900">
@@ -786,9 +799,9 @@
 			{#if !canManage}
 				<div class="-mx-6 -mt-5 sm:-mx-6 sm:-mt-8">
 					<section>
-						<div class="relative h-36 overflow-hidden bg-gradient-to-br from-blue-500 via-blue-700 to-slate-950 shadow-sm sm:h-48 md:h-64">
+						<div class={`relative h-36 overflow-hidden shadow-sm sm:h-48 md:h-64 ${coverPhotoURL ? 'bg-slate-200 dark:bg-slate-900' : 'bg-gradient-to-br from-blue-500 via-blue-700 to-slate-950'}`}>
 							{#if coverPhotoURL}
-								<img src={coverPhotoURL} alt="" class="h-full w-full object-cover" />
+								<img src={coverPhotoURL} alt="" class="h-full w-full object-cover" loading="eager" decoding="async" fetchpriority="high" />
 							{/if}
 							<div class="absolute inset-0 bg-gradient-to-t from-white via-white/10 to-transparent dark:from-slate-950"></div>
 							<button
@@ -828,6 +841,17 @@
 									<span>📍</span>
 									<span class="truncate">{getOrganizationLocation()}</span>
 								</p>
+								{#if organization.website}
+									<a
+										href={getWebsiteHref(organization.website)}
+										target="_blank"
+										rel="noreferrer"
+										class="mt-2 inline-flex max-w-full items-center gap-2 text-sm font-black text-blue-600 transition hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+									>
+										<span aria-hidden="true">↗</span>
+										<span class="truncate">{organization.website.replace(/^https?:\/\//, '')}</span>
+									</a>
+								{/if}
 							</div>
 
 							<div class="mt-4 flex gap-2 overflow-x-auto pb-1">
@@ -882,20 +906,22 @@
 								</div>
 							{/if}
 
-							<div class="mt-5 grid grid-cols-3 gap-2">
-								<button type="button" onclick={toggleFollow} disabled={actionLoading} class="rounded-2xl bg-blue-600 px-3 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:opacity-60">
-									{actionLoading ? '...' : following ? 'Following' : '+ Follow'}
+							<div class="mt-5 grid grid-cols-[1.15fr_1fr_auto] gap-2">
+								<button type="button" onclick={toggleFollow} disabled={actionLoading} class={`rounded-xl px-3 py-2.5 text-sm font-black transition disabled:opacity-60 sm:rounded-2xl sm:py-3 ${following ? 'bg-slate-100 text-slate-950 ring-1 ring-slate-200 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-50 dark:ring-slate-800 dark:hover:bg-slate-800' : 'bg-blue-600 text-white shadow-sm shadow-blue-600/20 hover:bg-blue-700'}`}>
+									{actionLoading ? '...' : following ? 'Following' : 'Follow'}
 								</button>
-								<button type="button" onclick={messageOrganization} disabled={messageLoading} class="rounded-2xl border border-blue-200 bg-white px-3 py-3 text-sm font-black text-blue-700 transition hover:bg-blue-50 disabled:opacity-60 dark:border-blue-900 dark:bg-slate-950 dark:text-blue-300 dark:hover:bg-blue-950">
+								<button type="button" onclick={messageOrganization} disabled={messageLoading} class="rounded-xl bg-slate-100 px-3 py-2.5 text-sm font-black text-slate-950 transition hover:bg-slate-200 disabled:opacity-60 dark:bg-slate-900 dark:text-slate-50 dark:hover:bg-slate-800 sm:rounded-2xl sm:py-3">
 									{messageLoading ? '...' : 'Message'}
 								</button>
 								{#if galleryPhotoURLs.length > 0}
-									<button type="button" onclick={() => openGallery()} class="rounded-2xl bg-orange-500 px-3 py-3 text-center text-sm font-black text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600">
-										Photos
+									<button type="button" onclick={() => openGallery()} class="rounded-xl bg-slate-100 px-3 py-2.5 text-center text-sm font-black text-slate-950 transition hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-50 dark:hover:bg-slate-800 sm:rounded-2xl sm:py-3" aria-label="Open photos">
+										<span class="sm:hidden">📷</span>
+										<span class="hidden sm:inline">Photos</span>
 									</button>
 								{:else}
-									<a href="#organization-reviews" class="rounded-2xl bg-orange-500 px-3 py-3 text-center text-sm font-black text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600">
-										Reviews
+									<a href="#organization-reviews" class="rounded-xl bg-slate-100 px-3 py-2.5 text-center text-sm font-black text-slate-950 transition hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-50 dark:hover:bg-slate-800 sm:rounded-2xl sm:py-3" aria-label="Go to reviews">
+										<span class="sm:hidden">★</span>
+										<span class="hidden sm:inline">Reviews</span>
 									</a>
 								{/if}
 							</div>
@@ -953,7 +979,7 @@
 										<a href={`tel:${organization.phone}`} class="rounded-full bg-slate-50 px-3 py-2 text-slate-700 transition hover:text-blue-600 dark:bg-slate-900 dark:text-slate-200">📞 {organization.phone}</a>
 									{/if}
 									{#if organization.website}
-										<a href={organization.website} target="_blank" rel="noreferrer" class="rounded-full bg-blue-50 px-3 py-2 text-blue-700 dark:bg-blue-950 dark:text-blue-300">Website</a>
+										<a href={getWebsiteHref(organization.website)} target="_blank" rel="noreferrer" class="rounded-full bg-blue-50 px-3 py-2 text-blue-700 dark:bg-blue-950 dark:text-blue-300">Website</a>
 									{/if}
 								</div>
 							</div>
@@ -1092,9 +1118,9 @@
 				</div>
 			{:else}
 		<section class="-mx-6 -mt-5 sm:-mx-6 sm:-mt-8">
-			<div class="relative h-36 overflow-hidden bg-gradient-to-br from-blue-500 via-blue-700 to-slate-950 shadow-sm sm:h-48 md:h-64">
+			<div class={`relative h-36 overflow-hidden shadow-sm sm:h-48 md:h-64 ${coverPhotoURL ? 'bg-slate-200 dark:bg-slate-900' : 'bg-gradient-to-br from-blue-500 via-blue-700 to-slate-950'}`}>
 				{#if coverPhotoURL}
-					<img src={coverPhotoURL} alt="" class="h-full w-full object-cover" />
+					<img src={coverPhotoURL} alt="" class="h-full w-full object-cover" loading="eager" decoding="async" fetchpriority="high" />
 				{/if}
 				<div class="absolute inset-0 bg-gradient-to-t from-white via-white/10 to-transparent dark:from-slate-950"></div>
 				<input
@@ -1153,7 +1179,7 @@
 							<span class="truncate">{getOrganizationLocation()}</span>
 						</span>
 						{#if organization.website}
-							<a href={organization.website} target="_blank" rel="noreferrer" class="inline-flex max-w-full items-center gap-2 rounded-full bg-blue-50 px-3 py-2 text-blue-700 ring-1 ring-blue-100 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:ring-blue-900">
+							<a href={getWebsiteHref(organization.website)} target="_blank" rel="noreferrer" class="inline-flex max-w-full items-center gap-2 rounded-full bg-blue-50 px-3 py-2 text-blue-700 ring-1 ring-blue-100 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:ring-blue-900">
 								<span>↗</span>
 								<span class="truncate">{organization.website.replace(/^https?:\/\//, '')}</span>
 							</a>
@@ -1292,7 +1318,7 @@
 							<a href={`tel:${organization.phone}`} class="rounded-full bg-slate-50 px-3 py-2 text-slate-700 transition hover:text-blue-600 dark:bg-slate-900 dark:text-slate-200">📞 {organization.phone}</a>
 						{/if}
 						{#if organization.website}
-							<a href={organization.website} target="_blank" rel="noreferrer" class="rounded-full bg-blue-50 px-3 py-2 text-blue-700 dark:bg-blue-950 dark:text-blue-300">Website</a>
+							<a href={getWebsiteHref(organization.website)} target="_blank" rel="noreferrer" class="rounded-full bg-blue-50 px-3 py-2 text-blue-700 dark:bg-blue-950 dark:text-blue-300">Website</a>
 						{/if}
 					</div>
 				</div>
