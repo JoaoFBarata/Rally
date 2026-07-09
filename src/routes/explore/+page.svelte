@@ -35,6 +35,7 @@
 	let selectedSports = $state<Sport[]>([]);
 	let selectedLevels = $state<SportLevel[]>([]);
 	let dateFilter = $state<DateFilter>('7');
+	let dateFilterManuallyChanged = $state(false);
 	let priceFilter = $state<PriceFilter>('all');
 	let maxPrice = $state(50);
 	let audienceFilter = $state<AudienceFilter>('all');
@@ -64,13 +65,20 @@
 		{ value: 'joined' as const, label: 'Joined' }
 	];
 
+	let allExploreEvents = $derived.by(() => {
+		const eventsById = new Map<string, SportEvent>();
+		for (const event of events) eventsById.set(event.id, event);
+		for (const event of promotedCampaignEvents) eventsById.set(event.id, event);
+		return Array.from(eventsById.values());
+	});
+
 	let availableSports = $derived.by((): Sport[] => {
-		const sports = events.map((event) => event.sport);
+		const sports = allExploreEvents.map((event) => event.sport);
 		return [...new Set<Sport>(sports)].sort();
 	});
 
 	let highestPrice = $derived.by(() => {
-		const prices = events
+		const prices = allExploreEvents
 			.map((event) => event.pricePerPerson ?? 0)
 			.filter((price) => price > 0);
 		return Math.max(10, Math.ceil(Math.max(...prices, 0)));
@@ -97,6 +105,14 @@
 		const now = new Date();
 		const eventDate = new Date(startAtMs);
 
+		if (
+			!dateFilterManuallyChanged &&
+			dateFilter === defaultDateFilter &&
+			event.visibility === 'public' &&
+			isPromotionActive(event)
+		) {
+			return startAtMs >= Date.now();
+		}
 		if (dateFilter === 'all') return startAtMs >= Date.now();
 		if (dateFilter === 'today') {
 			return (
@@ -130,7 +146,7 @@
 	let filteredEvents = $derived.by(() => {
 		const term = searchTerm.toLocaleLowerCase('pt-PT');
 
-		return events.filter((event) => {
+		return allExploreEvents.filter((event) => {
 			const matchesSearch =
 				!term ||
 				[
@@ -216,6 +232,7 @@
 
 	function setDateFilter(value: DateFilter) {
 		dateFilter = value;
+		dateFilterManuallyChanged = true;
 		clearSelectedEvent();
 		if (currentUserId) void loadExploreData(currentUserId);
 	}
@@ -240,6 +257,7 @@
 		selectedSports = [];
 		selectedLevels = [];
 		dateFilter = defaultDateFilter;
+		dateFilterManuallyChanged = false;
 		priceFilter = defaultPriceFilter;
 		audienceFilter = defaultAudienceFilter;
 		maxPrice = highestPrice;
