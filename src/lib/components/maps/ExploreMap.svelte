@@ -242,7 +242,7 @@
 		if (!coords || !PUBLIC_MAPBOX_ACCESS_TOKEN) return '';
 
 		const { lat, lng } = coords;
-		const marker = `pin-s+2563eb(${lng},${lat})`;
+		const marker = `pin-s+00B4D8(${lng},${lat})`;
 		return `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${marker}/${lng},${lat},13,0/180x140@2x?access_token=${PUBLIC_MAPBOX_ACCESS_TOKEN}`;
 	}
 
@@ -276,7 +276,7 @@
 
 	function getMarkerColor(event: SportEvent) {
 		if (event.creatorId === currentUserId) {
-			return '#2563eb'; // Blue - My events
+			return '#00B4D8'; // Blue - My events
 		}
 		if (friendIds.includes(event.creatorId)) {
 			return '#ca8a04'; // Yellow - Friends' events
@@ -499,7 +499,7 @@
 	>
 		{#if currentUserId}
 			<div class="flex items-center gap-1.5">
-				<span class="h-2.5 w-2.5 rounded-full bg-blue-600"></span>
+				<span class="h-2.5 w-2.5 rounded-full bg-[#00B4D8]"></span>
 				<span>My events</span>
 			</div>
 		{/if}

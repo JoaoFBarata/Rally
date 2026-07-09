@@ -253,7 +253,7 @@
 
 				const getMarkerColor = (ev: SportEvent) => {
 					if (ev.creatorId === userId) {
-						return '#2563eb'; // Blue - My events
+						return '#00B4D8'; // Blue - My events
 					}
 					return '#64748b'; // Gray - Public/other events
 				};
@@ -309,7 +309,7 @@
 
 				const getMarkerColor = (ev: SportEvent) => {
 					if (ev.creatorId === userId) {
-						return '#2563eb'; // Blue - My events
+						return '#00B4D8'; // Blue - My events
 					}
 					return '#64748b'; // Gray - Public/other events
 				};
