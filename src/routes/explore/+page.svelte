@@ -143,6 +143,19 @@
 		return true;
 	}
 
+	function getPromotedContextScore(event: SportEvent) {
+		let score = 0;
+		const targetSport = event.promotionTargetSport ?? event.sport;
+
+		if (selectedSports.includes(targetSport)) score += 80;
+		if (profile?.sports?.includes(targetSport)) score += 45;
+		if (event.promotionPlan === 'sport') score += 24;
+		if (event.promotionPlan === 'local') score += 16;
+		if (event.promotionPlan === 'featured') score += 8;
+
+		return score;
+	}
+
 	let filteredEvents = $derived.by(() => {
 		const term = searchTerm.toLocaleLowerCase('pt-PT');
 
@@ -195,7 +208,12 @@
 			}
 		}
 
-		return Array.from(eventsById.values());
+		return Array.from(eventsById.values()).sort((a, b) => {
+			const scoreDiff = getPromotedContextScore(b) - getPromotedContextScore(a);
+			if (scoreDiff !== 0) return scoreDiff;
+
+			return getEventStartAtMillis(a) - getEventStartAtMillis(b);
+		});
 	});
 	let refreshing = false;
 

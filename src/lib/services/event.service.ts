@@ -52,22 +52,22 @@ export const PROMOTION_PLANS: Record<
 	}
 > = {
 	local: {
-		label: 'Local Boost',
-		description: 'Shows the event first to people in the selected country/city.',
+		label: 'Regional Boost',
+		description: 'Shows the event in promoted areas for the selected country or city.',
 		cpm: 7,
-		placement: 'Local and country discovery'
+		placement: 'Dashboard and Explore in the selected area'
 	},
 	sport: {
-		label: 'Sport Boost',
-		description: 'Most efficient: targets people who already like this sport.',
-		cpm: 9,
-		placement: 'Sport-matched recommendations'
+		label: 'Sport Targeting',
+		description: 'Regional boost plus priority for people who like or filter this sport.',
+		cpm: 11,
+		placement: 'Top of sport-matched discovery'
 	},
 	featured: {
-		label: 'Featured Boost',
-		description: 'Broadest reach: appears in top promoted sections for the selected country.',
-		cpm: 5,
-		placement: 'Top promoted placement'
+		label: 'Legacy Featured',
+		description: 'Older broad campaign type. New campaigns should use Regional or Sport Targeting.',
+		cpm: 7,
+		placement: 'Legacy promoted placement'
 	}
 };
 
@@ -83,6 +83,13 @@ export const PROMOTION_COUNTRIES = [
 
 export function getPromotionPlanConfig(plan: EventPromotionPlan) {
 	return PROMOTION_PLANS[plan];
+}
+
+export function getAvailablePromotionPlanOptions() {
+	return (Object.entries(PROMOTION_PLANS) as [
+		EventPromotionPlan,
+		(typeof PROMOTION_PLANS)[EventPromotionPlan]
+	][]).filter(([plan]) => plan !== 'featured');
 }
 
 export function calculatePromotionImpressionLimit(params: { budget: number; cpm: number }) {

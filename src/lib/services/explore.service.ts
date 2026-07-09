@@ -68,22 +68,22 @@ function promotionWeight(event: SportEvent, profile?: UserProfile | null) {
 
 	if (targetCountry !== userCountry) return 0;
 
-	if (event.promotionPlan === 'featured') return 30;
+	if (event.promotionPlan === 'featured') return 14;
 
 	if (event.promotionPlan === 'sport') {
 		const targetSport = event.promotionTargetSport ?? event.sport;
-		if (!profile || !profile.sports?.length) return 12;
-		return profile.sports.includes(targetSport) ? 24 : 0;
+		if (!profile || !profile.sports?.length) return 16;
+		return profile.sports.includes(targetSport) ? 32 : 10;
 	}
 
 	if (event.promotionPlan === 'local') {
 		if (!profile) return 12;
-		if (!event.promotionTargetCity) return 12;
+		if (!event.promotionTargetCity) return 14;
 		// Older campaigns used the venue name as a city fallback. Treat those as country-wide.
 		if (normalizeTarget(event.promotionTargetCity) === normalizeTarget(event.location.name))
-			return 12;
-		if (!profile.city) return 8;
-		return isSamePlace(event.promotionTargetCity, profile.city) ? 18 : 6;
+			return 14;
+		if (!profile.city) return 10;
+		return isSamePlace(event.promotionTargetCity, profile.city) ? 22 : 8;
 	}
 
 	return 0;

@@ -131,6 +131,11 @@
 		return event.sport.charAt(0).toUpperCase() + event.sport.slice(1);
 	}
 
+	function formatHeroLocation() {
+		const address = event.location?.address?.trim();
+		return address || 'Location not set';
+	}
+
 	function getHeroBackgroundClasses() {
 		const backgrounds: Record<string, string> = {
 			football: 'from-emerald-700 via-blue-700 to-slate-950',
@@ -226,8 +231,8 @@
 			miniHero
 				? 'min-h-[7.8rem] sm:min-h-[11.5rem]'
 				: compactHero
-					? 'min-h-[10.5rem] sm:min-h-[13rem]'
-					: 'min-h-[12rem] sm:min-h-[18rem]'
+					? 'min-h-[10rem] sm:min-h-[12.25rem]'
+					: 'min-h-[11.5rem] sm:min-h-[16.5rem]'
 		}`}
 	>
 		<div class="absolute inset-0 opacity-70">
@@ -262,7 +267,7 @@
 			</div>
 
 			<div>
-				<div class={`${miniHero ? 'mb-1.5 sm:mb-3' : 'mb-3'} flex flex-wrap gap-2`}>
+				<div class={`${miniHero ? 'mb-1.5 sm:mb-3' : compactHero ? 'mb-2' : 'mb-3'} flex flex-wrap gap-2`}>
 					<span class={`rounded-full bg-white/15 font-black backdrop-blur ${miniHero ? 'px-2 py-0.5 text-[10px] sm:px-3 sm:py-1 sm:text-xs' : 'px-3 py-1 text-xs'}`}>
 						{formatSportLabel()}
 					</span>
@@ -275,7 +280,7 @@
 					{event.title}
 				</h3>
 				<p class={`${miniHero ? 'mt-1 text-xs sm:mt-2 sm:text-sm' : 'mt-2 text-sm'} truncate font-bold text-white/80`}>
-					{event.location.name}
+					{formatHeroLocation()}
 				</p>
 
 				<div class={`${miniHero ? 'mt-2 sm:mt-4' : 'mt-3 sm:mt-4'} flex items-center justify-between gap-3`}>

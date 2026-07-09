@@ -12,6 +12,7 @@
 		calculatePromotionStats,
 		ensureEventGroupConversation,
 		finishEvent,
+		getAvailablePromotionPlanOptions,
 		getEventById,
 		getEventGroupConversationId,
 		getEffectiveEventStatus,
@@ -200,12 +201,7 @@
 
 	let contactLoading = $state(false);
 
-	let promotionPlanOptions = $derived(
-		Object.entries(PROMOTION_PLANS) as [
-			EventPromotionPlan,
-			(typeof PROMOTION_PLANS)[EventPromotionPlan]
-		][]
-	);
+	let promotionPlanOptions = $derived(getAvailablePromotionPlanOptions());
 
 	let selectedPromotionPlan = $derived(PROMOTION_PLANS[promotionPlan]);
 

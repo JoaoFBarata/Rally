@@ -2,9 +2,18 @@
 	import type { SportEvent } from '$lib/schema';
 	import EventCard from '$lib/components/EventCard.svelte';
 
-	let { events, cardVariant = 'default' } = $props<{
+	let {
+		events,
+		cardVariant = 'default',
+		compactHero = false,
+		miniHero = false,
+		heroCtaLabel = 'View event'
+	} = $props<{
 		events: SportEvent[];
-		cardVariant?: 'default' | 'profile';
+		cardVariant?: 'default' | 'profile' | 'hero';
+		compactHero?: boolean;
+		miniHero?: boolean;
+		heroCtaLabel?: string;
 	}>();
 	let currentIndex = $state(0);
 	let currentEvent = $derived(events.length ? events[currentIndex % events.length] : null);
@@ -36,7 +45,13 @@
 {#if currentEvent}
 	<div class="space-y-3">
 		{#key currentEvent.id}
-			<EventCard event={currentEvent} variant={cardVariant} />
+			<EventCard
+				event={currentEvent}
+				variant={cardVariant}
+				{compactHero}
+				{miniHero}
+				{heroCtaLabel}
+			/>
 		{/key}
 
 		{#if events.length > 1}

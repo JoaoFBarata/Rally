@@ -113,6 +113,15 @@
 	let currentNearbyEvent = $derived(
 		nearbyEvents.length ? nearbyEvents[nearbyIndex % nearbyEvents.length] : null
 	);
+	let dashboardPromotedEvents = $derived.by(() => {
+		const excluded = (event: SportEvent) =>
+			userEventIds.has(event.id) ||
+			event.participantIds.includes(user?.uid ?? '') ||
+			event.creatorId === user?.uid ||
+			isEventFinished(event);
+
+		return visiblePromotedEvents.filter((event) => !excluded(event)).slice(0, 6);
+	});
 	let recommendedEvents = $derived.by(() => {
 		const excluded = (event: SportEvent) =>
 			userEventIds.has(event.id) ||
@@ -121,14 +130,16 @@
 			isEventFinished(event);
 
 		const sports = profile?.sports ?? [];
-		const promoted = visiblePromotedEvents.filter((event) => !excluded(event));
 		const preferredEvents = publicEvents
 			.filter((event) => event.visibility === 'public')
 			.filter((event) => !excluded(event))
 			.filter((event) => sports.includes(event.sport))
-			.filter((event) => !promoted.some((promotedEvent) => promotedEvent.id === event.id));
+			.filter(
+				(event) =>
+					!dashboardPromotedEvents.some((promotedEvent) => promotedEvent.id === event.id)
+			);
 
-		return [...promoted, ...preferredEvents].slice(0, 8);
+		return preferredEvents.slice(0, 8);
 	});
 	let hasFavoriteSports = $derived((profile?.sports?.length ?? 0) > 0);
 
@@ -633,7 +644,95 @@
 				{/if}
 			</section>
 
-			<section class="mt-6 grid gap-5 lg:grid-cols-[1fr_300px]">
+			{#if friends.length > 0}
+				<section class="mt-6 space-y-3">
+					<div class="flex items-end justify-between gap-4">
+						<div>
+							<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">
+								Friends up for something
+							</h2>
+							<p class="text-sm font-semibold text-slate-500 dark:text-slate-400">
+								Invite someone to your next game.
+							</p>
+						</div>
+						<a
+							href={resolve('/profile')}
+							class="shrink-0 text-sm font-black text-blue-600 dark:text-blue-400"
+						>
+							See all
+						</a>
+					</div>
+
+					<div class="-mx-4 flex gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
+						{#each friends.slice(0, 8) as friend (friend.id)}
+							<a
+								href={resolve(`/users/${friend.id}`)}
+								class="w-16 shrink-0 text-center transition hover:-translate-y-0.5 hover:opacity-90 sm:w-20"
+							>
+								<div class="flex justify-center">
+									<UserAvatar
+										photoURL={friend.photoURL}
+										displayName={friend.displayName}
+										email={friend.email}
+										size="lg"
+										plain
+									/>
+								</div>
+								<p class="mt-2 truncate text-xs font-black text-slate-800 dark:text-slate-100">
+									{friend.displayName}
+								</p>
+								<p class="text-[11px] font-bold text-slate-500 dark:text-slate-400">Friend</p>
+							</a>
+						{/each}
+
+						<a
+							href={resolve('/friends/add')}
+							class="w-16 shrink-0 text-center transition hover:-translate-y-0.5 hover:opacity-90 sm:w-20"
+						>
+							<span class="mx-auto grid h-14 w-14 place-items-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 sm:h-16 sm:w-16">
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+									<path d="M12 5v14" />
+									<path d="M5 12h14" />
+								</svg>
+							</span>
+							<p class="mt-2 text-xs font-black text-slate-800 dark:text-slate-100">Invite</p>
+							<p class="text-[11px] font-bold text-slate-500 dark:text-slate-400">Friends</p>
+						</a>
+					</div>
+				</section>
+			{/if}
+
+			{#if dashboardPromotedEvents.length > 0}
+				<section class="mt-6 space-y-3">
+					<div class="flex items-end justify-between gap-4">
+						<div>
+							<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">
+								Sponsored
+							</p>
+							<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">
+								Promoted for you
+							</h2>
+						</div>
+						<a
+							href={resolve('/explore')}
+							class="shrink-0 text-sm font-black text-blue-600 dark:text-blue-400"
+						>
+							View all
+						</a>
+					</div>
+
+					<div class="max-w-2xl">
+						<PromotedEventCarousel
+							events={dashboardPromotedEvents}
+							cardVariant="hero"
+							compactHero
+							heroCtaLabel="View event"
+						/>
+					</div>
+				</section>
+			{/if}
+
+			<section class="mt-6 space-y-3">
 				<div class="min-w-0 space-y-3">
 					<div class="flex flex-wrap items-end justify-between gap-3">
 						<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Discover</h2>
@@ -719,7 +818,7 @@
 									: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
 							}`}
 						>
-							{visiblePromotedEvents.length > 0 ? 'Promoted' : 'For you'}
+							For you
 							{#if discoverTab === 'recommended'}
 								<span class="absolute bottom-0 left-0 right-5 h-0.5 rounded-full bg-slate-950 dark:bg-white"></span>
 							{/if}
@@ -784,7 +883,7 @@
 							</p>
 							<p class="mt-1 text-slate-500 dark:text-slate-400">
 								{hasFavoriteSports
-									? 'Promoted events and events matching your sports will appear here.'
+									? 'Events matching your favourite sports will appear here.'
 									: 'Go to your profile and select sports so Rally can recommend better events.'}
 							</p>
 							{#if !hasFavoriteSports}
@@ -796,39 +895,6 @@
 					{/if}
 				</div>
 
-				<div class="space-y-3 rounded-[1.5rem] border border-slate-200 bg-white/60 p-4 dark:border-slate-800 dark:bg-slate-900/60">
-					<div class="flex items-center justify-between gap-2">
-						<h3 class="text-sm font-black text-slate-950 dark:text-slate-50">Friends</h3>
-						<a href={resolve('/profile')} class="shrink-0 text-xs font-black text-blue-600 dark:text-blue-400">See all</a>
-					</div>
-
-					<div class="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
-						{#each friends.slice(0, 8) as friend (friend.id)}
-							<a
-								href={resolve(`/users/${friend.id}`)}
-								class="flex items-center gap-3 py-2.5 transition hover:opacity-80"
-							>
-								<UserAvatar photoURL={friend.photoURL} displayName={friend.displayName} email={friend.email} size="sm" />
-								<p class="min-w-0 flex-1 truncate text-sm font-bold text-slate-800 dark:text-slate-200">
-									{friend.displayName}
-								</p>
-							</a>
-						{/each}
-
-						<a
-							href={resolve('/friends/add')}
-							class="flex items-center gap-3 py-2.5 transition hover:opacity-80"
-						>
-							<span class="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
-									<path d="M12 5v14" />
-									<path d="M5 12h14" />
-								</svg>
-							</span>
-							<p class="text-sm font-bold text-slate-800 dark:text-slate-200">Invite friends</p>
-						</a>
-					</div>
-				</div>
 			</section>
 
 			<section class="mt-6 space-y-4">

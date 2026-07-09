@@ -20,8 +20,8 @@
 	} from '$lib/services/organization.service';
 	import {
 		createSportEvent,
+		getAvailablePromotionPlanOptions,
 		PROMOTION_COUNTRIES,
-		PROMOTION_PLANS,
 		promoteEvent
 	} from '$lib/services/event.service';
 	import LocationPickerMap from '$lib/components/maps/LocationPickerMap.svelte';
@@ -86,10 +86,7 @@
 		{ value: 'advanced', label: 'Advanced' }
 	];
 
-	const promotionPlanOptions = Object.entries(PROMOTION_PLANS) as [
-		EventPromotionPlan,
-		(typeof PROMOTION_PLANS)[EventPromotionPlan]
-	][];
+	const promotionPlanOptions = getAvailablePromotionPlanOptions();
 
 	let isVerified = $derived(organization ? canCreateOfficialPaidEvents(organization) : false);
 
