@@ -7,13 +7,14 @@
 	import { onAuthStateChanged } from 'firebase/auth';
 	import { auth } from '$lib/firebase';
 	import { authService } from '$lib/services/auth.service';
-	import type { Organization, OrganizationType, SportEvent, UserProfile } from '$lib/schema';
-	import EventCard from '$lib/components/EventCard.svelte';
+	import type { EventStatus, Organization, OrganizationType, SportEvent, UserProfile } from '$lib/schema';
 	import LocationPickerMap from '$lib/components/maps/LocationPickerMap.svelte';
+	import NavIcon from '$lib/components/NavIcon.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import {
 		assertCanManageOrganization,
+		getOrganizationFollowerIds,
 		requestOrganizationVerification,
 		updateOrganizationProfile
 	} from '$lib/services/organization.service';
@@ -40,6 +41,7 @@
 
 	let organization = $state<Organization | null>(null);
 	let organizationEvents = $state<SportEvent[]>([]);
+	let followerIds = $state<string[]>([]);
 
 	let loading = $state(true);
 	let saving = $state(false);
@@ -54,6 +56,8 @@
 	let showAccountSwitcher = $state(false);
 	let deviceAccounts = $state<DeviceAccount[]>([]);
 	let switchingAccountId = $state<string | null>(null);
+	let activeManageTab = $state<'overview' | 'events' | 'insights'>('overview');
+	let eventFilter = $state<'upcoming' | 'promoted' | 'past' | 'all'>('upcoming');
 
 	let error = $state('');
 	let success = $state('');
@@ -89,6 +93,24 @@
 	let stoppingPromotionId = $state('');
 
 	let activePromotedEvents = $derived(upcomingEvents.filter((event) => isPromotionActive(event)));
+	let displayedFollowersCount = $derived(
+		Math.max(organization?.followersCount ?? 0, followerIds.length)
+	);
+	let filteredManageEvents = $derived.by(() => {
+		if (eventFilter === 'promoted') return activePromotedEvents;
+		if (eventFilter === 'past') return pastEvents;
+		if (eventFilter === 'all') return organizationEvents;
+		return upcomingEvents;
+	});
+	let totalEventCapacity = $derived(
+		organizationEvents.reduce((sum, event) => sum + getMaxEventCapacity(event), 0)
+	);
+	let totalEventParticipants = $derived(
+		organizationEvents.reduce((sum, event) => sum + (event.participantIds?.length ?? 0), 0)
+	);
+	let averageFillRate = $derived(
+		totalEventCapacity > 0 ? (totalEventParticipants / totalEventCapacity) * 100 : 0
+	);
 
 	let totalPromotionViews = $derived(
 		organizationEvents.reduce((sum, event) => sum + (event.promotionViews ?? 0), 0)
@@ -178,6 +200,81 @@
 		return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300';
 	}
 
+	function getTimestampMillis(value: unknown) {
+		try {
+			const timestamp = value as { toDate?: () => Date; toMillis?: () => number };
+			if (timestamp?.toMillis) return timestamp.toMillis();
+			if (timestamp?.toDate) return timestamp.toDate().getTime();
+		} catch {
+			// fall through
+		}
+
+		return 0;
+	}
+
+	function getEffectiveStatus(event: SportEvent): EventStatus {
+		if (event.status === 'cancelled') return 'cancelled';
+		if (event.status === 'finished') return 'finished';
+		const finishAtMs = getTimestampMillis(event.endAt) || getTimestampMillis(event.startAt);
+		if (finishAtMs && finishAtMs < Date.now()) return 'finished';
+		return event.status;
+	}
+
+	function getStatusLabel(event: SportEvent) {
+		const status = getEffectiveStatus(event);
+		if (status === 'cancelled') return 'Cancelled';
+		if (status === 'finished') return 'Finished';
+		if (status === 'full') return 'Full';
+		if (event.eventKind === 'tournament') return 'Tournament';
+		return 'Upcoming';
+	}
+
+	function getStatusClasses(event: SportEvent) {
+		const status = getEffectiveStatus(event);
+		if (status === 'cancelled') return 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300';
+		if (status === 'finished') return 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300';
+		if (isPromotionActive(event)) return 'bg-orange-50 text-orange-700 dark:bg-orange-950 dark:text-orange-300';
+		return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300';
+	}
+
+	function formatEventDate(dateValue: unknown) {
+		try {
+			const timestamp = dateValue as { toDate?: () => Date };
+			if (!timestamp?.toDate) return 'Date not set';
+			return timestamp.toDate().toLocaleString('en-GB', {
+				weekday: 'short',
+				day: '2-digit',
+				month: 'short',
+				hour: '2-digit',
+				minute: '2-digit'
+			});
+		} catch {
+			return 'Date not set';
+		}
+	}
+
+	function formatEventCapacity(event: SportEvent) {
+		return `${event.participantIds?.length ?? 0}/${getMaxEventCapacity(event)}`;
+	}
+
+	function getMaxEventCapacity(event: SportEvent) {
+		return event.eventKind === 'tournament'
+			? (event.maxTournamentEntries ?? event.maxParticipants ?? 0)
+			: (event.maxParticipants ?? 0);
+	}
+
+	function formatSportLabel(sport: string) {
+		return sport.charAt(0).toUpperCase() + sport.slice(1);
+	}
+
+	function getManageEventImage(event: SportEvent) {
+		return event.groupPhotoURL || `/event-backgrounds/${event.sport || 'other'}.png`;
+	}
+
+	function formatEventLocation(event: SportEvent) {
+		return event.location?.name || event.location?.address || 'Location not set';
+	}
+
 	async function loadManagePage(userId: string) {
 		loading = true;
 		error = '';
@@ -193,10 +290,14 @@
 				userId
 			});
 
-			const loadedEvents = await getEventsCreatedByOrganization(loadedOrganization.id);
+			const [loadedEvents, loadedFollowerIds] = await Promise.all([
+				getEventsCreatedByOrganization(loadedOrganization.id),
+				getOrganizationFollowerIds(loadedOrganization.id)
+			]);
 
 			organization = loadedOrganization;
 			organizationEvents = loadedEvents;
+			followerIds = loadedFollowerIds;
 			resetForm(loadedOrganization);
 		} catch (err) {
 			console.error('Organization manage error:', err);
@@ -467,7 +568,7 @@
 			showSettingsModal = false;
 			showAccountSwitcher = false;
 			await authService.logout();
-			await goto(resolve('/login'));
+			await goto(resolve('/login?returnTo=/dashboard'));
 		} finally {
 			logoutLoading = false;
 		}
@@ -493,13 +594,18 @@
 				deviceAccounts = getDeviceAccounts();
 				showSettingsModal = false;
 				showAccountSwitcher = false;
+				await goto(getPostSwitchHref(account));
 				return;
 			}
 
 			await authService.logout();
 			showSettingsModal = false;
 			showAccountSwitcher = false;
-			await goto(resolve(`/login?email=${encodeURIComponent(account.email)}`));
+			await goto(
+				resolve(
+					`/login?returnTo=${encodeURIComponent(getPostSwitchHref(account))}&email=${encodeURIComponent(account.email)}`
+				)
+			);
 		} finally {
 			logoutLoading = false;
 			switchingAccountId = null;
@@ -508,6 +614,13 @@
 
 	function handleForgetDeviceAccount(accountId: string) {
 		deviceAccounts = removeDeviceAccount(accountId);
+	}
+
+	function getPostSwitchHref(account?: DeviceAccount | null) {
+		if (account?.accountType === 'organization' && account.activeOrganizationId) {
+			return `/organizations/${account.activeOrganizationId}/manage`;
+		}
+		return '/dashboard';
 	}
 
 	async function handleStopPromotion(eventId: string) {
@@ -579,7 +692,7 @@
 			{error}
 		</section>
 	{:else if organization}
-		<section class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+		<section class="relative flex flex-col gap-3 pr-12 md:flex-row md:items-center md:justify-between md:pr-0">
 			<div class="flex min-w-0 items-center gap-3 sm:gap-4">
 				<div
 					class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[1.35rem] bg-slate-100 text-xl font-black text-blue-600 shadow-sm dark:bg-slate-800 dark:text-blue-300 sm:h-20 sm:w-20 sm:rounded-[1.8rem] sm:text-3xl"
@@ -614,26 +727,13 @@
 				</div>
 			</div>
 
-			<div
-				class="flex flex-wrap items-center gap-2 sm:justify-end sm:gap-3"
+			<a
+				href={resolve('/settings')}
+				class="absolute right-0 top-0 flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-800 dark:hover:bg-slate-800 md:hidden"
+				aria-label="Open settings"
 			>
-				<a
-					href={resolve(`/organizations/${organization.id}`)}
-					class="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 sm:rounded-2xl sm:px-5 sm:py-3 sm:text-sm"
-				>
-					Public page
-				</a>
-
-				<button
-					type="button"
-					onclick={() => (showSettingsModal = true)}
-					class="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-800 dark:hover:bg-slate-800 md:h-auto md:w-auto md:rounded-2xl md:bg-slate-950 md:px-5 md:py-3 md:text-sm md:font-black md:text-white md:ring-0 md:dark:bg-white md:dark:text-slate-950 md:dark:hover:bg-slate-200"
-					aria-label="Open settings"
-				>
-					<span class="md:hidden">⚙</span>
-					<span class="hidden md:inline">Settings</span>
-				</button>
-			</div>
+				<NavIcon name="settings" class="h-5 w-5" />
+			</a>
 		</section>
 
 		{#if error}
@@ -652,483 +752,372 @@
 			</div>
 		{/if}
 
-		<section class="mt-4 grid max-w-2xl grid-cols-3 divide-x divide-slate-200 border-y border-slate-200 py-3 text-center dark:divide-slate-800 dark:border-slate-800 sm:mt-6 sm:py-4">
-			<div>
-				<p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Followers</p>
-				<p class="mt-0.5 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-1 sm:text-2xl">
-					{organization.followersCount ?? 0}
-				</p>
-			</div>
-
-			<div>
-				<p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Upcoming</p>
-				<p class="mt-0.5 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-1 sm:text-2xl">
-					{upcomingEvents.length}
-				</p>
-			</div>
-
-			<div>
-				<p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Promoted</p>
-				<p class="mt-0.5 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-1 sm:text-2xl">
-					{activePromotedEvents.length}
-				</p>
-			</div>
-		</section>
-
-		<section class="mt-5 sm:mt-7">
-			<div class="flex flex-col gap-3 sm:gap-5">
-				<div>
-					<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400 sm:text-sm sm:tracking-[0.25em]">
-						Quick actions
-					</p>
-
-					<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:text-2xl">
-						Create and manage activities
-					</h2>
-
-					<p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">
-						Start a regular event, create a tournament, or open messages from players.
-					</p>
-				</div>
-
-				<div class="grid grid-cols-3 gap-2 sm:gap-3">
-					<a
-						href={resolve(`/organizations/${organization.id}/events/create`)}
-						class="rounded-[1.1rem] bg-blue-600 p-3 text-center text-white shadow-sm shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700 sm:rounded-[1.4rem] sm:p-4 sm:text-left"
-					>
-						<span class="block text-xl sm:text-2xl">＋</span>
-						<span class="mt-1 block text-xs font-black sm:mt-3 sm:text-base">Event</span>
-						<span class="mt-1 hidden text-xs font-bold text-blue-100 sm:block">Open games, runs and sessions</span>
-					</a>
-
-					<a
-						href={resolve(`/organizations/${organization.id}/tournaments/create`)}
-						class="rounded-[1.1rem] bg-slate-950 p-3 text-center text-white transition hover:-translate-y-0.5 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200 sm:rounded-[1.4rem] sm:p-4 sm:text-left"
-					>
-						<span class="block text-xl sm:text-2xl">🏆</span>
-						<span class="mt-1 block text-xs font-black sm:mt-3 sm:text-base">Tournament</span>
-						<span class="mt-1 hidden text-xs font-bold text-slate-300 dark:text-slate-500 sm:block">Brackets, teams and winners</span>
-					</a>
-
-					<a
-						href={resolve('/messages')}
-						class="rounded-[1.1rem] border border-slate-200 bg-slate-50 p-3 text-center text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 sm:rounded-[1.4rem] sm:p-4 sm:text-left"
-					>
-						<span class="block text-xl sm:text-2xl">💬</span>
-						<span class="mt-1 block text-xs font-black sm:mt-3 sm:text-base">Inbox</span>
-						<span class="mt-1 hidden text-xs font-bold text-slate-500 dark:text-slate-400 sm:block">Reply to users and teams</span>
-					</a>
-				</div>
-			</div>
-		</section>
-
-		<section
-			class="mt-6 rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:mt-8 sm:rounded-[2rem] sm:p-6 sm:shadow-xl sm:shadow-slate-200/70"
-		>
-			<div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-				<div>
-					<p
-						class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400 sm:text-sm sm:tracking-[0.25em]"
-					>
-						Promotions
-					</p>
-
-					<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:text-2xl">
-						Advertising dashboard
-					</h2>
-
-					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
-						Track promoted events, impressions, clicks and estimated spend.
-					</p>
-				</div>
-
-				<a
-					href="#upcoming-events"
-					class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 sm:px-5 sm:py-3 sm:text-base"
-				>
-					Choose event to promote
-				</a>
-			</div>
-
-			<div class="mt-4 grid grid-cols-4 gap-2 sm:mt-6 md:gap-4">
-				<div class="rounded-2xl bg-slate-50 p-2.5 dark:bg-slate-800 sm:bg-white sm:p-4 sm:dark:bg-slate-900">
-					<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Active</p>
-					<p class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl">
-						{activePromotedEvents.length}
-					</p>
-				</div>
-
-				<div class="rounded-2xl bg-slate-50 p-2.5 dark:bg-slate-800 sm:bg-white sm:p-4 sm:dark:bg-slate-900">
-					<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Views</p>
-					<p class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl">
-						{totalPromotionViews}
-					</p>
-				</div>
-
-				<div class="rounded-2xl bg-slate-50 p-2.5 dark:bg-slate-800 sm:bg-white sm:p-4 sm:dark:bg-slate-900">
-					<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Clicks</p>
-					<p class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl">
-						{totalPromotionClicks}
-					</p>
-				</div>
-
-				<div class="rounded-2xl bg-slate-50 p-2.5 dark:bg-slate-800 sm:bg-white sm:p-4 sm:dark:bg-slate-900">
-					<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">CTR / Spend</p>
-					<p class="mt-1 text-xs font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-lg">
-						{averageCtr.toFixed(1)}% · €{totalEstimatedSpend.toFixed(2)}
-					</p>
-				</div>
-			</div>
-
-			{#if activePromotedEvents.length}
-				<div class="mt-6 space-y-3">
-					{#each activePromotedEvents as promotedEvent (promotedEvent.id)}
-						{@const stats = calculatePromotionStats(promotedEvent)}
-
-						<div
-							class="rounded-2xl border border-blue-100 bg-white p-4 dark:border-blue-900 dark:bg-slate-900"
-						>
-							<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-								<div class="min-w-0">
-									<p class="truncate font-black text-slate-950 dark:text-slate-50">
-										{promotedEvent.title}
-									</p>
-
-									<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-										{promotedEvent.promotionPlan ?? 'boost'} · CPM €{promotedEvent.promotionCpm ??
-											0}
-										· remaining {stats.remainingImpressions ?? 0} impressions
-									</p>
-								</div>
-
-								<div
-									class="flex flex-wrap gap-2 text-sm font-bold text-slate-500 dark:text-slate-400"
-								>
-									<span>{stats.views} views</span>
-									<span>{stats.clicks} clicks</span>
-									<span>{stats.ctr.toFixed(1)}% CTR</span>
-								</div>
-
-								<button
-									type="button"
-									onclick={() => handleStopPromotion(promotedEvent.id)}
-									disabled={stoppingPromotionId === promotedEvent.id}
-									class="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-800 transition hover:border-red-300 hover:bg-red-50 hover:text-red-700 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-red-900 dark:hover:bg-red-950 dark:hover:text-red-300"
-								>
-									{stoppingPromotionId === promotedEvent.id ? 'Stopping...' : 'Stop'}
-								</button>
-							</div>
-							<div class="mt-3 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-								<div
-									class="h-full rounded-full bg-blue-600 transition-all"
-									style={`width: ${stats.progress}%`}
-								></div>
-							</div>
-						</div>
-					{/each}
-				</div>
-			{:else}
-				<div
-					class="mt-6 rounded-2xl border border-dashed border-blue-200 bg-white/70 p-5 text-sm font-bold text-slate-500 dark:border-blue-900 dark:bg-slate-900/70 dark:text-slate-400"
-				>
-					No active promoted events yet. Open one of your organization events and choose Promote
-					event.
-				</div>
-			{/if}
-		</section>
-
-		<div class="mt-6 grid gap-4 sm:mt-8 sm:gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-			<section
-				class="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-6 sm:shadow-xl sm:shadow-slate-200/70"
-			>
-				<div class="flex items-start justify-between gap-4">
-					<div>
-						<h2 class="text-xl font-black text-slate-950 dark:text-slate-50 sm:text-2xl">
-							Organization profile
-						</h2>
-						<p class="mt-1 text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
-							Edit your public organization page.
-						</p>
-					</div>
-
-					<div class="text-center">
-						<input
-							bind:this={logoInput}
-							type="file"
-							accept="image/*"
-							class="hidden"
-							onchange={handleLogoUpload}
-						/>
-
-						<button
-							type="button"
-							onclick={() => logoInput?.click()}
-							disabled={uploadingLogo}
-							class="rounded-2xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-200 disabled:opacity-60 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 sm:px-4 sm:py-3 sm:text-sm"
-						>
-							{uploadingLogo ? 'Uploading...' : 'Change logo'}
-						</button>
-					</div>
-				</div>
-
-				<div class="mt-5 grid gap-3 sm:grid-cols-2">
-					<div class="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950">
-						<div class="h-28 overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-500 to-slate-950">
-							{#if organization.coverPhotoURL}
-								<img src={organization.coverPhotoURL} alt="" class="h-full w-full object-cover" />
-							{/if}
-						</div>
-						<input
-							bind:this={coverInput}
-							type="file"
-							accept="image/*"
-							class="hidden"
-							onchange={handleCoverUpload}
-						/>
-						<button
-							type="button"
-							onclick={() => coverInput?.click()}
-							disabled={uploadingCover}
-							class="mt-3 w-full rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
-						>
-							{uploadingCover ? 'Uploading...' : 'Change cover photo'}
-						</button>
-					</div>
-
-					<div class="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950">
-						<div class="flex h-28 gap-2 overflow-hidden">
-							{#if organization.galleryPhotoURLs?.length}
-								{#each organization.galleryPhotoURLs.slice(0, 3) as photoURL}
-									<img src={photoURL} alt="" class="min-w-0 flex-1 rounded-2xl object-cover" />
-								{/each}
-							{:else}
-								<div class="grid h-full flex-1 place-items-center rounded-2xl border border-dashed border-slate-200 text-xs font-black text-slate-400 dark:border-slate-800">
-									No gallery photos
-								</div>
-							{/if}
-						</div>
-						<input
-							bind:this={galleryInput}
-							type="file"
-							accept="image/*"
-							multiple
-							class="hidden"
-							onchange={handleGalleryUpload}
-						/>
-						<button
-							type="button"
-							onclick={() => galleryInput?.click()}
-							disabled={uploadingGallery}
-							class="mt-3 w-full rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
-						>
-							{uploadingGallery ? 'Uploading...' : 'Add gallery photos'}
-						</button>
-					</div>
-				</div>
-
-				<div class="mt-4 space-y-3 sm:mt-6 sm:space-y-4">
-					<input
-						bind:value={name}
-						class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-						placeholder="Organization name"
-					/>
-
-					<select
-						bind:value={type}
-						class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-					>
-						{#each organizationTypes as option}
-							<option value={option.value}>{option.label}</option>
-						{/each}
-					</select>
-
-					<textarea
-						bind:value={description}
-						rows="4"
-						class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-						placeholder="Description"
-					></textarea>
-
-					<div class="grid gap-3 sm:grid-cols-2">
-						<input
-							bind:value={contactEmail}
-							class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-							placeholder="Contact email"
-						/>
-						<input
-							bind:value={phone}
-							class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-							placeholder="Phone"
-						/>
-						<input
-							bind:value={website}
-							class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-							placeholder="Website"
-						/>
-						<input
-							bind:value={city}
-							class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-							placeholder="City"
-						/>
-					</div>
-
-					<input
-						bind:value={address}
-						class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-						placeholder="Address"
-					/>
-
-					<input
-						bind:value={nif}
-						class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-						placeholder="NIF / tax number"
-					/>
-
+		<section class="mt-5 rounded-[1.5rem] bg-white p-1 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800 sm:mt-7">
+			<div class="grid grid-cols-3 gap-1">
+				{#each ['overview', 'events', 'insights'] as tab}
 					<button
 						type="button"
-						onclick={saveProfile}
-						disabled={saving}
-						class="w-full rounded-2xl bg-blue-600 px-5 py-3 font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
+						onclick={() => (activeManageTab = tab as 'overview' | 'events' | 'insights')}
+						class={`rounded-[1.2rem] px-3 py-3 text-sm font-black capitalize transition ${
+							activeManageTab === tab
+								? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+								: 'text-slate-500 hover:bg-slate-50 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-50'
+						}`}
 					>
-						{saving ? 'Saving...' : 'Save profile'}
+						{tab}
+					</button>
+				{/each}
+			</div>
+		</section>
+
+		{#if activeManageTab === 'overview'}
+			<section class="mt-5 grid grid-cols-4 divide-x divide-slate-200 rounded-[1.4rem] border-y border-slate-200 bg-white/55 py-3 text-center shadow-sm dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900/45 sm:py-4">
+				<div class="px-2">
+					<p class="text-lg sm:text-2xl">👥</p>
+					<p class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{displayedFollowersCount}</p>
+					<p class="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 sm:text-xs">Followers</p>
+				</div>
+				<div class="px-2">
+					<p class="text-lg sm:text-2xl">📅</p>
+					<p class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{upcomingEvents.length}</p>
+					<p class="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 sm:text-xs">Upcoming</p>
+				</div>
+				<div class="px-2">
+					<p class="text-lg sm:text-2xl">📣</p>
+					<p class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{activePromotedEvents.length}</p>
+					<p class="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 sm:text-xs">Promoted</p>
+				</div>
+				<div class="px-2">
+					<p class="text-lg sm:text-2xl">📊</p>
+					<p class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{organizationEvents.length}</p>
+					<p class="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 sm:text-xs">Total</p>
+				</div>
+			</section>
+
+			<section class="mt-6">
+				<div class="flex items-end justify-between gap-3">
+					<div>
+						<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">Quick actions</p>
+						<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">Manage your club</h2>
+					</div>
+				</div>
+
+				<div class="mt-4 grid grid-cols-5 gap-2 sm:gap-3">
+					<a href={resolve(`/organizations/${organization.id}/events/create`)} class="rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.4rem] sm:p-4">
+						<span class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950 sm:h-10 sm:w-10 sm:rounded-2xl">＋</span>
+						<span class="mt-2 block truncate text-[0.65rem] font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-xs">Event</span>
+					</a>
+					<a href={resolve(`/organizations/${organization.id}/tournaments/create`)} class="rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-orange-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.4rem] sm:p-4">
+						<span class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-orange-50 text-orange-600 dark:bg-orange-950 sm:h-10 sm:w-10 sm:rounded-2xl">🏆</span>
+						<span class="mt-2 block truncate text-[0.65rem] font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-xs">Tourney</span>
+					</a>
+					<a href={resolve(`/organizations/${organization.id}`)} class="rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.4rem] sm:p-4">
+						<span class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950 sm:h-10 sm:w-10 sm:rounded-2xl">👤</span>
+						<span class="mt-2 block truncate text-[0.65rem] font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-xs">Profile</span>
+					</a>
+					<a href={resolve('/messages')} class="rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.4rem] sm:p-4">
+						<span class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-200 sm:h-10 sm:w-10 sm:rounded-2xl">💬</span>
+						<span class="mt-2 block truncate text-[0.65rem] font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-xs">Inbox</span>
+					</a>
+					<button type="button" onclick={() => (activeManageTab = 'events')} class="rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-orange-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.4rem] sm:p-4">
+						<span class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-orange-50 text-orange-600 dark:bg-orange-950 sm:h-10 sm:w-10 sm:rounded-2xl">📣</span>
+						<span class="mt-2 block truncate text-[0.65rem] font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-xs">Promote</span>
 					</button>
 				</div>
 			</section>
 
-			<section
-				class="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-6 sm:shadow-xl sm:shadow-slate-200/70"
-			>
-				<h2 class="text-xl font-black text-slate-950 dark:text-slate-50 sm:text-2xl">Verification centre</h2>
-
-				<p class="mt-1 text-xs text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-sm">
-					Confirm the legal identity of the organization. A public venue is optional and only
-					applies to organizations that own or operate a physical sports space.
-				</p>
-
-				<div class="mt-4 rounded-2xl bg-slate-50 p-3 dark:bg-slate-800 sm:mt-5 sm:p-4">
-					<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Current status</p>
-					<p class="mt-1 font-black text-slate-950 dark:text-slate-50 sm:mt-2">
-						{verificationLabel()}
-					</p>
+			<section class="mt-5 grid gap-3 sm:mt-6 lg:grid-cols-[1fr_0.85fr]">
+				<div class="rounded-[1.35rem] bg-white p-3 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.7rem] sm:p-5">
+					<div class="flex items-center justify-between gap-3">
+						<div class="min-w-0">
+							<p class="text-[0.65rem] font-black uppercase tracking-[0.14em] text-orange-600 sm:text-xs sm:tracking-[0.18em]">Promotions</p>
+							<h2 class="mt-0.5 truncate text-base font-black text-slate-950 dark:text-slate-50 sm:mt-1 sm:text-xl">Advertising snapshot</h2>
+						</div>
+						<button type="button" onclick={() => (activeManageTab = 'insights')} class="shrink-0 text-xs font-black text-blue-600 dark:text-blue-400 sm:text-sm">Details</button>
+					</div>
+					<div class="mt-3 grid grid-cols-4 gap-2 sm:mt-4">
+						<div>
+							<p class="text-base font-black text-slate-950 dark:text-slate-50 sm:text-lg">{totalPromotionViews}</p>
+							<p class="text-[0.65rem] font-bold text-slate-500 dark:text-slate-400 sm:text-xs">Views</p>
+						</div>
+						<div>
+							<p class="text-base font-black text-slate-950 dark:text-slate-50 sm:text-lg">{totalPromotionClicks}</p>
+							<p class="text-[0.65rem] font-bold text-slate-500 dark:text-slate-400 sm:text-xs">Clicks</p>
+						</div>
+						<div>
+							<p class="text-base font-black text-slate-950 dark:text-slate-50 sm:text-lg">{averageCtr.toFixed(1)}%</p>
+							<p class="text-[0.65rem] font-bold text-slate-500 dark:text-slate-400 sm:text-xs">CTR</p>
+						</div>
+						<div>
+							<p class="text-base font-black text-slate-950 dark:text-slate-50 sm:text-lg">€{totalEstimatedSpend.toFixed(2)}</p>
+							<p class="text-[0.65rem] font-bold text-slate-500 dark:text-slate-400 sm:text-xs">Spend</p>
+						</div>
+					</div>
 				</div>
 
+				<div class="rounded-[1.35rem] bg-white p-3 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.7rem] sm:p-5">
+					<p class="text-[0.65rem] font-black uppercase tracking-[0.14em] text-blue-600 sm:text-xs sm:tracking-[0.18em]">Verification</p>
+					<h2 class="mt-0.5 text-base font-black text-slate-950 dark:text-slate-50 sm:mt-1 sm:text-xl">{verificationLabel()}</h2>
+					<p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-sm">
+						Verified organizations can create official paid events and promote events.
+					</p>
+					<button type="button" onclick={() => (activeManageTab = 'insights')} class="mt-3 w-full rounded-2xl bg-slate-950 px-4 py-2.5 text-xs font-black text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 sm:mt-4 sm:py-3 sm:text-sm">
+						Manage verification
+					</button>
+				</div>
+			</section>
+
+			<section class="mt-6">
+				<div class="mb-3 flex items-center justify-between gap-3">
+					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Upcoming events</h2>
+					<button type="button" onclick={() => (activeManageTab = 'events')} class="text-sm font-black text-blue-600 dark:text-blue-400">View all</button>
+				</div>
+				{#if upcomingEvents.length === 0}
+					<div class="rounded-[1.5rem] border border-dashed border-slate-300 bg-white p-6 text-center text-sm font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+						No upcoming events yet.
+					</div>
+				{:else}
+					<div class="grid gap-3 lg:grid-cols-2">
+						{#each upcomingEvents.slice(0, 2) as event (event.id)}
+							<a
+								href={resolve(`/events/${event.id}`)}
+								class="group flex gap-2.5 overflow-hidden rounded-[1.15rem] bg-white p-2 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800 sm:gap-4 sm:rounded-[1.45rem] sm:p-3.5"
+							>
+								<img src={getManageEventImage(event)} alt="" class="h-20 w-20 shrink-0 rounded-[0.95rem] object-cover sm:h-24 sm:w-36 sm:rounded-2xl lg:w-44" />
+								<div class="min-w-0 flex-1">
+									<div class="flex items-start justify-between gap-2 sm:gap-3">
+										<div class="min-w-0">
+											<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base">{event.title}</p>
+											<p class="mt-0.5 truncate text-[0.7rem] font-bold text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-xs">
+												{formatSportLabel(event.sport)} · {formatEventLocation(event)}
+											</p>
+										</div>
+										<div class="shrink-0 text-right">
+											<p class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-600 dark:bg-blue-950 dark:text-blue-300">{formatEventCapacity(event)}</p>
+											<p class="text-[0.68rem] font-bold text-slate-400">players</p>
+										</div>
+									</div>
+									<div class="mt-1.5 flex items-center gap-1.5 overflow-hidden sm:gap-2">
+										<span class={`shrink-0 rounded-full px-2 py-0.5 text-[0.62rem] font-black sm:px-2.5 sm:py-1 sm:text-[0.68rem] ${getStatusClasses(event)}`}>{getStatusLabel(event)}</span>
+										{#if isPromotionActive(event)}
+											<span class="shrink-0 rounded-full bg-orange-50 px-2 py-0.5 text-[0.62rem] font-black text-orange-700 dark:bg-orange-950 dark:text-orange-300 sm:px-2.5 sm:py-1 sm:text-[0.68rem]">Promoted</span>
+										{/if}
+									</div>
+									<div class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[0.68rem] font-bold text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-xs">
+										<span class="truncate">📅 {formatEventDate(event.startAt)}</span>
+										{#if event.pricePerPerson || event.priceTotal}
+											<span>€ {event.pricePerPerson ?? event.priceTotal}</span>
+										{:else}
+											<span>Free</span>
+										{/if}
+									</div>
+								</div>
+							</a>
+						{/each}
+					</div>
+				{/if}
+			</section>
+		{:else if activeManageTab === 'events'}
+			<section id="upcoming-events" class="mt-6 scroll-mt-8">
+				<div class="mb-3 flex items-center justify-between gap-3 sm:mb-4">
+					<div class="min-w-0">
+						<h2 class="text-xl font-black text-slate-950 dark:text-slate-50 sm:text-2xl">Events</h2>
+						<p class="mt-0.5 truncate text-xs font-bold text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">Promote and manage organization events.</p>
+					</div>
+					<a href={resolve(`/organizations/${organization.id}/events/create`)} class="shrink-0 rounded-2xl bg-blue-600 px-3 py-2 text-xs font-black text-white shadow-sm shadow-blue-600/25 transition hover:bg-blue-700 sm:px-5 sm:py-3 sm:text-sm">
+						<span class="sm:hidden">Create</span>
+						<span class="hidden sm:inline">Create event</span>
+					</a>
+				</div>
+				<div class="mb-4 flex gap-2 overflow-x-auto pb-3 pt-0.5">
+					{#each [
+						{ key: 'upcoming', label: 'Upcoming', count: upcomingEvents.length },
+						{ key: 'promoted', label: 'Promoted', count: activePromotedEvents.length },
+						{ key: 'past', label: 'Past', count: pastEvents.length },
+						{ key: 'all', label: 'All', count: organizationEvents.length }
+					] as filter}
+						<button
+							type="button"
+							onclick={() => (eventFilter = filter.key as 'upcoming' | 'promoted' | 'past' | 'all')}
+							class={`shrink-0 rounded-full px-3.5 py-2 text-xs font-black transition sm:px-4 sm:text-sm ${
+								eventFilter === filter.key
+									? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+									: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:text-blue-600 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-800'
+							}`}
+						>
+							{filter.label} <span class="opacity-70">{filter.count}</span>
+						</button>
+					{/each}
+				</div>
+				{#if filteredManageEvents.length === 0}
+					<div class="rounded-[2rem] border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+						No events match this filter.
+					</div>
+				{:else}
+					<div class="grid gap-3">
+						{#each filteredManageEvents as event (event.id)}
+							<a
+								href={resolve(`/events/${event.id}`)}
+							class="group flex gap-2.5 overflow-hidden rounded-[1.15rem] bg-white p-2 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800 sm:gap-4 sm:rounded-[1.45rem] sm:p-3.5"
+							>
+								<img src={getManageEventImage(event)} alt="" class="h-20 w-20 shrink-0 rounded-[0.95rem] object-cover sm:h-24 sm:w-36 sm:rounded-2xl lg:w-44" />
+								<div class="min-w-0 flex-1">
+									<div class="flex items-start justify-between gap-2 sm:gap-3">
+										<div class="min-w-0">
+											<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base">{event.title}</p>
+											<p class="mt-0.5 truncate text-[0.7rem] font-bold text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-xs">
+												{formatSportLabel(event.sport)} · {formatEventLocation(event)}
+											</p>
+										</div>
+										<div class="shrink-0 text-right">
+											<p class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-600 dark:bg-blue-950 dark:text-blue-300">{formatEventCapacity(event)}</p>
+											<p class="text-[0.68rem] font-bold text-slate-400">players</p>
+										</div>
+									</div>
+									<div class="mt-1.5 flex items-center gap-1.5 overflow-hidden sm:gap-2">
+										<span class={`shrink-0 rounded-full px-2 py-0.5 text-[0.62rem] font-black sm:px-2.5 sm:py-1 sm:text-[0.68rem] ${getStatusClasses(event)}`}>{getStatusLabel(event)}</span>
+										{#if isPromotionActive(event)}
+											<span class="shrink-0 rounded-full bg-orange-50 px-2 py-0.5 text-[0.62rem] font-black text-orange-700 dark:bg-orange-950 dark:text-orange-300 sm:px-2.5 sm:py-1 sm:text-[0.68rem]">Promoted</span>
+										{/if}
+									</div>
+									<div class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[0.68rem] font-bold text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-xs">
+										<span class="truncate">📅 {formatEventDate(event.startAt)}</span>
+										{#if event.pricePerPerson || event.priceTotal}
+											<span>€ {event.pricePerPerson ?? event.priceTotal}</span>
+										{:else}
+											<span>Free</span>
+										{/if}
+									</div>
+								</div>
+							</a>
+						{/each}
+					</div>
+				{/if}
+			</section>
+		{:else}
+			<section class="mt-5 rounded-[1.35rem] border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:mt-6 sm:rounded-[2rem] sm:p-6">
+				<div class="flex items-start justify-between gap-3">
+					<div class="min-w-0">
+						<p class="text-[0.65rem] font-black uppercase tracking-[0.16em] text-blue-600 dark:text-blue-400 sm:text-sm sm:tracking-[0.25em]">Insights</p>
+						<h2 class="mt-0.5 truncate text-lg font-black text-slate-950 dark:text-slate-50 sm:mt-1 sm:text-2xl">Performance dashboard</h2>
+						<p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">Promotion reach, event capacity and activity.</p>
+					</div>
+					<a href="#upcoming-events" onclick={() => (activeManageTab = 'events')} class="shrink-0 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 sm:px-5 sm:py-3 sm:text-base">
+						<span class="sm:hidden">Promote</span>
+						<span class="hidden sm:inline">Choose event to promote</span>
+					</a>
+				</div>
+
+				<div class="mt-3 grid grid-cols-2 gap-2 sm:mt-6 md:grid-cols-4 md:gap-4">
+					<div class="rounded-[1.1rem] bg-slate-50 p-2.5 dark:bg-slate-800 sm:rounded-2xl sm:p-4">
+						<p class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Active</p>
+						<p class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl">{activePromotedEvents.length}</p>
+					</div>
+					<div class="rounded-[1.1rem] bg-slate-50 p-2.5 dark:bg-slate-800 sm:rounded-2xl sm:p-4">
+						<p class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Views</p>
+						<p class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl">{totalPromotionViews}</p>
+					</div>
+					<div class="rounded-[1.1rem] bg-slate-50 p-2.5 dark:bg-slate-800 sm:rounded-2xl sm:p-4">
+						<p class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Clicks</p>
+						<p class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl">{totalPromotionClicks}</p>
+					</div>
+					<div class="rounded-[1.1rem] bg-slate-50 p-2.5 dark:bg-slate-800 sm:rounded-2xl sm:p-4">
+						<p class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">CTR / Spend</p>
+						<p class="mt-1 text-base font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-lg">{averageCtr.toFixed(1)}% · €{totalEstimatedSpend.toFixed(2)}</p>
+					</div>
+				</div>
+
+				<div class="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-4">
+					<div class="rounded-[1.1rem] bg-slate-50 p-2.5 dark:bg-slate-800 sm:rounded-2xl sm:p-4">
+						<p class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Total events</p>
+						<p class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl">{organizationEvents.length}</p>
+					</div>
+					<div class="rounded-[1.1rem] bg-slate-50 p-2.5 dark:bg-slate-800 sm:rounded-2xl sm:p-4">
+						<p class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Participants</p>
+						<p class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl">{totalEventParticipants}</p>
+					</div>
+					<div class="rounded-[1.1rem] bg-slate-50 p-2.5 dark:bg-slate-800 sm:rounded-2xl sm:p-4">
+						<p class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Avg fill</p>
+						<p class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl">{averageFillRate.toFixed(0)}%</p>
+					</div>
+					<div class="rounded-[1.1rem] bg-slate-50 p-2.5 dark:bg-slate-800 sm:rounded-2xl sm:p-4">
+						<p class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Past events</p>
+						<p class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl">{pastEvents.length}</p>
+					</div>
+				</div>
+
+				{#if activePromotedEvents.length}
+					<div class="mt-4 space-y-2.5 sm:mt-6 sm:space-y-3">
+						{#each activePromotedEvents as promotedEvent (promotedEvent.id)}
+							{@const stats = calculatePromotionStats(promotedEvent)}
+							<div class="rounded-[1.1rem] border border-blue-100 bg-white p-3 dark:border-blue-900 dark:bg-slate-900 sm:rounded-2xl sm:p-4">
+								<div class="flex flex-col gap-2.5 md:flex-row md:items-center md:justify-between">
+									<div class="min-w-0">
+										<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base">{promotedEvent.title}</p>
+										<p class="mt-1 truncate text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
+											{promotedEvent.promotionPlan ?? 'boost'} · {stats.remainingImpressions ?? 0} impressions left
+										</p>
+									</div>
+									<div class="flex flex-wrap gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">
+										<span>{stats.views} views</span>
+										<span>{stats.clicks} clicks</span>
+										<span>{stats.ctr.toFixed(1)}% CTR</span>
+									</div>
+									<button type="button" onclick={() => handleStopPromotion(promotedEvent.id)} disabled={stoppingPromotionId === promotedEvent.id} class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-800 transition hover:border-red-300 hover:bg-red-50 hover:text-red-700 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-red-900 dark:hover:bg-red-950 dark:hover:text-red-300 sm:px-4 sm:text-sm">
+										{stoppingPromotionId === promotedEvent.id ? 'Stopping...' : 'Stop'}
+									</button>
+								</div>
+								<div class="mt-3 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+									<div class="h-full rounded-full bg-blue-600 transition-all" style={`width: ${stats.progress}%`}></div>
+								</div>
+							</div>
+						{/each}
+					</div>
+				{:else}
+					<div class="mt-6 rounded-2xl border border-dashed border-blue-200 bg-white/70 p-5 text-sm font-bold text-slate-500 dark:border-blue-900 dark:bg-slate-900/70 dark:text-slate-400">
+						No active promoted events yet. Open one of your organization events and choose Promote event.
+					</div>
+				{/if}
+			</section>
+
+			<section class="mt-6 rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-6">
+				<h2 class="text-xl font-black text-slate-950 dark:text-slate-50 sm:text-2xl">Verification centre</h2>
+				<p class="mt-1 text-xs text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-sm">
+					Confirm the legal identity of the organization. A public venue is optional and only applies to organizations that own or operate a physical sports space.
+				</p>
+				<div class="mt-4 rounded-2xl bg-slate-50 p-3 dark:bg-slate-800 sm:mt-5 sm:p-4">
+					<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Current status</p>
+					<p class="mt-1 font-black text-slate-950 dark:text-slate-50 sm:mt-2">{verificationLabel()}</p>
+				</div>
 				{#if organization.verificationStatus !== 'verified'}
 					<div class="mt-4 space-y-3 sm:mt-5">
 						<div class="rounded-2xl border border-slate-200 p-3 text-xs dark:border-slate-700 sm:p-4 sm:text-sm">
 							<p class="font-black text-slate-950 dark:text-slate-50">Required identity details</p>
-							<p class="mt-1 text-slate-500 dark:text-slate-400">
-								Legal name, NIF and contact email. Website and notes can help the review.
-							</p>
+							<p class="mt-1 text-slate-500 dark:text-slate-400">Legal name, NIF and contact email. Website and notes can help the review.</p>
 						</div>
-						<input
-							bind:value={legalName}
-							class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-							placeholder="Legal name"
-						/>
-
-						<label
-							class="flex cursor-pointer items-start gap-3 rounded-2xl bg-slate-50 p-4 dark:bg-slate-800"
-						>
+						<input bind:value={legalName} class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50" placeholder="Legal name" />
+						<label class="flex cursor-pointer items-start gap-3 rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
 							<input type="checkbox" bind:checked={hasPublicVenue} class="mt-1 h-4 w-4" />
 							<span>
-								<span class="block font-black text-slate-950 dark:text-slate-50"
-									>This organization operates a public venue</span
-								>
-								<span class="mt-1 block text-xs text-slate-500 dark:text-slate-400 sm:text-sm"
-									>For courts, gyms, stadiums or other places customers can visit.</span
-								>
+								<span class="block font-black text-slate-950 dark:text-slate-50">This organization operates a public venue</span>
+								<span class="mt-1 block text-xs text-slate-500 dark:text-slate-400 sm:text-sm">For courts, gyms, stadiums or other places customers can visit.</span>
 							</span>
 						</label>
-
 						{#if hasPublicVenue}
-							<input
-								bind:value={publicVenueName}
-								class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-								placeholder="Public venue name"
-							/>
-							<LocationPickerMap
-								bind:lat={publicVenueLat}
-								bind:lng={publicVenueLng}
-								bind:address={publicVenueAddress}
-								autofillAddress={address}
-							/>
-							<input
-								bind:value={googleMapsURL}
-								class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-								placeholder="Google Maps link (optional evidence)"
-							/>
+							<input bind:value={publicVenueName} class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50" placeholder="Public venue name" />
+							<LocationPickerMap bind:lat={publicVenueLat} bind:lng={publicVenueLng} bind:address={publicVenueAddress} autofillAddress={address} />
+							<input bind:value={googleMapsURL} class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50" placeholder="Google Maps link (optional evidence)" />
 						{/if}
-
-						<textarea
-							bind:value={verificationNote}
-							rows="3"
-							class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-							placeholder="Notes for verification"
-						></textarea>
-
-						<button
-							type="button"
-							onclick={requestVerification}
-							disabled={requesting || organization.verificationStatus === 'pending'}
-							class="w-full rounded-2xl bg-slate-950 px-5 py-3 font-black text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
-						>
-							{requesting
-								? 'Sending...'
-								: organization.verificationStatus === 'pending'
-									? 'Review pending'
-									: 'Request identity verification'}
+						<textarea bind:value={verificationNote} rows="3" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50" placeholder="Notes for verification"></textarea>
+						<button type="button" onclick={requestVerification} disabled={requesting || organization.verificationStatus === 'pending'} class="w-full rounded-2xl bg-slate-950 px-5 py-3 font-black text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200">
+							{requesting ? 'Sending...' : organization.verificationStatus === 'pending' ? 'Review pending' : 'Request identity verification'}
 						</button>
 					</div>
 				{:else}
-					<div
-						class="mt-5 rounded-2xl bg-blue-50 p-4 text-sm font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-					>
+					<div class="mt-5 rounded-2xl bg-blue-50 p-4 text-sm font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
 						This organization can create official paid events and promote events.
 					</div>
 				{/if}
-			</section>
-		</div>
-
-		<section id="upcoming-events" class="mt-6 scroll-mt-8 sm:mt-8">
-			<div class="mb-3 flex items-center justify-between sm:mb-5">
-				<h2 class="text-xl font-black text-slate-950 dark:text-slate-50 sm:text-2xl">
-					Upcoming organization events
-				</h2>
-
-				<a
-					href={resolve(`/organizations/${organization.id}/events/create`)}
-					class="rounded-2xl bg-blue-600 px-4 py-2 text-xs font-black text-white shadow-sm shadow-blue-600/25 transition hover:bg-blue-700 sm:px-5 sm:py-3 sm:text-sm sm:shadow-lg"
-				>
-					Create event
-				</a>
-			</div>
-
-			{#if upcomingEvents.length === 0}
-				<div
-					class="rounded-[2rem] border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
-				>
-					No upcoming events yet.
-				</div>
-			{:else}
-				<div class="grid gap-2.5 sm:gap-4 lg:grid-cols-2">
-					{#each upcomingEvents as event (event.id)}
-						<EventCard {event} />
-					{/each}
-				</div>
-			{/if}
-		</section>
-
-		{#if pastEvents.length}
-			<section class="mt-6 sm:mt-8">
-				<h2 class="mb-3 text-xl font-black text-slate-950 dark:text-slate-50 sm:mb-5 sm:text-2xl">
-					Past / cancelled events
-				</h2>
-
-				<div class="grid gap-2.5 sm:gap-4 lg:grid-cols-2">
-					{#each pastEvents as event (event.id)}
-						<EventCard {event} />
-					{/each}
-				</div>
 			</section>
 		{/if}
 
@@ -1235,21 +1224,6 @@
 							<div
 								class="divide-y divide-slate-200 overflow-hidden rounded-3xl bg-slate-50 dark:divide-slate-700 dark:bg-slate-800"
 							>
-								<a
-									href={resolve(`/organizations/${organization.id}`)}
-									class="flex items-center justify-between gap-4 p-4 transition hover:bg-slate-100 dark:hover:bg-slate-700"
-								>
-									<span>
-										<span class="block font-black text-slate-950 dark:text-slate-50">
-											Public page
-										</span>
-										<span class="block text-xs text-slate-500 dark:text-slate-400">
-											View what players see.
-										</span>
-									</span>
-									<span class="text-slate-300">›</span>
-								</a>
-
 								<a
 									href="#upcoming-events"
 									onclick={() => (showSettingsModal = false)}

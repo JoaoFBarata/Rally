@@ -125,6 +125,7 @@ export interface Organization {
 	coverPhotoPath?: string | null;
 	galleryPhotoURLs?: string[];
 	galleryPhotoPaths?: string[];
+	sports?: Sport[];
 
 	website?: string;
 	phone?: string;

@@ -253,82 +253,94 @@ export async function getVisibleEventsForUser(
 	const eventsById = new Map<string, SportEvent>();
 
 	const myEventsQuery = query(collection(db, 'events'), where('creatorId', '==', userId));
-	const myEventsSnap = await getDocs(myEventsQuery);
+	const joinedEventsQuery = query(
+		collection(db, 'events'),
+		where('participantIds', 'array-contains', userId)
+	);
+	const publicEventsQuery = query(collection(db, 'events'), where('visibility', '==', 'public'));
+	const promotedEventsQuery = query(collection(db, 'events'), where('isPromoted', '==', true));
+
+	const [
+		myEventsSnap,
+		joinedEventsSnap,
+		publicEventsSnap,
+		promotedEventsSnap,
+		invites,
+		friends,
+		followedOrganizations
+	] = await Promise.all([
+		getDocs(myEventsQuery),
+		getDocs(joinedEventsQuery),
+		getDocs(publicEventsQuery),
+		getDocs(promotedEventsQuery),
+		getInvitesForUser(userId),
+		getFriendsForUser(userId),
+		getOrganizationsFollowedByUser(userId)
+	]);
 
 	for (const docSnap of myEventsSnap.docs) {
 		const event = eventFromDoc(docSnap);
 		eventsById.set(event.id, event);
 	}
 
-	const joinedEventsQuery = query(
-		collection(db, 'events'),
-		where('participantIds', 'array-contains', userId)
-	);
-
-	const joinedEventsSnap = await getDocs(joinedEventsQuery);
-
 	for (const docSnap of joinedEventsSnap.docs) {
 		const event = eventFromDoc(docSnap);
 		eventsById.set(event.id, event);
 	}
-
-	const publicEventsQuery = query(collection(db, 'events'), where('visibility', '==', 'public'));
-	const publicEventsSnap = await getDocs(publicEventsQuery);
 
 	for (const docSnap of publicEventsSnap.docs) {
 		const event = eventFromDoc(docSnap);
 		eventsById.set(event.id, event);
 	}
 
-	const promotedEventsQuery = query(collection(db, 'events'), where('isPromoted', '==', true));
-	const promotedEventsSnap = await getDocs(promotedEventsQuery);
-
 	for (const docSnap of promotedEventsSnap.docs) {
 		const event = eventFromDoc(docSnap);
 		if (event.visibility === 'public') eventsById.set(event.id, event);
 	}
 
-	const invites = await getInvitesForUser(userId);
+	const invitedEvents = await Promise.all(
+		invites
+			.filter((invite) => invite.status !== 'declined')
+			.map((invite) => getEventById(invite.eventId))
+	);
 
-	for (const invite of invites) {
-		if (invite.status === 'declined') continue;
-
-		const invitedEvent = await getEventById(invite.eventId);
-
+	for (const invitedEvent of invitedEvents) {
 		if (invitedEvent) {
 			eventsById.set(invitedEvent.id, invitedEvent);
 		}
 	}
 
-	const friends = await getFriendsForUser(userId);
 	const friendIds = friends.map((friend) => friend.id).filter(Boolean);
 
-	for (const chunk of chunkArray(friendIds, 10)) {
+	const friendEventSnapshots = await Promise.all(chunkArray(friendIds, 10).map((chunk) => {
 		const friendsEventsQuery = query(
 			collection(db, 'events'),
 			where('creatorId', 'in', chunk),
 			where('visibility', '==', 'friends')
 		);
 
-		const friendsEventsSnap = await getDocs(friendsEventsQuery);
+		return getDocs(friendsEventsQuery);
+	}));
 
+	for (const friendsEventsSnap of friendEventSnapshots) {
 		for (const docSnap of friendsEventsSnap.docs) {
 			const event = eventFromDoc(docSnap);
 			eventsById.set(event.id, event);
 		}
 	}
 
-	const followedOrganizations = await getOrganizationsFollowedByUser(userId);
 	const followedOrganizationIds = followedOrganizations.map((organization) => organization.id);
 
-	for (const chunk of chunkArray(followedOrganizationIds, 10)) {
+	const followedOrgEventSnapshots = await Promise.all(chunkArray(followedOrganizationIds, 10).map((chunk) => {
 		const followedOrgEventsQuery = query(
 			collection(db, 'events'),
 			where('organizationId', 'in', chunk)
 		);
 
-		const followedOrgEventsSnap = await getDocs(followedOrgEventsQuery);
+		return getDocs(followedOrgEventsQuery);
+	}));
 
+	for (const followedOrgEventsSnap of followedOrgEventSnapshots) {
 		for (const docSnap of followedOrgEventsSnap.docs) {
 			const event = eventFromDoc(docSnap);
 			eventsById.set(event.id, event);

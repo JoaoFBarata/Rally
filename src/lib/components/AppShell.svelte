@@ -71,9 +71,9 @@
 					icon: 'messages'
 				},
 				{
-					label: 'Public page',
+					label: 'Profile',
 					href: organizationPublicHref,
-					icon: 'public'
+					icon: 'profile'
 				}
 			];
 		} else {
@@ -122,7 +122,7 @@
 	let mobileNavItems = $derived.by(() => {
 		let filtered = navItems;
 		if (navItems.length > 5 && !isPlatformAdmin) {
-			const replaceableHref = organizationPublicHref ?? '/profile';
+			const replaceableHref = organizationId ? organizationManageHref : '/profile';
 			filtered = navItems.filter((item) => item.href !== replaceableHref);
 		}
 
@@ -150,7 +150,6 @@
 	function mobileLabel(label: string) {
 		if (label === 'Create event') return 'Create';
 		if (label === 'Organization') return 'Org';
-		if (label === 'Public page') return 'Public';
 		return label;
 	}
 

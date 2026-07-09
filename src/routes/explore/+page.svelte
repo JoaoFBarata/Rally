@@ -34,13 +34,13 @@
 	let selectedMapEventId = $state<string | null>(null);
 	let selectedSports = $state<Sport[]>([]);
 	let selectedLevels = $state<SportLevel[]>([]);
-	let dateFilter = $state<DateFilter>('30');
+	let dateFilter = $state<DateFilter>('7');
 	let priceFilter = $state<PriceFilter>('all');
 	let maxPrice = $state(50);
 	let audienceFilter = $state<AudienceFilter>('all');
 	let searchTerm = $derived(page.url.searchParams.get('search')?.trim() ?? '');
 
-	const defaultDateFilter: DateFilter = '30';
+	const defaultDateFilter: DateFilter = '7';
 	const defaultPriceFilter: PriceFilter = 'all';
 	const defaultAudienceFilter: AudienceFilter = 'all';
 	const availableLevels: SportLevel[] = ['beginner', 'casual', 'intermediate', 'advanced'];

@@ -11,6 +11,7 @@ export type DeviceAccount = {
 	photoURL?: string | null;
 	rallyTag?: string;
 	accountType?: UserProfile['accountType'];
+	activeOrganizationId?: string | null;
 	lastUsedAt: number;
 	providerIds?: string[];
 };
@@ -59,6 +60,7 @@ export function rememberDeviceAccount(profile: UserProfile, user?: User | null) 
 		photoURL: profile.photoURL ?? null,
 		rallyTag: profile.rallyTag,
 		accountType: profile.accountType,
+		activeOrganizationId: profile.activeOrganizationId ?? null,
 		lastUsedAt: Date.now(),
 		providerIds: Array.from(new Set(providerIds))
 	};

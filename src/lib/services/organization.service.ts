@@ -22,6 +22,7 @@ import type {
 	OrganizationReviewReply,
 	OrganizationType,
 	OrganizationVerificationRequest,
+	Sport,
 	VerificationLevel,
 	VerificationStatus
 } from '$lib/schema';
@@ -80,6 +81,7 @@ export async function createOrganization(params: {
 		coverPhotoPath: null,
 		galleryPhotoURLs: [],
 		galleryPhotoPaths: [],
+		sports: [],
 		website: params.website?.trim() ?? '',
 		phone: params.phone?.trim() ?? '',
 		contactEmail: params.contactEmail.trim().toLowerCase(),
@@ -191,6 +193,7 @@ export async function updateOrganizationProfile(params: {
 	coverPhotoPath?: string | null;
 	galleryPhotoURLs?: string[];
 	galleryPhotoPaths?: string[];
+	sports?: Sport[];
 	hasPublicVenue?: boolean;
 	publicLocation?: OrganizationPublicLocation | null;
 }) {
@@ -216,6 +219,7 @@ export async function updateOrganizationProfile(params: {
 		...(params.coverPhotoPath !== undefined ? { coverPhotoPath: params.coverPhotoPath } : {}),
 		...(params.galleryPhotoURLs !== undefined ? { galleryPhotoURLs: params.galleryPhotoURLs } : {}),
 		...(params.galleryPhotoPaths !== undefined ? { galleryPhotoPaths: params.galleryPhotoPaths } : {}),
+		...(params.sports !== undefined ? { sports: params.sports } : {}),
 		...(params.hasPublicVenue !== undefined
 			? {
 					hasPublicVenue: params.hasPublicVenue,
