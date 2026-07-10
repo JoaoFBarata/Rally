@@ -183,6 +183,13 @@ export function isEventFinished(event: SportEvent) {
 
 	const endAt = event.endAt as unknown as { toMillis?: () => number; toDate?: () => Date } | null;
 	const endAtMs = endAt?.toMillis?.() ?? endAt?.toDate?.()?.getTime?.() ?? 0;
+
+	if (event.eventKind === 'tournament' || event.tournamentStatus) {
+		if (event.tournamentStatus === 'finished') return true;
+		if (endAtMs) return endAtMs < Date.now();
+		return false;
+	}
+
 	const finishAtMs = endAtMs || getEventStartAtMillis(event);
 
 	if (!finishAtMs) return false;

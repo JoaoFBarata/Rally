@@ -74,6 +74,11 @@
 	});
 
 	const todayStr = new Date().toLocaleDateString('en-CA');
+	const cardClass =
+		'min-w-0 rounded-[1.35rem] border border-slate-200 bg-white p-3.5 shadow-lg shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-8';
+	const inputClass =
+		'w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950 sm:px-4 sm:py-3 sm:text-base';
+	const labelClass = 'text-xs font-bold text-slate-700 dark:text-slate-300 sm:text-sm';
 
 	let showInviteModal = $state(false);
 	let createdEventId = $state('');
@@ -260,28 +265,38 @@
 	}
 </script>
 
-<div class="mx-auto w-full max-w-3xl space-y-4 px-4 py-5 sm:px-5 sm:py-8">
+<div class="mx-auto w-full max-w-3xl space-y-4 px-4 py-4 sm:px-5 sm:py-8">
 	<button
 		type="button"
 		onclick={() => goBack(resolve('/dashboard'))}
-		class="inline-flex rounded-full bg-blue-100 px-5 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+		class="-ml-2 grid h-10 w-10 place-items-center rounded-full text-slate-700 transition hover:bg-white/80 dark:text-slate-200 dark:hover:bg-slate-800"
+		aria-label="Back"
 	>
-		← Back
+		<svg
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="2.4"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+			class="h-5 w-5"
+			aria-hidden="true"
+		>
+			<path d="m15 18-6-6 6-6" />
+		</svg>
 	</button>
 
-	<div
-		class="min-w-0 rounded-3xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-4xl sm:p-8"
-	>
+	<div class={cardClass}>
 		{#if step === 'choice'}
-			<div class="mb-5 sm:mb-8">
-				<h2 class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">Create event</h2>
+			<div class="mb-4 sm:mb-8">
+				<h2 class="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50 sm:text-3xl">Create event</h2>
 
 				<p class="mt-2 text-slate-500 dark:text-slate-400">How do you want to create it?</p>
 			</div>
 
-			<div class="grid gap-4 sm:grid-cols-2">
+			<div class="grid gap-3 sm:grid-cols-2 sm:gap-4">
 				<div
-					class="flex flex-col items-start rounded-2xl border-2 border-blue-200 bg-blue-50 p-5 dark:border-blue-900 dark:bg-blue-950/40"
+					class="flex flex-col items-start rounded-2xl border-2 border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/40 sm:p-5"
 				>
 					<p class="text-sm font-bold text-blue-700 dark:text-blue-300">🎤 Use your voice</p>
 
@@ -297,7 +312,7 @@
 				<button
 					type="button"
 					onclick={() => (step = 'form')}
-					class="flex flex-col items-start rounded-2xl border-2 border-slate-200 bg-slate-50 p-5 text-left transition hover:border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700"
+					class="flex flex-col items-start rounded-2xl border-2 border-slate-200 bg-slate-50 p-4 text-left transition hover:border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 sm:p-5"
 				>
 					<p class="text-sm font-bold text-slate-700 dark:text-slate-300">✍️ Enter manually</p>
 
@@ -307,10 +322,10 @@
 				</button>
 			</div>
 		{:else}
-			<div class="mb-5 sm:mb-8">
-				<h2 class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">Create event</h2>
+			<div class="mb-4 sm:mb-8">
+				<h2 class="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50 sm:text-3xl">Create event</h2>
 
-				<p class="mt-2 text-slate-500 dark:text-slate-400">
+				<p class="mt-1 text-sm text-slate-500 dark:text-slate-400 sm:text-base">
 					Fill in the event details and start inviting people.
 				</p>
 			</div>
@@ -325,14 +340,14 @@
 
 			<div>
 				<form
-				class="space-y-5"
+				class="space-y-4 sm:space-y-5"
 				onsubmit={(e) => {
 					e.preventDefault();
 					handleCreateEvent();
 				}}
 			>
 				<div>
-					<label for="title" class="text-sm font-bold text-slate-700 dark:text-slate-300">
+					<label for="title" class={labelClass}>
 						Event title
 					</label>
 
@@ -340,21 +355,21 @@
 						id="title"
 						bind:value={title}
 						placeholder="Saturday football match"
-						class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+						class={`mt-2 ${inputClass}`}
 					/>
 				</div>
 
-				<div class="flex items-center gap-4">
-					<div class="relative h-16 w-16 shrink-0">
+				<div class="flex items-center gap-3 sm:gap-4">
+					<div class="relative h-12 w-12 shrink-0 sm:h-16 sm:w-16">
 						{#if groupPhotoURL}
 							<img
 								src={groupPhotoURL}
 								alt={title || 'Event group'}
-								class="h-16 w-16 rounded-full object-cover ring-4 ring-slate-100 dark:ring-slate-800"
+								class="h-12 w-12 rounded-full object-cover ring-4 ring-slate-100 dark:ring-slate-800 sm:h-16 sm:w-16"
 							/>
 						{:else}
 							<div
-								class="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 text-2xl font-black text-blue-600 ring-4 ring-slate-100 dark:bg-blue-950 dark:text-blue-300 dark:ring-slate-800"
+								class="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-xl font-black text-blue-600 ring-4 ring-slate-100 dark:bg-blue-950 dark:text-blue-300 dark:ring-slate-800 sm:h-16 sm:w-16 sm:text-2xl"
 							>
 								📷
 							</div>
@@ -362,7 +377,7 @@
 
 						<label
 							title="Add group photo"
-							class="absolute -bottom-1 -right-1 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-white text-xs text-blue-600 shadow-lg ring-2 ring-slate-100 transition hover:bg-blue-50 dark:bg-white dark:text-blue-600 dark:ring-slate-800"
+							class="absolute -bottom-1 -right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-white text-xs text-blue-600 shadow-lg ring-2 ring-slate-100 transition hover:bg-blue-50 dark:bg-white dark:text-blue-600 dark:ring-slate-800 sm:h-7 sm:w-7"
 						>
 							{#if groupPhotoUploading}
 								…
@@ -396,22 +411,22 @@
 						</label>
 					</div>
 
-					<div class="min-w-0">
+						<div class="min-w-0">
 						<p class="text-sm font-bold text-slate-700 dark:text-slate-300">Group photo</p>
-						<p class="text-sm text-slate-500 dark:text-slate-400">Optional, shown on the event page.</p>
+						<p class="text-xs text-slate-500 dark:text-slate-400 sm:text-sm">Optional, shown on the event page.</p>
 					</div>
 				</div>
 
 				<div class="grid grid-cols-2 gap-3 sm:gap-5">
 					<div class="min-w-0">
-						<label for="sport" class="text-sm font-bold text-slate-700 dark:text-slate-300">
+						<label for="sport" class={labelClass}>
 							Sport
 						</label>
 
 						<select
 							id="sport"
 							bind:value={sport}
-							class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+							class={`mt-2 ${inputClass}`}
 						>
 							<option value="football">Football</option>
 							<option value="padel">Padel</option>
@@ -428,19 +443,19 @@
 							<input
 								bind:value={customSport}
 								placeholder="e.g. Climbing, Hockey, Surfing..."
-								class="mt-3 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+								class={`mt-3 ${inputClass}`}
 							/>
 						{/if}
 					</div>
 					<div class="min-w-0">
-						<label for="level" class="text-sm font-bold text-slate-700 dark:text-slate-300">
+						<label for="level" class={labelClass}>
 							Event level
 						</label>
 
 						<select
 							id="level"
 							bind:value={level}
-							class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+							class={`mt-2 ${inputClass}`}
 						>
 							<option value="beginner">Beginner</option>
 							<option value="casual">Casual</option>
@@ -450,48 +465,48 @@
 					</div>
 				</div>
 				<div>
-					<label for="description" class="text-sm font-bold text-slate-700 dark:text-slate-300">
-						Description
-					</label>
+						<label for="description" class={labelClass}>
+							Description
+						</label>
 
 					<textarea
 						id="description"
 						bind:value={description}
 						placeholder="Casual game, all levels welcome..."
-						class="mt-2 min-h-28 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+						class={`mt-2 min-h-24 sm:min-h-28 ${inputClass}`}
 					></textarea>
 				</div>
 
 				<div>
-					<label for="whatToBring" class="text-sm font-bold text-slate-700 dark:text-slate-300">
-						What to bring
-					</label>
+						<label for="whatToBring" class={labelClass}>
+							What to bring
+						</label>
 
 					<textarea
 						id="whatToBring"
 						bind:value={whatToBring}
 						placeholder="Football boots, water bottle, your own racket..."
-						class="mt-2 min-h-20 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+						class={`mt-2 min-h-16 sm:min-h-20 ${inputClass}`}
 					></textarea>
 				</div>
 
 				<div>
-					<label for="location" class="text-sm font-bold text-slate-700 dark:text-slate-300">
-						Location name
-					</label>
+						<label for="location" class={labelClass}>
+							Location name
+						</label>
 
 					<input
 						id="location"
 						bind:value={locationName}
 						placeholder="City Sports Center"
-						class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+						class={`mt-2 ${inputClass}`}
 					/>
 				</div>
 
 				<div class="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5">
 					<div class="min-w-0">
-						<label for="startDate" class="text-sm font-bold text-slate-700 dark:text-slate-300">
-							Event date
+						<label for="startDate" class={labelClass}>
+							Date
 						</label>
 
 						<input
@@ -499,13 +514,13 @@
 							type="date"
 							bind:value={startDate}
 							min={todayStr}
-							class="mt-2 w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-slate-950 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:border-slate-500 dark:focus:bg-slate-800 dark:focus:ring-slate-700 sm:px-4"
+							class={`mt-2 min-w-0 ${inputClass}`}
 						/>
 					</div>
 
 					<div class="min-w-0">
-						<label for="startTime" class="text-sm font-bold text-slate-700 dark:text-slate-300">
-							Start time
+						<label for="startTime" class={labelClass}>
+							Start
 						</label>
 
 						<TimeSelect id="startTime" bind:value={startTime} placeholder="Choose time" />
@@ -514,9 +529,9 @@
 					<div class="min-w-0">
 						<label
 							for="durationMinutes"
-							class="text-sm font-bold text-slate-700 dark:text-slate-300"
-						>
-							Duration (minutes)
+								class={labelClass}
+							>
+							Duration
 						</label>
 
 						<input
@@ -526,14 +541,14 @@
 							step="15"
 							bind:value={durationMinutes}
 							placeholder="90"
-							class="mt-2 w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-slate-950 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:border-slate-500 dark:focus:bg-slate-800 dark:focus:ring-slate-700 sm:px-4"
+							class={`mt-2 min-w-0 ${inputClass}`}
 						/>
 					</div>
 
 					<div class="min-w-0">
 						<label
 							for="maxParticipants"
-							class="text-sm font-bold text-slate-700 dark:text-slate-300"
+								class={labelClass}
 						>
 							Max players
 						</label>
@@ -543,20 +558,20 @@
 							type="number"
 							min="2"
 							bind:value={maxParticipants}
-							class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+							class={`mt-2 ${inputClass}`}
 						/>
 					</div>
 				</div>
 
 				<div
-					class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800"
+					class="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800 sm:p-4"
 				>
 					<label class="flex cursor-pointer items-center justify-between gap-4">
 						<div>
 							<p class="text-sm font-bold text-slate-700 dark:text-slate-300">
 								Repeat this event
 							</p>
-							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+							<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">
 								Creates a series of separate events people join individually.
 							</p>
 						</div>
@@ -573,7 +588,7 @@
 							<div class="min-w-0">
 								<label
 									for="recurringFrequency"
-									class="text-sm font-bold text-slate-700 dark:text-slate-300"
+									class={labelClass}
 								>
 									Repeats
 								</label>
@@ -581,7 +596,7 @@
 								<select
 									id="recurringFrequency"
 									bind:value={recurringFrequency}
-									class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950"
+									class={`mt-2 bg-white dark:bg-slate-900 ${inputClass}`}
 								>
 									<option value="weekly">Every week</option>
 									<option value="biweekly">Every 2 weeks</option>
@@ -592,7 +607,7 @@
 							<div class="min-w-0">
 								<label
 									for="recurringOccurrences"
-									class="text-sm font-bold text-slate-700 dark:text-slate-300"
+									class={labelClass}
 								>
 									Number of events
 								</label>
@@ -603,7 +618,7 @@
 									min="2"
 									max="12"
 									bind:value={recurringOccurrences}
-									class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950"
+									class={`mt-2 bg-white dark:bg-slate-900 ${inputClass}`}
 								/>
 							</div>
 						</div>
@@ -618,14 +633,14 @@
 
 				<div class="grid grid-cols-2 gap-3 sm:gap-5">
 					<div>
-						<label for="visibility" class="text-sm font-bold text-slate-700 dark:text-slate-300">
+					<label for="visibility" class={labelClass}>
 							Visibility
 						</label>
 
 						<select
 							id="visibility"
 							bind:value={visibility}
-							class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+							class={`mt-2 ${inputClass}`}
 						>
 							<option value="private">Private</option>
 							<option value="friends">Friends</option>
@@ -634,7 +649,7 @@
 					</div>
 
 					<div>
-						<label for="price" class="text-sm font-bold text-slate-700 dark:text-slate-300">
+						<label for="price" class={labelClass}>
 							Total price (€)
 						</label>
 
@@ -645,7 +660,7 @@
 							step="0.01"
 							bind:value={priceTotal}
 							placeholder="Optional"
-							class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+							class={`mt-2 ${inputClass}`}
 						/>
 					</div>
 				</div>
@@ -657,14 +672,14 @@
 						<button
 							type="button"
 							onclick={() => (joinPolicy = 'open')}
-							class={`rounded-2xl border p-3 text-left transition ${
+						class={`rounded-2xl border p-2.5 text-left transition sm:p-3 ${
 								joinPolicy === 'open'
 									? 'border-blue-500 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/40'
 									: 'border-slate-200 bg-white hover:border-blue-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-blue-500'
 							}`}
 						>
-							<p class="font-bold text-slate-950 dark:text-slate-50">Open</p>
-							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+							<p class="text-sm font-bold text-slate-950 dark:text-slate-50 sm:text-base">Open</p>
+							<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">
 								Anyone can join instantly.
 							</p>
 						</button>
@@ -672,27 +687,27 @@
 						<button
 							type="button"
 							onclick={() => (joinPolicy = 'approval')}
-							class={`rounded-2xl border p-3 text-left transition ${
+						class={`rounded-2xl border p-2.5 text-left transition sm:p-3 ${
 								joinPolicy === 'approval'
 									? 'border-blue-500 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/40'
 									: 'border-slate-200 bg-white hover:border-blue-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-blue-500'
 							}`}
 						>
-							<p class="font-bold text-slate-950 dark:text-slate-50">Request to join</p>
-							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+							<p class="text-sm font-bold text-slate-950 dark:text-slate-50 sm:text-base">Request</p>
+							<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">
 								You approve each request.
 							</p>
 						</button>
 					</div>
 				</div>
 
-				<div class="mt-5 sm:mt-8">
+				<div class="mt-4 sm:mt-8">
 					<LocationPickerMap bind:lat bind:lng bind:address autofillAddress={voiceLocationHint} />
 				</div>
 				<button
 					type="submit"
 					disabled={loading || groupPhotoUploading}
-					class="mt-3 w-full rounded-2xl bg-blue-600 px-5 py-4 font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:shadow-blue-950/40"
+					class="mt-3 w-full rounded-2xl bg-blue-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:shadow-blue-950/40 sm:py-4 sm:text-base"
 				>
 					{loading ? 'Creating...' : groupPhotoUploading ? 'Uploading photo...' : 'Create event'}
 				</button>

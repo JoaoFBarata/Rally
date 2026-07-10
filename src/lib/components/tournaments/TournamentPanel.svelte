@@ -1019,39 +1019,39 @@
 			</div>
 		{/if}
 
-		{#if canManage}
-			<div class="mt-6 flex flex-wrap gap-3 border-t border-slate-100 pt-5 dark:border-slate-800">
-				{#if isRegistrationOpen}
-					<button
-						type="button"
-						onclick={handleCloseRegistration}
-						disabled={actionLoading === 'close-registration'}
-						class="rounded-2xl border border-slate-200 bg-white px-5 py-3 font-black text-slate-800 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:hover:bg-slate-800"
-					>
-						{actionLoading === 'close-registration' ? 'Closing...' : 'Close registration'}
-					</button>
-				{/if}
+			{#if canManage}
+				<div class="mt-5 grid grid-cols-2 gap-2 border-t border-slate-100 pt-4 dark:border-slate-800 sm:mt-6 sm:flex sm:flex-wrap sm:gap-3 sm:pt-5">
+					{#if isRegistrationOpen}
+						<button
+							type="button"
+							onclick={handleCloseRegistration}
+							disabled={actionLoading === 'close-registration'}
+							class="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-black text-slate-800 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:hover:bg-slate-800 sm:px-5 sm:py-3 sm:text-base"
+						>
+							{actionLoading === 'close-registration' ? 'Closing...' : 'Close signups'}
+						</button>
+					{/if}
 
-				{#if matches.length === 0}
-					<button
-						type="button"
-						onclick={handleGenerateMatches}
-						disabled={actionLoading === 'generate-matches'}
-						class="rounded-2xl bg-purple-600 px-5 py-3 font-black text-white shadow-lg shadow-purple-600/20 transition hover:bg-purple-700 disabled:opacity-60"
-					>
-						{actionLoading === 'generate-matches' ? 'Generating...' : 'Generate matches'}
-					</button>
-				{/if}
+					{#if matches.length === 0}
+						<button
+							type="button"
+							onclick={handleGenerateMatches}
+							disabled={actionLoading === 'generate-matches'}
+							class="rounded-2xl bg-purple-600 px-3 py-2.5 text-xs font-black text-white shadow-lg shadow-purple-600/20 transition hover:bg-purple-700 disabled:opacity-60 sm:px-5 sm:py-3 sm:text-base"
+						>
+							{actionLoading === 'generate-matches' ? 'Generating...' : 'Generate matches'}
+						</button>
+					{/if}
 
 				<button
-					type="button"
-					onclick={handleCancelTournament}
-					disabled={actionLoading === 'cancel-tournament'}
-					class="rounded-2xl border border-red-100 bg-red-50 px-5 py-3 font-black text-red-700 transition hover:bg-red-100 disabled:opacity-60 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
-				>
-					{actionLoading === 'cancel-tournament' ? 'Cancelling...' : 'Cancel tournament'}
-				</button>
-			</div>
+						type="button"
+						onclick={handleCancelTournament}
+						disabled={actionLoading === 'cancel-tournament'}
+						class="col-span-2 rounded-2xl border border-red-100 bg-red-50 px-3 py-2.5 text-xs font-black text-red-700 transition hover:bg-red-100 disabled:opacity-60 dark:border-red-900 dark:bg-red-950 dark:text-red-300 sm:col-auto sm:px-5 sm:py-3 sm:text-base"
+					>
+						{actionLoading === 'cancel-tournament' ? 'Cancelling...' : 'Cancel tournament'}
+					</button>
+				</div>
 		{/if}
 	{:else if activeTab === 'entries'}
 		<div class="mt-6 grid gap-6 lg:grid-cols-[1fr_0.8fr]">
