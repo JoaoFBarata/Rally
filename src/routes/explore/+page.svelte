@@ -23,6 +23,28 @@
 	type PriceFilter = 'all' | 'free' | 'paid';
 	type AudienceFilter = 'all' | 'mine' | 'friends' | 'public' | 'joined';
 
+	const defaultDateFilter: DateFilter = '7';
+	const defaultPriceFilter: PriceFilter = 'all';
+	const defaultAudienceFilter: AudienceFilter = 'all';
+	const availableLevels: SportLevel[] = ['beginner', 'casual', 'intermediate', 'advanced'];
+	const validDateFilters: DateFilter[] = ['today', '7', '14', '30', 'all'];
+	const validPriceFilters: PriceFilter[] = ['all', 'free', 'paid'];
+	const validAudienceFilters: AudienceFilter[] = ['all', 'mine', 'friends', 'public', 'joined'];
+
+	function getValidParam<T extends string>(key: string, validValues: T[], fallback: T) {
+		const value = page.url.searchParams.get(key) as T | null;
+		return value && validValues.includes(value) ? value : fallback;
+	}
+
+	function getListParam<T extends string>(key: string) {
+		return (page.url.searchParams.get(key)?.split(',').filter(Boolean) ?? []) as T[];
+	}
+
+	function getNumberParam(key: string, fallback: number) {
+		const value = Number(page.url.searchParams.get(key));
+		return Number.isFinite(value) && value > 0 ? value : fallback;
+	}
+
 	let events = $state<SportEvent[]>([]);
 	let promotedCampaignEvents = $state<SportEvent[]>([]);
 	let profile = $state<UserProfile | null>(null);
@@ -32,19 +54,23 @@
 	let friendIds = $state<string[]>([]);
 	let filteredEventCount = $state(0);
 	let selectedMapEventId = $state<string | null>(null);
-	let selectedSports = $state<Sport[]>([]);
-	let selectedLevels = $state<SportLevel[]>([]);
-	let dateFilter = $state<DateFilter>('7');
-	let dateFilterManuallyChanged = $state(false);
-	let priceFilter = $state<PriceFilter>('all');
-	let maxPrice = $state(50);
-	let audienceFilter = $state<AudienceFilter>('all');
-	let searchTerm = $derived(page.url.searchParams.get('search')?.trim() ?? '');
+	let selectedSports = $state<Sport[]>(getListParam<Sport>('sports'));
+	let selectedLevels = $state<SportLevel[]>(
+		getListParam<SportLevel>('levels').filter((level) => availableLevels.includes(level))
+	);
+	let dateFilter = $state<DateFilter>(
+		getValidParam('date', validDateFilters, defaultDateFilter)
+	);
+	let dateFilterManuallyChanged = $state(page.url.searchParams.has('date'));
+	let priceFilter = $state<PriceFilter>(
+		getValidParam('price', validPriceFilters, defaultPriceFilter)
+	);
+	let maxPrice = $state(getNumberParam('maxPrice', 50));
+	let audienceFilter = $state<AudienceFilter>(
+		getValidParam('audience', validAudienceFilters, defaultAudienceFilter)
+	);
+	let searchTerm = $state(page.url.searchParams.get('search')?.trim() ?? '');
 
-	const defaultDateFilter: DateFilter = '7';
-	const defaultPriceFilter: PriceFilter = 'all';
-	const defaultAudienceFilter: AudienceFilter = 'all';
-	const availableLevels: SportLevel[] = ['beginner', 'casual', 'intermediate', 'advanced'];
 	const dateFilterOptions = [
 		{ value: 'today' as const, label: 'Today' },
 		{ value: '7' as const, label: '7 days' },
@@ -90,7 +116,8 @@
 			selectedLevels.length +
 			(dateFilter === defaultDateFilter ? 0 : 1) +
 			(priceFilter === defaultPriceFilter ? 0 : 1) +
-			(audienceFilter === defaultAudienceFilter ? 0 : 1)
+			(audienceFilter === defaultAudienceFilter ? 0 : 1) +
+			(searchTerm.trim() ? 1 : 0)
 		);
 	});
 
@@ -157,7 +184,7 @@
 	}
 
 	let filteredEvents = $derived.by(() => {
-		const term = searchTerm.toLocaleLowerCase('pt-PT');
+		const term = searchTerm.trim().toLocaleLowerCase('pt-PT');
 
 		return allExploreEvents.filter((event) => {
 			const matchesSearch =
@@ -234,11 +261,45 @@
 		selectedMapEventId = null;
 	}
 
+	function syncExploreQuery() {
+		const params = new URLSearchParams(page.url.searchParams);
+		const trimmedSearch = searchTerm.trim();
+
+		if (trimmedSearch) params.set('search', trimmedSearch);
+		else params.delete('search');
+
+		if (dateFilter !== defaultDateFilter) params.set('date', dateFilter);
+		else params.delete('date');
+
+		if (selectedSports.length) params.set('sports', selectedSports.join(','));
+		else params.delete('sports');
+
+		if (selectedLevels.length) params.set('levels', selectedLevels.join(','));
+		else params.delete('levels');
+
+		if (priceFilter !== defaultPriceFilter) params.set('price', priceFilter);
+		else params.delete('price');
+
+		if (priceFilter === 'paid') params.set('maxPrice', String(maxPrice));
+		else params.delete('maxPrice');
+
+		if (audienceFilter !== defaultAudienceFilter) params.set('audience', audienceFilter);
+		else params.delete('audience');
+
+		const query = params.toString();
+		void goto(`${page.url.pathname}${query ? `?${query}` : ''}`, {
+			replaceState: true,
+			noScroll: true,
+			keepFocus: true
+		});
+	}
+
 	function toggleSportFilter(sport: Sport) {
 		selectedSports = selectedSports.includes(sport)
 			? selectedSports.filter((item) => item !== sport)
 			: [...selectedSports, sport];
 		clearSelectedEvent();
+		syncExploreQuery();
 	}
 
 	function toggleLevelFilter(level: SportLevel) {
@@ -246,12 +307,14 @@
 			? selectedLevels.filter((item) => item !== level)
 			: [...selectedLevels, level];
 		clearSelectedEvent();
+		syncExploreQuery();
 	}
 
 	function setDateFilter(value: DateFilter) {
 		dateFilter = value;
 		dateFilterManuallyChanged = true;
 		clearSelectedEvent();
+		syncExploreQuery();
 		if (currentUserId) void loadExploreData(currentUserId);
 	}
 
@@ -259,16 +322,25 @@
 		priceFilter = value;
 		if (value === 'paid' && maxPrice > highestPrice) maxPrice = highestPrice;
 		clearSelectedEvent();
+		syncExploreQuery();
 	}
 
 	function setMaxPrice(value: number) {
 		maxPrice = value;
 		clearSelectedEvent();
+		syncExploreQuery();
 	}
 
 	function setAudienceFilter(value: AudienceFilter) {
 		audienceFilter = value;
 		clearSelectedEvent();
+		syncExploreQuery();
+	}
+
+	function setSearchTerm(value: string) {
+		searchTerm = value;
+		clearSelectedEvent();
+		syncExploreQuery();
 	}
 
 	function clearAllFilters() {
@@ -279,7 +351,9 @@
 		priceFilter = defaultPriceFilter;
 		audienceFilter = defaultAudienceFilter;
 		maxPrice = highestPrice;
+		searchTerm = '';
 		clearSelectedEvent();
+		syncExploreQuery();
 		if (currentUserId) void loadExploreData(currentUserId);
 	}
 
@@ -320,7 +394,7 @@
 	});
 </script>
 
-<main class="mx-auto w-full max-w-[1500px] px-2.5 py-3 sm:px-5 sm:py-8 h-[calc(100dvh-96px)] flex flex-col overflow-hidden md:h-auto md:overflow-visible">
+<main class="mx-auto flex min-h-[calc(100dvh-96px)] w-full max-w-[1500px] flex-col overflow-visible px-2.5 pb-28 pt-3 sm:px-5 sm:py-8 md:h-auto md:pb-8">
 	<header class="mb-2 sm:mb-6 shrink-0">
 		<RallyWordmark size="sm" />
 		<h1 class="mt-1 text-2xl font-bold sm:mt-2 sm:text-3xl">Explore</h1>
@@ -340,9 +414,9 @@
 			{error}
 		</section>
 	{:else}
-		<div class="flex flex-col gap-3 flex-1 min-h-0">
+		<div class="flex flex-col gap-3 md:min-h-0 md:flex-1">
 			<!-- Positioning container for Map and Desktop Promoted Overlay -->
-			<div class="relative flex-1 min-h-0 flex flex-col">
+			<div class="relative flex flex-col md:min-h-0 md:flex-1">
 				<ExploreMap
 					events={filteredEvents}
 					{currentUserId}
@@ -356,6 +430,7 @@
 					{maxPrice}
 					{highestPrice}
 					{audienceFilter}
+					{searchTerm}
 					{activeFilterCount}
 					{dateFilterOptions}
 					{priceFilterOptions}
@@ -366,6 +441,7 @@
 					onPriceFilterChange={setPriceFilter}
 					onMaxPriceChange={setMaxPrice}
 					onAudienceFilterChange={setAudienceFilter}
+					onSearchChange={setSearchTerm}
 					onClearFilters={clearAllFilters}
 					onFilteredCountChange={(count) => (filteredEventCount = count)}
 					onSelectedEventChange={(eventId) => (selectedMapEventId = eventId)}

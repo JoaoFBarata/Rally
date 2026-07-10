@@ -19,6 +19,7 @@
 		maxPrice = 50,
 		highestPrice = 50,
 		audienceFilter = 'all',
+		searchTerm = '',
 		activeFilterCount = 0,
 		dateFilterOptions = [],
 		priceFilterOptions = [],
@@ -29,6 +30,7 @@
 		onPriceFilterChange,
 		onMaxPriceChange,
 		onAudienceFilterChange,
+		onSearchChange,
 		onClearFilters,
 		onFilteredCountChange,
 		onSelectedEventChange,
@@ -46,6 +48,7 @@
 		maxPrice?: number;
 		highestPrice?: number;
 		audienceFilter?: 'all' | 'mine' | 'friends' | 'public' | 'joined';
+		searchTerm?: string;
 		activeFilterCount?: number;
 		dateFilterOptions?: { value: 'today' | '7' | '14' | '30' | 'all'; label: string }[];
 		priceFilterOptions?: { value: 'all' | 'free' | 'paid'; label: string }[];
@@ -59,6 +62,7 @@
 		onPriceFilterChange?: (value: 'all' | 'free' | 'paid') => void;
 		onMaxPriceChange?: (value: number) => void;
 		onAudienceFilterChange?: (value: 'all' | 'mine' | 'friends' | 'public' | 'joined') => void;
+		onSearchChange?: (value: string) => void;
 		onClearFilters?: () => void;
 		onFilteredCountChange?: (count: number) => void;
 		onSelectedEventChange?: (eventId: string | null) => void;
@@ -73,9 +77,15 @@
 	import Supercluster from 'supercluster';
 
 	let selectedEvent = $state<SportEvent | null>(null);
+	let selectedEventGroup = $state<SportEvent[]>([]);
+	let selectedEventIndex = $state(0);
+	let localSearchTerm = $state('');
 	let markers: mapboxgl.Marker[] = [];
 	let svelteMarkers: any[] = [];
 	let showFilters = $state(false);
+	let searchPreviewEvents = $derived(
+		localSearchTerm.trim() ? events.slice(0, 6) : []
+	);
 
 	let clusterIndex: any = null;
 	let hasFitBoundsForCurrentEvents = false;
@@ -136,6 +146,10 @@
 	});
 
 	$effect(() => {
+		localSearchTerm = searchTerm;
+	});
+
+	$effect(() => {
 		onFilteredCountChange?.(events.length);
 
 		if (
@@ -184,7 +198,20 @@
 
 	function clearSelectedEvent() {
 		selectedEvent = null;
+		selectedEventGroup = [];
+		selectedEventIndex = 0;
 		onSelectedEventChange?.(null);
+	}
+
+	function handleSearchInput(value: string) {
+		localSearchTerm = value;
+		onSearchChange?.(value);
+		clearSelectedEvent();
+	}
+
+	function selectSearchResult(event: SportEvent) {
+		showFilters = false;
+		selectEvent(event, getNearbyEventGroup(event));
 	}
 
 	function toggleLevelFilter(level: SportLevel) {
@@ -258,12 +285,73 @@
         svelteMarkers = [];
 	}
 
-	function selectEvent(event: SportEvent) {
-		selectedEvent = event;
-		onSelectedEventChange?.(event.id);
+	function getEventPriority(event: SportEvent) {
+		let score = 0;
+		if (event.creatorId === currentUserId) score += 1000;
+		if (friendIds.includes(event.creatorId)) score += 500;
+		score += event.participantIds?.length ?? 0;
+		return score;
+	}
 
+	function getEventStartTime(event: SportEvent) {
+		const value = event.startAt;
+		const date = typeof value?.toDate === 'function' ? value.toDate() : new Date(value as unknown as string);
+		const time = date.getTime();
+		return Number.isNaN(time) ? Number.MAX_SAFE_INTEGER : time;
+	}
+
+	function sortEventGroup(group: SportEvent[]) {
+		return group.slice().sort((a, b) => {
+			const priorityDiff = getEventPriority(b) - getEventPriority(a);
+			if (priorityDiff !== 0) return priorityDiff;
+			return getEventStartTime(a) - getEventStartTime(b);
+		});
+	}
+
+	function getDistanceMeters(
+		a: { lat: number; lng: number },
+		b: { lat: number; lng: number }
+	) {
+		const earthRadius = 6371000;
+		const toRadians = (value: number) => (value * Math.PI) / 180;
+		const dLat = toRadians(b.lat - a.lat);
+		const dLng = toRadians(b.lng - a.lng);
+		const lat1 = toRadians(a.lat);
+		const lat2 = toRadians(b.lat);
+		const h =
+			Math.sin(dLat / 2) ** 2 +
+			Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+		return 2 * earthRadius * Math.asin(Math.sqrt(h));
+	}
+
+	function getNearbyEventGroup(event: SportEvent) {
 		const coords = getCoords(event);
-		if (!map || !coords) return;
+		if (!coords) return [event];
+
+		return sortEventGroup(
+			events.filter((candidate: SportEvent) => {
+				const candidateCoords = getCoords(candidate);
+				if (!candidateCoords) return false;
+				return getDistanceMeters(coords, candidateCoords) <= 45;
+			})
+		);
+	}
+
+	function selectEvent(event: SportEvent, group: SportEvent[] = [event], shouldFly = true) {
+		const sortedGroup = sortEventGroup(group.length ? group : [event]);
+		const eventIndex = Math.max(
+			0,
+			sortedGroup.findIndex((groupEvent) => groupEvent.id === event.id)
+		);
+
+		selectedEventGroup = sortedGroup;
+		selectedEventIndex = eventIndex;
+		selectedEvent = sortedGroup[eventIndex] ?? event;
+		onSelectedEventChange?.(selectedEvent.id);
+		queueMicrotask(() => renderMarkers());
+
+		const coords = getCoords(selectedEvent);
+		if (!shouldFly || !map || !coords) return;
 
 		map.flyTo({
 			center: [coords.lng, coords.lat],
@@ -274,7 +362,31 @@
 		});
 	}
 
+	function selectEventInGroup(index: number) {
+		if (selectedEventGroup.length === 0) return;
+		const nextIndex = (index + selectedEventGroup.length) % selectedEventGroup.length;
+		const nextEvent = selectedEventGroup[nextIndex];
+		selectedEventIndex = nextIndex;
+		selectedEvent = nextEvent;
+		onSelectedEventChange?.(nextEvent.id);
+		queueMicrotask(() => renderMarkers());
+
+		const coords = getCoords(nextEvent);
+		if (!map || !coords) return;
+		map.easeTo({
+			center: [coords.lng, coords.lat],
+			duration: 450
+		});
+	}
+
+	function moveSelectedEvent(direction: number) {
+		selectEventInGroup(selectedEventIndex + direction);
+	}
+
 	function getMarkerColor(event: SportEvent) {
+		if (selectedEvent?.id === event.id) {
+			return '#0057ff';
+		}
 		if (event.creatorId === currentUserId) {
 			return '#00B4D8'; // Blue - My events
 		}
@@ -290,19 +402,27 @@
 
 		if (!hasFitBoundsForCurrentEvents && events.length > 0) {
 			const bounds = new mapboxgl.LngLatBounds();
-			let hasCoords = false;
-			for (const event of events) {
-				const coords = getCoords(event);
-				if (coords) {
-					bounds.extend([coords.lng, coords.lat]);
-					hasCoords = true;
-				}
+			const allCoords: { lat: number; lng: number }[] = events
+				.map((event: SportEvent) => getCoords(event))
+				.filter((coords: { lat: number; lng: number } | null): coords is { lat: number; lng: number } => Boolean(coords));
+			const mapCenter = currentMap.getCenter();
+			const nearbyCoords = allCoords.filter((coords: { lat: number; lng: number }) => {
+				return getDistanceMeters(
+					{ lat: mapCenter.lat, lng: mapCenter.lng },
+					coords
+				) <= 90000;
+			});
+			const coordsToFit = nearbyCoords.length ? nearbyCoords : allCoords;
+
+			for (const coords of coordsToFit) {
+				bounds.extend([coords.lng, coords.lat]);
 			}
-			if (hasCoords) {
+
+			if (coordsToFit.length) {
 				hasFitBoundsForCurrentEvents = true;
 				currentMap.fitBounds(bounds, {
 					padding: 80,
-					maxZoom: 13
+					maxZoom: 12
 				});
 				return;
 			}
@@ -330,29 +450,20 @@
 				const clusterId = feature.id;
 
 				const leaves = clusterIndex.getLeaves(clusterId, Infinity);
-				const sortedLeaves = leaves.slice().sort((a: any, b: any) => {
-					const eventA = a.properties.event;
-					const eventB = b.properties.event;
-					
-					const isPriorityA = eventA.creatorId === currentUserId || friendIds.includes(eventA.creatorId);
-					const isPriorityB = eventB.creatorId === currentUserId || friendIds.includes(eventB.creatorId);
-					
-					if (isPriorityA !== isPriorityB) {
-						return isPriorityA ? -1 : 1;
-					}
-					
-					const attendeesA = eventA.participantIds?.length || 0;
-					const attendeesB = eventB.participantIds?.length || 0;
-					return attendeesB - attendeesA;
-				});
-
-				const priorityEvent = sortedLeaves[0].properties.event;
+				const clusterEvents = sortEventGroup(
+					leaves.map((leaf: any) => leaf.properties.event as SportEvent)
+				);
+				const selectedClusterEvent = selectedEvent
+					? clusterEvents.find((event) => event.id === selectedEvent?.id)
+					: null;
+				const priorityEvent = selectedClusterEvent ?? clusterEvents[0];
 				const creator = creatorProfiles[priorityEvent.creatorId];
 				const photoURL = priorityEvent.groupPhotoURL || priorityEvent.organizationLogoURL || creator?.photoURL || '';
 
 				const el = document.createElement('div');
 				el.className = 'custom-marker custom-cluster-marker';
 				el.style.cursor = 'pointer';
+				el.style.zIndex = selectedClusterEvent ? '60' : '10';
 
 				const markerComponent = mount(Marker, {
 					target: el,
@@ -363,18 +474,23 @@
 						n_confirmed_attendees: priorityEvent.participantIds?.length || 0,
 						max_occupancy: priorityEvent.maxParticipants || 0,
 						marker_color: getMarkerColor(priorityEvent),
+						marker_scale: selectedClusterEvent ? 0.78 : 0.6,
 						cluster_count: count - 1
 					}
 				});
 				svelteMarkers.push(markerComponent);
 
 				el.addEventListener('click', () => {
-					clearSelectedEvent();
+					selectEvent(priorityEvent, clusterEvents, false);
 					try {
 						const expansionZoom = clusterIndex.getClusterExpansionZoom(clusterId);
+						const currentZoom = currentMap.getZoom();
 						currentMap.flyTo({
 							center: [lng, lat],
-							zoom: expansionZoom,
+							zoom: Math.max(
+								currentZoom,
+								Math.min(Math.max(expansionZoom, currentZoom + 1), 16)
+							),
 							speed: 1.2
 						});
 					} catch (e) {
@@ -390,10 +506,12 @@
 				const event = feature.properties.event;
 				const creator = creatorProfiles[event.creatorId];
 				const photoURL = event.groupPhotoURL || event.organizationLogoURL || creator?.photoURL || '';
+				const isSelectedMarker = selectedEvent?.id === event.id;
 
 				const el = document.createElement('div');
 				el.className = 'custom-marker';
 				el.style.cursor = 'pointer';
+				el.style.zIndex = isSelectedMarker ? '60' : '10';
 
 				const markerComponent = mount(Marker, {
 					target: el,
@@ -403,13 +521,14 @@
 						sport: event.sport,
 						n_confirmed_attendees: event.participantIds?.length || 0,
 						max_occupancy: event.maxParticipants || 0,
-						marker_color: getMarkerColor(event)
+						marker_color: getMarkerColor(event),
+						marker_scale: isSelectedMarker ? 0.78 : 0.6
 					}
 				});
 				svelteMarkers.push(markerComponent);
 
 				el.addEventListener('click', () => {
-					selectEvent(event);
+					selectEvent(event, getNearbyEventGroup(event));
 				});
 
 				const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
@@ -487,11 +606,11 @@
 </script>
 
 <section
-	class="relative overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900 flex-1 min-h-0 flex flex-col"
+	class="relative flex flex-col overflow-visible rounded-[2rem] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900 md:min-h-0 md:flex-1 md:overflow-hidden"
 >
 	<div
 		bind:this={mapContainer}
-		class="flex-1 min-h-[250px] w-full md:h-[calc(100vh-240px)] md:min-h-[620px] md:flex-none"
+		class="h-[48dvh] min-h-[360px] w-full flex-none md:h-[calc(100vh-240px)] md:min-h-[620px]"
 	></div>
 
 	<div
@@ -574,6 +693,71 @@
 						×
 					</button>
 				</div>
+			</div>
+
+			<div class="mt-4">
+				<label class="sr-only" for="mobile-explore-search">Search events</label>
+				<div class="flex items-center gap-3 rounded-2xl bg-slate-100/90 px-3.5 py-2.5 shadow-inner shadow-white/70 backdrop-blur dark:bg-slate-800/80 dark:shadow-none">
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2.4"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500"
+					>
+						<circle cx="11" cy="11" r="7" />
+						<path d="m20 20-3.5-3.5" />
+					</svg>
+					<input
+						id="mobile-explore-search"
+						type="search"
+						value={localSearchTerm}
+						placeholder="Search events, sports or places"
+						oninput={(event) => handleSearchInput((event.currentTarget as HTMLInputElement).value)}
+						class="min-w-0 flex-1 appearance-none border-0 bg-transparent p-0 text-sm font-black text-slate-900 outline-none ring-0 shadow-none placeholder:font-bold placeholder:text-slate-400 focus:border-0 focus:outline-none focus:ring-0 dark:text-slate-100"
+					/>
+				</div>
+
+				{#if localSearchTerm.trim()}
+					<div class="mt-3 space-y-2">
+						{#if searchPreviewEvents.length}
+							{#each searchPreviewEvents as event (event.id)}
+								<button
+									type="button"
+									onclick={() => selectSearchResult(event)}
+									class="flex w-full items-center gap-2.5 rounded-2xl border border-slate-100 bg-white p-2 text-left shadow-sm transition active:scale-[0.99] dark:border-slate-800 dark:bg-slate-900"
+								>
+									<div class="h-10 w-12 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
+										{#if getSelectedPreviewUrl(event)}
+											<img src={getSelectedPreviewUrl(event)} alt={event.title} class="h-full w-full object-cover" />
+										{:else}
+											<div class="grid h-full w-full place-items-center text-sm font-black uppercase text-blue-600 dark:text-blue-300">
+												{event.sport.charAt(0)}
+											</div>
+										{/if}
+									</div>
+									<div class="min-w-0 flex-1">
+										<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">
+											{event.title}
+										</p>
+										<p class="truncate text-xs font-bold text-slate-500 dark:text-slate-400">
+											{event.location?.address ?? event.location?.name ?? 'Location not set'}
+										</p>
+									</div>
+									<span class="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+										{formatSelectedDate(event)}
+									</span>
+								</button>
+							{/each}
+						{:else}
+							<p class="rounded-2xl border border-dashed border-slate-200 p-3 text-sm font-bold text-slate-500 dark:border-slate-700 dark:text-slate-400">
+								No events found for this search.
+							</p>
+						{/if}
+					</div>
+				{/if}
 			</div>
 
 			<!-- Date Filter -->
@@ -760,6 +944,71 @@
 		</div>
 
 		{#if showFilters}
+			<div class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700">
+				<label class="sr-only" for="desktop-explore-search">Search events</label>
+				<div class="flex max-w-xl items-center gap-3 rounded-2xl bg-slate-100/90 px-4 py-2.5 shadow-inner shadow-white/70 backdrop-blur dark:bg-slate-800/80 dark:shadow-none">
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2.4"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="h-5 w-5 shrink-0 text-slate-400 dark:text-slate-500"
+					>
+						<circle cx="11" cy="11" r="7" />
+						<path d="m20 20-3.5-3.5" />
+					</svg>
+					<input
+						id="desktop-explore-search"
+						type="search"
+						value={localSearchTerm}
+						placeholder="Search events, sports, organizations or places"
+						oninput={(event) => handleSearchInput((event.currentTarget as HTMLInputElement).value)}
+						class="min-w-0 flex-1 appearance-none border-0 bg-transparent p-0 text-sm font-black text-slate-900 outline-none ring-0 shadow-none placeholder:text-sm placeholder:font-bold placeholder:text-slate-400 focus:border-0 focus:outline-none focus:ring-0 dark:text-slate-100"
+					/>
+				</div>
+
+				{#if localSearchTerm.trim()}
+					<div class="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+						{#if searchPreviewEvents.length}
+							{#each searchPreviewEvents as event (event.id)}
+								<button
+									type="button"
+									onclick={() => selectSearchResult(event)}
+									class="flex min-w-0 items-center gap-2.5 rounded-2xl border border-slate-200 bg-white p-2 text-left shadow-sm transition hover:border-blue-200 hover:bg-blue-50/60 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-blue-900 dark:hover:bg-blue-950/30"
+								>
+									<div class="h-12 w-16 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
+										{#if getSelectedPreviewUrl(event)}
+											<img src={getSelectedPreviewUrl(event)} alt={event.title} class="h-full w-full object-cover" />
+										{:else}
+											<div class="grid h-full w-full place-items-center text-sm font-black uppercase text-blue-600 dark:text-blue-300">
+												{event.sport.charAt(0)}
+											</div>
+										{/if}
+									</div>
+									<div class="min-w-0 flex-1">
+										<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">
+											{event.title}
+										</p>
+										<p class="truncate text-xs font-bold text-slate-500 dark:text-slate-400">
+											{event.location?.address ?? event.location?.name ?? 'Location not set'}
+										</p>
+										<p class="mt-0.5 truncate text-[11px] font-bold text-slate-400 dark:text-slate-500">
+											{formatSelectedDate(event)}
+										</p>
+									</div>
+								</button>
+							{/each}
+						{:else}
+							<p class="rounded-2xl border border-dashed border-slate-200 p-4 text-sm font-bold text-slate-500 dark:border-slate-700 dark:text-slate-400">
+								No events found for this search.
+							</p>
+						{/if}
+					</div>
+				{/if}
+			</div>
+
 			<div class="mt-5 grid gap-4 border-t border-slate-200 pt-4 dark:border-slate-700 lg:grid-cols-3">
 				<div>
 					<p class="text-sm font-black text-slate-950 dark:text-slate-50">Date</p>
@@ -913,24 +1162,31 @@
 
 	{#if selectedEvent}
 		<aside
-			class="absolute inset-x-3 bottom-3 z-30 max-h-[70dvh] overflow-y-auto rounded-[1.5rem] border border-slate-200 bg-white p-3 shadow-2xl shadow-slate-300/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none md:inset-x-auto md:bottom-auto md:left-5 md:top-5 md:w-[24rem] md:rounded-[1.75rem] md:p-4"
+			class="relative z-20 mx-3 mb-3 mt-3 max-h-none overflow-visible rounded-2xl border border-slate-200 bg-white p-2.5 shadow-xl shadow-slate-300/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none md:absolute md:inset-x-auto md:bottom-auto md:left-5 md:top-5 md:m-0 md:max-h-[70dvh] md:w-[24rem] md:overflow-y-auto md:rounded-[1.75rem] md:p-4 md:shadow-2xl md:shadow-slate-300/70"
 		>
 			<div class="flex items-center justify-between gap-3">
-				<span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-black uppercase tracking-[0.16em] text-blue-600 dark:bg-blue-950/70 dark:text-blue-300">
-					{selectedEvent.sport}
-				</span>
+				<div class="flex min-w-0 flex-wrap items-center gap-2">
+					<span class="rounded-full bg-blue-50 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-blue-600 dark:bg-blue-950/70 dark:text-blue-300 md:px-3 md:py-1 md:text-xs">
+						{selectedEvent.sport}
+					</span>
+					{#if selectedEventGroup.length > 1}
+						<span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300 md:px-3 md:py-1 md:text-xs">
+							{selectedEventIndex + 1}/{selectedEventGroup.length} nearby
+						</span>
+					{/if}
+				</div>
 				<button
 					type="button"
 					onclick={clearSelectedEvent}
-					class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xl font-black text-slate-500 transition hover:bg-slate-200 hover:text-slate-900 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100"
+					class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-lg font-black text-slate-500 transition hover:bg-slate-200 hover:text-slate-900 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100 md:h-8 md:w-8 md:text-xl"
 					aria-label="Close event preview"
 				>
 					×
 				</button>
 			</div>
 
-			<div class="mt-3 flex gap-3">
-				<div class="h-28 w-28 shrink-0 overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800">
+			<div class="mt-2.5 flex gap-2.5 md:mt-3 md:gap-3">
+				<div class="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800 md:h-28 md:w-28">
 					{#if getSelectedPreviewUrl(selectedEvent)}
 						<img src={getSelectedPreviewUrl(selectedEvent)} alt={selectedEvent.title} class="h-full w-full object-cover" />
 					{:else}
@@ -941,35 +1197,71 @@
 				</div>
 
 				<div class="min-w-0 flex-1">
-					<h2 class="line-clamp-2 text-lg font-black leading-tight text-slate-950 dark:text-slate-50">
+					<h2 class="line-clamp-2 text-base font-black leading-tight text-slate-950 dark:text-slate-50 md:text-lg">
 						{selectedEvent.title}
 					</h2>
-					<p class="mt-1 truncate text-sm font-bold text-slate-500 dark:text-slate-400">
-						📍 {selectedEvent.location?.name ?? 'Location not set'}
+					<p class="mt-0.5 truncate text-xs font-bold text-slate-500 dark:text-slate-400 md:mt-1 md:text-sm">
+						📍 {selectedEvent.location?.address ?? selectedEvent.location?.name ?? 'Location not set'}
 					</p>
 					<p class="mt-1 truncate text-xs font-semibold text-slate-400 dark:text-slate-500">
 						{formatSelectedDate(selectedEvent)}
 					</p>
 
-					<div class="mt-3 flex flex-wrap gap-1.5">
-						<span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black capitalize text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+					<div class="mt-2 flex flex-wrap gap-1.5 md:mt-3">
+						<span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black capitalize text-slate-600 dark:bg-slate-800 dark:text-slate-300 md:px-2.5 md:py-1 md:text-[11px]">
 							{selectedEvent.level ?? 'casual'}
 						</span>
-						<span class="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-black text-blue-600 dark:bg-blue-950/70 dark:text-blue-300">
+						<span class="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-600 dark:bg-blue-950/70 dark:text-blue-300 md:px-2.5 md:py-1 md:text-[11px]">
 							{selectedEvent.participantIds.length}/{selectedEvent.maxParticipants} players
 						</span>
 					</div>
 				</div>
 			</div>
 
-			<div class="mt-3 flex items-center justify-between gap-3">
-				<p class="truncate text-sm font-black text-slate-700 dark:text-slate-200">
+			{#if selectedEventGroup.length > 1}
+				<div class="mt-2.5 flex items-center justify-between rounded-2xl bg-slate-50 px-2.5 py-1.5 dark:bg-slate-950/60 md:mt-3 md:px-3 md:py-2">
+					<div class="min-w-0">
+						<p class="text-xs font-black text-slate-700 dark:text-slate-200">
+							{selectedEventGroup.length} events in this area
+						</p>
+						<p class="hidden truncate text-[11px] font-bold text-slate-400 dark:text-slate-500 sm:block">
+							Use the arrows to switch the main preview.
+						</p>
+					</div>
+					<div class="ml-3 flex shrink-0 items-center gap-2">
+						<button
+							type="button"
+							onclick={() => moveSelectedEvent(-1)}
+							class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white text-base font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-blue-950 md:h-8 md:w-8 md:text-lg"
+							aria-label="Previous nearby event"
+						>
+							‹
+						</button>
+
+						<span class="min-w-10 text-center text-xs font-black text-slate-500 dark:text-slate-300">
+							{selectedEventIndex + 1}/{selectedEventGroup.length}
+						</span>
+
+						<button
+							type="button"
+							onclick={() => moveSelectedEvent(1)}
+							class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white text-base font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-blue-950 md:h-8 md:w-8 md:text-lg"
+							aria-label="Next nearby event"
+						>
+							›
+						</button>
+					</div>
+				</div>
+			{/if}
+
+			<div class="mt-2.5 flex items-center justify-between gap-3 md:mt-3">
+				<p class="truncate text-xs font-black text-slate-700 dark:text-slate-200 md:text-sm">
 					{formatSelectedPrice(selectedEvent)}
 				</p>
 
 				<a
 					href={getEventHref(selectedEvent)}
-					class="shrink-0 rounded-2xl bg-blue-600 px-4 py-2.5 text-center text-sm font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700"
+					class="shrink-0 rounded-xl bg-blue-600 px-3 py-2 text-center text-xs font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 md:rounded-2xl md:px-4 md:py-2.5 md:text-sm"
 				>
 					View event
 				</a>
