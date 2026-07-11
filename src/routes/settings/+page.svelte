@@ -134,7 +134,6 @@
 			if (profile) deviceAccounts = rememberDeviceAccount(profile, auth.currentUser);
 
 			if (canFastSwitchDeviceAccount(account)) {
-				await authService.logout();
 				const switchedUser = await authService.signInWithGoogle();
 
 				if (switchedUser.uid !== account.id) {

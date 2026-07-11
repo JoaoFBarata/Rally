@@ -131,6 +131,12 @@ export const authService = {
 				clientId
 			});
 
+			try {
+				await GoogleSignIn.signOut();
+			} catch {
+				// No native Google session to clear.
+			}
+
 			const result = await GoogleSignIn.signIn();
 			if (!result.idToken) {
 				throw new Error('No idToken returned from Google Sign-In');

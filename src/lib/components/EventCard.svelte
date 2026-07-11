@@ -257,7 +257,7 @@
 		</div>
 
 		<div class={`relative flex h-full min-h-[inherit] flex-col justify-between ${miniHero ? 'p-3 sm:p-4' : `p-4 ${compactHero ? 'sm:p-4' : 'sm:p-5'}`}`}>
-			<div class="flex items-start justify-between gap-3">
+			<div class="mb-2 flex items-start justify-between gap-3 sm:mb-0">
 				<span class={`rounded-full bg-emerald-500/90 font-black text-white shadow-lg shadow-emerald-950/20 ${miniHero ? 'px-2.5 py-0.5 text-[10px] sm:px-3 sm:py-1 sm:text-xs' : 'px-3 py-1 text-xs'}`}>
 					{formatDate(event.startAt)}
 				</span>

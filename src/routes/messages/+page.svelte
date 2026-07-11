@@ -246,7 +246,11 @@
 
 		const conversationsWithProfiles = await Promise.all(
 			visibleConversations.map(async (conversation) => {
-				const unreadCount = conversation.unreadCounts?.[currentUserId] ?? 0;
+				const unreadCount =
+					(conversation.unreadCounts?.[currentUserId] ?? 0) > 0 ||
+					conversation.unreadFor?.includes(currentUserId)
+						? 1
+						: 0;
 
 				if (conversation.type === 'rally_system') {
 					const isCleared = isConversationClearedForUser(conversation, currentUserId);
@@ -380,9 +384,13 @@
 			})
 		);
 
-		invites = invitesWithEvents.sort(
-			(a, b) => timestampToMillis(b.createdAt) - timestampToMillis(a.createdAt)
-		);
+		invites = invitesWithEvents
+			.filter((invite) => {
+				if (!invite.event) return false;
+				const status = getEffectiveEventStatus(invite.event);
+				return status !== 'finished' && status !== 'cancelled';
+			})
+			.sort((a, b) => timestampToMillis(b.createdAt) - timestampToMillis(a.createdAt));
 	}
 
 	async function updateFriendRequestsWithProfiles(requests: FriendRequest[]) {

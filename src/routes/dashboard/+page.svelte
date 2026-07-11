@@ -12,6 +12,7 @@
 		getUpcomingEvents,
 		sortEventsByStartDate,
 		isEventFinished,
+		getEffectiveEventStatus,
 		isPromotionActive,
 		getEventById,
 		notifyEventFinished
@@ -32,6 +33,7 @@
 		subscribeToEventCatalogChanges,
 		subscribeToUserActivityChanges
 	} from '$lib/services/realtime.service';
+	import { notificationState } from '$lib/notifications.svelte';
 
 	let user = $state<User | null>(null);
 	let profile = $state<UserProfile | null>(null);
@@ -40,6 +42,7 @@
 	let joinedEvents = $state<SportEvent[]>([]);
 	let allUserEvents = $state<SportEvent[]>([]);
 	let invites = $state<EventInvite[]>([]);
+	let inviteEventsById = $state<Record<string, SportEvent>>({});
 	let promotedEvents = $state<SportEvent[]>([]);
 	let publicEvents = $state<SportEvent[]>([]);
 	let friends = $state<UserProfile[]>([]);
@@ -51,6 +54,7 @@
 	let showPastEvents = $state(false);
 	let showCancelledEvents = $state(false);
 	let showUpcomingRallies = $state(false);
+	let showNotifications = $state(false);
 	let nearbyIndex = $state(0);
 	let radiusKm = $state(20);
 	let discoverTab = $state<'nearby' | 'recommended'>('nearby');
@@ -92,7 +96,10 @@
 		return Array.from(eventsById.values());
 	});
 
-	let pendingInvites = $derived(invites.filter((i) => i.status === 'pending'));
+	let pendingInvites = $derived(
+		invites.filter((invite) => invite.status === 'pending' && isInviteEventActive(inviteEventsById[invite.eventId]))
+	);
+	let notificationCount = $derived(notificationState.total);
 	let upcomingRallies = $derived(getUpcomingEvents(allUserEvents));
 	let nextEvent = $derived(upcomingRallies[0] ?? null);
 	let userEventIds = $derived(new Set(allUserEvents.map((event) => event.id)));
@@ -169,6 +176,10 @@
 		return 'Date not set';
 	}
 
+	function formatBadge(value: number) {
+		return value > 9 ? '9+' : String(value);
+	}
+
 	function getDistanceKm(anchor: { lat: number; lng: number } | null, event: SportEvent) {
 		const lat = event.location?.lat;
 		const lng = event.location?.lng;
@@ -217,6 +228,31 @@
 		);
 	}
 
+	function isInviteEventActive(event: SportEvent | null | undefined) {
+		if (!event) return false;
+		const status = getEffectiveEventStatus(event);
+		return status !== 'finished' && status !== 'cancelled';
+	}
+
+	async function getActiveInvitesWithEvents(loadedInvites: EventInvite[]) {
+		const inviteEntries = await Promise.all(
+			loadedInvites.map(async (invite) => {
+				const event = await getEventById(invite.eventId);
+				return { invite, event };
+			})
+		);
+		const activeInviteEvents: Record<string, SportEvent> = {};
+		const activeInvites: EventInvite[] = [];
+
+		for (const { invite, event } of inviteEntries) {
+			if (!event || !isInviteEventActive(event)) continue;
+			activeInviteEvents[invite.eventId] = event;
+			activeInvites.push(invite);
+		}
+
+		return { activeInvites, activeInviteEvents };
+	}
+
 	async function loadInvitePreview(pending: EventInvite[]) {
 		const invite = pending[0];
 
@@ -228,9 +264,15 @@
 
 		try {
 			const [eventPreview, userPreview] = await Promise.all([
-				getEventById(invite.eventId),
+				Promise.resolve(inviteEventsById[invite.eventId] ?? getEventById(invite.eventId)),
 				getUserProfile(invite.fromUserId)
 			]);
+
+			if (!isInviteEventActive(eventPreview)) {
+				invitePreviewEvent = null;
+				invitePreviewUser = null;
+				return;
+			}
 
 			invitePreviewEvent = eventPreview;
 			invitePreviewUser = userPreview;
@@ -301,10 +343,12 @@
 		joinedEvents = allUserEvents.filter(
 			(event) => event.creatorId !== userId && event.participantIds.includes(userId)
 		);
-		invites = loadedInvites;
+		const { activeInvites, activeInviteEvents } = await getActiveInvitesWithEvents(loadedInvites);
+		inviteEventsById = activeInviteEvents;
+		invites = activeInvites;
 		publicEvents = loadedPublicEvents;
 		friends = loadedFriends;
-		await loadInvitePreview(loadedInvites.filter((invite) => invite.status === 'pending'));
+		await loadInvitePreview(activeInvites.filter((invite) => invite.status === 'pending'));
 	}
 
 	onMount(() => {
@@ -466,22 +510,109 @@
 				</p>
 			</div>
 
-			<div class="flex shrink-0 items-center gap-2 sm:gap-3">
-				<a
-					href={resolve('/messages')}
+			<div class="relative flex shrink-0 items-center gap-2 sm:gap-3">
+				<button
+					type="button"
+					onclick={() => (showNotifications = !showNotifications)}
 					class="relative grid h-11 w-11 place-items-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-blue-200 hover:text-blue-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
-					aria-label="Messages"
+					aria-label="Notifications"
+					aria-expanded={showNotifications}
 				>
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
 							<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
 							<path d="M13.73 21a2 2 0 0 1-3.46 0" />
 						</svg>
-					{#if pendingInvites.length > 0}
+					{#if notificationCount > 0}
 						<span class="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">
-							{pendingInvites.length}
+							{formatBadge(notificationCount)}
 						</span>
 					{/if}
-				</a>
+				</button>
+
+				{#if showNotifications}
+					<button
+						type="button"
+						class="fixed inset-0 z-30 cursor-default"
+						aria-label="Close notifications"
+						onclick={() => (showNotifications = false)}
+					></button>
+					<div
+						class="absolute right-0 top-12 z-40 w-[min(18.5rem,calc(100vw-1.5rem))] overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white p-2 text-left shadow-2xl shadow-slate-300/60 dark:border-slate-800 dark:bg-slate-950 dark:shadow-black/30 sm:w-[23rem] sm:rounded-[1.5rem] sm:p-3"
+					>
+						<div class="flex items-center justify-between px-1 pb-2">
+							<div>
+								<p class="text-xs font-black text-slate-950 dark:text-slate-50 sm:text-sm">Notifications</p>
+								<p class="text-xs font-semibold text-slate-500 dark:text-slate-400">
+									{notificationCount > 0 ? `${notificationCount} new update${notificationCount === 1 ? '' : 's'}` : 'All caught up'}
+								</p>
+							</div>
+							<span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-600 dark:bg-blue-950 dark:text-blue-300">
+								{formatBadge(notificationCount)}
+							</span>
+						</div>
+
+						<div class="max-h-[18rem] space-y-1.5 overflow-y-auto pr-1 sm:max-h-[24rem] sm:space-y-2">
+							{#if notificationState.previews.length > 0}
+								{#each notificationState.previews as item (item.id)}
+								<a
+									href={item.href}
+									onclick={() => (showNotifications = false)}
+									class="flex items-center gap-2 rounded-2xl bg-slate-50 p-2 transition hover:bg-blue-50 dark:bg-slate-900 dark:hover:bg-blue-950/30 sm:gap-3 sm:p-3"
+								>
+									{#if item.photoURL}
+										<img src={item.photoURL} alt="" class="h-9 w-9 shrink-0 rounded-full object-cover sm:h-11 sm:w-11" />
+									{:else}
+										<span
+											class={`grid h-9 w-9 shrink-0 place-items-center rounded-full sm:h-11 sm:w-11 ${
+												item.type === 'message'
+													? 'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-300'
+													: item.type === 'invite'
+														? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300'
+														: 'bg-purple-100 text-purple-600 dark:bg-purple-950 dark:text-purple-300'
+											}`}
+										>
+											{#if item.type === 'message'}
+												<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+													<path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+												</svg>
+											{:else if item.type === 'invite'}
+												<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+													<path d="M8 2v4" />
+													<path d="M16 2v4" />
+													<rect x="3" y="4" width="18" height="18" rx="2" />
+													<path d="M3 10h18" />
+												</svg>
+											{:else}
+												<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+													<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+													<circle cx="9" cy="7" r="4" />
+													<path d="M19 8v6" />
+													<path d="M22 11h-6" />
+												</svg>
+											{/if}
+										</span>
+									{/if}
+									<div class="min-w-0 flex-1">
+										<p class="truncate text-xs font-black text-slate-950 dark:text-slate-50 sm:text-sm">
+											{item.title}
+										</p>
+										<p class="truncate text-[11px] font-semibold text-slate-500 dark:text-slate-400 sm:text-xs">
+											{item.body}
+										</p>
+									</div>
+									<span class="hidden rounded-full bg-white px-2 py-1 text-[10px] font-black uppercase tracking-wide text-slate-400 dark:bg-slate-950 dark:text-slate-500 sm:inline-flex">
+										{item.type === 'friend_request' ? 'friend' : item.type}
+									</span>
+								</a>
+								{/each}
+							{:else}
+								<div class="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+									No new notifications right now.
+								</div>
+							{/if}
+						</div>
+					</div>
+				{/if}
 
 				<a href={resolve('/profile')} class="rounded-full transition hover:opacity-80" aria-label="Profile">
 					<UserAvatar photoURL={profile?.photoURL ?? user?.photoURL} displayName={profile?.displayName ?? user?.displayName} email={profile?.email ?? user?.email} size="md" />
@@ -563,7 +694,7 @@
 				</div>
 			{/if}
 
-			<nav class="flex gap-2 overflow-x-auto pb-1">
+			<nav class="flex gap-2 overflow-x-auto pb-4 sm:pb-3">
 				<a href={resolve('/explore')} class="inline-flex shrink-0 items-center gap-2 rounded-full bg-blue-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700">
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
 							<circle cx="11" cy="11" r="8" />
@@ -589,7 +720,7 @@
 					</a>
 			</nav>
 
-			<section class="mt-6 space-y-3">
+			<section class="mt-5 space-y-3">
 				<div class="flex items-end justify-between gap-4">
 					<div>
 						<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">Featured event</p>

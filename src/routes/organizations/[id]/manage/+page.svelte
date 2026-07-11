@@ -18,6 +18,7 @@
 		requestOrganizationVerification,
 		updateOrganizationProfile
 	} from '$lib/services/organization.service';
+	import { ensureUserProfile } from '$lib/services/user.service';
 	import {
 		calculatePromotionStats,
 		getEventsCreatedByOrganization,
@@ -590,11 +591,19 @@
 			}
 
 			if (canFastSwitchDeviceAccount(account)) {
-				await authService.signInWithGoogle();
-				deviceAccounts = getDeviceAccounts();
+				const switchedUser = await authService.signInWithGoogle();
+
+				if (switchedUser.uid !== account.id) {
+					deviceAccounts = getDeviceAccounts();
+					error = `You signed in as ${switchedUser.email ?? 'another account'}. Choose ${account.email} to switch to ${account.displayName}.`;
+					return;
+				}
+
+				const switchedProfile = await ensureUserProfile(switchedUser);
+				deviceAccounts = rememberDeviceAccount(switchedProfile, switchedUser);
 				showSettingsModal = false;
 				showAccountSwitcher = false;
-				await goto(getPostSwitchHref(account));
+				await goto(getPostSwitchHref(deviceAccounts.find((item) => item.id === switchedUser.uid) ?? account));
 				return;
 			}
 
@@ -606,6 +615,9 @@
 					`/login?returnTo=${encodeURIComponent(getPostSwitchHref(account))}&email=${encodeURIComponent(account.email)}`
 				)
 			);
+		} catch (err) {
+			console.error('Switch account error:', err);
+			error = getFriendlyErrorMessage(err, 'Could not switch account.');
 		} finally {
 			logoutLoading = false;
 			switchingAccountId = null;

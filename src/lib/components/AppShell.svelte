@@ -355,13 +355,13 @@
 
 							<span>{item.label}</span>
 
-							{#if item.href === '/messages' && notificationState.total > 0}
+							{#if item.href === '/messages' && notificationState.unreadMessages > 0}
 								<span
 									class={`ml-auto flex min-h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-black ${
 										isActive(item.href) ? 'bg-white text-blue-600' : 'bg-red-500 text-white'
 									}`}
 								>
-									{formatBadge(notificationState.total)}
+									{formatBadge(notificationState.unreadMessages)}
 								</span>
 							{/if}
 						</a>
@@ -410,11 +410,11 @@
 						>
 							<NavIcon name={item.icon} />
 
-							{#if item.href === '/messages' && notificationState.total > 0}
+							{#if item.href === '/messages' && notificationState.unreadMessages > 0}
 								<span
 									class="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black text-white"
 								>
-									{formatBadge(notificationState.total)}
+									{formatBadge(notificationState.unreadMessages)}
 								</span>
 							{/if}
 						</span>
