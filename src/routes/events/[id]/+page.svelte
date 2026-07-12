@@ -996,12 +996,12 @@
 <button
 	type="button"
 	onclick={() => goBack(resolve('/dashboard'))}
-	class="hidden items-center gap-2 rounded-full bg-blue-50 px-5 py-2 text-sm font-semibold leading-none text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900 sm:inline-flex"
+	class="hidden h-11 w-11 items-center justify-center rounded-full text-slate-950 transition hover:bg-slate-100 dark:text-slate-50 dark:hover:bg-slate-800 sm:inline-flex"
+	aria-label="Back"
 >
-	<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.6" stroke="currentColor" class="h-6 w-6 shrink-0 sm:h-4 sm:w-4">
+	<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="h-6 w-6 shrink-0">
 		<path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
 	</svg>
-	<span class="hidden sm:inline">Back</span>
 </button>
 
 {#if loading}
@@ -1021,7 +1021,7 @@
 		<div class="min-w-0 max-w-full space-y-6">
 						<section class="space-y-4 sm:hidden">
 							<div class="relative -mx-5 -mt-2 overflow-hidden bg-slate-950">
-								<img src={getEventHeroImage(event)} alt={event.title} class="h-60 w-full object-cover" loading="eager" />
+									<img src={getEventHeroImage(event)} alt={event.title} class="h-52 w-full object-cover" loading="eager" />
 								<div class="absolute inset-0 bg-gradient-to-t from-white via-white/10 to-transparent dark:from-slate-950"></div>
 
 								<button
@@ -1080,7 +1080,7 @@
 						</div>
 
 							<div class="sticky top-0 z-20 -mx-5 bg-white/95 px-5 py-2 backdrop-blur dark:bg-slate-950/95">
-							<div class="grid grid-cols-4 rounded-2xl bg-white p-1 text-xs font-black text-slate-500 shadow-sm ring-1 ring-slate-200/70 dark:bg-slate-900 dark:text-slate-400 dark:ring-slate-800">
+								<div class="grid grid-cols-4 rounded-[1.35rem] bg-white p-1 text-sm font-black text-slate-500 shadow-sm shadow-slate-200/70 ring-1 ring-slate-200/80 dark:bg-slate-900 dark:text-slate-400 dark:shadow-none dark:ring-slate-800">
 								{#each [
 									['overview', 'Overview'],
 									['players', 'Players'],
@@ -1090,9 +1090,13 @@
 									<button
 										type="button"
 										onclick={() => (activeEventTab = tab as typeof activeEventTab)}
-										class={`rounded-xl px-2 py-2 transition ${activeEventTab === tab ? 'bg-blue-600 text-white shadow-sm' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-									>
-										{label}{#if tab === 'chat' && groupMessages.length > 0}<span class="ml-1 rounded-full bg-white/20 px-1">{groupMessages.length}</span>{/if}
+											class={`min-w-0 rounded-[1rem] px-2 py-2.5 text-center transition ${
+												activeEventTab === tab
+													? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+													: 'hover:bg-slate-50 hover:text-slate-800 dark:hover:bg-slate-800 dark:hover:text-slate-100'
+											}`}
+										>
+											<span class="block truncate">{label}</span>
 									</button>
 								{/each}
 							</div>
@@ -1325,7 +1329,7 @@
 			<section
 				class="hidden overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:block sm:rounded-4xl"
 			>
-				<div class="relative h-72 overflow-hidden bg-slate-950">
+					<div class="relative h-56 overflow-hidden bg-slate-950 lg:h-64">
 					<img src={getEventHeroImage(event)} alt={event.title} class="h-full w-full object-cover" />
 					<div class="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/35 to-transparent"></div>
 
@@ -1636,10 +1640,8 @@
 				</section>
 			{/if}
 
-				{#if event?.eventKind === 'tournament'}
-					<div class={activeEventTab === 'overview' ? '' : 'hidden sm:block'}>
-						<TournamentPanel {event} {currentUserId} canManage={canManageTournament} />
-					</div>
+				{#if event?.eventKind === 'tournament' && activeEventTab === 'overview'}
+					<TournamentPanel {event} {currentUserId} canManage={canManageTournament} />
 				{/if}
 
 				{#if canAccessGroupChat && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}

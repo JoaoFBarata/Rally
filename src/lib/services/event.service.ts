@@ -577,10 +577,14 @@ export async function updateSportEvent(params: {
 	lng?: number | null;
 	startAt: Date;
 	endAt?: Date | null;
-	maxParticipants: number;
-	visibility: EventVisibility;
-	priceTotal?: number | null;
-}): Promise<void> {
+		maxParticipants: number;
+		visibility: EventVisibility;
+		priceTotal?: number | null;
+		groupPhotoURL?: string | null;
+		groupPhotoPath?: string | null;
+		whatToBring?: string;
+		joinPolicy?: EventJoinPolicy;
+	}): Promise<void> {
 	const event = await getEventById(params.eventId);
 
 	if (!event) throw new Error('Event not found.');
@@ -620,7 +624,18 @@ export async function updateSportEvent(params: {
 		priceTotal: params.priceTotal ?? null,
 		pricePerPerson,
 		paymentMode: params.priceTotal ? 'split' : ('none' satisfies EventPaymentMode),
+		groupPhotoURL: params.groupPhotoURL ?? event.groupPhotoURL ?? null,
+		groupPhotoPath: params.groupPhotoPath ?? event.groupPhotoPath ?? null,
+		whatToBring: params.whatToBring ?? '',
+		joinPolicy: params.joinPolicy ?? event.joinPolicy ?? 'open',
 		updatedAt: serverTimestamp()
+	});
+
+	await syncEventGroupConversation({
+		...event,
+		title: params.title,
+		groupPhotoURL: params.groupPhotoURL ?? event.groupPhotoURL ?? null,
+		groupPhotoPath: params.groupPhotoPath ?? event.groupPhotoPath ?? null
 	});
 }
 
