@@ -24,6 +24,7 @@
 		getVisibleEventsForUser,
 		subscribeToPromotedEventsForUser
 	} from '$lib/services/explore.service';
+	import { getOrganizationsFollowedByUser } from '$lib/services/organization.service';
 	import type { EventInvite, SportEvent, UserProfile } from '$lib/schema';
 	import EventCard from '$lib/components/EventCard.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -45,6 +46,7 @@
 	let inviteEventsById = $state<Record<string, SportEvent>>({});
 	let promotedEvents = $state<SportEvent[]>([]);
 	let publicEvents = $state<SportEvent[]>([]);
+	let followedOrganizationIds = $state<string[]>([]);
 	let friends = $state<UserProfile[]>([]);
 	let invitePreviewEvent = $state<SportEvent | null>(null);
 	let invitePreviewUser = $state<UserProfile | null>(null);
@@ -57,7 +59,7 @@
 	let showNotifications = $state(false);
 	let nearbyIndex = $state(0);
 	let radiusKm = $state(20);
-	let discoverTab = $state<'nearby' | 'recommended'>('nearby');
+	let discoverTab = $state<'nearby' | 'recommended' | 'following'>('nearby');
 	let userDeviceLocation = $state<{ lat: number; lng: number } | null>(null);
 	let locationStatus = $state<'idle' | 'loading' | 'ready' | 'blocked' | 'unsupported'>('idle');
 
@@ -147,6 +149,22 @@
 			);
 
 		return preferredEvents.slice(0, 8);
+	});
+	let followingEvents = $derived.by(() => {
+		const followedIds = new Set(followedOrganizationIds);
+		const excluded = (event: SportEvent) =>
+			userEventIds.has(event.id) ||
+			event.participantIds.includes(user?.uid ?? '') ||
+			event.creatorId === user?.uid ||
+			isEventFinished(event);
+
+		if (followedIds.size === 0) return [];
+
+		return publicEvents
+			.filter((event) => event.visibility === 'public')
+			.filter((event) => !excluded(event))
+			.filter((event) => event.organizationId && followedIds.has(event.organizationId))
+			.slice(0, 8);
 	});
 	let hasFavoriteSports = $derived((profile?.sports?.length ?? 0) > 0);
 
@@ -320,13 +338,21 @@
 	}
 
 	async function refreshDashboardData(userId: string) {
-		const [createdEvents, participantEvents, loadedInvites, loadedPublicEvents, loadedFriends] = await Promise.all([
-			getEventsCreatedByUser(userId),
-			getEventsForUser(userId),
-			getInvitesForUser(userId),
-			getVisibleEventsForUser(userId),
-			getFriendsForUser(userId)
-		]);
+			const [
+				createdEvents,
+				participantEvents,
+				loadedInvites,
+				loadedPublicEvents,
+				loadedFriends,
+				followedOrganizations
+			] = await Promise.all([
+				getEventsCreatedByUser(userId),
+				getEventsForUser(userId),
+				getInvitesForUser(userId),
+				getVisibleEventsForUser(userId),
+				getFriendsForUser(userId),
+				getOrganizationsFollowedByUser(userId)
+			]);
 		const eventsById = new SvelteMap<string, SportEvent>();
 		for (const event of createdEvents) eventsById.set(event.id, event);
 		for (const event of participantEvents) eventsById.set(event.id, event);
@@ -345,9 +371,10 @@
 		);
 		const { activeInvites, activeInviteEvents } = await getActiveInvitesWithEvents(loadedInvites);
 		inviteEventsById = activeInviteEvents;
-		invites = activeInvites;
-		publicEvents = loadedPublicEvents;
-		friends = loadedFriends;
+			invites = activeInvites;
+			publicEvents = loadedPublicEvents;
+			followedOrganizationIds = followedOrganizations.map((organization) => organization.id);
+			friends = loadedFriends;
 		await loadInvitePreview(activeInvites.filter((invite) => invite.status === 'pending'));
 	}
 
@@ -918,21 +945,21 @@
 										</button>
 									{/each}
 								</div>
-							{:else}
-								<a href={resolve('/explore')} class="shrink-0 text-sm font-black text-blue-600 hover:text-blue-700 dark:text-blue-400">View all</a>
-							{/if}
+								{:else}
+									<a href={resolve('/explore')} class="shrink-0 text-sm font-black text-blue-600 hover:text-blue-700 dark:text-blue-400">View all</a>
+								{/if}
+							</div>
 						</div>
-					</div>
 
-					<div class="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800">
-						<button
-							type="button"
-							onclick={() => (discoverTab = 'nearby')}
-							class={`relative pb-3 pr-5 text-sm font-bold transition ${
-								discoverTab === 'nearby'
-									? 'text-slate-950 dark:text-slate-50'
-									: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
-							}`}
+						<div class="flex items-center gap-1 overflow-x-auto border-b border-slate-200 dark:border-slate-800">
+							<button
+								type="button"
+								onclick={() => (discoverTab = 'nearby')}
+								class={`relative shrink-0 pb-3 pr-5 text-sm font-bold transition ${
+									discoverTab === 'nearby'
+										? 'text-slate-950 dark:text-slate-50'
+										: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
+								}`}
 						>
 							Nearby
 							{#if discoverTab === 'nearby'}
@@ -940,21 +967,36 @@
 							{/if}
 						</button>
 
-						<button
-							type="button"
-							onclick={() => (discoverTab = 'recommended')}
-							class={`relative pb-3 pr-5 text-sm font-bold transition ${
-								discoverTab === 'recommended'
-									? 'text-slate-950 dark:text-slate-50'
-									: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
-							}`}
+							<button
+								type="button"
+								onclick={() => (discoverTab = 'recommended')}
+								class={`relative shrink-0 pb-3 pr-5 text-sm font-bold transition ${
+									discoverTab === 'recommended'
+										? 'text-slate-950 dark:text-slate-50'
+										: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
+								}`}
 						>
 							For you
 							{#if discoverTab === 'recommended'}
-								<span class="absolute bottom-0 left-0 right-5 h-0.5 rounded-full bg-slate-950 dark:bg-white"></span>
-							{/if}
-						</button>
-					</div>
+									<span class="absolute bottom-0 left-0 right-5 h-0.5 rounded-full bg-slate-950 dark:bg-white"></span>
+								{/if}
+							</button>
+
+							<button
+								type="button"
+								onclick={() => (discoverTab = 'following')}
+								class={`relative shrink-0 pb-3 pr-5 text-sm font-bold transition ${
+									discoverTab === 'following'
+										? 'text-slate-950 dark:text-slate-50'
+										: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
+								}`}
+							>
+								Following
+								{#if discoverTab === 'following'}
+									<span class="absolute bottom-0 left-0 right-5 h-0.5 rounded-full bg-slate-950 dark:bg-white"></span>
+								{/if}
+							</button>
+						</div>
 
 					{#if discoverTab === 'nearby'}
 						<p class="text-sm font-semibold text-slate-500 dark:text-slate-400">
@@ -1005,26 +1047,46 @@
 								</p>
 							</div>
 						{/if}
-					{:else if recommendedEvents.length > 0}
-						<PromotedEventCarousel events={recommendedEvents} cardVariant="profile" />
-					{:else}
-						<div class="rounded-[1.5rem] border border-dashed border-slate-200 bg-white/70 p-5 text-sm dark:border-slate-800 dark:bg-slate-900/70">
-							<p class="font-black text-slate-800 dark:text-slate-100">
-								{hasFavoriteSports ? 'No recommendations right now' : 'Choose your favourite sports'}
-							</p>
-							<p class="mt-1 text-slate-500 dark:text-slate-400">
-								{hasFavoriteSports
-									? 'Events matching your favourite sports will appear here.'
-									: 'Go to your profile and select sports so Rally can recommend better events.'}
-							</p>
-							{#if !hasFavoriteSports}
-								<a href={resolve('/profile')} class="mt-3 inline-flex rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700">
-									Update profile
-								</a>
+						{:else if discoverTab === 'recommended'}
+							{#if recommendedEvents.length > 0}
+								<PromotedEventCarousel events={recommendedEvents} cardVariant="profile" />
+							{:else}
+								<div class="rounded-[1.5rem] border border-dashed border-slate-200 bg-white/70 p-5 text-sm dark:border-slate-800 dark:bg-slate-900/70">
+									<p class="font-black text-slate-800 dark:text-slate-100">
+										{hasFavoriteSports ? 'No recommendations right now' : 'Choose your favourite sports'}
+									</p>
+									<p class="mt-1 text-slate-500 dark:text-slate-400">
+										{hasFavoriteSports
+											? 'Events matching your favourite sports will appear here.'
+											: 'Go to your profile and select sports so Rally can recommend better events.'}
+									</p>
+									{#if !hasFavoriteSports}
+										<a href={resolve('/profile')} class="mt-3 inline-flex rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700">
+											Update profile
+										</a>
+									{/if}
+								</div>
 							{/if}
-						</div>
-					{/if}
-				</div>
+						{:else}
+							{#if followingEvents.length > 0}
+								<PromotedEventCarousel events={followingEvents} cardVariant="profile" />
+							{:else}
+								<div class="rounded-[1.5rem] border border-dashed border-slate-200 bg-white/70 p-5 text-sm dark:border-slate-800 dark:bg-slate-900/70">
+									<p class="font-black text-slate-800 dark:text-slate-100">
+										{followedOrganizationIds.length > 0 ? 'No events from followed organizations' : 'Follow organizations to see their events'}
+									</p>
+									<p class="mt-1 text-slate-500 dark:text-slate-400">
+										{followedOrganizationIds.length > 0
+											? 'When clubs you follow create public events, they will appear here.'
+											: 'Open an organization profile and follow it to keep its events close.'}
+									</p>
+									<a href={resolve('/explore')} class="mt-3 inline-flex rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700">
+										Explore organizations
+									</a>
+								</div>
+							{/if}
+						{/if}
+					</div>
 
 			</section>
 

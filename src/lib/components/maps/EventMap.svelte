@@ -9,13 +9,15 @@
 		lng,
 		name = 'Event location',
 		address = '',
-		compact = false
+		compact = false,
+		showHeader = true
 	}: {
 		lat: number | null;
 		lng: number | null;
 		name?: string;
 		address?: string;
 		compact?: boolean;
+		showHeader?: boolean;
 	} = $props();
 
 	let mapContainer = $state<HTMLDivElement>();
@@ -76,29 +78,35 @@
 </script>
 
 <div
-	class={`overflow-hidden border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 ${
-		compact ? 'rounded-[1.5rem] shadow-sm shadow-slate-200/50 dark:shadow-none' : 'rounded-3xl shadow-sm'
+	class={`overflow-hidden bg-white dark:bg-slate-900 ${
+		showHeader
+			? `border border-slate-200 dark:border-slate-800 ${compact ? 'rounded-[1.5rem] shadow-sm shadow-slate-200/50 dark:shadow-none' : 'rounded-3xl shadow-sm'}`
+			: compact
+				? 'rounded-[1.5rem]'
+				: 'rounded-3xl'
 	}`}
 >
-	<div class={compact ? 'border-b border-slate-100 p-3 dark:border-slate-800' : 'border-b border-slate-200 p-5 dark:border-slate-800'}>
-		{#if !compact}
-			<p class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
-				Location
-			</p>
-		{/if}
+	{#if showHeader}
+		<div class={compact ? 'border-b border-slate-100 p-3 dark:border-slate-800' : 'border-b border-slate-200 p-5 dark:border-slate-800'}>
+			{#if !compact}
+				<p class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
+					Location
+				</p>
+			{/if}
 
-		<h2 class={compact ? 'truncate text-sm font-black text-slate-950 dark:text-slate-50' : 'mt-1 text-xl font-black text-slate-950 dark:text-slate-50'}>
-			{name}
-		</h2>
+			<h2 class={compact ? 'truncate text-sm font-black text-slate-950 dark:text-slate-50' : 'mt-1 text-xl font-black text-slate-950 dark:text-slate-50'}>
+				{name}
+			</h2>
 
-		{#if address}
-			<p class={compact ? 'mt-0.5 line-clamp-1 text-xs text-slate-500 dark:text-slate-400' : 'mt-1 text-sm text-slate-500 dark:text-slate-400'}>
-				{address}
-			</p>
-		{:else}
-			<p class={compact ? 'mt-0.5 text-xs text-slate-500 dark:text-slate-400' : 'mt-1 text-sm text-slate-500 dark:text-slate-400'}>Approximate event location.</p>
-		{/if}
-	</div>
+			{#if address}
+				<p class={compact ? 'mt-0.5 line-clamp-1 text-xs text-slate-500 dark:text-slate-400' : 'mt-1 text-sm text-slate-500 dark:text-slate-400'}>
+					{address}
+				</p>
+			{:else}
+				<p class={compact ? 'mt-0.5 text-xs text-slate-500 dark:text-slate-400' : 'mt-1 text-sm text-slate-500 dark:text-slate-400'}>Approximate event location.</p>
+			{/if}
+		</div>
+	{/if}
 
 	{#if hasLocation}
 		<div bind:this={mapContainer} class={compact ? 'h-44 w-full' : 'h-72 w-full'}></div>

@@ -522,12 +522,24 @@ export async function getOrCreateRallySystemChat(userId: string): Promise<string
 
 export async function sendRallySystemMessage(userId: string, text: string): Promise<void> {
 	const conversationId = await getOrCreateRallySystemChat(userId);
+	const conversationRef = doc(db, 'conversations', conversationId);
 	const cleanText = text.trim();
+	const now = serverTimestamp();
 
 	await addDoc(collection(db, 'conversations', conversationId, 'messages'), {
 		conversationId,
 		senderId: RALLY_SYSTEM_SENDER_ID,
 		text: cleanText,
-		createdAt: serverTimestamp()
+		createdAt: now
+	});
+
+	await updateDoc(conversationRef, {
+		lastMessage: cleanText,
+		lastSenderId: RALLY_SYSTEM_SENDER_ID,
+		lastMessageAt: now,
+		updatedAt: now,
+		hiddenFor: [],
+		unreadFor: arrayUnion(userId),
+		[`unreadCounts.${userId}`]: increment(1)
 	});
 }

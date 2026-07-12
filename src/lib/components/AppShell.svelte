@@ -28,6 +28,10 @@
 	let isPlatformAdmin = $state(false);
 
 	let pathname = $derived(page.url.pathname);
+	let isEventDetailsPage = $derived(/^\/events\/[^/]+\/?$/.test(pathname));
+	let shellBackgroundClass = $derived(
+		isEventDetailsPage ? 'bg-white dark:bg-slate-950' : 'bg-slate-100 dark:bg-slate-950'
+	);
 
 	let organizationId = $derived(
 		profile?.accountType === 'organization' && profile.activeOrganizationId
@@ -310,11 +314,11 @@
 </script>
 
 {#if shouldHideNavigation()}
-	<div class="min-h-[100dvh] bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
+	<div class={`min-h-[100dvh] ${shellBackgroundClass} text-slate-950 dark:text-slate-50`}>
 		{@render children()}
 	</div>
 {:else}
-	<div class="min-h-screen bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
+	<div class={`min-h-screen ${shellBackgroundClass} text-slate-950 dark:text-slate-50`}>
 		<div class="flex min-h-screen min-w-0 overflow-x-clip">
 			<!-- Desktop sidebar -->
 			<aside
