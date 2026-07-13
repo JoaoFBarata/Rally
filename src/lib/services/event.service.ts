@@ -539,15 +539,14 @@ export async function createRecurringSportEvents(
 	);
 
 	const recurringGroupId = crypto.randomUUID();
-	const createdEvents: SportEvent[] = [];
 
-	for (let index = 0; index < occurrences; index++) {
+	const promises = Array.from({ length: occurrences }).map((_, index) => {
 		const occurrenceStartAt = addRecurringOffset(params.startAt, params.frequency, index);
 		const occurrenceEndAt = params.endAt
 			? addRecurringOffset(params.endAt, params.frequency, index)
 			: undefined;
 
-		const createdEvent = await createSportEvent({
+		return createSportEvent({
 			...params,
 			startAt: occurrenceStartAt,
 			endAt: occurrenceEndAt,
@@ -556,11 +555,9 @@ export async function createRecurringSportEvents(
 			recurringTotal: occurrences,
 			recurringFrequency: params.frequency
 		});
+	});
 
-		createdEvents.push(createdEvent);
-	}
-
-	return createdEvents;
+	return Promise.all(promises);
 }
 
 export async function updateSportEvent(params: {
@@ -718,7 +715,14 @@ export async function getEventsCreatedByOrganization(organizationId: string) {
 			...docSnap.data()
 		} as SportEvent;
 
-		const enrichedEvent = await enrichEventWithOrganization(event);
+		const enrichedEvent: SportEvent = {
+			...event,
+			hostType: 'organization',
+			organizationId: organization.id,
+			organizationName: organization.name,
+			organizationLogoURL: organization.logoURL ?? null,
+			organizationVerificationStatus: organization.verificationStatus
+		};
 		eventsById.set(enrichedEvent.id, enrichedEvent);
 	}
 
@@ -730,19 +734,19 @@ export async function getEventsCreatedByOrganization(organizationId: string) {
 		].filter(Boolean))
 	];
 
-	for (const chunk of chunkArray(adminIds, 10)) {
-		if (chunk.length === 0) continue;
-
+	const chunks = chunkArray(adminIds, 10).filter(chunk => chunk.length > 0);
+	const chunkPromises = chunks.map(async (chunk) => {
 		const adminEventsQuery = query(collection(db, 'events'), where('creatorId', 'in', chunk));
-
 		const adminEventsSnap = await getDocs(adminEventsQuery);
+		return adminEventsSnap.docs.map(docSnap => ({
+			id: docSnap.id,
+			...docSnap.data()
+		} as SportEvent));
+	});
 
-		for (const docSnap of adminEventsSnap.docs) {
-			const event = {
-				id: docSnap.id,
-				...docSnap.data()
-			} as SportEvent;
-
+	const chunkResults = await Promise.all(chunkPromises);
+	for (const chunkEvents of chunkResults) {
+		for (const event of chunkEvents) {
 			if (event.organizationId && event.organizationId !== organizationId) {
 				continue;
 			}

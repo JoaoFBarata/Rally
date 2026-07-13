@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
-	import { PUBLIC_MAPBOX_ACCESS_TOKEN } from '$env/static/public';
 	import { auth } from '$lib/firebase';
 	import type { EventStatus, SportEvent } from '$lib/schema';
 	import {
@@ -10,6 +9,14 @@
 		trackEventPromotionView
 	} from '$lib/services/event.service';
 	import EventWeather from '$lib/components/EventWeather.svelte';
+	import {
+		formatDate,
+		formatShortDate,
+		formatSport,
+		formatPrice,
+		formatCapacity,
+		getMiniMapUrl
+	} from '$lib/utils/format.utils';
 
 	let {
 		event,
@@ -31,41 +38,10 @@
 
 	let showPromotion = $derived(isPromotionActive(event) && event.promotionAudienceMatch !== false);
 
-	function formatDate(dateValue: unknown) {
-		try {
-			const timestamp = dateValue as { toDate?: () => Date };
-
-			if (timestamp?.toDate) {
-				return timestamp.toDate().toLocaleString('en-GB', {
-					day: '2-digit',
-					month: 'short',
-					hour: '2-digit',
-					minute: '2-digit'
-				});
-			}
-
-			return 'Date not set';
-		} catch {
-			return 'Date not set';
-		}
-	}
-
-	function formatShortDate(dateValue: unknown) {
-		try {
-			const timestamp = dateValue as { toDate?: () => Date };
-
-			if (timestamp?.toDate) {
-				return timestamp.toDate().toLocaleDateString('en-GB', {
-					day: '2-digit',
-					month: 'short'
-				});
-			}
-		} catch {
-			// fall through
-		}
-
-		return 'Soon';
-	}
+	const formattedCapacity = $derived(formatCapacity(event));
+	const formattedPrice = $derived(formatPrice(event));
+	const formattedSportLabel = $derived(formatSport(event.sport));
+	const miniMapUrl = $derived(getMiniMapUrl(event.location?.lat, event.location?.lng, 176, 128));
 
 	function getTimestampMillis(value: unknown) {
 		try {
@@ -113,23 +89,7 @@
 		return status === 'open' || status === 'full' ? 'Upcoming' : 'Past';
 	}
 
-	function formatCapacity() {
-		if (event.eventKind === 'tournament') {
-			return `${event.participantIds?.length ?? 0}/${event.maxTournamentEntries ?? event.maxParticipants} entries`;
-		}
 
-		return `${event.participantIds?.length ?? 0}/${event.maxParticipants} joined`;
-	}
-
-	function formatPrice() {
-		if (event.pricePerPerson) return `€${event.pricePerPerson.toFixed(2)} / person`;
-		if (event.priceTotal) return `€${event.priceTotal.toFixed(2)} total`;
-		return 'Free';
-	}
-
-	function formatSportLabel() {
-		return event.sport.charAt(0).toUpperCase() + event.sport.slice(1);
-	}
 
 	function formatHeroLocation() {
 		const address = event.location?.address?.trim();
@@ -194,17 +154,7 @@
 		return 'border-slate-200 bg-white shadow-slate-200/70 hover:border-blue-200 hover:bg-blue-50/30 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none dark:hover:border-blue-700 dark:hover:bg-slate-800';
 	}
 
-	function getMiniMapUrl() {
-		const lat = event.location?.lat;
-		const lng = event.location?.lng;
 
-		if (!PUBLIC_MAPBOX_ACCESS_TOKEN || typeof lat !== 'number' || typeof lng !== 'number') {
-			return '';
-		}
-
-		const marker = `pin-s+2563eb(${lng},${lat})`;
-		return `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${marker}/${lng},${lat},13,0/176x128@2x?access_token=${PUBLIC_MAPBOX_ACCESS_TOKEN}`;
-	}
 
 	function handleClick() {
 		if (!showPromotion) return;
@@ -269,7 +219,7 @@
 			<div>
 				<div class={`${miniHero ? 'mb-1.5 sm:mb-3' : compactHero ? 'mb-2' : 'mb-3'} flex flex-wrap gap-2`}>
 					<span class={`rounded-full bg-white/15 font-black backdrop-blur ${miniHero ? 'px-2 py-0.5 text-[10px] sm:px-3 sm:py-1 sm:text-xs' : 'px-3 py-1 text-xs'}`}>
-						{formatSportLabel()}
+						{formattedSportLabel}
 					</span>
 					<span class={`rounded-full bg-white/15 font-black capitalize backdrop-blur ${miniHero ? 'hidden px-2 py-0.5 text-[10px] sm:inline-flex sm:px-3 sm:py-1 sm:text-xs' : 'px-3 py-1 text-xs'}`}>
 						{event.level ?? 'casual'}
@@ -285,7 +235,7 @@
 
 				<div class={`${miniHero ? 'mt-2 sm:mt-4' : 'mt-3 sm:mt-4'} flex items-center justify-between gap-3`}>
 					<span class={`${miniHero ? 'text-xs sm:text-sm' : 'text-sm'} truncate font-bold text-white/75`}>
-						{formatPrice()}
+						{formattedPrice}
 					</span>
 					<span
 						class={`shrink-0 rounded-2xl font-black shadow-lg transition ${miniHero ? 'px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm' : 'px-4 py-2 text-sm'} ${
@@ -310,8 +260,8 @@
 			<div
 				class="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800 sm:h-24 sm:w-32"
 			>
-				{#if getMiniMapUrl()}
-					<img src={getMiniMapUrl()} alt={event.location.name} class="h-full w-full object-cover" />
+				{#if miniMapUrl}
+					<img src={miniMapUrl} alt={event.location.name} class="h-full w-full object-cover" />
 				{:else if event.groupPhotoURL}
 					<img src={event.groupPhotoURL} alt={event.title} class="h-full w-full object-cover" />
 				{:else}
@@ -341,10 +291,10 @@
 			</div>
 
 			<p class="mt-1 truncate text-xs font-bold text-slate-500 dark:text-slate-400">
-				{formatSportLabel()} - {event.location.name}
+				{formattedSportLabel} - {event.location.name}
 			</p>
 			<p class="mt-2 truncate text-xs font-black text-slate-400 dark:text-slate-500">
-				{formatDate(event.startAt)} - {formatCapacity()} - {formatPrice()}
+				{formatDate(event.startAt)} - {formattedCapacity} - {formattedPrice}
 			</p>
 		</div>
 	</a>
@@ -362,8 +312,8 @@
 		>
 			{#if event.groupPhotoURL}
 				<img src={event.groupPhotoURL} alt={event.title} class="h-full w-full object-cover" />
-			{:else if getMiniMapUrl()}
-				<img src={getMiniMapUrl()} alt={event.location.name} class="h-full w-full object-cover" />
+			{:else if miniMapUrl}
+				<img src={miniMapUrl} alt={event.location.name} class="h-full w-full object-cover" />
 			{:else}
 				<div class="grid h-full w-full place-items-center text-3xl font-black text-blue-500/70">
 					{event.title.charAt(0).toUpperCase()}

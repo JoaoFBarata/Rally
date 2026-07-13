@@ -5,7 +5,6 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { onAuthStateChanged } from 'firebase/auth';
-	import { PUBLIC_MAPBOX_ACCESS_TOKEN } from '$env/static/public';
 	import { doc, getDoc } from 'firebase/firestore';
 	import { FirebaseError } from 'firebase/app';
 	import { auth, db } from '$lib/firebase';
@@ -27,6 +26,14 @@
 		subscribeToUserActivityChanges,
 		subscribeToUserChanges
 	} from '$lib/services/realtime.service';
+	import {
+		formatDate,
+		formatShortDate,
+		formatSport,
+		formatPrice,
+		formatCapacity,
+		getMiniMapUrl as getMiniMapUrlUtil
+	} from '$lib/utils/format.utils';
 
 	let targetProfile = $state<UserProfile | null>(null);
 	let currentProfile = $state<UserProfile | null>(null);
@@ -72,52 +79,7 @@
 		return (targetProfile.sports ?? []).filter((sport) => currentSports.has(sport));
 	});
 
-	function formatSport(sport: Sport) {
-		return sport.charAt(0).toUpperCase() + sport.slice(1);
-	}
 
-
-	function formatDate(dateValue: unknown) {
-		try {
-			const timestamp = dateValue as { toDate?: () => Date };
-			if (!timestamp?.toDate) return 'Date not set';
-			return timestamp.toDate().toLocaleString('en-GB', {
-				day: '2-digit',
-				month: 'short',
-				hour: '2-digit',
-				minute: '2-digit'
-			});
-		} catch {
-			return 'Date not set';
-		}
-	}
-
-	function formatShortDate(dateValue: unknown) {
-		try {
-			const timestamp = dateValue as { toDate?: () => Date };
-			if (!timestamp?.toDate) return 'Soon';
-			return timestamp.toDate().toLocaleDateString('en-GB', {
-				day: '2-digit',
-				month: 'short'
-			});
-		} catch {
-			return 'Soon';
-		}
-	}
-
-	function formatPrice(event: SportEvent) {
-		if (event.entryFeeAmount && event.entryFeeAmount > 0) return `€${event.entryFeeAmount}`;
-		if (event.pricePerPerson && event.pricePerPerson > 0) return `€${event.pricePerPerson}`;
-		if (event.priceTotal && event.priceTotal > 0) return `€${event.priceTotal}`;
-		return 'Free';
-	}
-
-	function formatCapacity(event: SportEvent) {
-		if (event.eventKind === 'tournament') {
-			return `${event.participantIds?.length ?? 0}/${event.maxTournamentEntries ?? event.maxParticipants} entries`;
-		}
-		return `${event.participantIds?.length ?? 0}/${event.maxParticipants} joined`;
-	}
 
 	function getStatusLabel(event: SportEvent) {
 		if (event.status === 'cancelled') return 'Cancelled';
@@ -141,11 +103,7 @@
 	}
 
 	function getMiniMapUrl(event: SportEvent) {
-		const lat = event.location?.lat;
-		const lng = event.location?.lng;
-		if (!PUBLIC_MAPBOX_ACCESS_TOKEN || typeof lat !== 'number' || typeof lng !== 'number') return '';
-		const marker = `pin-s+2563eb(${lng},${lat})`;
-		return `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${marker}/${lng},${lat},13,0/144x104@2x?access_token=${PUBLIC_MAPBOX_ACCESS_TOKEN}`;
+		return getMiniMapUrlUtil(event.location?.lat, event.location?.lng, 144, 104);
 	}
 
 	function getEventStartMs(event: SportEvent): number {

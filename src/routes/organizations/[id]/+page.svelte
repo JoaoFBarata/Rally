@@ -5,7 +5,6 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { onAuthStateChanged } from 'firebase/auth';
-	import { PUBLIC_MAPBOX_ACCESS_TOKEN } from '$env/static/public';
 	import { auth } from '$lib/firebase';
 	import type { EventStatus, Organization, OrganizationReview, Sport, SportEvent, UserProfile } from '$lib/schema';
 	import {
@@ -31,6 +30,14 @@
 		subscribeToOrganizationChanges
 	} from '$lib/services/realtime.service';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
+	import {
+		formatDate,
+		formatShortDate,
+		formatSport,
+		formatPrice,
+		formatCapacity,
+		getMiniMapUrl as getMiniMapUrlUtil
+	} from '$lib/utils/format.utils';
 
 	let organization = $state<Organization | null>(null);
 	let events = $state<SportEvent[]>([]);
@@ -187,20 +194,7 @@
 		return status;
 	}
 
-	function formatDate(dateValue: unknown) {
-		try {
-			const timestamp = dateValue as { toDate?: () => Date };
-			if (!timestamp?.toDate) return 'Date not set';
-			return timestamp.toDate().toLocaleString('en-GB', {
-				day: '2-digit',
-				month: 'short',
-				hour: '2-digit',
-				minute: '2-digit'
-			});
-		} catch {
-			return 'Date not set';
-		}
-	}
+
 
 	function openGallery(photoURL = '') {
 		if (galleryPhotoURLs.length === 0) return;
@@ -262,22 +256,7 @@
 		}
 	}
 
-	function formatShortDate(dateValue: unknown) {
-		try {
-			const timestamp = dateValue as { toDate?: () => Date };
-			if (!timestamp?.toDate) return 'Soon';
-			return timestamp.toDate().toLocaleDateString('en-GB', {
-				day: '2-digit',
-				month: 'short'
-			});
-		} catch {
-			return 'Soon';
-		}
-	}
 
-	function formatSport(sport: string) {
-		return sport.charAt(0).toUpperCase() + sport.slice(1);
-	}
 
 	function getWebsiteHref(website?: string | null) {
 		if (!website) return '';
@@ -483,26 +462,10 @@
 		}
 	}
 
-	function formatPrice(event: SportEvent) {
-		if (event.entryFeeAmount && event.entryFeeAmount > 0) return `€${event.entryFeeAmount}`;
-		if (event.pricePerPerson && event.pricePerPerson > 0) return `€${event.pricePerPerson}`;
-		if (event.priceTotal && event.priceTotal > 0) return `€${event.priceTotal}`;
-		return 'Free';
-	}
 
-	function formatCapacity(event: SportEvent) {
-		if (event.eventKind === 'tournament') {
-			return `${event.participantIds.length}/${event.maxTournamentEntries ?? event.maxParticipants} entries`;
-		}
-		return `${event.participantIds.length}/${event.maxParticipants} joined`;
-	}
 
 	function getMiniMapUrl(event: SportEvent) {
-		const lat = event.location?.lat;
-		const lng = event.location?.lng;
-		if (!PUBLIC_MAPBOX_ACCESS_TOKEN || typeof lat !== 'number' || typeof lng !== 'number') return '';
-		const marker = `pin-s+2563eb(${lng},${lat})`;
-		return `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${marker}/${lng},${lat},13,0/144x104@2x?access_token=${PUBLIC_MAPBOX_ACCESS_TOKEN}`;
+		return getMiniMapUrlUtil(event.location?.lat, event.location?.lng, 144, 104);
 	}
 
 	function getOrganizationLocation() {
@@ -514,11 +477,7 @@
 	}
 
 	function getVenueMapUrl() {
-		const lat = organization?.publicLocation?.lat;
-		const lng = organization?.publicLocation?.lng;
-		if (!PUBLIC_MAPBOX_ACCESS_TOKEN || typeof lat !== 'number' || typeof lng !== 'number') return '';
-		const marker = `pin-s+2563eb(${lng},${lat})`;
-		return `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${marker}/${lng},${lat},14,0/280x120@2x?access_token=${PUBLIC_MAPBOX_ACCESS_TOKEN}`;
+		return getMiniMapUrlUtil(organization?.publicLocation?.lat, organization?.publicLocation?.lng, 280, 120, 14);
 	}
 
 	function formatEventDay(dateValue: unknown) {
