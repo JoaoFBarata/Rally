@@ -20,7 +20,7 @@
 		type RelationshipStatus
 	} from '$lib/services/social.service';
 	import { getOrCreateDirectConversation } from '$lib/services/chat.service';
-	import { getEventsCreatedByUser, getEventsForUser } from '$lib/services/event.service';
+	import { getEventsCreatedByUser, getEventsForUser, isEventFinished } from '$lib/services/event.service';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
 	import {
@@ -32,8 +32,29 @@
 	let currentProfile = $state<UserProfile | null>(null);
 	let relationship = $state<RelationshipStatus>('none');
 
-	let hostedEvents = $state<SportEvent[]>([]);
-	let participatedEvents = $state<SportEvent[]>([]);
+	let showPastEvents = $state(false);
+	let allHostedEvents = $state<SportEvent[]>([]);
+	let allParticipatedEvents = $state<SportEvent[]>([]);
+
+	let hostedEvents = $derived.by(() => {
+		const filtered = allHostedEvents.filter((event) =>
+			showPastEvents ? isEventFinished(event) : (!isEventFinished(event) && event.status !== 'cancelled')
+		);
+		if (showPastEvents) {
+			return [...filtered].sort((a, b) => getEventStartMs(b) - getEventStartMs(a));
+		}
+		return [...filtered].sort((a, b) => getEventStartMs(a) - getEventStartMs(b));
+	});
+
+	let participatedEvents = $derived.by(() => {
+		const filtered = allParticipatedEvents.filter((event) =>
+			showPastEvents ? isEventFinished(event) : (!isEventFinished(event) && event.status !== 'cancelled')
+		);
+		if (showPastEvents) {
+			return [...filtered].sort((a, b) => getEventStartMs(b) - getEventStartMs(a));
+		}
+		return [...filtered].sort((a, b) => getEventStartMs(a) - getEventStartMs(b));
+	});
 
 	let loading = $state(true);
 	let actionLoading = $state(false);
@@ -100,9 +121,23 @@
 
 	function getStatusLabel(event: SportEvent) {
 		if (event.status === 'cancelled') return 'Cancelled';
-		if (event.status === 'finished') return 'Finished';
+		if (event.status === 'finished' || isEventFinished(event)) return 'Finished';
 		if (event.eventKind === 'tournament') return 'Tournament';
 		return isEventActive(event) ? 'Upcoming' : 'Past';
+	}
+
+	function getStatusClasses(event: SportEvent) {
+		const status = event.status;
+		if (status === 'cancelled') {
+			return 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300';
+		}
+		if (status === 'finished' || isEventFinished(event)) {
+			return 'bg-red-100/70 text-red-700 dark:bg-red-900/40 dark:text-red-300';
+		}
+		if (status === 'full') {
+			return 'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300';
+		}
+		return 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300';
 	}
 
 	function getMiniMapUrl(event: SportEvent) {
@@ -119,7 +154,7 @@
 	}
 
 	function isEventActive(event: SportEvent): boolean {
-		if (event.status === 'cancelled' || event.status === 'finished') return false;
+		if (event.status === 'cancelled' || isEventFinished(event)) return false;
 		const startMs = getEventStartMs(event);
 		return startMs === 0 || startMs >= Date.now();
 	}
@@ -213,8 +248,8 @@
 						})
 			]);
 
-			hostedEvents = sortEventsByStatusThenDate(allHosted.filter((e) => e.visibility === 'public'));
-			participatedEvents = sortEventsByStatusThenDate(
+			allHostedEvents = sortEventsByStatusThenDate(allHosted.filter((e) => e.visibility === 'public'));
+			allParticipatedEvents = sortEventsByStatusThenDate(
 				allParticipated.filter((e) => e.visibility === 'public' && e.creatorId !== targetUserId)
 			);
 			relationship = loadedRelationship;
@@ -416,11 +451,11 @@
 
 			<div class="mt-5 grid max-w-xl grid-cols-3 divide-x divide-slate-200 border-y border-slate-200 py-4 text-center dark:divide-slate-800 dark:border-slate-800">
 				<div>
-					<p class="text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{hostedEvents.length}</p>
+					<p class="text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{allHostedEvents.length}</p>
 					<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Hosted</p>
 				</div>
 				<div>
-					<p class="text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{participatedEvents.length}</p>
+					<p class="text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{allParticipatedEvents.length}</p>
 					<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Joined</p>
 				</div>
 				<div>
@@ -500,6 +535,22 @@
 
 		<div class="mt-6 grid min-w-0 max-w-full gap-5 lg:grid-cols-[minmax(0,1fr)_21rem]">
 			<section class="min-w-0 max-w-full space-y-5 overflow-hidden">
+				{#if allHostedEvents.length > 0 || allParticipatedEvents.length > 0}
+					<div class="flex justify-end">
+						<button
+							type="button"
+							onclick={() => (showPastEvents = !showPastEvents)}
+							class={`rounded-full border px-4 py-1.5 text-xs font-bold shadow-sm transition active:scale-95 ${
+								showPastEvents
+									? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300'
+									: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
+							}`}
+						>
+							{showPastEvents ? 'View active events' : 'View past events'}
+						</button>
+					</div>
+				{/if}
+
 				{#if hostedEvents.length > 0}
 					<section>
 						<div class="flex items-end justify-between gap-3">
@@ -526,7 +577,7 @@
 									<div class="min-w-0 flex-1 py-1">
 										<div class="flex min-w-0 items-center gap-2">
 											<p class="min-w-0 flex-1 truncate text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base">{event.title}</p>
-											<span class="shrink-0 rounded-full bg-blue-50 px-2 py-1 text-[10px] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300">{getStatusLabel(event)}</span>
+											<span class="shrink-0 rounded-full px-2 py-1 text-[10px] font-black {getStatusClasses(event)}">{getStatusLabel(event)}</span>
 										</div>
 										<p class="mt-1 truncate text-xs font-bold text-slate-500 dark:text-slate-400">{formatSport(event.sport)} · {event.location.name}</p>
 										<p class="mt-2 truncate text-xs font-black text-slate-400 dark:text-slate-500">{formatDate(event.startAt)} · {formatCapacity(event)} · {formatPrice(event)}</p>
@@ -561,7 +612,7 @@
 									<div class="min-w-0 flex-1 py-1">
 										<div class="flex min-w-0 items-center gap-2">
 											<p class="min-w-0 flex-1 truncate text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base">{event.title}</p>
-											<span class="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">{getStatusLabel(event)}</span>
+											<span class="shrink-0 rounded-full px-2 py-1 text-[10px] font-black {getStatusClasses(event)}">{getStatusLabel(event)}</span>
 										</div>
 										<p class="mt-1 truncate text-xs font-bold text-slate-500 dark:text-slate-400">{formatSport(event.sport)} · {event.location.name}</p>
 										<p class="mt-2 truncate text-xs font-black text-slate-400 dark:text-slate-500">{formatDate(event.startAt)} · {formatCapacity(event)} · {formatPrice(event)}</p>
@@ -573,11 +624,25 @@
 				{/if}
 
 				{#if hostedEvents.length === 0 && participatedEvents.length === 0}
-					<section class="rounded-[2rem] bg-white p-8 text-center shadow-sm dark:bg-slate-900">
-						<p class="text-4xl">🏟️</p>
-						<p class="mt-3 font-black text-slate-950 dark:text-slate-50">No public events yet</p>
-						<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Events from this player will appear here when public.</p>
-					</section>
+					{#if allHostedEvents.length === 0 && allParticipatedEvents.length === 0}
+						<section class="rounded-[2rem] bg-white p-8 text-center shadow-sm dark:bg-slate-900">
+							<p class="text-4xl">🏟️</p>
+							<p class="mt-3 font-black text-slate-950 dark:text-slate-50">No public events yet</p>
+							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Events from this player will appear here when public.</p>
+						</section>
+					{:else}
+						<section class="rounded-[2rem] bg-white p-8 text-center shadow-sm dark:bg-slate-900">
+							<p class="text-4xl">🏟️</p>
+							<p class="mt-3 font-black text-slate-950 dark:text-slate-50">
+								{showPastEvents ? 'No past events found' : 'No active events found'}
+							</p>
+							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+								{showPastEvents 
+									? 'This player has not finished any public events yet.' 
+									: 'This player has no upcoming public events.'}
+							</p>
+						</section>
+					{/if}
 				{/if}
 			</section>
 
