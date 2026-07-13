@@ -1000,12 +1000,10 @@
 <button
 	type="button"
 	onclick={() => goBack(resolve('/dashboard'))}
-	class="hidden h-11 w-11 items-center justify-center rounded-full text-slate-950 transition hover:bg-slate-100 dark:text-slate-50 dark:hover:bg-slate-800 sm:inline-flex"
-	aria-label="Back"
+	class="hidden items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-black text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900 sm:inline-flex"
 >
-	<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="h-6 w-6 shrink-0">
-		<path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-	</svg>
+	<span class="leading-none">←</span>
+	<span>Back</span>
 </button>
 
 {#if loading}

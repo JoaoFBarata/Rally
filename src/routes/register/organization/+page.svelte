@@ -7,6 +7,7 @@
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
 	import type { OrganizationType } from '$lib/schema';
+	import { themeState } from '$lib/theme.svelte';
 
 	let organizationName = $state('');
 	let organizationType = $state<OrganizationType>('company');
@@ -22,6 +23,7 @@
 	let nif = $state('');
 	let loading = $state(false);
 	let error = $state('');
+	let showPassword = $state(false);
 
 	const organizationTypes: { value: OrganizationType; label: string }[] = [
 		{ value: 'company', label: 'Company / Brand' },
@@ -143,7 +145,7 @@
 							<input
 								id="organizationName"
 								bind:value={organizationName}
-								class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+								class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
 								placeholder="Example: Lisbon Padel Center"
 							/>
 						</div>
@@ -155,7 +157,7 @@
 							<select
 								id="organizationType"
 								bind:value={organizationType}
-								class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+								class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
 							>
 								{#each organizationTypes as type}
 									<option value={type.value}>{type.label}</option>
@@ -170,7 +172,7 @@
 							<input
 								id="nif"
 								bind:value={nif}
-								class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+								class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
 								placeholder="Optional for now"
 							/>
 						</div>
@@ -184,7 +186,7 @@
 							id="description"
 							bind:value={description}
 							rows="3"
-							class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+							class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
 							placeholder="What does this organization do?"
 						></textarea>
 					</div>
@@ -198,7 +200,7 @@
 								id="email"
 								type="email"
 								bind:value={email}
-								class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+								class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
 								placeholder="admin@company.com"
 							/>
 						</div>
@@ -211,7 +213,7 @@
 								id="contactEmail"
 								type="email"
 								bind:value={contactEmail}
-								class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+								class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
 								placeholder="Optional"
 							/>
 						</div>
@@ -222,34 +224,60 @@
 							<label for="password" class="text-sm font-semibold text-slate-700 dark:text-slate-300">
 								Password
 							</label>
-							<input
-								id="password"
-								type="password"
-								bind:value={password}
-								class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-								placeholder="••••••••"
-							/>
+							<div class="relative mt-2">
+								<input
+									id="password"
+									type={showPassword ? 'text' : 'password'}
+									bind:value={password}
+									class="w-full rounded-2xl border border-slate-200 bg-slate-50 pl-4 pr-12 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+									placeholder="••••••••"
+								/>
+								<button
+									type="button"
+									onclick={() => (showPassword = !showPassword)}
+									class="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition"
+								>
+									{#if showPassword}
+										<img src="/eye_open.png" alt="Show password" class="h-5 w-5 object-contain" class:invert={$themeState} />
+									{:else}
+										<img src="/eye_closed.png" alt="Hide password" class="h-5 w-5 object-contain" class:invert={$themeState} />
+									{/if}
+								</button>
+							</div>
 						</div>
 
 						<div>
 							<label for="confirmPassword" class="text-sm font-semibold text-slate-700 dark:text-slate-300">
 								Confirm password
 							</label>
-							<input
-								id="confirmPassword"
-								type="password"
-								bind:value={confirmPassword}
-								class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-								placeholder="••••••••"
-							/>
+							<div class="relative mt-2">
+								<input
+									id="confirmPassword"
+									type={showPassword ? 'text' : 'password'}
+									bind:value={confirmPassword}
+									class="w-full rounded-2xl border border-slate-200 bg-slate-50 pl-4 pr-12 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+									placeholder="••••••••"
+								/>
+								<button
+									type="button"
+									onclick={() => (showPassword = !showPassword)}
+									class="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition"
+								>
+									{#if showPassword}
+										<img src="/eye_open.png" alt="Show password" class="h-5 w-5 object-contain" class:invert={$themeState} />
+									{:else}
+										<img src="/eye_closed.png" alt="Hide password" class="h-5 w-5 object-contain" class:invert={$themeState} />
+									{/if}
+								</button>
+							</div>
 						</div>
 					</div>
 
 					<div class="grid gap-4 sm:grid-cols-2">
-						<input bind:value={phone} class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950" placeholder="Phone" />
-						<input bind:value={website} class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950" placeholder="Website" />
-						<input bind:value={address} class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950" placeholder="Address" />
-						<input bind:value={city} class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950" placeholder="City" />
+						<input bind:value={phone} class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950" placeholder="Phone" />
+						<input bind:value={website} class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950" placeholder="Website" />
+						<input bind:value={address} class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950" placeholder="Address" />
+						<input bind:value={city} class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950" placeholder="City" />
 					</div>
 
 					<button

@@ -183,9 +183,10 @@
 	<button
 		type="button"
 		onclick={() => goBack(resolve('/profile'))}
-		class="inline-flex rounded-full bg-blue-100 px-5 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+		class="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-black text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
 	>
-		← Back
+		<span class="leading-none">←</span>
+		<span>Back</span>
 	</button>
 
 	<div>

@@ -283,21 +283,10 @@
 	<button
 		type="button"
 		onclick={() => goBack(resolve(`/events/${page.params.id}`))}
-		class="-ml-2 grid h-10 w-10 place-items-center rounded-full text-slate-950 transition hover:bg-slate-100 dark:text-slate-50 dark:hover:bg-slate-800"
-		aria-label="Back"
+		class="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-black text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
 	>
-		<svg
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="3"
-			stroke-linecap="round"
-			stroke-linejoin="round"
-			class="h-6 w-6"
-			aria-hidden="true"
-		>
-			<path d="m15 18-6-6 6-6" />
-		</svg>
+		<span class="leading-none">←</span>
+		<span>Back</span>
 	</button>
 
 	{#if loadingEvent}
