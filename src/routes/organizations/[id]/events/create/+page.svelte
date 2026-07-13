@@ -620,7 +620,7 @@
 					>
 						<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 sm:text-xl">Entry & payment</h2>
 
-						<div class="mt-3 grid grid-cols-3 gap-2 sm:mt-5 sm:gap-3 lg:grid-cols-1">
+						<div class="mt-3 grid grid-cols-2 gap-2 sm:mt-5 sm:gap-3 lg:grid-cols-1">
 							<label
 								class={`block cursor-pointer rounded-2xl border p-2.5 transition sm:p-4 ${
 									paymentMode === 'none'
@@ -631,20 +631,6 @@
 								<input bind:group={paymentMode} type="radio" value="none" class="sr-only" />
 								<p class="text-sm font-black leading-tight text-slate-950 dark:text-slate-50 sm:text-base">Free</p>
 								<p class="mt-1 hidden text-xs text-slate-500 dark:text-slate-400 sm:block sm:text-sm">No payment required.</p>
-							</label>
-
-							<label
-								class={`block cursor-pointer rounded-2xl border p-2.5 transition sm:p-4 ${
-									paymentMode === 'split'
-										? 'border-blue-500 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/40'
-										: 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900'
-								}`}
-							>
-								<input bind:group={paymentMode} type="radio" value="split" class="sr-only" />
-								<p class="text-sm font-black leading-tight text-slate-950 dark:text-slate-50 sm:text-base">Split</p>
-								<p class="mt-1 hidden text-xs text-slate-500 dark:text-slate-400 sm:block sm:text-sm">
-									Split the court/session cost between participants.
-								</p>
 							</label>
 
 							<label

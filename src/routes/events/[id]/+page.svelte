@@ -39,7 +39,7 @@
 		sendMessage,
 		setUserTyping
 	} from '$lib/services/chat.service';
-	import { getUserProfilesByIds } from '$lib/services/user.service';
+	import { getUserProfilesByIds, getUserProfile } from '$lib/services/user.service';
 	import EventMap from '$lib/components/maps/EventMap.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import EventWeather from '$lib/components/EventWeather.svelte';
@@ -90,6 +90,7 @@
 	let organizationReviews = $state<OrganizationReview[]>([]);
 	let activeEventTab = $state<'overview' | 'players' | 'chat' | 'location'>('overview');
 	let isSavedEvent = $state(false);
+	let currentUserProfile = $state<UserProfile | null>(null);
 
 	type ConfirmDialogConfig = {
 		title: string;
@@ -162,6 +163,7 @@
 	let canJoin = $derived.by(() => {
 		return (
 			!!event &&
+			currentUserProfile?.accountType !== 'organization' &&
 			event.eventKind !== 'tournament' &&
 			(event.joinPolicy ?? 'open') === 'open' &&
 			!isCreator &&
@@ -177,6 +179,7 @@
 	let canRequestJoin = $derived.by(() => {
 		return (
 			!!event &&
+			currentUserProfile?.accountType !== 'organization' &&
 			event.eventKind !== 'tournament' &&
 			event.joinPolicy === 'approval' &&
 			!isCreator &&
@@ -595,6 +598,7 @@
 
 				event = loadedEvent;
 				participants = await getUserProfilesByIds(loadedEvent.participantIds ?? []);
+				currentUserProfile = await getUserProfile(currentUser.uid);
 				organizationReviews = loadedEvent.organizationId
 					? await getOrganizationReviews(loadedEvent.organizationId)
 					: [];

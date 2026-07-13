@@ -25,6 +25,11 @@ import { sendRallySystemMessage } from '$lib/services/chat.service';
 import { getUserProfile } from '$lib/services/user.service';
 
 export async function requestToJoinEvent(params: { eventId: string; userId: string }) {
+	const profile = await getUserProfile(params.userId);
+	if (profile?.accountType === 'organization') {
+		throw new Error('Organizations cannot join events.');
+	}
+
 	const event = await getEventById(params.eventId);
 
 	if (!event) {

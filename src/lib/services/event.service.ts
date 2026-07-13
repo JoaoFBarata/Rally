@@ -367,6 +367,7 @@ export async function createSportEvent(params: {
 	maxParticipants: number;
 	visibility?: EventVisibility;
 	priceTotal?: number;
+	pricePerPerson?: number | null;
 	paymentMode?: EventPaymentMode;
 	groupPhotoURL?: string | null;
 	groupPhotoPath?: string | null;
@@ -379,7 +380,7 @@ export async function createSportEvent(params: {
 }) {
 	const hostType = params.hostType ?? 'user';
 	const paymentMode: EventPaymentMode =
-		params.paymentMode ?? (params.priceTotal ? 'split' : 'none');
+		params.paymentMode ?? (params.priceTotal || params.pricePerPerson ? 'split' : 'none');
 
 	let organizationSnapshot: {
 		organizationId: string | null;
@@ -425,9 +426,11 @@ export async function createSportEvent(params: {
 	const participantIds = hostType === 'organization' ? [] : [params.creatorId];
 
 	const pricePerPerson =
-		params.priceTotal && params.maxParticipants > 0
-			? params.priceTotal / params.maxParticipants
-			: undefined;
+		params.pricePerPerson !== undefined && params.pricePerPerson !== null
+			? params.pricePerPerson
+			: (params.priceTotal && params.maxParticipants > 0
+				? params.priceTotal / params.maxParticipants
+				: undefined);
 
 	const eventData = {
 		title: params.title,
@@ -574,14 +577,15 @@ export async function updateSportEvent(params: {
 	lng?: number | null;
 	startAt: Date;
 	endAt?: Date | null;
-		maxParticipants: number;
-		visibility: EventVisibility;
-		priceTotal?: number | null;
-		groupPhotoURL?: string | null;
-		groupPhotoPath?: string | null;
-		whatToBring?: string;
-		joinPolicy?: EventJoinPolicy;
-	}): Promise<void> {
+	maxParticipants: number;
+	visibility: EventVisibility;
+	priceTotal?: number | null;
+	pricePerPerson?: number | null;
+	groupPhotoURL?: string | null;
+	groupPhotoPath?: string | null;
+	whatToBring?: string;
+	joinPolicy?: EventJoinPolicy;
+}): Promise<void> {
 	const event = await getEventById(params.eventId);
 
 	if (!event) throw new Error('Event not found.');
@@ -598,9 +602,11 @@ export async function updateSportEvent(params: {
 	}
 
 	const pricePerPerson =
-		params.priceTotal && params.maxParticipants > 0
-			? params.priceTotal / params.maxParticipants
-			: null;
+		params.pricePerPerson !== undefined && params.pricePerPerson !== null
+			? params.pricePerPerson
+			: (params.priceTotal && params.maxParticipants > 0
+				? params.priceTotal / params.maxParticipants
+				: null);
 
 	await updateDoc(doc(db, 'events', params.eventId), {
 		title: params.title,
@@ -620,7 +626,7 @@ export async function updateSportEvent(params: {
 		visibility: params.visibility,
 		priceTotal: params.priceTotal ?? null,
 		pricePerPerson,
-		paymentMode: params.priceTotal ? 'split' : ('none' satisfies EventPaymentMode),
+		paymentMode: (params.priceTotal || pricePerPerson) ? 'split' : ('none' satisfies EventPaymentMode),
 		groupPhotoURL: params.groupPhotoURL ?? event.groupPhotoURL ?? null,
 		groupPhotoPath: params.groupPhotoPath ?? event.groupPhotoPath ?? null,
 		whatToBring: params.whatToBring ?? '',
@@ -786,6 +792,11 @@ export async function getEventsJoinedByUser(userId: string) {
 }
 
 export async function joinEvent(eventId: string, userId: string) {
+	const profile = await getUserProfile(userId);
+	if (profile?.accountType === 'organization') {
+		throw new Error('Organizations cannot join events.');
+	}
+
 	const event = await getEventById(eventId);
 
 	if (!event) {

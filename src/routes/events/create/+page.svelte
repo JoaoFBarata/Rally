@@ -36,7 +36,8 @@
 	let durationMinutes = $state(90);
 	let maxParticipants = $state(10);
 	let visibility = $state<EventVisibility>('private');
-	let priceTotal = $state<number | null>(null);
+	let priceMode = $state<'free' | 'per_person' | 'total_split'>('free');
+	let priceValue = $state<number | null>(null);
 	let level = $state<SportLevel>('casual');
 	let loading = $state(false);
 	let error = $state('');
@@ -156,7 +157,8 @@
 				endAt,
 				maxParticipants,
 				visibility,
-				priceTotal: priceTotal ?? undefined,
+				priceTotal: priceMode === 'total_split' ? (priceValue ?? undefined) : undefined,
+				pricePerPerson: priceMode === 'per_person' ? (priceValue ?? undefined) : undefined,
 				groupPhotoURL,
 				groupPhotoPath,
 				whatToBring: whatToBring.trim() || undefined,
@@ -229,7 +231,8 @@
 		if (fields.durationMinutes) durationMinutes = fields.durationMinutes;
 		if (fields.maxParticipants) maxParticipants = fields.maxParticipants;
 		if (fields.priceTotal !== null && fields.priceTotal !== undefined) {
-			priceTotal = fields.priceTotal;
+			priceMode = 'total_split';
+			priceValue = fields.priceTotal;
 		}
 
 		step = 'form';
@@ -649,20 +652,62 @@
 					</div>
 
 					<div>
-						<label for="price" class={labelClass}>
-							Total price (€)
-						</label>
-
-						<input
-							id="price"
-							type="number"
-							min="0"
-							step="0.01"
-							bind:value={priceTotal}
-							placeholder="Optional"
-							class={`mt-2 ${inputClass}`}
-						/>
+						<span class={labelClass}>Pricing</span>
+						<div class="mt-2 grid grid-cols-3 gap-2">
+							<button
+								type="button"
+								onclick={() => { priceMode = 'free'; priceValue = null; }}
+								class={`rounded-2xl border py-2.5 text-center text-sm font-bold transition ${
+									priceMode === 'free'
+										? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
+										: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
+								}`}
+							>
+								Free
+							</button>
+							<button
+								type="button"
+								onclick={() => { priceMode = 'per_person'; }}
+								class={`rounded-2xl border py-2.5 text-center text-sm font-bold transition ${
+									priceMode === 'per_person'
+										? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
+										: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
+								}`}
+							>
+								Per person
+							</button>
+							<button
+								type="button"
+								onclick={() => { priceMode = 'total_split'; }}
+								class={`rounded-2xl border py-2.5 text-center text-sm font-bold transition ${
+									priceMode === 'total_split'
+										? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
+										: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
+								}`}
+							>
+								Total (Split)
+							</button>
+						</div>
 					</div>
+
+					{#if priceMode !== 'free'}
+						<div>
+							<label for="price" class={labelClass}>
+								{priceMode === 'per_person' ? 'Price per person (€)' : 'Total event price (€)'}
+							</label>
+
+							<input
+								id="price"
+								type="number"
+								min="0"
+								step="0.01"
+								bind:value={priceValue}
+								placeholder="0.00"
+								required
+								class={`mt-2 ${inputClass}`}
+							/>
+						</div>
+					{/if}
 				</div>
 
 				<div>

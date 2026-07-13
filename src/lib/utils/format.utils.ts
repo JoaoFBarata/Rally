@@ -46,7 +46,7 @@ export function formatSport(sport: string | undefined | null): string {
 	return sport.replaceAll('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-export function formatPrice(event: { pricePerPerson?: number; entryFeeAmount?: number; priceTotal?: number } | undefined | null): string {
+export function formatPrice(event: { pricePerPerson?: number; entryFeeAmount?: number; priceTotal?: number; maxParticipants?: number } | undefined | null): string {
 	if (!event) return 'Free';
 	if (event.entryFeeAmount && event.entryFeeAmount > 0) {
 		return `€${Number(event.entryFeeAmount).toFixed(2)}`;
@@ -55,6 +55,10 @@ export function formatPrice(event: { pricePerPerson?: number; entryFeeAmount?: n
 		return `€${Number(event.pricePerPerson).toFixed(2)} / person`;
 	}
 	if (event.priceTotal && event.priceTotal > 0) {
+		const max = event.maxParticipants ?? 0;
+		if (max > 0) {
+			return `€${(event.priceTotal / max).toFixed(2)} / person`;
+		}
 		return `€${Number(event.priceTotal).toFixed(2)} total`;
 	}
 	return 'Free';

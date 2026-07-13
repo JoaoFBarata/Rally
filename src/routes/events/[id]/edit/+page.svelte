@@ -30,7 +30,8 @@
 	let durationMinutes = $state(90);
 	let maxParticipants = $state(10);
 	let visibility = $state<EventVisibility>('private');
-	let priceTotal = $state<number | null>(null);
+	let priceMode = $state<'free' | 'per_person' | 'total_split'>('free');
+	let priceValue = $state<number | null>(null);
 	let level = $state<SportLevel>('casual');
 	let whatToBring = $state('');
 	let joinPolicy = $state<EventJoinPolicy>('open');
@@ -108,7 +109,16 @@
 		}
 		maxParticipants = e.maxParticipants;
 		visibility = e.visibility;
-		priceTotal = e.priceTotal ?? null;
+		if (e.priceTotal && e.priceTotal > 0) {
+			priceMode = 'total_split';
+			priceValue = e.priceTotal;
+		} else if (e.pricePerPerson && e.pricePerPerson > 0) {
+			priceMode = 'per_person';
+			priceValue = e.pricePerPerson;
+		} else {
+			priceMode = 'free';
+			priceValue = null;
+		}
 		level = e.level ?? 'casual';
 		whatToBring = e.whatToBring ?? '';
 		joinPolicy = e.joinPolicy ?? 'open';
@@ -213,7 +223,8 @@
 					endAt,
 					maxParticipants,
 					visibility,
-					priceTotal,
+					priceTotal: priceMode === 'total_split' ? (priceValue ?? null) : null,
+					pricePerPerson: priceMode === 'per_person' ? (priceValue ?? null) : null,
 					groupPhotoURL,
 					groupPhotoPath,
 					whatToBring: whatToBring.trim(),
@@ -534,20 +545,63 @@
 								</select>
 						</div>
 
-						<div>
-							<label for="price" class={labelClass}>
-								Total price (€)
-							</label>
-							<input
-									id="price"
-									type="number"
-									min="0"
-								step="0.01"
-								bind:value={priceTotal}
-								placeholder="Optional"
-								class={`mt-2 ${inputClass}`}
-							/>
-						</div>
+							<div>
+								<span class={labelClass}>Pricing</span>
+								<div class="mt-2 grid grid-cols-3 gap-2">
+									<button
+										type="button"
+										onclick={() => { priceMode = 'free'; priceValue = null; }}
+										class={`rounded-2xl border py-2.5 text-center text-sm font-bold transition ${
+											priceMode === 'free'
+												? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
+												: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
+										}`}
+									>
+										Free
+									</button>
+									<button
+										type="button"
+										onclick={() => { priceMode = 'per_person'; }}
+										class={`rounded-2xl border py-2.5 text-center text-sm font-bold transition ${
+											priceMode === 'per_person'
+												? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
+												: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
+										}`}
+									>
+										Per person
+									</button>
+									<button
+										type="button"
+										onclick={() => { priceMode = 'total_split'; }}
+										class={`rounded-2xl border py-2.5 text-center text-sm font-bold transition ${
+											priceMode === 'total_split'
+												? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
+												: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
+										}`}
+									>
+										Total (Split)
+									</button>
+								</div>
+							</div>
+
+							{#if priceMode !== 'free'}
+								<div class="mt-4">
+									<label for="price" class={labelClass}>
+										{priceMode === 'per_person' ? 'Price per person (€)' : 'Total event price (€)'}
+									</label>
+
+									<input
+										id="price"
+										type="number"
+										min="0"
+										step="0.01"
+										bind:value={priceValue}
+										placeholder="0.00"
+										required
+										class={`mt-2 ${inputClass}`}
+									/>
+								</div>
+							{/if}
 					</div>
 
 					<div>
