@@ -3,11 +3,14 @@
 	import mapboxgl from 'mapbox-gl';
 	import MapboxWorker from 'mapbox-gl/dist/mapbox-gl-csp-worker?worker';
 	import { PUBLIC_MAPBOX_ACCESS_TOKEN } from '$env/static/public';
-	import type { Sport, SportEvent, SportLevel } from '$lib/schema';
+	import type { Sport, SportEvent, SportLevel, UserProfile } from '$lib/schema';
 	import { themeState } from '$lib/theme.svelte';
+	import EventCard from '$lib/components/EventCard.svelte';
+	import { isPromotionActive, getEventStartAtMillis } from '$lib/services/event.service';
 
 	let {
 		events,
+		totalEventsCount = 0,
 		currentUserId = '',
 		friendIds = [],
 		availableSports = [],
@@ -34,9 +37,12 @@
 		onClearFilters,
 		onFilteredCountChange,
 		onSelectedEventChange,
-		getEventHref = (event: SportEvent) => `/events/${event.id}`
+		getEventHref = (event: SportEvent) => `/events/${event.id}`,
+		profile = null,
+		viewMode = 'map'
 	} = $props<{
 		events: SportEvent[];
+		totalEventsCount?: number;
 		currentUserId?: string;
 		friendIds?: string[];
 		availableSports?: Sport[];
@@ -67,6 +73,8 @@
 		onFilteredCountChange?: (count: number) => void;
 		onSelectedEventChange?: (eventId: string | null) => void;
 		getEventHref?: (event: SportEvent) => string;
+		profile?: UserProfile | null;
+		viewMode?: 'map' | 'feed';
 	}>();
 
 	let mapContainer: HTMLDivElement;
@@ -83,6 +91,97 @@
 	let markers: mapboxgl.Marker[] = [];
 	let svelteMarkers: any[] = [];
 	let showFilters = $state(false);
+
+	// Feed limits & scoring
+	let feedLimit = $state(10);
+
+	$effect(() => {
+		const _ = events;
+		feedLimit = 10;
+	});
+
+	let feedEvents = $derived.by(() => {
+		const sorted = [...events].sort((a, b) => {
+			let scoreA = 0;
+			let scoreB = 0;
+
+			// 1. Preferred sport match (+100)
+			if (profile?.sports?.includes(a.sport)) scoreA += 100;
+			if (profile?.sports?.includes(b.sport)) scoreB += 100;
+
+			// 2. City match (+50)
+			if (profile?.city) {
+				const userCity = profile.city.trim().toLowerCase();
+				const locA = (a.location?.name ?? '').toLowerCase() + ' ' + (a.location?.address ?? '').toLowerCase();
+				const locB = (b.location?.name ?? '').toLowerCase() + ' ' + (b.location?.address ?? '').toLowerCase();
+				if (locA.includes(userCity)) scoreA += 50;
+				if (locB.includes(userCity)) scoreB += 50;
+			}
+
+			// 3. Friend creator (+40) or friend participants (+15 per friend)
+			if (friendIds.includes(a.creatorId)) scoreA += 40;
+			if (friendIds.includes(b.creatorId)) scoreB += 40;
+
+			const friendsInA = a.participantIds.filter(id => friendIds.includes(id)).length;
+			const friendsInB = b.participantIds.filter(id => friendIds.includes(id)).length;
+			scoreA += friendsInA * 15;
+			scoreB += friendsInB * 15;
+
+			// 4. Spot availability (prefer 1-3 spots left)
+			const spotsA = a.maxParticipants - a.participantIds.length;
+			const spotsB = b.maxParticipants - b.participantIds.length;
+			if (spotsA > 0 && spotsA <= 3) scoreA += 25;
+			else if (spotsA === 0) scoreA -= 20;
+
+			if (spotsB > 0 && spotsB <= 3) scoreB += 25;
+			else if (spotsB === 0) scoreB -= 20;
+
+			// 5. Promotion (+30)
+			if (isPromotionActive(a)) scoreA += 30;
+			if (isPromotionActive(b)) scoreB += 30;
+
+			// 6. Chronological priority
+			const startA = getEventStartAtMillis(a);
+			const startB = getEventStartAtMillis(b);
+			const daysA = (startA - Date.now()) / (1000 * 60 * 60 * 24);
+			const daysB = (startB - Date.now()) / (1000 * 60 * 60 * 24);
+			if (daysA > 0) scoreA += Math.max(0, 30 - daysA * 2);
+			if (daysB > 0) scoreB += Math.max(0, 30 - daysB * 2);
+
+			return scoreB - scoreA;
+		});
+
+		return sorted;
+	});
+
+	let feedFeaturedEvents = $derived.by(() => {
+		return feedEvents.filter(e => isPromotionActive(e));
+	});
+
+	let feedFriendsEvents = $derived.by(() => {
+		const featuredIds = new Set(feedFeaturedEvents.map(e => e.id));
+		return feedEvents.filter(e => 
+			!featuredIds.has(e.id) && 
+			(friendIds.includes(e.creatorId) || e.participantIds.some(id => friendIds.includes(id)))
+		);
+	});
+
+	let feedGeneralEvents = $derived.by(() => {
+		const featuredIds = new Set(feedFeaturedEvents.map(e => e.id));
+		const friendEventIds = new Set(feedFriendsEvents.map(e => e.id));
+		return feedEvents.filter(e => !featuredIds.has(e.id) && !friendEventIds.has(e.id));
+	});
+
+	let displayedGeneralEvents = $derived.by(() => {
+		if (events.length < 20) {
+			return feedGeneralEvents;
+		}
+		return feedGeneralEvents.slice(0, feedLimit);
+	});
+
+	let shownFeedCount = $derived(
+		feedFeaturedEvents.length + feedFriendsEvents.length + displayedGeneralEvents.length
+	);
 	let searchPreviewEvents = $derived(
 		localSearchTerm.trim() ? events.slice(0, 6) : []
 	);
@@ -611,61 +710,68 @@
 	<div
 		bind:this={mapContainer}
 		class="h-[48dvh] min-h-[360px] w-full flex-none md:h-[calc(100vh-240px)] md:min-h-[620px]"
+		class:hidden={viewMode !== 'map'}
 	></div>
 
-	<div
-		class="absolute right-2 bottom-2 z-10 flex flex-row flex-wrap items-center gap-3 rounded-xl bg-white/95 p-2 shadow-md backdrop-blur dark:bg-slate-900/95 text-xs md:right-4 md:bottom-4 md:flex-col md:items-start md:gap-2 md:rounded-2xl md:p-4 md:shadow-lg md:text-sm"
-	>
-		{#if currentUserId}
-			<div class="flex items-center gap-1.5">
-				<span class="h-2.5 w-2.5 rounded-full bg-[#00B4D8]"></span>
-				<span>My events</span>
-			</div>
-		{/if}
+	{#if viewMode === 'map'}
+		<div
+			class="absolute right-2 bottom-2 z-10 flex flex-row flex-wrap items-center gap-3 rounded-xl bg-white/95 p-2 shadow-md backdrop-blur dark:bg-slate-900/95 text-xs md:right-4 md:bottom-4 md:flex-col md:items-start md:gap-2 md:rounded-2xl md:p-4 md:shadow-lg md:text-sm"
+		>
+			{#if currentUserId}
+				<div class="flex items-center gap-1.5">
+					<span class="h-2.5 w-2.5 rounded-full bg-[#00B4D8]"></span>
+					<span>My events</span>
+				</div>
+			{/if}
 
-		<div class="flex items-center gap-1.5">
-			<span class="h-2.5 w-2.5 rounded-full bg-red-600"></span>
-			<span>Public events</span>
+			<div class="flex items-center gap-1.5">
+				<span class="h-2.5 w-2.5 rounded-full bg-red-600"></span>
+				<span>Public events</span>
+			</div>
+
+			{#if currentUserId}
+				<div class="flex items-center gap-1.5">
+					<span class="h-2.5 w-2.5 rounded-full bg-yellow-600"></span>
+					<span>Friends events</span>
+				</div>
+			{/if}
 		</div>
 
-		{#if currentUserId}
-			<div class="flex items-center gap-1.5">
-				<span class="h-2.5 w-2.5 rounded-full bg-yellow-600"></span>
-				<span>Friends events</span>
-			</div>
-		{/if}
-	</div>
-
-	<!-- Floating Filters Button (Mobile Only) -->
-	<div class="absolute left-4 top-4 z-10 md:hidden">
-		<button
-			type="button"
-			onclick={() => (showFilters = !showFilters)}
-			class="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-black text-slate-700 shadow-md backdrop-blur border border-slate-200/60 dark:bg-slate-900/90 dark:text-slate-200 dark:border-slate-800 transition-all active:scale-95 hover:bg-white dark:hover:bg-slate-900"
-		>
-			<svg
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2.5"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				class="h-4 w-4 text-blue-600 dark:text-blue-400"
+		<!-- Floating Filters Button (Mobile Only) -->
+		<div class="absolute left-4 top-4 z-10 md:hidden flex items-center gap-2">
+			<button
+				type="button"
+				onclick={() => (showFilters = !showFilters)}
+				class="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-black text-slate-700 shadow-md backdrop-blur border border-slate-200/60 dark:bg-slate-900/90 dark:text-slate-200 dark:border-slate-800 transition-all active:scale-95 hover:bg-white dark:hover:bg-slate-900"
 			>
-				<path d="M3 5h18" />
-				<path d="M7 12h10" />
-				<path d="M10 19h4" />
-			</svg>
+				<svg
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					class="h-4 w-4 text-blue-600 dark:text-blue-400"
+				>
+					<path d="M3 5h18" />
+					<path d="M7 12h10" />
+					<path d="M10 19h4" />
+				</svg>
 
-			<span>Filters</span>
+				<span>Filters</span>
 
-			{#if activeFilterCount > 0}
-				<span class="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white">
-					{activeFilterCount}
-				</span>
-			{/if}
-		</button>
-	</div>
+				{#if activeFilterCount > 0}
+					<span class="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white">
+						{activeFilterCount}
+					</span>
+				{/if}
+			</button>
+
+			<span class="rounded-full bg-white/95 px-3 py-2 text-xs font-black text-slate-700 shadow-md backdrop-blur border border-slate-200/60 dark:bg-slate-900/95 dark:text-slate-200 dark:border-slate-800">
+				Showing {events.length} of {totalEventsCount}
+			</span>
+		</div>
+	{/if}
 
 	<!-- Floating Filters Modal Card (Mobile Only) -->
 	{#if showFilters}
@@ -904,33 +1010,39 @@
 	<!-- Desktop Filters Bar (Web Only) -->
 	<div class="hidden md:block border-t border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900 shrink-0">
 		<div class="flex items-center justify-between gap-3">
-			<button
-				type="button"
-				onclick={() => (showFilters = !showFilters)}
-				class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-			>
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2.2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					class="h-4 w-4 text-blue-600 dark:text-blue-400"
+			<div class="flex items-center gap-4">
+				<button
+					type="button"
+					onclick={() => (showFilters = !showFilters)}
+					class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
 				>
-					<path d="M3 5h18" />
-					<path d="M7 12h10" />
-					<path d="M10 19h4" />
-				</svg>
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2.2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="h-4 w-4 text-blue-600 dark:text-blue-400"
+					>
+						<path d="M3 5h18" />
+						<path d="M7 12h10" />
+						<path d="M10 19h4" />
+					</svg>
 
-				<span>Filters</span>
+					<span>Filters</span>
 
-				{#if activeFilterCount > 0}
-					<span class="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white">
-						{activeFilterCount}
-					</span>
-				{/if}
-			</button>
+					{#if activeFilterCount > 0}
+						<span class="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white">
+							{activeFilterCount}
+						</span>
+					{/if}
+				</button>
+
+				<span class="text-xs font-black uppercase tracking-wider text-slate-400">
+					Showing {viewMode === 'map' ? events.length : shownFeedCount} of {totalEventsCount} events
+				</span>
+			</div>
 
 			{#if activeFilterCount > 0}
 				<button
@@ -1160,7 +1272,7 @@
 		{/if}
 	</div>
 
-	{#if selectedEvent}
+	{#if viewMode === 'map' && selectedEvent}
 		<aside
 			class="relative z-20 mx-3 mb-3 mt-3 max-h-none overflow-visible rounded-2xl border border-slate-200 bg-white p-2.5 shadow-xl shadow-slate-300/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none md:absolute md:inset-x-auto md:bottom-auto md:left-5 md:top-5 md:m-0 md:max-h-[70dvh] md:w-[24rem] md:overflow-y-auto md:rounded-[1.75rem] md:p-4 md:shadow-2xl md:shadow-slate-300/70"
 		>
@@ -1267,5 +1379,137 @@
 				</a>
 			</div>
 		</aside>
+	{/if}
+
+	{#if viewMode === 'feed'}
+		<!-- Feed list wrapper -->
+		<div class="flex-1 overflow-y-auto px-4 py-6 md:px-8">
+			<!-- Mobile Filters button inside feed -->
+			<div class="mb-6 flex items-center justify-between gap-3 md:hidden">
+				<button
+					type="button"
+					onclick={() => (showFilters = !showFilters)}
+					class="flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-black text-slate-700 shadow-sm border border-slate-200/60 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 transition-all active:scale-95 hover:bg-slate-250 dark:hover:bg-slate-750"
+				>
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="h-4 w-4 text-blue-600 dark:text-blue-400"
+					>
+						<path d="M3 5h18" />
+						<path d="M7 12h10" />
+						<path d="M10 19h4" />
+					</svg>
+					<span>Filters</span>
+					{#if activeFilterCount > 0}
+						<span class="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white">
+							{activeFilterCount}
+						</span>
+					{/if}
+				</button>
+			</div>
+
+			{#if shownFeedCount === 0}
+				<div class="flex flex-col items-center justify-center py-20 text-center">
+					<div class="rounded-full bg-slate-100 p-4 dark:bg-slate-800 text-3xl mb-4">
+						🔍
+					</div>
+					<h3 class="text-lg font-black text-slate-950 dark:text-slate-50">No events found</h3>
+					<p class="mt-1 text-sm text-slate-500 max-w-sm dark:text-slate-400">
+						Try adjusting your filters or search term to discover more games.
+					</p>
+					{#if activeFilterCount > 0}
+						<button
+							type="button"
+							onclick={clearAllFilters}
+							class="mt-4 rounded-full bg-blue-50 px-4 py-2 text-xs font-black text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+						>
+							Clear all filters
+						</button>
+					{/if}
+				</div>
+			{:else}
+				<div class="mb-6">
+					<p class="text-xs font-black uppercase tracking-wider text-slate-400">
+						Showing {shownFeedCount} of {totalEventsCount} events
+					</p>
+				</div>
+
+				<div class="space-y-10 pb-16">
+					<!-- 1. Featured Section -->
+					{#if feedFeaturedEvents.length > 0}
+						<section>
+							<div class="mb-4">
+								<h3 class="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+									<span>⭐</span> Featured Games
+								</h3>
+								<p class="text-xs text-slate-500 dark:text-slate-400">
+									Promoted events matched to your preferences.
+								</p>
+							</div>
+							<div class="grid gap-5 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+								{#each feedFeaturedEvents as event (event.id)}
+									<EventCard {event} variant="vertical" />
+								{/each}
+							</div>
+						</section>
+					{/if}
+
+					<!-- 2. Friends Section -->
+					{#if feedFriendsEvents.length > 0}
+						<section>
+							<div class="mb-4">
+								<h3 class="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+									<span>👥</span> Friends Activity
+								</h3>
+								<p class="text-xs text-slate-500 dark:text-slate-400">
+									Games created by or featuring your friends.
+								</p>
+							</div>
+							<div class="grid gap-5 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+								{#each feedFriendsEvents as event (event.id)}
+									<EventCard {event} variant="vertical" />
+								{/each}
+							</div>
+						</section>
+					{/if}
+
+					<!-- 3. General Section -->
+					{#if displayedGeneralEvents.length > 0}
+						<section>
+							<div class="mb-4">
+								<h3 class="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+									<span>⚽</span> Explore Games
+								</h3>
+								<p class="text-xs text-slate-500 dark:text-slate-400">
+									Find open spots, matches near you, and other games.
+								</p>
+							</div>
+							<div class="grid gap-5 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+								{#each displayedGeneralEvents as event (event.id)}
+									<EventCard {event} variant="vertical" />
+								{/each}
+							</div>
+
+							{#if events.length >= 20 && feedLimit < feedGeneralEvents.length}
+								<div class="mt-8 flex justify-center">
+									<button
+										type="button"
+										onclick={() => (feedLimit += 10)}
+										class="rounded-full bg-blue-50 px-6 py-2.5 text-sm font-black text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+									>
+										Load More
+									</button>
+								</div>
+							{/if}
+						</section>
+					{/if}
+				</div>
+			{/if}
+		</div>
 	{/if}
 </section>

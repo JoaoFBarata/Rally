@@ -644,21 +644,15 @@
 				Loading messages...
 			</div>
 		{:else}
-			<section class="mb-6 sm:mb-8">
-				<div class="mb-3 flex items-center justify-between">
-					<h2 class="text-sm font-black uppercase tracking-[0.16em] text-slate-400 sm:text-base sm:normal-case sm:tracking-normal sm:text-slate-950 sm:dark:text-white">Event invitations</h2>
-					<span class="text-sm font-bold text-blue-600 dark:text-blue-400">
-						{invites.filter((invite) => invite.status === 'pending').length} pending
-					</span>
-				</div>
+			{#if invites.length > 0}
+				<section class="mb-6 sm:mb-8">
+					<div class="mb-3 flex items-center justify-between">
+						<h2 class="text-sm font-black uppercase tracking-[0.16em] text-slate-400 sm:text-base sm:normal-case sm:tracking-normal sm:text-slate-950 sm:dark:text-white">Event invitations</h2>
+						<span class="text-sm font-bold text-blue-600 dark:text-blue-400">
+							{invites.filter((invite) => invite.status === 'pending').length} pending
+						</span>
+					</div>
 
-				{#if invites.length === 0}
-					<p
-						class="rounded-2xl bg-slate-50 px-4 py-5 text-center text-sm text-slate-500 dark:bg-slate-900 dark:text-slate-400"
-					>
-						No event invitations yet.
-					</p>
-				{:else}
 					<div class="flex gap-3 overflow-x-auto pb-2">
 						{#each invites as invite (invite.id)}
 							<article
@@ -683,16 +677,9 @@
 										🕒 {formatDate(invite.event.startAt)}
 									</p>
 
-									<div class="mt-3 flex items-center justify-between gap-2 sm:mt-4">
-										<a
-											href={`/events/${invite.event.id}`}
-											class="text-sm font-bold text-blue-600 dark:text-blue-400"
-										>
-											Details
-										</a>
-
+									<div class="mt-2.5 flex items-center justify-between sm:mt-3">
 										{#if invite.status === 'pending'}
-											<div class="flex gap-2">
+											<div class="flex gap-1.5 sm:gap-2">
 												<button
 													onclick={() => handleInviteResponse(invite, 'accepted')}
 													disabled={actionLoading !== ''}
@@ -700,11 +687,10 @@
 												>
 													Accept
 												</button>
-
 												<button
 													onclick={() => handleInviteResponse(invite, 'declined')}
 													disabled={actionLoading !== ''}
-													class="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-slate-600 ring-1 ring-slate-200 disabled:opacity-60 dark:bg-slate-950 dark:text-slate-300 dark:ring-slate-700"
+													class="rounded-full px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-red-600 disabled:opacity-60"
 												>
 													Decline
 												</button>
@@ -721,20 +707,18 @@
 							</article>
 						{/each}
 					</div>
-				{/if}
-			</section>
+				</section>
+			{/if}
 
-			<section class="mb-6 sm:mb-8">
-				<div class="mb-3 flex items-center justify-between">
-					<h2 class="text-base font-black">Friend requests</h2>
-					<span class="text-sm font-bold text-blue-600 dark:text-blue-400">
-						{friendRequests.filter((request) => request.status === 'pending').length} pending
-					</span>
-				</div>
+			{#if friendRequests.length > 0}
+				<section class="mb-6 sm:mb-8">
+					<div class="mb-3 flex items-center justify-between">
+						<h2 class="text-base font-black">Friend requests</h2>
+						<span class="text-sm font-bold text-blue-600 dark:text-blue-400">
+							{friendRequests.filter((request) => request.status === 'pending').length} pending
+						</span>
+					</div>
 
-				{#if friendRequests.length === 0}
-					<p class="text-sm text-slate-500 dark:text-slate-400">No friend requests.</p>
-				{:else}
 					<div class="divide-y divide-slate-100 dark:divide-slate-800">
 						{#each friendRequests.slice(0, 3) as request (request.id)}
 							<div class="flex items-center gap-3 py-4">
@@ -791,8 +775,8 @@
 							Showing latest 3 requests.
 						</p>
 					{/if}
-				{/if}
-			</section>
+				</section>
+			{/if}
 
 			<section class="mb-6 sm:mb-8">
 				<h2 class="mb-3 text-sm font-black uppercase tracking-[0.16em] text-slate-400 sm:text-base sm:normal-case sm:tracking-normal sm:text-slate-950 sm:dark:text-white">Chats</h2>

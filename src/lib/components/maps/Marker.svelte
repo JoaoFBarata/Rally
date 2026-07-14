@@ -23,16 +23,16 @@
                 </div>
             {:else}
                 <div id="marker-occupation-wrapper" class="absolute bottom-0 left-0 w-[calc(var(--marker-scale)*2.58*var(--base-vw))] h-[calc(var(--marker-scale)*2.58*var(--base-vw))] rounded-full p-[calc(var(--marker-scale)*5px)] bg-linear-115 from-[#ff595eFF] from-50% to-[#00B4D8FF] to-50%">
-                    <div class="w-full h-full bg-linear-115 from-[#fdfdfdFF] from-50% to-[#00B4D8FF] to-50% flex flex-row items-center justify-between px-[calc(var(--marker-scale)*0.2*var(--base-vw))] rounded-full">
+                    <div class="w-full h-full bg-linear-115 from-[#fdfdfdFF] from-50% to-[#00B4D8FF] to-50% dark:from-[#1e293b] flex flex-row items-center justify-between px-[calc(var(--marker-scale)*0.2*var(--base-vw))] rounded-full">
                         <div class="mb-[calc(var(--marker-scale)*0.6*var(--base-vh))]">
-                            <h3 class="text-[calc(var(--marker-scale)*1.3rem)] text-black font-bold">{n_confirmed_attendees}</h3>
+                            <h3 class="text-[calc(var(--marker-scale)*1.3rem)] text-black dark:text-white font-bold">{n_confirmed_attendees}</h3>
                         </div>
                         <div class="mt-[calc(var(--marker-scale)*1.7*var(--base-vh))]">
                             <h3 class="text-white font-bold text-[calc(var(--marker-scale)*1.3rem)]">{max_occupancy}</h3>
                         </div>
                     </div>
                 </div>
-                <div id="marker-sport-wrapper" class="absolute bottom-0 right-0 w-[calc(var(--marker-scale)*3.13*var(--base-vw))] h-[calc(var(--marker-scale)*3.13*var(--base-vw))] rounded-full border-[calc(var(--marker-scale)*7px)] border-solid border-[#0065fdFF] bg-[#fdfdfdFF] flex justify-center items-center">
+                <div id="marker-sport-wrapper" class="absolute bottom-0 right-0 w-[calc(var(--marker-scale)*3.13*var(--base-vw))] h-[calc(var(--marker-scale)*3.13*var(--base-vw))] rounded-full border-[calc(var(--marker-scale)*7px)] border-solid border-[#0065fdFF] bg-[#fdfdfdFF] dark:bg-slate-800 flex justify-center items-center">
                     <img src="{sport}_icon.png" alt="" class="p-[calc(var(--marker-scale)*0.45*var(--base-vw))]">
                 </div>
             {/if}
@@ -40,7 +40,7 @@
     </div>
     <div id="marker-pin-wrapper" class="w-full flex flex-col items-center justify-center">
         <div id="marker-pin-connector" class="h-[calc(var(--marker-scale)*2.84*var(--base-vh))] w-[0.01px] mb-[calc(var(--marker-scale)*-1.3*var(--base-vh))] border-[calc(var(--marker-scale)*4px)] border-solid border-[#0065fdFF] z-1 rounded-b-[calc(var(--marker-scale)*4px)]"></div>
-        <div id="marker-pin" class="w-[calc(var(--marker-scale)*1.19*var(--base-vw))] h-[calc(var(--marker-scale)*1.19*var(--base-vw))] mt-[-calc(var(--marker-scale)*0.65*var(--base-vw))] rounded-full bg-[#fdfdfdFF] border-[calc(var(--marker-scale)*5px)] border-solid border-[#0065fdFF]"></div>
+        <div id="marker-pin" class="w-[calc(var(--marker-scale)*1.19*var(--base-vw))] h-[calc(var(--marker-scale)*1.19*var(--base-vw))] mt-[-calc(var(--marker-scale)*0.65*var(--base-vw))] rounded-full bg-[#fdfdfdFF] dark:bg-slate-800 border-[calc(var(--marker-scale)*5px)] border-solid border-[#0065fdFF]"></div>
     </div>
 </div>
 

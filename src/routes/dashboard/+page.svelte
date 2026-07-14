@@ -906,30 +906,6 @@
 										Use my location
 									</button>
 								{/if}
-								{#if nearbyEvents.length > 1}
-									<div class="flex items-center gap-1 rounded-full bg-white p-1 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
-										<button
-											type="button"
-											onclick={() => showNearby(nearbyIndex - 1)}
-											class="grid h-8 w-8 place-items-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-blue-600 dark:text-slate-300 dark:hover:bg-slate-800"
-											aria-label="Previous nearby event"
-										>
-											<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
-												<path d="m15 18-6-6 6-6" />
-											</svg>
-										</button>
-										<button
-											type="button"
-											onclick={() => showNearby(nearbyIndex + 1)}
-											class="grid h-8 w-8 place-items-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-blue-600 dark:text-slate-300 dark:hover:bg-slate-800"
-											aria-label="Next nearby event"
-										>
-											<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
-												<path d="m9 18 6-6-6-6" />
-											</svg>
-										</button>
-									</div>
-								{/if}
 								<div class="flex items-center gap-1 rounded-full bg-white p-1 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
 									{#each [10, 20, 50] as radius}
 										<button
@@ -1015,12 +991,42 @@
 
 						{#if currentNearbyEvent}
 							<div class="space-y-3">
-								<EventCard
-									event={currentNearbyEvent}
-									variant="hero"
-									compactHero
-									heroCtaLabel="View event"
-								/>
+								<div class="relative flex items-center group/carousel">
+									{#if nearbyEvents.length > 1}
+										<!-- Left Arrow Button -->
+										<button
+											type="button"
+											onclick={() => showNearby(nearbyIndex - 1)}
+											class="absolute left-[-0.75rem] md:left-[-1.25rem] z-10 grid h-9 w-9 place-items-center rounded-full bg-white/95 text-slate-700 shadow-md ring-1 ring-slate-200 transition-all hover:scale-105 hover:bg-slate-50 dark:bg-slate-900/95 dark:text-slate-200 dark:ring-slate-800 dark:hover:bg-slate-800 active:scale-95"
+											aria-label="Previous nearby event"
+										>
+											<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+												<path d="m15 18-6-6 6-6" />
+											</svg>
+										</button>
+
+										<!-- Right Arrow Button -->
+										<button
+											type="button"
+											onclick={() => showNearby(nearbyIndex + 1)}
+											class="absolute right-[-0.75rem] md:right-[-1.25rem] z-10 grid h-9 w-9 place-items-center rounded-full bg-white/95 text-slate-700 shadow-md ring-1 ring-slate-200 transition-all hover:scale-105 hover:bg-slate-50 dark:bg-slate-900/95 dark:text-slate-200 dark:ring-slate-800 dark:hover:bg-slate-800 active:scale-95"
+											aria-label="Next nearby event"
+										>
+											<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+												<path d="m9 18 6-6-6-6" />
+											</svg>
+										</button>
+									{/if}
+
+									<div class="w-full">
+										<EventCard
+											event={currentNearbyEvent}
+											variant="hero"
+											compactHero
+											heroCtaLabel="View event"
+										/>
+									</div>
+								</div>
 
 								{#if nearbyEvents.length > 1}
 									<div class="flex flex-wrap items-center justify-center gap-1.5">

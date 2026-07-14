@@ -29,7 +29,7 @@
 	} = $props<{
 		event: SportEvent;
 		showImage?: boolean;
-		variant?: 'default' | 'profile' | 'hero';
+		variant?: 'default' | 'profile' | 'hero' | 'vertical';
 		compactHero?: boolean;
 		miniHero?: boolean;
 		heroCtaLabel?: string;
@@ -299,9 +299,83 @@
 		</div>
 	</a>
 {:else}
-<a
-	href={`/events/${event.id}`}
-	onclick={handleClick}
+	{#if variant === 'vertical'}
+		<a
+			href={`/events/${event.id}`}
+			onclick={handleClick}
+			class="group flex h-full flex-col overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900"
+		>
+			{#if showImage}
+				<div class="relative h-36 w-full shrink-0 overflow-hidden bg-slate-100 dark:bg-slate-800">
+					{#if event.groupPhotoURL}
+						<img src={event.groupPhotoURL} alt={event.title} class="h-full w-full object-cover" />
+					{:else if miniMapUrl}
+						<img src={miniMapUrl} alt={event.location.name} class="h-full w-full object-cover" />
+					{:else}
+						<div class="grid h-full w-full place-items-center text-3xl font-black text-blue-500/70">
+							{event.title.charAt(0).toUpperCase()}
+						</div>
+					{/if}
+
+					{#if showPromotion}
+						<span class="absolute left-3 top-3 rounded-full bg-blue-600 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow-lg">
+							Promoted
+						</span>
+					{:else}
+						<span class="absolute bottom-3 left-3 rounded-full bg-white/90 px-2 py-0.5 text-[9px] font-black text-slate-700 shadow-sm backdrop-blur dark:bg-slate-950/85 dark:text-slate-200">
+							{formatShortDate(event.startAt)}
+						</span>
+					{/if}
+				</div>
+			{/if}
+
+			<div class="flex flex-1 flex-col p-4">
+				<div class="flex items-center gap-1.5 flex-wrap">
+					<span class="text-[10px] font-black uppercase tracking-wide text-blue-600 dark:text-blue-400">
+						{event.sport}
+					</span>
+					<span class={`rounded-full px-2 py-0.5 text-[9px] font-black ${getStatusClasses()}`}>
+						{getStatusLabel()}
+					</span>
+				</div>
+
+				<h3 class="mt-2 line-clamp-2 text-sm font-black leading-tight text-slate-950 dark:text-slate-50 min-h-[2.5rem]">
+					{event.title}
+				</h3>
+
+				<p class="mt-1 truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
+					📍 {event.location.name}
+				</p>
+
+				<p class="mt-1 truncate text-xs font-semibold text-slate-400 dark:text-slate-500">
+					🕒 {formatDate(event.startAt)}
+				</p>
+
+				<div class="mt-auto pt-3 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between gap-2">
+					<span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-black capitalize text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+						{event.level ?? 'casual'}
+					</span>
+					<div class="text-right">
+						<p class="text-xs font-black text-blue-600 dark:text-blue-300">
+							{event.participantIds.length}/{event.maxParticipants} players
+						</p>
+						{#if event.pricePerPerson}
+							<p class="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+								€{event.pricePerPerson.toFixed(2)}
+							</p>
+						{:else}
+							<p class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+								Free
+							</p>
+						{/if}
+					</div>
+				</div>
+			</div>
+		</a>
+	{:else}
+		<a
+			href={`/events/${event.id}`}
+			onclick={handleClick}
 	class={`group flex h-full min-h-[6.7rem] overflow-hidden rounded-[1.35rem] border shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg sm:min-h-[8.25rem] sm:rounded-[1.5rem] ${getCardClasses()}`}
 >
 	{#if showImage}
@@ -448,4 +522,5 @@
 		</div>
 	</div>
 </a>
+{/if}
 {/if}

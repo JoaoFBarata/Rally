@@ -54,6 +54,7 @@
 	let friendIds = $state<string[]>([]);
 	let filteredEventCount = $state(0);
 	let selectedMapEventId = $state<string | null>(null);
+	let viewMode = $state<'map' | 'feed'>((page.url.searchParams.get('view') as 'map' | 'feed') || 'map');
 	let selectedSports = $state<Sport[]>(getListParam<Sport>('sports'));
 	let selectedLevels = $state<SportLevel[]>(
 		getListParam<SportLevel>('levels').filter((level) => availableLevels.includes(level))
@@ -286,6 +287,9 @@
 		if (audienceFilter !== defaultAudienceFilter) params.set('audience', audienceFilter);
 		else params.delete('audience');
 
+		if (viewMode !== 'map') params.set('view', viewMode);
+		else params.delete('view');
+
 		const query = params.toString();
 		void goto(`${page.url.pathname}${query ? `?${query}` : ''}`, {
 			replaceState: true,
@@ -395,12 +399,30 @@
 </script>
 
 <main class="mx-auto flex min-h-[calc(100dvh-96px)] w-full max-w-[1500px] flex-col overflow-visible px-2.5 pb-28 pt-3 sm:px-5 sm:py-8 md:h-auto md:pb-8">
-	<header class="mb-2 sm:mb-6 shrink-0">
-		<RallyWordmark size="sm" />
-		<h1 class="mt-1 text-2xl font-bold sm:mt-2 sm:text-3xl">Explore</h1>
-		<p class="mt-1 hidden text-sm text-slate-500 sm:block">
-			{searchTerm ? `Showing results for "${searchTerm}".` : 'Find games, teams and sports partners nearby.'}
-		</p>
+	<header class="mb-2 sm:mb-6 shrink-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+		<div>
+			<RallyWordmark size="sm" />
+			<h1 class="mt-1 text-2xl font-bold sm:mt-2 sm:text-3xl">Explore</h1>
+			<p class="mt-1 hidden text-sm text-slate-500 sm:block">
+				{searchTerm ? `Showing results for "${searchTerm}".` : 'Find games, teams and sports partners nearby.'}
+			</p>
+		</div>
+		<div class="inline-flex rounded-full bg-slate-100 p-1 dark:bg-slate-800 self-start sm:self-center">
+			<button
+				type="button"
+				onclick={() => { viewMode = 'map'; syncExploreQuery(); }}
+				class="rounded-full px-4 py-2 text-xs font-black transition duration-200 {viewMode === 'map' ? 'bg-white text-slate-950 shadow-md dark:bg-slate-700 dark:text-slate-50' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'}"
+			>
+				🗺️ Map View
+			</button>
+			<button
+				type="button"
+				onclick={() => { viewMode = 'feed'; syncExploreQuery(); }}
+				class="rounded-full px-4 py-2 text-xs font-black transition duration-200 {viewMode === 'feed' ? 'bg-white text-slate-950 shadow-md dark:bg-slate-700 dark:text-slate-50' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'}"
+			>
+				📰 Feed View
+			</button>
+		</div>
 	</header>
 
 	{#if loading}
@@ -419,6 +441,7 @@
 			<div class="relative flex flex-col md:min-h-0 md:flex-1">
 				<ExploreMap
 					events={filteredEvents}
+					totalEventsCount={allExploreEvents.length}
 					{currentUserId}
 					{friendIds}
 					{availableSports}
@@ -435,6 +458,8 @@
 					{dateFilterOptions}
 					{priceFilterOptions}
 					{audienceFilterOptions}
+					{profile}
+					{viewMode}
 					onToggleSport={toggleSportFilter}
 					onToggleLevel={toggleLevelFilter}
 					onDateFilterChange={setDateFilter}
@@ -446,7 +471,7 @@
 					onFilteredCountChange={(count) => (filteredEventCount = count)}
 					onSelectedEventChange={(eventId) => (selectedMapEventId = eventId)}
 				/>
-				{#if !selectedMapEventId}
+				{#if viewMode === 'map' && !selectedMapEventId}
 					<div
 						class="pointer-events-none absolute inset-x-3 bottom-3 z-20 hidden md:block md:inset-x-auto md:left-5 md:top-5 md:bottom-auto md:w-80"
 					>
@@ -477,7 +502,7 @@
 								</div>
 							{:else}
 								<div
-									class="rounded-[1.5rem] border border-dashed border-slate-300 bg-white/95 p-4 text-sm font-bold text-slate-500 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-950/95 dark:text-slate-400"
+									class="rounded-[1.5rem] border border-dashed border-slate-350 bg-white/95 p-4 text-sm font-bold text-slate-500 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-950/95 dark:text-slate-400"
 								>
 									No promoted events right now.
 								</div>
@@ -488,65 +513,67 @@
 			</div>
 
 			<!-- Mobile Promoted Section -->
-			<section class="mt-1 md:hidden shrink-0">
-				<div class="mb-2 flex items-center justify-between gap-3">
-					<div>
-						<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">
-							Promoted
-						</p>
-						<p class="mt-0.5 text-xs font-bold text-slate-500 dark:text-slate-400">
-							Events boosted near your filters.
-						</p>
+			{#if viewMode === 'map'}
+				<section class="mt-1 md:hidden shrink-0">
+					<div class="mb-2 flex items-center justify-between gap-3">
+						<div>
+							<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">
+								Promoted
+							</p>
+							<p class="mt-0.5 text-xs font-bold text-slate-500 dark:text-slate-400">
+								Events boosted near your filters.
+							</p>
+						</div>
 					</div>
-				</div>
 
-				{#if promotedEvents.length}
-					<div class="max-h-[24rem] space-y-2.5 overflow-y-auto pr-1">
-						{#each promotedEvents.slice(0, 5) as event (event.id)}
-							<div>
-								<a
-									href={`/events/${event.id}`}
-									class="block rounded-[1.35rem] border border-blue-200/80 bg-white p-3.5 shadow-md shadow-slate-200/70 transition-all active:scale-[0.98] dark:border-blue-900/60 dark:bg-slate-900/80 dark:shadow-none"
-								>
-									<div class="flex items-center justify-between gap-3">
-										<div class="min-w-0 flex-1">
-											<div class="flex items-center gap-2">
-												<span class="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">
-													{event.sport}
-												</span>
-												<span class="rounded-full bg-blue-100 px-2 py-0.5 text-[9px] font-black uppercase text-blue-700 dark:bg-blue-950/80 dark:text-blue-300">
-													PROMOTED
-												</span>
+					{#if promotedEvents.length}
+						<div class="max-h-[24rem] space-y-2.5 overflow-y-auto pr-1">
+							{#each promotedEvents.slice(0, 5) as event (event.id)}
+								<div>
+									<a
+										href={`/events/${event.id}`}
+										class="block rounded-[1.35rem] border border-blue-200/80 bg-white p-3.5 shadow-md shadow-slate-200/70 transition-all active:scale-[0.98] dark:border-blue-900/60 dark:bg-slate-900/80 dark:shadow-none"
+									>
+										<div class="flex items-center justify-between gap-3">
+											<div class="min-w-0 flex-1">
+												<div class="flex items-center gap-2">
+													<span class="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">
+														{event.sport}
+													</span>
+													<span class="rounded-full bg-blue-100 px-2 py-0.5 text-[9px] font-black uppercase text-blue-700 dark:bg-blue-950/80 dark:text-blue-300">
+														PROMOTED
+													</span>
+												</div>
+
+												<h3 class="mt-1.5 truncate text-sm font-black text-slate-900 dark:text-slate-100">
+													{event.title}
+												</h3>
+
+												<div class="mt-1 flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+													<span class="truncate">📍 {event.location.name}</span>
+												</div>
 											</div>
 
-											<h3 class="mt-1.5 truncate text-sm font-black text-slate-900 dark:text-slate-100">
-												{event.title}
-											</h3>
-
-											<div class="mt-1 flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
-												<span class="truncate">📍 {event.location.name}</span>
+											<div class="shrink-0 rounded-2xl bg-blue-50 px-3 py-2 text-center dark:bg-blue-950/80">
+												<p class="text-sm font-black text-blue-600 dark:text-blue-300">
+													{event.participantIds.length}/{event.maxParticipants}
+												</p>
+												<p class="text-[9px] font-bold text-slate-500 dark:text-slate-400">players</p>
 											</div>
 										</div>
-
-										<div class="shrink-0 rounded-2xl bg-blue-50 px-3 py-2 text-center dark:bg-blue-950/80">
-											<p class="text-sm font-black text-blue-600 dark:text-blue-300">
-												{event.participantIds.length}/{event.maxParticipants}
-											</p>
-											<p class="text-[9px] font-bold text-slate-500 dark:text-slate-400">players</p>
-										</div>
-									</div>
-								</a>
-							</div>
-						{/each}
-					</div>
-				{:else}
-					<div
-						class="rounded-xl border border-dashed border-slate-350 bg-white p-2.5 text-xs font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
-					>
-						No promoted events right now.
-					</div>
-				{/if}
-			</section>
+									</a>
+								</div>
+							{/each}
+						</div>
+					{:else}
+						<div
+							class="rounded-xl border border-dashed border-slate-350 bg-white p-2.5 text-xs font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
+						>
+							No promoted events right now.
+						</div>
+					{/if}
+				</section>
+			{/if}
 		</div>
 	{/if}
 </main>
