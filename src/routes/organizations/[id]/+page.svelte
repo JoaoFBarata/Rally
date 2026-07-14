@@ -766,10 +766,12 @@
 							<button
 								type="button"
 								onclick={() => history.back()}
-								class="absolute left-4 top-4 z-20 grid h-10 w-10 place-items-center rounded-full text-3xl font-black text-slate-950 drop-shadow-[0_1px_0_rgba(255,255,255,0.75)] transition hover:bg-white/20 dark:text-white"
+								class="absolute left-4 top-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-slate-950 shadow-sm backdrop-blur transition hover:bg-white dark:bg-slate-950/80 dark:text-white dark:hover:bg-slate-950"
 								aria-label="Go back"
 							>
-								‹
+								<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="2.8" stroke="currentColor" aria-hidden="true">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+								</svg>
 							</button>
 						</div>
 
@@ -797,7 +799,10 @@
 									{organization.description || `${formatOrganizationType(organization.type)} on Rally.`}
 								</p>
 								<p class="mt-3 flex items-center gap-2 text-sm font-bold text-slate-500 dark:text-slate-400">
-									<span>📍</span>
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M12 21s7-4.35 7-11a7 7 0 1 0-14 0c0 6.65 7 11 7 11Z" />
+										<circle cx="12" cy="10" r="2.4" />
+									</svg>
 									<span class="truncate">{getOrganizationLocation()}</span>
 								</p>
 								{#if organization.website}
@@ -921,7 +926,12 @@
 						<div class="mt-4 grid gap-4 sm:grid-cols-[1fr_11rem]">
 							<div class="space-y-3">
 								<div class="flex gap-3">
-									<div class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-300">📍</div>
+									<div class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-slate-50 text-slate-500 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-800">
+										<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+											<path stroke-linecap="round" stroke-linejoin="round" d="M12 21s7-4.35 7-11a7 7 0 1 0-14 0c0 6.65 7 11 7 11Z" />
+											<circle cx="12" cy="10" r="2.4" />
+										</svg>
+									</div>
 									<div>
 										<p class="font-black text-slate-950 dark:text-slate-50">{organization.publicLocation?.name || 'Home venue'}</p>
 										<p class="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
@@ -1169,17 +1179,32 @@
 
 				<div class="mt-5 grid grid-cols-3 gap-2 border-y border-slate-200 py-4 text-center dark:border-slate-800 md:mt-7 md:gap-4">
 				<div class="rounded-2xl bg-white px-2 py-3 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
-					<p class="mx-auto grid h-8 w-8 place-items-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-300">📅</p>
+					<p class="mx-auto grid h-8 w-8 place-items-center text-slate-500 dark:text-slate-400">
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" />
+						</svg>
+					</p>
 					<p class="mt-2 text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">{events.length}</p>
 					<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Events</p>
 				</div>
 				<div class="rounded-2xl bg-white px-2 py-3 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
-					<p class="mx-auto grid h-8 w-8 place-items-center rounded-full bg-orange-50 text-orange-600 dark:bg-orange-950 dark:text-orange-300">⏱</p>
+					<p class="mx-auto grid h-8 w-8 place-items-center text-slate-500 dark:text-slate-400">
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2" />
+							<circle cx="12" cy="12" r="9" />
+						</svg>
+					</p>
 					<p class="mt-2 text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">{upcomingEvents.length}</p>
 					<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Upcoming</p>
 				</div>
 				<div class="rounded-2xl bg-white px-2 py-3 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
-					<p class="mx-auto grid h-8 w-8 place-items-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300">👥</p>
+					<p class="mx-auto grid h-8 w-8 place-items-center text-slate-500 dark:text-slate-400">
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
+							<circle cx="9.5" cy="7" r="4" />
+							<path stroke-linecap="round" stroke-linejoin="round" d="M21 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+						</svg>
+					</p>
 					<p class="mt-2 text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">{displayedFollowersCount}</p>
 					<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Followers</p>
 				</div>
@@ -1207,7 +1232,11 @@
 
 				{#if upcomingEvents.length === 0}
 					<div class="rounded-[2rem] bg-white p-8 text-center shadow-sm dark:bg-slate-900">
-						<p class="text-4xl">📅</p>
+						<p class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-slate-50 text-slate-500 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700">
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" />
+							</svg>
+						</p>
 						<p class="mt-3 font-black text-slate-950 dark:text-slate-50">No upcoming events yet</p>
 						<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">New events from this organization will appear here.</p>
 					</div>
@@ -1235,10 +1264,32 @@
 						</div>
 
 						<div class="mt-4 grid grid-cols-2 gap-2 text-center sm:grid-cols-4 md:grid-cols-2">
-							<a href={resolve(`/organizations/${organization.id}/events/create`)} class="rounded-2xl bg-blue-50 p-3 text-xs font-black text-blue-700 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300">📅<br />Event</a>
-							<a href={resolve(`/organizations/${organization.id}/tournaments/create`)} class="rounded-2xl bg-orange-50 p-3 text-xs font-black text-orange-700 transition hover:bg-orange-100 dark:bg-orange-950 dark:text-orange-300">🏆<br />Tournament</a>
-							<a href={resolve('/messages')} class="rounded-2xl bg-slate-50 p-3 text-xs font-black text-slate-600 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-blue-950 dark:hover:text-blue-300">💬<br />Inbox</a>
-							<a href={resolve(`/organizations/${organization.id}/manage#upcoming-events`)} class="rounded-2xl bg-slate-950 p-3 text-xs font-black text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200">📣<br />Promote</a>
+							<a href={resolve(`/organizations/${organization.id}/events/create`)} class="grid gap-1 rounded-2xl bg-slate-50 p-3 text-xs font-black text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-100 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-slate-700 dark:hover:text-white">
+								<svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14" />
+								</svg>
+								<span>Event</span>
+							</a>
+							<a href={resolve(`/organizations/${organization.id}/tournaments/create`)} class="grid gap-1 rounded-2xl bg-slate-50 p-3 text-xs font-black text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-100 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-slate-700 dark:hover:text-white">
+								<svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4Z" />
+									<path stroke-linecap="round" stroke-linejoin="round" d="M7 6H4a3 3 0 0 0 3 3M17 6h3a3 3 0 0 1-3 3" />
+								</svg>
+								<span>Tournament</span>
+							</a>
+							<a href={resolve('/messages')} class="grid gap-1 rounded-2xl bg-slate-50 p-3 text-xs font-black text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-100 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-slate-700 dark:hover:text-white">
+								<svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+								</svg>
+								<span>Inbox</span>
+							</a>
+							<a href={resolve(`/organizations/${organization.id}/manage#upcoming-events`)} class="grid gap-1 rounded-2xl bg-slate-950 p-3 text-xs font-black text-white ring-1 ring-slate-950 transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:ring-white dark:hover:bg-slate-200">
+								<svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M4 13h3l8 5V6l-8 5H4v2Z" />
+									<path stroke-linecap="round" stroke-linejoin="round" d="M18 9a4 4 0 0 1 0 6" />
+								</svg>
+								<span>Promote</span>
+							</a>
 						</div>
 					</div>
 				{/if}
@@ -1257,7 +1308,12 @@
 			<div class="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_16rem]">
 				<div class="space-y-3">
 					<div class="flex gap-3">
-						<div class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-300">📍</div>
+						<div class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-slate-50 text-slate-500 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-800">
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M12 21s7-4.35 7-11a7 7 0 1 0-14 0c0 6.65 7 11 7 11Z" />
+								<circle cx="12" cy="10" r="2.4" />
+							</svg>
+						</div>
 						<div>
 							<p class="font-black text-slate-950 dark:text-slate-50">{organization.publicLocation?.name || organization.name}</p>
 							<p class="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
