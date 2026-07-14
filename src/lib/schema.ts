@@ -34,6 +34,7 @@ export type VerificationStatus = 'unverified' | 'pending' | 'verified' | 'reject
 export type VerificationLevel = 'none' | 'basic' | 'legal' | 'venue';
 export type EventHostType = 'user' | 'organization';
 export type EventPaymentMode = 'none' | 'split' | 'official';
+export type EventCurrency = 'EUR' | 'USD' | 'GBP' | 'BRL';
 export type EventPromotionStatus = 'none' | 'active' | 'paused' | 'ended';
 export type EventPromotionPlan = 'local' | 'sport' | 'featured';
 export type EventJoinPolicy = 'open' | 'approval';
@@ -248,7 +249,7 @@ export interface SportEvent {
 
 	priceTotal?: number | null;
 	pricePerPerson?: number | null;
-	currency?: 'EUR';
+	currency?: EventCurrency;
 	paymentMode?: EventPaymentMode;
 	paymentProtected?: boolean;
 	payoutStatus?: PayoutStatus;

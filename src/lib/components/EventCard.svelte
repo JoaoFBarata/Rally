@@ -48,6 +48,12 @@
 	let creatorName = $state('');
 
 	$effect(() => {
+		if (variant === 'vertical' && event.hostType === 'organization') {
+			creatorPhotoURL = event.organizationLogoURL || null;
+			creatorName = event.organizationName || 'Organization';
+			return;
+		}
+
 		if (variant === 'vertical' && event.creatorId) {
 			getUserProfile(event.creatorId).then(profile => {
 				if (profile) {
@@ -320,53 +326,52 @@
 		<a
 			href={`/events/${event.id}`}
 			onclick={handleClick}
-			class="group flex h-full flex-col overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900"
+			class="group flex h-full flex-col overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900 sm:rounded-[1.5rem]"
 		>
 			{#if showImage}
-				<div class="relative h-28 w-full shrink-0 overflow-hidden bg-slate-100 dark:bg-slate-800">
+				<div class="relative h-24 w-full shrink-0 overflow-hidden bg-slate-100 dark:bg-slate-800 sm:h-28">
 					{#if event.groupPhotoURL}
 						<img src={event.groupPhotoURL} alt={event.title} class="h-full w-full object-cover" />
 					{:else}
-						<img src={`/event-backgrounds/${event.sport}.png`} alt={event.title} class="h-full w-full object-cover" />
+						<img src={getDefaultSportImage()} alt={event.title} class="h-full w-full object-cover" />
 					{/if}
 
 					{#if showPromotion}
 						<span class="absolute left-2 top-2 rounded-full bg-blue-600 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow-lg">
 							Promoted
 						</span>
-					{:else}
-						<span class="absolute bottom-2 left-2 rounded-full bg-white/90 px-2 py-0.5 text-[9px] font-black text-slate-700 shadow-sm backdrop-blur dark:bg-slate-950/85 dark:text-slate-200">
-							{formatShortDate(event.startAt)}
-						</span>
 					{/if}
+					<span class="absolute bottom-2 left-2 rounded-full bg-white/90 px-2 py-0.5 text-[9px] font-black text-slate-700 shadow-sm backdrop-blur dark:bg-slate-950/85 dark:text-slate-200">
+						{formatShortDate(event.startAt)}
+					</span>
 
 				</div>
 			{/if}
 
-			<div class="flex flex-1 flex-col p-4">
-				<div class="flex items-start justify-between gap-3">
+			<div class="flex flex-1 flex-col p-3 sm:p-4">
+				<div class="flex items-start justify-between gap-2 sm:gap-3">
 					<div class="min-w-0 flex-1">
-						<div class="flex items-center gap-1.5 flex-wrap">
-							<span class="text-[10px] font-black uppercase tracking-wide text-blue-600 dark:text-blue-400">
+						<div class="flex min-w-0 items-center gap-1.5">
+							<span class="shrink-0 text-[9px] font-black uppercase tracking-wide text-blue-600 dark:text-blue-400 sm:text-[10px]">
 								{event.sport}
 							</span>
-							<span class={`rounded-full px-2 py-0.5 text-[9px] font-black ${getStatusClasses()}`}>
+							<span class={`shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-black sm:px-2 sm:text-[9px] ${getStatusClasses()}`}>
 								{getStatusLabel()}
 							</span>
 						</div>
 
-						<h3 class="mt-1.5 line-clamp-2 text-sm font-black leading-tight text-slate-950 dark:text-slate-50 min-h-[2.5rem]">
+						<h3 class="mt-1 line-clamp-1 text-sm font-black leading-tight text-slate-950 dark:text-slate-50 sm:mt-1.5 sm:text-sm">
 							{event.title}
 						</h3>
 					</div>
 
 					<!-- Creator avatar bubble -->
 					{#if creatorPhotoURL}
-						<div class="h-9 w-9 shrink-0 rounded-full border border-slate-200 overflow-hidden shadow-sm dark:border-slate-800">
+						<div class="h-8 w-8 shrink-0 overflow-hidden rounded-full border border-slate-200 shadow-sm dark:border-slate-800 sm:h-9 sm:w-9">
 							<img src={creatorPhotoURL} alt={creatorName} class="h-full w-full object-cover" title={`Created by ${creatorName}`} />
 						</div>
 					{:else if creatorName}
-						<div class="h-9 w-9 shrink-0 rounded-full bg-blue-500 text-xs font-black text-white grid place-items-center shadow-sm">
+						<div class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-blue-500 text-xs font-black text-white shadow-sm sm:h-9 sm:w-9">
 							{creatorName.charAt(0).toUpperCase()}
 						</div>
 					{/if}
@@ -380,20 +385,20 @@
 					🕒 {formatDate(event.startAt)}
 				</p>
 
-				<div class="mt-auto pt-3 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between gap-2">
-					<span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-black capitalize text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+				<div class="mt-auto flex items-center justify-between gap-2 border-t border-slate-100 pt-2 dark:border-slate-800/60 sm:pt-3">
+					<span class="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-black capitalize text-slate-600 dark:bg-slate-800 dark:text-slate-300 sm:px-2.5 sm:text-[10px]">
 						{event.level ?? 'casual'}
 					</span>
-					<div class="text-right">
-						<p class="text-xs font-black text-blue-600 dark:text-blue-300">
+					<div class="min-w-0 text-right">
+						<p class="truncate whitespace-nowrap text-[10px] font-black text-blue-600 dark:text-blue-300 sm:text-xs">
 							{event.participantIds.length}/{event.maxParticipants} players
 						</p>
 						{#if event.pricePerPerson}
-							<p class="text-[10px] font-bold text-slate-500 dark:text-slate-400">
-								€{event.pricePerPerson.toFixed(2)}
+							<p class="truncate text-[9px] font-bold text-slate-500 dark:text-slate-400 sm:text-[10px]">
+								{formattedPrice}
 							</p>
 						{:else}
-							<p class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+							<p class="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 sm:text-[10px]">
 								Free
 							</p>
 						{/if}
@@ -543,9 +548,9 @@
 				{event.level ?? 'casual'}
 			</span>
 
-			{#if event.pricePerPerson}
+			{#if formattedPrice !== 'Free'}
 				<span class="text-sm font-medium text-slate-600 dark:text-slate-300">
-					€{event.pricePerPerson.toFixed(2)} / person
+					{formattedPrice}
 				</span>
 			{/if}
 		</div>

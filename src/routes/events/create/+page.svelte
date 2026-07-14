@@ -20,7 +20,8 @@
 		SportLevel,
 		UserProfile,
 		EventJoinPolicy,
-		RecurringFrequency
+		RecurringFrequency,
+		EventCurrency
 	} from '$lib/schema';
 
 	let title = $state('');
@@ -38,6 +39,7 @@
 	let visibility = $state<EventVisibility>('private');
 	let priceMode = $state<'free' | 'per_person' | 'total_split'>('free');
 	let priceValue = $state<number | null>(null);
+	let currency = $state<EventCurrency>('EUR');
 	let level = $state<SportLevel>('casual');
 	let loading = $state(false);
 	let error = $state('');
@@ -80,6 +82,12 @@
 	const inputClass =
 		'w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950 sm:px-4 sm:py-3 sm:text-base';
 	const labelClass = 'text-xs font-bold text-slate-700 dark:text-slate-300 sm:text-sm';
+	const currencyOptions: { value: EventCurrency; label: string }[] = [
+		{ value: 'EUR', label: 'EUR €' },
+		{ value: 'USD', label: 'USD $' },
+		{ value: 'GBP', label: 'GBP £' },
+		{ value: 'BRL', label: 'BRL R$' }
+	];
 
 	let showInviteModal = $state(false);
 	let createdEventId = $state('');
@@ -159,6 +167,7 @@
 				visibility,
 				priceTotal: priceMode === 'total_split' ? (priceValue ?? undefined) : undefined,
 				pricePerPerson: priceMode === 'per_person' ? (priceValue ?? undefined) : undefined,
+				currency,
 				groupPhotoURL,
 				groupPhotoPath,
 				whatToBring: whatToBring.trim() || undefined,
@@ -680,21 +689,28 @@
 					</div>
 
 					{#if priceMode !== 'free'}
-						<div>
+						<div class="sm:col-span-2">
 							<label for="price" class={labelClass}>
-								{priceMode === 'per_person' ? 'Price per person (€)' : 'Total event price (€)'}
+								{priceMode === 'per_person' ? 'Price per person' : 'Total event price'}
 							</label>
 
-							<input
-								id="price"
-								type="number"
-								min="0"
-								step="0.01"
-								bind:value={priceValue}
-								placeholder="0.00"
-								required
-								class={`mt-2 ${inputClass}`}
-							/>
+							<div class="mt-2 grid grid-cols-[minmax(0,1fr)_6.5rem] gap-2">
+								<input
+									id="price"
+									type="number"
+									min="0"
+									step="0.01"
+									bind:value={priceValue}
+									placeholder="0.00"
+									required
+									class={inputClass}
+								/>
+								<select bind:value={currency} aria-label="Currency" class={inputClass}>
+									{#each currencyOptions as option}
+										<option value={option.value}>{option.label}</option>
+									{/each}
+								</select>
+							</div>
 						</div>
 					{/if}
 				</div>

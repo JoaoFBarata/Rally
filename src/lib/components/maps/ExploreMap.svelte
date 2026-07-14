@@ -7,6 +7,7 @@
 	import { themeState } from '$lib/theme.svelte';
 	import EventCard from '$lib/components/EventCard.svelte';
 	import { isPromotionActive, getEventStartAtMillis } from '$lib/services/event.service';
+	import { getCurrencySymbol } from '$lib/utils/format.utils';
 
 	let {
 		events,
@@ -122,8 +123,8 @@
 			if (friendIds.includes(a.creatorId)) scoreA += 40;
 			if (friendIds.includes(b.creatorId)) scoreB += 40;
 
-			const friendsInA = a.participantIds.filter(id => friendIds.includes(id)).length;
-			const friendsInB = b.participantIds.filter(id => friendIds.includes(id)).length;
+			const friendsInA = a.participantIds.filter((id: string) => friendIds.includes(id)).length;
+			const friendsInB = b.participantIds.filter((id: string) => friendIds.includes(id)).length;
 			scoreA += friendsInA * 15;
 			scoreB += friendsInB * 15;
 
@@ -162,7 +163,7 @@
 		const featuredIds = new Set(feedFeaturedEvents.map(e => e.id));
 		return feedEvents.filter(e => 
 			!featuredIds.has(e.id) && 
-			(friendIds.includes(e.creatorId) || e.participantIds.some(id => friendIds.includes(id)))
+			(friendIds.includes(e.creatorId) || e.participantIds.some((id: string) => friendIds.includes(id)))
 		);
 	});
 
@@ -358,7 +359,7 @@
 
 	function formatSelectedPrice(event: SportEvent) {
 		const price = event.pricePerPerson ?? 0;
-		return price > 0 ? `€${price.toFixed(2)} / person` : 'Free';
+		return price > 0 ? `${getCurrencySymbol(event.currency)}${price.toFixed(2)} / person` : 'Free';
 	}
 
 	function getSelectedPreviewUrl(event: SportEvent) {

@@ -21,6 +21,7 @@
 		PrizeType,
 		Sport,
 		SportLevel,
+		EventCurrency,
 		TournamentFormat,
 		TournamentRegistrationType
 	} from '$lib/schema';
@@ -62,6 +63,7 @@
 
 	let entryFeeType = $state<EntryFeeType>('free');
 	let entryFeeAmount = $state('');
+	let currency = $state<EventCurrency>('EUR');
 
 	let prizeType = $state<PrizeType>('none');
 	let prizeDescription = $state('');
@@ -78,6 +80,12 @@
 	const labelClass = 'text-xs font-black text-slate-700 dark:text-slate-200 sm:text-sm';
 	const helpClass = 'mt-1 text-[11px] font-bold leading-snug text-slate-500 dark:text-slate-400 sm:text-xs';
 	const compactHelpClass = 'mt-1 hidden text-[11px] font-bold leading-snug text-slate-500 dark:text-slate-400 sm:block sm:text-xs';
+	const currencyOptions: { value: EventCurrency; label: string }[] = [
+		{ value: 'EUR', label: 'EUR €' },
+		{ value: 'USD', label: 'USD $' },
+		{ value: 'GBP', label: 'GBP £' },
+		{ value: 'BRL', label: 'BRL R$' }
+	];
 	const choiceClass = 'flex cursor-pointer items-start gap-2.5 rounded-2xl border p-2.5 transition sm:gap-3 sm:p-4';
 
 	const sports: { value: Sport; label: string }[] = [
@@ -205,6 +213,7 @@
 				registrationDeadline: buildRegistrationDeadline(),
 				entryFeeType,
 				entryFeeAmount: entryFeeType === 'free' ? null : Number(entryFeeAmount || 0),
+				currency,
 				prizeType,
 				prizeDescription: prizeDescription.trim(),
 				prizeValue: prizeValue ? Number(prizeValue) : null,
@@ -738,16 +747,23 @@
 									Amount paid per {registrationType === 'team' ? 'team' : 'player'} to enter the tournament.
 								</p>
 
-								<input
-									bind:value={entryFeeAmount}
-									type="number"
-									min="0"
-									step="0.01"
-									placeholder={registrationType === 'team'
-										? 'Example: 25 €/team'
-										: 'Example: 10 €/player'}
-									class={`mt-2 ${inputClass}`}
-								/>
+								<div class="mt-2 grid grid-cols-[minmax(0,1fr)_6.5rem] gap-2">
+									<input
+										bind:value={entryFeeAmount}
+										type="number"
+										min="0"
+										step="0.01"
+										placeholder={registrationType === 'team'
+											? 'Example: 25/team'
+											: 'Example: 10/player'}
+										class={inputClass}
+									/>
+									<select bind:value={currency} aria-label="Currency" class={inputClass}>
+										{#each currencyOptions as option}
+											<option value={option.value}>{option.label}</option>
+										{/each}
+									</select>
+								</div>
 							</label>
 						{/if}
 

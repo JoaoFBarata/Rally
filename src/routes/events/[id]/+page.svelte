@@ -59,6 +59,7 @@
 	import { getTypingLabel } from '$lib/utils/chat-typing.utils';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
+	import { getCurrencySymbol } from '$lib/utils/format.utils';
 	import { getOrCreateOrganizationConversation } from '$lib/services/chat.service';
 	import TournamentPanel from '$lib/components/tournaments/TournamentPanel.svelte';
 	import { getOrganizationReviews } from '$lib/services/organization.service';
@@ -356,8 +357,9 @@
 	}
 
 	function formatPriceLabel(currentEvent: SportEvent) {
-		if (currentEvent.pricePerPerson) return `€${currentEvent.pricePerPerson.toFixed(2)} per person`;
-		if (currentEvent.priceTotal) return `€${currentEvent.priceTotal.toFixed(2)} total`;
+		const currencySymbol = getCurrencySymbol(currentEvent.currency);
+		if (currentEvent.pricePerPerson) return `${currencySymbol}${currentEvent.pricePerPerson.toFixed(2)} per person`;
+		if (currentEvent.priceTotal) return `${currencySymbol}${currentEvent.priceTotal.toFixed(2)} total`;
 		return 'Free / not defined';
 	}
 
@@ -1245,7 +1247,8 @@
 											{#if isParticipant && !isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}<button type="button" onclick={handleLeaveEvent} disabled={actionLoading} class="inline-flex min-h-11 items-center justify-center rounded-2xl border border-red-100 bg-red-50 px-4 py-2.5 text-sm font-black text-red-700 transition active:scale-[0.98] disabled:opacity-60 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">{actionLoading ? 'Leaving...' : 'Leave event'}</button>{/if}
 											{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
 												<a href={resolve(`/events/${event.id}/edit`)} class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-slate-950/10 transition active:scale-[0.98] dark:bg-white dark:text-slate-950">Edit</a>
-												<button type="button" onclick={handleFinishEvent} disabled={actionLoading} class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-blue-50 px-4 py-2.5 text-sm font-black text-blue-700 transition active:scale-[0.98] disabled:opacity-60 dark:bg-blue-950 dark:text-blue-300">Finish</button>
+												<button type="button" onclick={handleFinishEvent} disabled={actionLoading} class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition active:scale-[0.98] disabled:opacity-60">Finish event</button>
+												<button type="button" onclick={handleCancelEvent} disabled={actionLoading} class="col-span-2 inline-flex min-h-11 items-center justify-center rounded-2xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-black text-red-700 transition active:scale-[0.98] disabled:opacity-60 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">Cancel event</button>
 											{/if}
 										</div>
 									</div>
@@ -1843,16 +1846,16 @@
 						<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Team status</h2>
 
 						{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
-							<div class="flex items-center gap-2">
+							<div class="flex flex-wrap items-center justify-end gap-2">
 								<button
 									type="button"
 									onclick={handleFinishEvent}
 									disabled={actionLoading}
 									title="Finish event"
 									aria-label="Finish event"
-									class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-sm font-black text-blue-600 transition hover:bg-blue-100 disabled:opacity-60 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+									class="inline-flex min-h-10 items-center justify-center rounded-2xl bg-blue-600 px-4 text-sm font-black text-white shadow-sm shadow-blue-600/20 transition hover:bg-blue-700 disabled:opacity-60"
 								>
-									✓
+									Finish event
 								</button>
 
 								<button
@@ -1861,9 +1864,9 @@
 									disabled={actionLoading}
 									title="Cancel event"
 									aria-label="Cancel event"
-									class="flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-xl font-black text-red-600 transition hover:bg-red-100 disabled:opacity-60 dark:bg-red-950 dark:text-red-300 dark:hover:bg-red-900"
+									class="inline-flex min-h-10 items-center justify-center rounded-2xl border border-red-200 bg-red-50 px-4 text-sm font-black text-red-700 transition hover:bg-red-100 disabled:opacity-60 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
 								>
-									×
+									Cancel event
 								</button>
 							</div>
 						{:else if isParticipant && !isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}

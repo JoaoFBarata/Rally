@@ -1041,6 +1041,8 @@
 									<!-- Mobile View: Exactly 1 card with swipe gestures -->
 									<div
 										class="block md:hidden w-full select-none"
+										role="group"
+										aria-label="Nearby events carousel"
 										ontouchstart={handleTouchStart}
 										ontouchend={handleTouchEnd}
 									>

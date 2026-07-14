@@ -1122,7 +1122,7 @@
 					</div>
 					<div class="relative z-10 hidden gap-2 self-end md:flex">
 						<button type="button" onclick={openEditProfile} class="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-slate-950/15 transition hover:-translate-y-0.5 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200" aria-label="Edit organization profile">
-							<svg viewBox="0 0 24 24" class="h-4 w-4" aria-hidden="true">
+							<svg viewBox="0 0 24 24" class="h-[1.125rem] w-[1.125rem]" aria-hidden="true">
 								<path fill="currentColor" d="M4 17.7V20h2.3L17.1 9.2l-2.3-2.3L4 17.7Zm14.8-10.3c.3-.3.3-.8 0-1.1l-1.1-1.1c-.3-.3-.8-.3-1.1 0l-.9.9L18 8.3l.8-.9Z" />
 							</svg>
 							<span>Edit profile</span>

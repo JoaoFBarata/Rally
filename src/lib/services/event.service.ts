@@ -368,6 +368,7 @@ export async function createSportEvent(params: {
 	visibility?: EventVisibility;
 	priceTotal?: number;
 	pricePerPerson?: number | null;
+	currency?: SportEvent['currency'];
 	paymentMode?: EventPaymentMode;
 	groupPhotoURL?: string | null;
 	groupPhotoPath?: string | null;
@@ -470,7 +471,7 @@ export async function createSportEvent(params: {
 
 		priceTotal: params.priceTotal ?? null,
 		pricePerPerson: pricePerPerson ?? null,
-		currency: 'EUR',
+		currency: params.currency ?? 'EUR',
 		paymentMode,
 		paymentProtected: paymentMode === 'official',
 		payoutStatus: paymentMode === 'official' ? 'held' : 'not_applicable',
@@ -581,6 +582,7 @@ export async function updateSportEvent(params: {
 	visibility: EventVisibility;
 	priceTotal?: number | null;
 	pricePerPerson?: number | null;
+	currency?: SportEvent['currency'];
 	groupPhotoURL?: string | null;
 	groupPhotoPath?: string | null;
 	whatToBring?: string;
@@ -626,6 +628,7 @@ export async function updateSportEvent(params: {
 		visibility: params.visibility,
 		priceTotal: params.priceTotal ?? null,
 		pricePerPerson,
+		currency: params.currency ?? event.currency ?? 'EUR',
 		paymentMode: (params.priceTotal || pricePerPerson) ? 'split' : ('none' satisfies EventPaymentMode),
 		groupPhotoURL: params.groupPhotoURL ?? event.groupPhotoURL ?? null,
 		groupPhotoPath: params.groupPhotoPath ?? event.groupPhotoPath ?? null,
@@ -1244,6 +1247,7 @@ export async function createTournamentEvent(params: {
 
 	entryFeeType: EntryFeeType;
 	entryFeeAmount?: number | null;
+	currency?: SportEvent['currency'];
 
 	prizeType: PrizeType;
 	prizeDescription?: string;
@@ -1291,6 +1295,7 @@ export async function createTournamentEvent(params: {
 		visibility: 'public',
 		priceTotal:
 			params.entryFeeType === 'free' ? undefined : (params.entryFeeAmount ?? 0) * params.maxEntries,
+		currency: params.currency ?? 'EUR',
 		paymentMode
 	});
 
@@ -1323,6 +1328,7 @@ export async function createTournamentEvent(params: {
 
 		entryFeeType: params.entryFeeType,
 		entryFeeAmount: params.entryFeeAmount ?? null,
+		currency: params.currency ?? 'EUR',
 
 		prizeType: params.prizeType,
 		prizeDescription: params.prizeDescription ?? '',

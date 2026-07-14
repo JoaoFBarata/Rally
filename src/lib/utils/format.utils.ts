@@ -46,20 +46,32 @@ export function formatSport(sport: string | undefined | null): string {
 	return sport.replaceAll('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-export function formatPrice(event: { pricePerPerson?: number; entryFeeAmount?: number; priceTotal?: number; maxParticipants?: number } | undefined | null): string {
+export function getCurrencySymbol(currency?: string | null): string {
+	const symbols: Record<string, string> = {
+		EUR: '€',
+		USD: '$',
+		GBP: '£',
+		BRL: 'R$'
+	};
+
+	return symbols[currency || 'EUR'] ?? currency ?? '€';
+}
+
+export function formatPrice(event: { pricePerPerson?: number; entryFeeAmount?: number; priceTotal?: number; maxParticipants?: number; currency?: string | null } | undefined | null): string {
 	if (!event) return 'Free';
+	const symbol = getCurrencySymbol(event.currency);
 	if (event.entryFeeAmount && event.entryFeeAmount > 0) {
-		return `€${Number(event.entryFeeAmount).toFixed(2)}`;
+		return `${symbol}${Number(event.entryFeeAmount).toFixed(2)}`;
 	}
 	if (event.pricePerPerson && event.pricePerPerson > 0) {
-		return `€${Number(event.pricePerPerson).toFixed(2)} / person`;
+		return `${symbol}${Number(event.pricePerPerson).toFixed(2)} / person`;
 	}
 	if (event.priceTotal && event.priceTotal > 0) {
 		const max = event.maxParticipants ?? 0;
 		if (max > 0) {
-			return `€${(event.priceTotal / max).toFixed(2)} / person`;
+			return `${symbol}${(event.priceTotal / max).toFixed(2)} / person`;
 		}
-		return `€${Number(event.priceTotal).toFixed(2)} total`;
+		return `${symbol}${Number(event.priceTotal).toFixed(2)} total`;
 	}
 	return 'Free';
 }

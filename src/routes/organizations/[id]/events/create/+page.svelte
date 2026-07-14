@@ -10,6 +10,7 @@
 		EventPaymentMode,
 		EventPromotionPlan,
 		EventVisibility,
+		EventCurrency,
 		Organization,
 		Sport,
 		SportLevel
@@ -28,6 +29,7 @@
 	import TimeSelect from '$lib/components/TimeSelect.svelte';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
+	import { getCurrencySymbol } from '$lib/utils/format.utils';
 
 	let organization = $state<Organization | null>(null);
 
@@ -56,6 +58,7 @@
 
 	let paymentMode = $state<EventPaymentMode>('none');
 	let priceTotal = $state('');
+	let currency = $state<EventCurrency>('EUR');
 
 	let promote = $state(false);
 	let promotionPlan = $state<EventPromotionPlan>('sport');
@@ -85,6 +88,12 @@
 		{ value: 'intermediate', label: 'Intermediate' },
 		{ value: 'advanced', label: 'Advanced' }
 	];
+	const currencyOptions: { value: EventCurrency; label: string }[] = [
+		{ value: 'EUR', label: 'EUR €' },
+		{ value: 'USD', label: 'USD $' },
+		{ value: 'GBP', label: 'GBP £' },
+		{ value: 'BRL', label: 'BRL R$' }
+	];
 
 	const promotionPlanOptions = getAvailablePromotionPlanOptions();
 	const cardClass =
@@ -94,6 +103,7 @@
 	const sectionTitleClass = 'text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl';
 
 	let isVerified = $derived(organization ? canCreateOfficialPaidEvents(organization) : false);
+	let currencySymbol = $derived(getCurrencySymbol(currency));
 
 	let pricePerPerson = $derived.by(() => {
 		const total = Number(priceTotal);
@@ -254,6 +264,7 @@
 				maxParticipants: Number(maxParticipants),
 				visibility,
 				priceTotal: paymentMode === 'none' ? undefined : Number(priceTotal),
+				currency,
 				paymentMode
 			});
 			if (promote) {
@@ -657,18 +668,25 @@
 
 						{#if paymentMode !== 'none'}
 							<div class="mt-3 sm:mt-5">
-								<input
-									bind:value={priceTotal}
-									type="number"
-								min="1"
-								step="0.01"
-								placeholder="Total price (€)"
-								class={inputClass}
-							/>
+								<div class="grid grid-cols-[minmax(0,1fr)_6.5rem] gap-2">
+									<input
+										bind:value={priceTotal}
+										type="number"
+										min="1"
+										step="0.01"
+										placeholder="Total price"
+										class={inputClass}
+									/>
+									<select bind:value={currency} aria-label="Currency" class={inputClass}>
+										{#each currencyOptions as option}
+											<option value={option.value}>{option.label}</option>
+										{/each}
+									</select>
+								</div>
 
 								{#if pricePerPerson}
 									<p class="mt-2 text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">
-										≈ €{pricePerPerson.toFixed(2)} / participant
+										≈ {currencySymbol}{pricePerPerson.toFixed(2)} / participant
 									</p>
 								{/if}
 						</div>
