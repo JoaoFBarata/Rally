@@ -1451,7 +1451,7 @@
 									Promoted events matched to your preferences.
 								</p>
 							</div>
-							<div class="grid gap-5 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+							<div class="grid gap-3 grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
 								{#each feedFeaturedEvents as event (event.id)}
 									<EventCard {event} variant="vertical" />
 								{/each}
@@ -1470,7 +1470,7 @@
 									Games created by or featuring your friends.
 								</p>
 							</div>
-							<div class="grid gap-5 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+							<div class="grid gap-3 grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
 								{#each feedFriendsEvents as event (event.id)}
 									<EventCard {event} variant="vertical" />
 								{/each}
@@ -1489,7 +1489,7 @@
 									Find open spots, matches near you, and other games.
 								</p>
 							</div>
-							<div class="grid gap-5 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+							<div class="grid gap-3 grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
 								{#each displayedGeneralEvents as event (event.id)}
 									<EventCard {event} variant="vertical" />
 								{/each}

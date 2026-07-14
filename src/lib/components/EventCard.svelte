@@ -9,6 +9,7 @@
 		trackEventPromotionView
 	} from '$lib/services/event.service';
 	import EventWeather from '$lib/components/EventWeather.svelte';
+	import { getUserProfile } from '$lib/services/user.service';
 	import {
 		formatDate,
 		formatShortDate,
@@ -42,6 +43,22 @@
 	const formattedPrice = $derived(formatPrice(event));
 	const formattedSportLabel = $derived(formatSport(event.sport));
 	const miniMapUrl = $derived(getMiniMapUrl(event.location?.lat, event.location?.lng, 176, 128));
+
+	let creatorPhotoURL = $state<string | null>(null);
+	let creatorName = $state('');
+
+	$effect(() => {
+		if (variant === 'vertical' && event.creatorId) {
+			getUserProfile(event.creatorId).then(profile => {
+				if (profile) {
+					creatorPhotoURL = profile.photoURL || null;
+					creatorName = profile.displayName || '';
+				}
+			}).catch(err => {
+				console.error('Error fetching creator profile:', err);
+			});
+		}
+	});
 
 	function getTimestampMillis(value: unknown) {
 		try {
@@ -306,42 +323,54 @@
 			class="group flex h-full flex-col overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900"
 		>
 			{#if showImage}
-				<div class="relative h-36 w-full shrink-0 overflow-hidden bg-slate-100 dark:bg-slate-800">
+				<div class="relative h-28 w-full shrink-0 overflow-hidden bg-slate-100 dark:bg-slate-800">
 					{#if event.groupPhotoURL}
 						<img src={event.groupPhotoURL} alt={event.title} class="h-full w-full object-cover" />
-					{:else if miniMapUrl}
-						<img src={miniMapUrl} alt={event.location.name} class="h-full w-full object-cover" />
 					{:else}
-						<div class="grid h-full w-full place-items-center text-3xl font-black text-blue-500/70">
-							{event.title.charAt(0).toUpperCase()}
-						</div>
+						<img src={`/event-backgrounds/${event.sport}.png`} alt={event.title} class="h-full w-full object-cover" />
 					{/if}
 
 					{#if showPromotion}
-						<span class="absolute left-3 top-3 rounded-full bg-blue-600 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow-lg">
+						<span class="absolute left-2 top-2 rounded-full bg-blue-600 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow-lg">
 							Promoted
 						</span>
 					{:else}
-						<span class="absolute bottom-3 left-3 rounded-full bg-white/90 px-2 py-0.5 text-[9px] font-black text-slate-700 shadow-sm backdrop-blur dark:bg-slate-950/85 dark:text-slate-200">
+						<span class="absolute bottom-2 left-2 rounded-full bg-white/90 px-2 py-0.5 text-[9px] font-black text-slate-700 shadow-sm backdrop-blur dark:bg-slate-950/85 dark:text-slate-200">
 							{formatShortDate(event.startAt)}
 						</span>
 					{/if}
+
 				</div>
 			{/if}
 
 			<div class="flex flex-1 flex-col p-4">
-				<div class="flex items-center gap-1.5 flex-wrap">
-					<span class="text-[10px] font-black uppercase tracking-wide text-blue-600 dark:text-blue-400">
-						{event.sport}
-					</span>
-					<span class={`rounded-full px-2 py-0.5 text-[9px] font-black ${getStatusClasses()}`}>
-						{getStatusLabel()}
-					</span>
-				</div>
+				<div class="flex items-start justify-between gap-3">
+					<div class="min-w-0 flex-1">
+						<div class="flex items-center gap-1.5 flex-wrap">
+							<span class="text-[10px] font-black uppercase tracking-wide text-blue-600 dark:text-blue-400">
+								{event.sport}
+							</span>
+							<span class={`rounded-full px-2 py-0.5 text-[9px] font-black ${getStatusClasses()}`}>
+								{getStatusLabel()}
+							</span>
+						</div>
 
-				<h3 class="mt-2 line-clamp-2 text-sm font-black leading-tight text-slate-950 dark:text-slate-50 min-h-[2.5rem]">
-					{event.title}
-				</h3>
+						<h3 class="mt-1.5 line-clamp-2 text-sm font-black leading-tight text-slate-950 dark:text-slate-50 min-h-[2.5rem]">
+							{event.title}
+						</h3>
+					</div>
+
+					<!-- Creator avatar bubble -->
+					{#if creatorPhotoURL}
+						<div class="h-9 w-9 shrink-0 rounded-full border border-slate-200 overflow-hidden shadow-sm dark:border-slate-800">
+							<img src={creatorPhotoURL} alt={creatorName} class="h-full w-full object-cover" title={`Created by ${creatorName}`} />
+						</div>
+					{:else if creatorName}
+						<div class="h-9 w-9 shrink-0 rounded-full bg-blue-500 text-xs font-black text-white grid place-items-center shadow-sm">
+							{creatorName.charAt(0).toUpperCase()}
+						</div>
+					{/if}
+				</div>
 
 				<p class="mt-1 truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
 					📍 {event.location.name}

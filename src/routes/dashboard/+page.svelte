@@ -62,6 +62,7 @@
 	let discoverTab = $state<'nearby' | 'recommended' | 'following'>('nearby');
 	let userDeviceLocation = $state<{ lat: number; lng: number } | null>(null);
 	let locationStatus = $state<'idle' | 'loading' | 'ready' | 'blocked' | 'unsupported'>('idle');
+	let scrollContainer = $state<HTMLDivElement>();
 
 	let hostingEvents = $derived(
 		events.filter((event) => !isEventFinished(event) && event.status !== 'cancelled')
@@ -324,6 +325,25 @@
 			error = getFriendlyErrorMessage(err, 'Could not update invitation.');
 		} finally {
 			inviteActionLoading = '';
+		}
+	}
+
+	let touchStartX = 0;
+	let touchEndX = 0;
+
+	function handleTouchStart(e: TouchEvent) {
+		touchStartX = e.changedTouches[0].screenX;
+	}
+
+	function handleTouchEnd(e: TouchEvent) {
+		touchEndX = e.changedTouches[0].screenX;
+		const diff = touchStartX - touchEndX;
+		if (Math.abs(diff) > 50) {
+			if (diff > 0) {
+				showNearby(nearbyIndex + 1);
+			} else {
+				showNearby(nearbyIndex - 1);
+			}
 		}
 	}
 
@@ -989,47 +1009,82 @@
 							{/if}
 						</p>
 
-						{#if currentNearbyEvent}
+						{#if nearbyEvents.length > 0}
 							<div class="space-y-3">
 								<div class="relative flex items-center group/carousel">
-									{#if nearbyEvents.length > 1}
-										<!-- Left Arrow Button -->
+									{#if nearbyEvents.length > 2}
+										<!-- Left Arrow Button (PC Only) -->
 										<button
 											type="button"
 											onclick={() => showNearby(nearbyIndex - 1)}
-											class="absolute left-[-0.75rem] md:left-[-1.25rem] z-10 grid h-9 w-9 place-items-center rounded-full bg-white/95 text-slate-700 shadow-md ring-1 ring-slate-200 transition-all hover:scale-105 hover:bg-slate-50 dark:bg-slate-900/95 dark:text-slate-200 dark:ring-slate-800 dark:hover:bg-slate-800 active:scale-95"
-											aria-label="Previous nearby event"
+											class="hidden md:grid absolute left-[-1.25rem] z-10 h-10 w-10 place-items-center rounded-full bg-white/95 text-slate-700 shadow-md ring-1 ring-slate-200 transition-all hover:scale-105 hover:bg-slate-50 dark:bg-slate-900/95 dark:text-slate-200 dark:ring-slate-800 dark:hover:bg-slate-800 active:scale-95"
+											aria-label="Previous event"
 										>
-											<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+											<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
 												<path d="m15 18-6-6 6-6" />
 											</svg>
 										</button>
 
-										<!-- Right Arrow Button -->
+										<!-- Right Arrow Button (PC Only) -->
 										<button
 											type="button"
 											onclick={() => showNearby(nearbyIndex + 1)}
-											class="absolute right-[-0.75rem] md:right-[-1.25rem] z-10 grid h-9 w-9 place-items-center rounded-full bg-white/95 text-slate-700 shadow-md ring-1 ring-slate-200 transition-all hover:scale-105 hover:bg-slate-50 dark:bg-slate-900/95 dark:text-slate-200 dark:ring-slate-800 dark:hover:bg-slate-800 active:scale-95"
-											aria-label="Next nearby event"
+											class="hidden md:grid absolute right-[-1.25rem] z-10 h-10 w-10 place-items-center rounded-full bg-white/95 text-slate-700 shadow-md ring-1 ring-slate-200 transition-all hover:scale-105 hover:bg-slate-50 dark:bg-slate-900/95 dark:text-slate-200 dark:ring-slate-800 dark:hover:bg-slate-800 active:scale-95"
+											aria-label="Next event"
 										>
-											<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+											<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
 												<path d="m9 18 6-6-6-6" />
 											</svg>
 										</button>
 									{/if}
 
-									<div class="w-full">
-										<EventCard
-											event={currentNearbyEvent}
-											variant="hero"
-											compactHero
-											heroCtaLabel="View event"
-										/>
+									<!-- Mobile View: Exactly 1 card with swipe gestures -->
+									<div
+										class="block md:hidden w-full select-none"
+										ontouchstart={handleTouchStart}
+										ontouchend={handleTouchEnd}
+									>
+										{#if nearbyEvents[nearbyIndex]}
+											<EventCard
+												event={nearbyEvents[nearbyIndex]}
+												variant="hero"
+												compactHero
+												heroCtaLabel="View event"
+											/>
+										{/if}
+									</div>
+
+									<!-- Desktop/PC View: Exactly 2 cards side-by-side -->
+									<div class="hidden md:flex gap-4 w-full">
+										{#if nearbyEvents[nearbyIndex]}
+											<div class="w-1/2">
+												<EventCard
+													event={nearbyEvents[nearbyIndex]}
+													variant="hero"
+													compactHero
+													heroCtaLabel="View event"
+												/>
+											</div>
+										{/if}
+										{#if nearbyEvents.length > 1}
+											{@const nextIndex = (nearbyIndex + 1) % nearbyEvents.length}
+											{#if nearbyEvents[nextIndex]}
+												<div class="w-1/2">
+													<EventCard
+														event={nearbyEvents[nextIndex]}
+														variant="hero"
+														compactHero
+														heroCtaLabel="View event"
+													/>
+												</div>
+											{/if}
+										{/if}
 									</div>
 								</div>
 
+								<!-- Navigation Dots -->
 								{#if nearbyEvents.length > 1}
-									<div class="flex flex-wrap items-center justify-center gap-1.5">
+									<div class="flex flex-wrap items-center justify-center gap-1.5 pt-1">
 										{#each nearbyEvents as event, index (event.id)}
 											<button
 												type="button"
