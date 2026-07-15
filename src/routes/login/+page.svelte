@@ -8,6 +8,7 @@
 	import { authService } from '$lib/services/auth.service';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
+	import { themeState } from '$lib/theme.svelte';
 
 	let email = $state('');
 	let password = $state('');
@@ -17,6 +18,7 @@
 	let success = $state('');
 	let switchingAccount = $state(false);
 	let passwordInput = $state<HTMLInputElement | null>(null);
+	let showPassword = $state(false);
 
 	async function handleLogin() {
 		error = '';
@@ -151,7 +153,7 @@
 							id="email"
 							type="email"
 							bind:value={email}
-							class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+							class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
 							placeholder="you@example.com"
 						/>
 					</div>
@@ -175,14 +177,27 @@
 							</button>
 						</div>
 
-						<input
-							id="password"
-							bind:this={passwordInput}
-							type="password"
-							bind:value={password}
-							class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-							placeholder="••••••••"
-						/>
+						<div class="relative mt-2">
+							<input
+								id="password"
+								bind:this={passwordInput}
+								type={showPassword ? 'text' : 'password'}
+								bind:value={password}
+								class="w-full rounded-2xl border border-slate-200 bg-slate-50 pl-4 pr-12 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+								placeholder="••••••••"
+							/>
+							<button
+								type="button"
+								onclick={() => (showPassword = !showPassword)}
+								class="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition"
+							>
+								{#if showPassword}
+									<img src="/eye_open.png" alt="Show password" class="h-5 w-5 object-contain" class:invert={$themeState} />
+								{:else}
+									<img src="/eye_closed.png" alt="Hide password" class="h-5 w-5 object-contain" class:invert={$themeState} />
+								{/if}
+							</button>
+						</div>
 					</div>
 
 					<button

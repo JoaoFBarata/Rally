@@ -18,6 +18,7 @@
 		requestOrganizationVerification,
 		updateOrganizationProfile
 	} from '$lib/services/organization.service';
+	import { ensureUserProfile } from '$lib/services/user.service';
 	import {
 		calculatePromotionStats,
 		getEventsCreatedByOrganization,
@@ -38,6 +39,7 @@
 		type DeviceAccount
 	} from '$lib/services/device-accounts.service';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
+	import { getCurrencySymbol } from '$lib/utils/format.utils';
 
 	let organization = $state<Organization | null>(null);
 	let organizationEvents = $state<SportEvent[]>([]);
@@ -273,6 +275,12 @@
 
 	function formatEventLocation(event: SportEvent) {
 		return event.location?.name || event.location?.address || 'Location not set';
+	}
+
+	function formatManageEventPrice(event: SportEvent) {
+		const price = event.pricePerPerson ?? event.priceTotal;
+		if (!price) return 'Free';
+		return `${getCurrencySymbol(event.currency)}${price.toFixed(2)}`;
 	}
 
 	async function loadManagePage(userId: string) {
@@ -590,11 +598,19 @@
 			}
 
 			if (canFastSwitchDeviceAccount(account)) {
-				await authService.signInWithGoogle();
-				deviceAccounts = getDeviceAccounts();
+				const switchedUser = await authService.signInWithGoogle();
+
+				if (switchedUser.uid !== account.id) {
+					deviceAccounts = getDeviceAccounts();
+					error = `You signed in as ${switchedUser.email ?? 'another account'}. Choose ${account.email} to switch to ${account.displayName}.`;
+					return;
+				}
+
+				const switchedProfile = await ensureUserProfile(switchedUser);
+				deviceAccounts = rememberDeviceAccount(switchedProfile, switchedUser);
 				showSettingsModal = false;
 				showAccountSwitcher = false;
-				await goto(getPostSwitchHref(account));
+				await goto(getPostSwitchHref(deviceAccounts.find((item) => item.id === switchedUser.uid) ?? account));
 				return;
 			}
 
@@ -606,6 +622,9 @@
 					`/login?returnTo=${encodeURIComponent(getPostSwitchHref(account))}&email=${encodeURIComponent(account.email)}`
 				)
 			);
+		} catch (err) {
+			console.error('Switch account error:', err);
+			error = getFriendlyErrorMessage(err, 'Could not switch account.');
 		} finally {
 			logoutLoading = false;
 			switchingAccountId = null;
@@ -773,22 +792,22 @@
 		{#if activeManageTab === 'overview'}
 			<section class="mt-5 grid grid-cols-4 divide-x divide-slate-200 rounded-[1.4rem] border-y border-slate-200 bg-white/55 py-3 text-center shadow-sm dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900/45 sm:py-4">
 				<div class="px-2">
-					<p class="text-lg sm:text-2xl">👥</p>
+					<svg class="mx-auto h-5 w-5 text-slate-500 dark:text-slate-400 sm:h-6 sm:w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16 19a4 4 0 0 0-8 0M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM22 19a3.5 3.5 0 0 0-5-3.15M2 19a3.5 3.5 0 0 1 5-3.15" /></svg>
 					<p class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{displayedFollowersCount}</p>
 					<p class="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 sm:text-xs">Followers</p>
 				</div>
 				<div class="px-2">
-					<p class="text-lg sm:text-2xl">📅</p>
+					<svg class="mx-auto h-5 w-5 text-slate-500 dark:text-slate-400 sm:h-6 sm:w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M7 3v3M17 3v3M4 9h16M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" /></svg>
 					<p class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{upcomingEvents.length}</p>
 					<p class="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 sm:text-xs">Upcoming</p>
 				</div>
 				<div class="px-2">
-					<p class="text-lg sm:text-2xl">📣</p>
+					<svg class="mx-auto h-5 w-5 text-slate-500 dark:text-slate-400 sm:h-6 sm:w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 13h3l9 4V7l-9 4H4v2Zm3 0 1 6h3" /></svg>
 					<p class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{activePromotedEvents.length}</p>
 					<p class="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 sm:text-xs">Promoted</p>
 				</div>
 				<div class="px-2">
-					<p class="text-lg sm:text-2xl">📊</p>
+					<svg class="mx-auto h-5 w-5 text-slate-500 dark:text-slate-400 sm:h-6 sm:w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 19V9M12 19V5M19 19v-7" /></svg>
 					<p class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{organizationEvents.length}</p>
 					<p class="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 sm:text-xs">Total</p>
 				</div>
@@ -804,23 +823,23 @@
 
 				<div class="mt-4 grid grid-cols-5 gap-2 sm:gap-3">
 					<a href={resolve(`/organizations/${organization.id}/events/create`)} class="rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.4rem] sm:p-4">
-						<span class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950 sm:h-10 sm:w-10 sm:rounded-2xl">＋</span>
+						<span class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-slate-50 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700 sm:h-10 sm:w-10 sm:rounded-2xl"><svg class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path stroke-linecap="round" d="M12 5v14M5 12h14" /></svg></span>
 						<span class="mt-2 block truncate text-[0.65rem] font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-xs">Event</span>
 					</a>
 					<a href={resolve(`/organizations/${organization.id}/tournaments/create`)} class="rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-orange-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.4rem] sm:p-4">
-						<span class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-orange-50 text-orange-600 dark:bg-orange-950 sm:h-10 sm:w-10 sm:rounded-2xl">🏆</span>
+						<span class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-slate-50 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700 sm:h-10 sm:w-10 sm:rounded-2xl"><svg class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4Zm0 2H4a3 3 0 0 0 3 3m10-3h3a3 3 0 0 1-3 3" /></svg></span>
 						<span class="mt-2 block truncate text-[0.65rem] font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-xs">Tourney</span>
 					</a>
 					<a href={resolve(`/organizations/${organization.id}`)} class="rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.4rem] sm:p-4">
-						<span class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950 sm:h-10 sm:w-10 sm:rounded-2xl">👤</span>
+						<span class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-slate-50 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700 sm:h-10 sm:w-10 sm:rounded-2xl"><svg class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM5 21a7 7 0 0 1 14 0" /></svg></span>
 						<span class="mt-2 block truncate text-[0.65rem] font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-xs">Profile</span>
 					</a>
 					<a href={resolve('/messages')} class="rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.4rem] sm:p-4">
-						<span class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-200 sm:h-10 sm:w-10 sm:rounded-2xl">💬</span>
+						<span class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-slate-50 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700 sm:h-10 sm:w-10 sm:rounded-2xl"><svg class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a8 8 0 0 1-8 8H7l-4 3v-6a8 8 0 1 1 18-5Z" /></svg></span>
 						<span class="mt-2 block truncate text-[0.65rem] font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-xs">Inbox</span>
 					</a>
 					<button type="button" onclick={() => (activeManageTab = 'events')} class="rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-orange-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.4rem] sm:p-4">
-						<span class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-orange-50 text-orange-600 dark:bg-orange-950 sm:h-10 sm:w-10 sm:rounded-2xl">📣</span>
+						<span class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-slate-50 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700 sm:h-10 sm:w-10 sm:rounded-2xl"><svg class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 13h3l9 4V7l-9 4H4v2Zm3 0 1 6h3" /></svg></span>
 						<span class="mt-2 block truncate text-[0.65rem] font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-xs">Promote</span>
 					</button>
 				</div>
@@ -904,12 +923,13 @@
 										{/if}
 									</div>
 									<div class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[0.68rem] font-bold text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-xs">
-										<span class="truncate">📅 {formatEventDate(event.startAt)}</span>
-										{#if event.pricePerPerson || event.priceTotal}
-											<span>€ {event.pricePerPerson ?? event.priceTotal}</span>
-										{:else}
-											<span>Free</span>
-										{/if}
+										<span class="inline-flex min-w-0 items-center gap-1.5 truncate">
+											<svg viewBox="0 0 24 24" class="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true">
+												<path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" />
+											</svg>
+											<span class="truncate">{formatEventDate(event.startAt)}</span>
+										</span>
+										<span>{formatManageEventPrice(event)}</span>
 									</div>
 								</div>
 							</a>
@@ -981,12 +1001,13 @@
 										{/if}
 									</div>
 									<div class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[0.68rem] font-bold text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-xs">
-										<span class="truncate">📅 {formatEventDate(event.startAt)}</span>
-										{#if event.pricePerPerson || event.priceTotal}
-											<span>€ {event.pricePerPerson ?? event.priceTotal}</span>
-										{:else}
-											<span>Free</span>
-										{/if}
+										<span class="inline-flex min-w-0 items-center gap-1.5 truncate">
+											<svg viewBox="0 0 24 24" class="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true">
+												<path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" />
+											</svg>
+											<span class="truncate">{formatEventDate(event.startAt)}</span>
+										</span>
+										<span>{formatManageEventPrice(event)}</span>
 									</div>
 								</div>
 							</a>

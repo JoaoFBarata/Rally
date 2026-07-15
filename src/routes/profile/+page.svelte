@@ -36,6 +36,7 @@
 	import type { RallyPointTransaction } from '$lib/schema';
 	import { createAppUrl } from '$lib/utils/app-url';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
+	import { formatSport } from '$lib/utils/format.utils';
 
 	const availableSports: Sport[] = [
 		'football',
@@ -55,7 +56,7 @@
 	let displayName = $state('');
 	let bio = $state('');
 	let city = $state('');
-	let country = $state('PT');
+	let country = $state('');
 	let age = $state<string | number>('');
 	let sports = $state<Sport[]>([]);
 
@@ -96,7 +97,7 @@
 		displayName = nextProfile.displayName ?? '';
 		bio = nextProfile.bio ?? '';
 		city = nextProfile.city ?? '';
-		country = nextProfile.country ?? 'PT';
+		country = nextProfile.country ?? '';
 		age = nextProfile.age ? String(nextProfile.age) : '';
 		sports = nextProfile.sports ?? [];
 	}
@@ -331,6 +332,16 @@
 		success = 'Rally tag copied.';
 	}
 
+	function formatCountryName(countryCode?: string | null) {
+		if (!countryCode) return '';
+		return PROMOTION_COUNTRIES.find((country) => country.code === countryCode)?.label ?? countryCode;
+	}
+
+	function formatProfileLocation(profile: UserProfile) {
+		const countryName = formatCountryName(profile.country);
+		return [profile.city, countryName].filter(Boolean).join(', ');
+	}
+
 	async function generateProfileQrCode(userId: string) {
 		if (!browser || !profile?.rallyTag) return;
 
@@ -442,16 +453,30 @@
 								/>
 							</div>
 							<div>
-								<label for="mobile-age" class="text-sm font-bold text-slate-700 dark:text-slate-300">Age</label>
-								<input
-									id="mobile-age"
-									type="number"
-									min="13"
-									max="100"
-									bind:value={age}
+								<label for="mobile-country" class="text-sm font-bold text-slate-700 dark:text-slate-300">Country</label>
+								<select
+									id="mobile-country"
+									bind:value={country}
 									class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-								/>
+								>
+									<option value="">Not set</option>
+									{#each PROMOTION_COUNTRIES as option}
+										<option value={option.code}>{option.label}</option>
+									{/each}
+								</select>
 							</div>
+						</div>
+
+						<div>
+							<label for="mobile-age" class="text-sm font-bold text-slate-700 dark:text-slate-300">Age</label>
+							<input
+								id="mobile-age"
+								type="number"
+								min="13"
+								max="100"
+								bind:value={age}
+								class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+							/>
 						</div>
 
 						<div>
@@ -477,7 +502,7 @@
 												: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
 										}`}
 									>
-										{sport}
+										{formatSport(sport)}
 									</button>
 								{/each}
 							</div>
@@ -529,9 +554,13 @@
 									<button
 									    type="button"
 									    onclick={copyTag}
-									    class="mt-1 block max-w-full truncate text-left text-sm font-bold text-blue-600 dark:text-blue-400"
+									    class="mt-1 inline-flex max-w-full items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-left text-xs font-black text-blue-700 ring-1 ring-blue-100 transition hover:bg-blue-100 dark:bg-blue-950/50 dark:text-blue-200 dark:ring-blue-900/60 dark:hover:bg-blue-900/50"
 									>
-									    @{profile.rallyTag ?? 'creating-tag'}
+									    <span class="truncate">@{profile.rallyTag ?? 'creating-tag'}</span>
+										<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+											<rect x="9" y="9" width="13" height="13" rx="2" />
+											<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+										</svg>
 									</button>
 						        </div>
 
@@ -544,18 +573,27 @@
 						        </button>
 						    </div>
 
-						    {#if profile.city || profile.age}
-						        <p class="mt-2 truncate text-sm text-slate-500 dark:text-slate-400">
-									{profile.city || 'No city'}{profile.age ? ` · ${profile.age} years old` : ''}
+						    {#if profile.city || profile.country || profile.age}
+						        <p class="mt-2 flex items-center gap-1.5 truncate text-sm text-slate-500 dark:text-slate-400">
+									{#if profile.city || profile.country}
+										<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+											<path stroke-linecap="round" stroke-linejoin="round" d="M12 21s7-4.35 7-11a7 7 0 1 0-14 0c0 6.65 7 11 7 11Z" />
+											<circle cx="12" cy="10" r="2.5" />
+										</svg>
+										<span class="truncate">{formatProfileLocation(profile)}</span>
+									{/if}
+									{#if profile.age}
+										<span class="shrink-0">{profile.city || profile.country ? `· ${profile.age} years old` : `${profile.age} years old`}</span>
+									{/if}
 						        </p>
 						    {/if}
 						</div>
 			        </div>
 
-			        <div class="mt-5 flex flex-wrap gap-2">
+			        <div class="-mx-1 mt-5 flex flex-wrap gap-2 px-1 py-1">
 						{#if profile.sports?.length}
 						    {#each profile.sports as sport (sport)}
-						        <span class="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">{sport}</span>
+						        <span class="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-700 ring-1 ring-blue-100 dark:bg-blue-950/50 dark:text-blue-200 dark:ring-blue-900/60">{formatSport(sport)}</span>
 						    {/each}
 						{:else}
 						    <span class="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">No sports yet</span>
@@ -575,7 +613,7 @@
 
 			        {#if profile.bio}
 						<div class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-800">
-							<p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">About</p>
+							<p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Bio</p>
 							<p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{profile.bio}</p>
 						</div>
 			        {/if}
@@ -590,8 +628,8 @@
 						<span class="block text-sm font-black">Rally QR</span>
 						<span class="block text-xs text-blue-100">Share your code to connect</span>
 			        </span>
-			        <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/15">
-						<img src="/qr-code.png" alt="QR code" class="h-6 w-6 object-contain invert" />
+			        <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white">
+						<img src="/qr-code.png" alt="QR code" class="h-6 w-6 object-contain" />
 			        </span>
 			    </button>
 			{/if}
@@ -668,7 +706,7 @@
 			    {#if friends.length === 0}
 			        <p class="mt-3 text-sm text-slate-500 dark:text-slate-400">Add friends using a Rally tag.</p>
 			    {:else}
-			        <div class="mt-4 flex gap-3 overflow-x-auto pb-1">
+			        <div class="mt-4 flex gap-3 overflow-x-auto pb-4">
 						{#each friends as friend (friend.id)}
 						    <a href={resolve(`/users/${friend.id}`)} class="w-16 shrink-0 text-center">
 						        <div class="mx-auto h-12 w-12">
@@ -748,11 +786,47 @@
 							</p>
 
 							<button
+								type="button"
 								onclick={copyTag}
-								class="mt-2 max-w-full truncate rounded-full bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900 sm:px-3 sm:text-sm"
+								class="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-left text-xs font-black text-blue-700 ring-1 ring-blue-100 transition hover:bg-blue-100 dark:bg-blue-950/50 dark:text-blue-200 dark:ring-blue-900/60 dark:hover:bg-blue-900/50 sm:px-3 sm:text-sm"
 							>
-								@{profile.rallyTag ?? 'creating-tag'} · copy
+								<span class="truncate">@{profile.rallyTag ?? 'creating-tag'}</span>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2.2"
+									class="h-3.5 w-3.5 shrink-0"
+									aria-hidden="true"
+								>
+									<rect x="9" y="9" width="10" height="10" rx="2" />
+									<path d="M5 15H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1" />
+								</svg>
 							</button>
+
+							{#if profile.city || profile.country || profile.age}
+								<p class="mt-2 flex items-center gap-1.5 truncate text-sm text-slate-500 dark:text-slate-400">
+									{#if profile.city || profile.country}
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2.2"
+											class="h-4 w-4 shrink-0"
+											aria-hidden="true"
+										>
+											<path stroke-linecap="round" stroke-linejoin="round" d="M12 21s7-4.35 7-11a7 7 0 1 0-14 0c0 6.65 7 11 7 11Z" />
+											<circle cx="12" cy="10" r="2.4" />
+										</svg>
+										<span class="truncate">{formatProfileLocation(profile)}</span>
+									{/if}
+									{#if profile.age}
+										<span class="shrink-0">{profile.city || profile.country ? `· ${profile.age} years old` : `${profile.age} years old`}</span>
+									{/if}
+								</p>
+							{/if}
 						</div>
 					</div>
 
@@ -812,6 +886,7 @@
 									bind:value={country}
 									class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
 								>
+									<option value="">Not set</option>
 									{#each PROMOTION_COUNTRIES as option}
 										<option value={option.code}>{option.label}</option>
 									{/each}
@@ -861,7 +936,7 @@
 												: 'bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-blue-950 dark:hover:text-blue-300'
 										}`}
 									>
-										{sport}
+										{formatSport(sport)}
 									</button>
 								{/each}
 							</div>
@@ -884,7 +959,7 @@
 							<p
 								class="mt-2 truncate text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base"
 							>
-								{profile.city || 'Not added yet'}
+								{formatProfileLocation(profile) || 'Not added yet'}
 							</p>
 						</div>
 
@@ -907,23 +982,25 @@
 						</div>
 					</div>
 
-					<div class="mt-5 rounded-3xl bg-slate-50 p-5 dark:bg-slate-800">
-						<p class="text-sm font-bold text-slate-500 dark:text-slate-400">About</p>
-						<p class="mt-2 leading-7 text-slate-700 dark:text-slate-300">
-							{profile.bio || 'No bio added yet.'}
-						</p>
-					</div>
+					{#if profile.bio}
+						<div class="mt-5 rounded-3xl bg-slate-50 p-5 dark:bg-slate-800">
+							<p class="text-sm font-bold text-slate-500 dark:text-slate-400">Bio</p>
+							<p class="mt-2 leading-7 text-slate-700 dark:text-slate-300">
+								{profile.bio}
+							</p>
+						</div>
+					{/if}
 
 					<div class="mt-5 rounded-3xl bg-slate-50 p-5 dark:bg-slate-800">
 						<p class="text-sm font-bold text-slate-500 dark:text-slate-400">Sports</p>
 
 						{#if profile.sports?.length}
-							<div class="mt-3 flex flex-wrap gap-2">
+							<div class="mt-3 flex flex-wrap gap-2 py-1">
 								{#each profile.sports as sport (sport)}
 									<span
-										class="rounded-full bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+										class="rounded-full bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 ring-1 ring-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:ring-blue-900/60"
 									>
-										{sport}
+										{formatSport(sport)}
 									</span>
 								{/each}
 							</div>
@@ -953,7 +1030,7 @@
 							aria-label="Show QR code"
 							title="Show QR code"
 						>
-							<img src="/qr-code.png" alt="QR code" class="h-6 w-6 object-contain dark:invert" />
+							<img src="/qr-code.png" alt="QR code" class="h-6 w-6 object-contain" />
 						</button>
 					</div>
 

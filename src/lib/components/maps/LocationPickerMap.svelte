@@ -344,35 +344,35 @@
 </script>
 
 <div
-	class="location-picker-map min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem]"
+	class="location-picker-map min-w-0 overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-lg shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:shadow-xl sm:shadow-slate-200/70"
 >
-	<div class="border-b border-slate-200 p-4 dark:border-slate-800 sm:p-5">
-		<p class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
+	<div class="border-b border-slate-200 p-3 dark:border-slate-800 sm:p-5">
+		<p class="text-[10px] font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400 sm:text-sm">
 			Location
 		</p>
 
-		<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">Pick event location</h2>
+		<h2 class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:text-xl">Pick event location</h2>
 
-		<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+		<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">
 			Search by street, postal code, or click on the map to define the event location.
 		</p>
 	</div>
 
 	<div
-		class="space-y-4 border-b border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800 sm:p-5"
+		class="space-y-3 border-b border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800 sm:space-y-4 sm:p-5"
 	>
 		<div>
-			<label for="address-search" class="text-sm font-bold text-slate-700 dark:text-slate-300">
+			<label for="address-search" class="text-xs font-bold text-slate-700 dark:text-slate-300 sm:text-sm">
 				Search address
 			</label>
 
-			<div class="relative mt-2">
+			<div class="relative mt-1.5 sm:mt-2">
 				<input
 					id="address-search"
 					value={searchQuery}
 					oninput={handleSearchInput}
 					placeholder="Street, postal code, place name..."
-					class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:ring-blue-950"
+					class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:ring-blue-950 sm:px-4 sm:py-3 sm:text-base"
 				/>
 
 				{#if suggestions.length > 0}
@@ -395,7 +395,7 @@
 
 		<div class="grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:gap-3">
 			<div>
-				<label for="manual-address" class="text-sm font-bold text-slate-700 dark:text-slate-300">
+				<label for="manual-address" class="text-xs font-bold text-slate-700 dark:text-slate-300 sm:text-sm">
 					Address
 				</label>
 
@@ -403,7 +403,7 @@
 					id="manual-address"
 					bind:value={address}
 					placeholder="You can also type the address manually"
-					class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:ring-blue-950"
+					class="mt-1.5 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:ring-blue-950 sm:mt-2 sm:px-4 sm:py-3 sm:text-base"
 				/>
 			</div>
 
@@ -411,7 +411,7 @@
 				type="button"
 				onclick={useTypedAddress}
 				disabled={searchLoading || !address.trim()}
-				class="self-end rounded-2xl bg-blue-600 px-3 py-3 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 sm:px-5 sm:text-base"
+				class="self-end rounded-2xl bg-blue-600 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 sm:px-5 sm:py-3 sm:text-base"
 			>
 				{searchLoading ? 'Searching...' : 'Find on map'}
 			</button>
@@ -425,15 +425,15 @@
 			</p>
 		{/if}
 
-		<p class="text-xs font-medium text-slate-500 dark:text-slate-400">
+		<p class="hidden text-xs font-medium text-slate-500 dark:text-slate-400 sm:block">
 			Tip: after searching, you can still click on the map to adjust the marker.
 		</p>
 	</div>
 
-	<div bind:this={mapContainer} class="h-72 w-full sm:h-96 lg:h-[520px]"></div>
+	<div bind:this={mapContainer} class="h-52 w-full sm:h-96 lg:h-[420px]"></div>
 
 	<div
-		class="grid grid-cols-2 gap-3 border-t border-slate-200 bg-slate-50 p-4 text-xs dark:border-slate-800 dark:bg-slate-800 sm:p-5 sm:text-sm"
+		class="hidden grid-cols-2 gap-3 border-t border-slate-200 bg-slate-50 p-4 text-xs dark:border-slate-800 dark:bg-slate-800 sm:grid sm:p-5 sm:text-sm"
 	>
 		<div>
 			<p class="font-bold text-slate-700 dark:text-slate-300">Latitude</p>

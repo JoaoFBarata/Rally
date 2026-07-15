@@ -137,17 +137,15 @@
 	}
 </script>
 
-<div class="mx-auto w-full max-w-3xl px-5 pb-28 sm:px-0 sm:pb-0">
-	<button
-		type="button"
-		onclick={() => goBack(resolve(`/events/${eventId}`))}
-		class="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold leading-none text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900 sm:px-5"
-	>
-		<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="h-4 w-4 shrink-0">
-			<path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-		</svg>
-		<span>Back to event</span>
-	</button>
+	<div class="mx-auto w-full max-w-3xl px-5 pb-28 sm:px-0 sm:pb-0">
+		<button
+			type="button"
+			onclick={() => goBack(resolve(`/events/${eventId}`))}
+			class="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-black text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+		>
+			<span class="leading-none">←</span>
+			<span>Back</span>
+		</button>
 
 	<div class="mt-6">
 		<p class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">

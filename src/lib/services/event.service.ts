@@ -37,6 +37,7 @@ import type {
 import {
 	canCreateOfficialPaidEvents,
 	getOrganizationById,
+	getOrganizationFollowerIds,
 	isOrganizationAdmin
 } from '$lib/services/organization.service';
 import { sendRallySystemMessage } from '$lib/services/chat.service';
@@ -52,22 +53,22 @@ export const PROMOTION_PLANS: Record<
 	}
 > = {
 	local: {
-		label: 'Local Boost',
-		description: 'Shows the event first to people in the selected country/city.',
+		label: 'Regional Boost',
+		description: 'Shows the event in promoted areas for the selected country or city.',
 		cpm: 7,
-		placement: 'Local and country discovery'
+		placement: 'Dashboard and Explore in the selected area'
 	},
 	sport: {
-		label: 'Sport Boost',
-		description: 'Most efficient: targets people who already like this sport.',
-		cpm: 9,
-		placement: 'Sport-matched recommendations'
+		label: 'Sport Targeting',
+		description: 'Regional boost plus priority for people who like or filter this sport.',
+		cpm: 11,
+		placement: 'Top of sport-matched discovery'
 	},
 	featured: {
-		label: 'Featured Boost',
-		description: 'Broadest reach: appears in top promoted sections for the selected country.',
-		cpm: 5,
-		placement: 'Top promoted placement'
+		label: 'Legacy Featured',
+		description: 'Older broad campaign type. New campaigns should use Regional or Sport Targeting.',
+		cpm: 7,
+		placement: 'Legacy promoted placement'
 	}
 };
 
@@ -83,6 +84,13 @@ export const PROMOTION_COUNTRIES = [
 
 export function getPromotionPlanConfig(plan: EventPromotionPlan) {
 	return PROMOTION_PLANS[plan];
+}
+
+export function getAvailablePromotionPlanOptions() {
+	return (Object.entries(PROMOTION_PLANS) as [
+		EventPromotionPlan,
+		(typeof PROMOTION_PLANS)[EventPromotionPlan]
+	][]).filter(([plan]) => plan !== 'featured');
 }
 
 export function calculatePromotionImpressionLimit(params: { budget: number; cpm: number }) {
@@ -176,6 +184,13 @@ export function isEventFinished(event: SportEvent) {
 
 	const endAt = event.endAt as unknown as { toMillis?: () => number; toDate?: () => Date } | null;
 	const endAtMs = endAt?.toMillis?.() ?? endAt?.toDate?.()?.getTime?.() ?? 0;
+
+	if (event.eventKind === 'tournament' || event.tournamentStatus) {
+		if (event.tournamentStatus === 'finished') return true;
+		if (endAtMs) return endAtMs < Date.now();
+		return false;
+	}
+
 	const finishAtMs = endAtMs || getEventStartAtMillis(event);
 
 	if (!finishAtMs) return false;
@@ -226,6 +241,27 @@ async function syncEventGroupConversation(event: SportEvent) {
 			createdAt: serverTimestamp()
 		},
 		{ merge: true }
+	);
+}
+
+async function notifyOrganizationFollowers(
+	event: SportEvent,
+	message: string,
+	options: { includeParticipants?: boolean } = {}
+) {
+	if (event.hostType !== 'organization' || !event.organizationId || event.visibility !== 'public') {
+		return;
+	}
+
+	const followerIds = await getOrganizationFollowerIds(event.organizationId);
+	const excludedIds = new Set<string>([
+		event.creatorId,
+		...(options.includeParticipants ? [] : (event.participantIds ?? []))
+	]);
+	const recipients = followerIds.filter((userId) => !excludedIds.has(userId));
+
+	await Promise.allSettled(
+		recipients.map((userId) => sendRallySystemMessage(userId, message))
 	);
 }
 
@@ -331,6 +367,8 @@ export async function createSportEvent(params: {
 	maxParticipants: number;
 	visibility?: EventVisibility;
 	priceTotal?: number;
+	pricePerPerson?: number | null;
+	currency?: SportEvent['currency'];
 	paymentMode?: EventPaymentMode;
 	groupPhotoURL?: string | null;
 	groupPhotoPath?: string | null;
@@ -343,7 +381,7 @@ export async function createSportEvent(params: {
 }) {
 	const hostType = params.hostType ?? 'user';
 	const paymentMode: EventPaymentMode =
-		params.paymentMode ?? (params.priceTotal ? 'split' : 'none');
+		params.paymentMode ?? (params.priceTotal || params.pricePerPerson ? 'split' : 'none');
 
 	let organizationSnapshot: {
 		organizationId: string | null;
@@ -389,9 +427,11 @@ export async function createSportEvent(params: {
 	const participantIds = hostType === 'organization' ? [] : [params.creatorId];
 
 	const pricePerPerson =
-		params.priceTotal && params.maxParticipants > 0
-			? params.priceTotal / params.maxParticipants
-			: undefined;
+		params.pricePerPerson !== undefined && params.pricePerPerson !== null
+			? params.pricePerPerson
+			: (params.priceTotal && params.maxParticipants > 0
+				? params.priceTotal / params.maxParticipants
+				: undefined);
 
 	const eventData = {
 		title: params.title,
@@ -431,7 +471,7 @@ export async function createSportEvent(params: {
 
 		priceTotal: params.priceTotal ?? null,
 		pricePerPerson: pricePerPerson ?? null,
-		currency: 'EUR',
+		currency: params.currency ?? 'EUR',
 		paymentMode,
 		paymentProtected: paymentMode === 'official',
 		payoutStatus: paymentMode === 'official' ? 'held' : 'not_applicable',
@@ -461,6 +501,15 @@ export async function createSportEvent(params: {
 	} as unknown as SportEvent;
 
 	await syncEventGroupConversation(createdEvent);
+
+	if (hostType === 'organization' && !params.recurringGroupId) {
+		const dateLabel = formatEventDate(createdEvent.startAt);
+		const organizationName = createdEvent.organizationName ?? 'An organization you follow';
+		void notifyOrganizationFollowers(
+			createdEvent,
+			`${organizationName} created "${createdEvent.title}"${dateLabel ? ` on ${dateLabel}` : ''}.`
+		).catch((error) => console.error('Follower event notification error:', error));
+	}
 
 	return createdEvent;
 }
@@ -494,15 +543,14 @@ export async function createRecurringSportEvents(
 	);
 
 	const recurringGroupId = crypto.randomUUID();
-	const createdEvents: SportEvent[] = [];
 
-	for (let index = 0; index < occurrences; index++) {
+	const promises = Array.from({ length: occurrences }).map((_, index) => {
 		const occurrenceStartAt = addRecurringOffset(params.startAt, params.frequency, index);
 		const occurrenceEndAt = params.endAt
 			? addRecurringOffset(params.endAt, params.frequency, index)
 			: undefined;
 
-		const createdEvent = await createSportEvent({
+		return createSportEvent({
 			...params,
 			startAt: occurrenceStartAt,
 			endAt: occurrenceEndAt,
@@ -511,11 +559,9 @@ export async function createRecurringSportEvents(
 			recurringTotal: occurrences,
 			recurringFrequency: params.frequency
 		});
+	});
 
-		createdEvents.push(createdEvent);
-	}
-
-	return createdEvents;
+	return Promise.all(promises);
 }
 
 export async function updateSportEvent(params: {
@@ -535,6 +581,12 @@ export async function updateSportEvent(params: {
 	maxParticipants: number;
 	visibility: EventVisibility;
 	priceTotal?: number | null;
+	pricePerPerson?: number | null;
+	currency?: SportEvent['currency'];
+	groupPhotoURL?: string | null;
+	groupPhotoPath?: string | null;
+	whatToBring?: string;
+	joinPolicy?: EventJoinPolicy;
 }): Promise<void> {
 	const event = await getEventById(params.eventId);
 
@@ -552,9 +604,11 @@ export async function updateSportEvent(params: {
 	}
 
 	const pricePerPerson =
-		params.priceTotal && params.maxParticipants > 0
-			? params.priceTotal / params.maxParticipants
-			: null;
+		params.pricePerPerson !== undefined && params.pricePerPerson !== null
+			? params.pricePerPerson
+			: (params.priceTotal && params.maxParticipants > 0
+				? params.priceTotal / params.maxParticipants
+				: null);
 
 	await updateDoc(doc(db, 'events', params.eventId), {
 		title: params.title,
@@ -574,8 +628,20 @@ export async function updateSportEvent(params: {
 		visibility: params.visibility,
 		priceTotal: params.priceTotal ?? null,
 		pricePerPerson,
-		paymentMode: params.priceTotal ? 'split' : ('none' satisfies EventPaymentMode),
+		currency: params.currency ?? event.currency ?? 'EUR',
+		paymentMode: (params.priceTotal || pricePerPerson) ? 'split' : ('none' satisfies EventPaymentMode),
+		groupPhotoURL: params.groupPhotoURL ?? event.groupPhotoURL ?? null,
+		groupPhotoPath: params.groupPhotoPath ?? event.groupPhotoPath ?? null,
+		whatToBring: params.whatToBring ?? '',
+		joinPolicy: params.joinPolicy ?? event.joinPolicy ?? 'open',
 		updatedAt: serverTimestamp()
+	});
+
+	await syncEventGroupConversation({
+		...event,
+		title: params.title,
+		groupPhotoURL: params.groupPhotoURL ?? event.groupPhotoURL ?? null,
+		groupPhotoPath: params.groupPhotoPath ?? event.groupPhotoPath ?? null
 	});
 }
 
@@ -658,7 +724,14 @@ export async function getEventsCreatedByOrganization(organizationId: string) {
 			...docSnap.data()
 		} as SportEvent;
 
-		const enrichedEvent = await enrichEventWithOrganization(event);
+		const enrichedEvent: SportEvent = {
+			...event,
+			hostType: 'organization',
+			organizationId: organization.id,
+			organizationName: organization.name,
+			organizationLogoURL: organization.logoURL ?? null,
+			organizationVerificationStatus: organization.verificationStatus
+		};
 		eventsById.set(enrichedEvent.id, enrichedEvent);
 	}
 
@@ -670,19 +743,19 @@ export async function getEventsCreatedByOrganization(organizationId: string) {
 		].filter(Boolean))
 	];
 
-	for (const chunk of chunkArray(adminIds, 10)) {
-		if (chunk.length === 0) continue;
-
+	const chunks = chunkArray(adminIds, 10).filter(chunk => chunk.length > 0);
+	const chunkPromises = chunks.map(async (chunk) => {
 		const adminEventsQuery = query(collection(db, 'events'), where('creatorId', 'in', chunk));
-
 		const adminEventsSnap = await getDocs(adminEventsQuery);
+		return adminEventsSnap.docs.map(docSnap => ({
+			id: docSnap.id,
+			...docSnap.data()
+		} as SportEvent));
+	});
 
-		for (const docSnap of adminEventsSnap.docs) {
-			const event = {
-				id: docSnap.id,
-				...docSnap.data()
-			} as SportEvent;
-
+	const chunkResults = await Promise.all(chunkPromises);
+	for (const chunkEvents of chunkResults) {
+		for (const event of chunkEvents) {
 			if (event.organizationId && event.organizationId !== organizationId) {
 				continue;
 			}
@@ -722,6 +795,11 @@ export async function getEventsJoinedByUser(userId: string) {
 }
 
 export async function joinEvent(eventId: string, userId: string) {
+	const profile = await getUserProfile(userId);
+	if (profile?.accountType === 'organization') {
+		throw new Error('Organizations cannot join events.');
+	}
+
 	const event = await getEventById(eventId);
 
 	if (!event) {
@@ -1006,6 +1084,11 @@ export async function promoteEvent(params: {
 		params.userId,
 		`Promotion started for "${event.title}". You can follow its views, clicks and spend in the organization dashboard.`
 	).catch((error) => console.error('Promotion notification error:', error));
+
+	void notifyOrganizationFollowers(
+		event,
+		`${event.organizationName ?? 'An organization you follow'} is promoting "${event.title}" in Rally.`
+	).catch((error) => console.error('Follower promotion notification error:', error));
 }
 
 export async function stopEventPromotion(params: { eventId: string; userId: string }) {
@@ -1164,6 +1247,7 @@ export async function createTournamentEvent(params: {
 
 	entryFeeType: EntryFeeType;
 	entryFeeAmount?: number | null;
+	currency?: SportEvent['currency'];
 
 	prizeType: PrizeType;
 	prizeDescription?: string;
@@ -1211,6 +1295,7 @@ export async function createTournamentEvent(params: {
 		visibility: 'public',
 		priceTotal:
 			params.entryFeeType === 'free' ? undefined : (params.entryFeeAmount ?? 0) * params.maxEntries,
+		currency: params.currency ?? 'EUR',
 		paymentMode
 	});
 
@@ -1243,6 +1328,7 @@ export async function createTournamentEvent(params: {
 
 		entryFeeType: params.entryFeeType,
 		entryFeeAmount: params.entryFeeAmount ?? null,
+		currency: params.currency ?? 'EUR',
 
 		prizeType: params.prizeType,
 		prizeDescription: params.prizeDescription ?? '',

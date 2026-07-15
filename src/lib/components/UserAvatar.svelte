@@ -5,12 +5,14 @@
 		photoURL = null,
 		displayName = '',
 		email = '',
-		size = 'md'
+		size = 'md',
+		plain = false
 	}: {
 		photoURL?: string | null;
 		displayName?: string | null;
 		email?: string | null;
 		size?: AvatarSize;
+		plain?: boolean;
 	} = $props();
 
 	const sizes: Record<AvatarSize, string> = {
@@ -21,6 +23,7 @@
 	};
 
 	const currentSize = $derived(sizes[size]);
+	const ringClasses = $derived(plain ? '' : 'ring-2 ring-white dark:ring-slate-800');
 
 	function getInitial() {
 		const source = displayName || email || '?';
@@ -33,11 +36,11 @@
 		src={photoURL}
 		alt={displayName || 'User profile'}
 		referrerpolicy="no-referrer"
-		class={`${currentSize} rounded-full object-cover ring-2 ring-white dark:ring-slate-800`}
+		class={`${currentSize} rounded-full object-cover ${ringClasses}`}
 	/>
 {:else}
 	<div
-		class={`${currentSize} flex items-center justify-center rounded-full bg-blue-100 font-black text-blue-600 ring-2 ring-white dark:bg-blue-950 dark:text-blue-300 dark:ring-slate-800`}
+		class={`${currentSize} flex items-center justify-center rounded-full bg-blue-100 font-black text-blue-600 dark:bg-blue-950 dark:text-blue-300 ${ringClasses}`}
 	>
 		{getInitial()}
 	</div>

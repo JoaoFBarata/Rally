@@ -134,7 +134,6 @@
 			if (profile) deviceAccounts = rememberDeviceAccount(profile, auth.currentUser);
 
 			if (canFastSwitchDeviceAccount(account)) {
-				await authService.logout();
 				const switchedUser = await authService.signInWithGoogle();
 
 				if (switchedUser.uid !== account.id) {
@@ -184,9 +183,10 @@
 	<button
 		type="button"
 		onclick={() => goBack(resolve('/profile'))}
-		class="inline-flex rounded-full bg-blue-100 px-5 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+		class="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-black text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
 	>
-		← Back
+		<span class="leading-none">←</span>
+		<span>Back</span>
 	</button>
 
 	<div>
@@ -242,21 +242,34 @@
 					<ThemeToggle />
 				</div>
 
-				<label class="flex items-center justify-between gap-4 p-4">
-					<div>
-						<p class="font-black text-slate-950 dark:text-slate-50">Language</p>
-						<p class="text-xs text-slate-500 dark:text-slate-400">App language.</p>
-					</div>
+					<label class="flex items-center justify-between gap-4 p-4">
+						<div>
+							<p class="font-black text-slate-950 dark:text-slate-50">Language</p>
+							<p class="text-xs text-slate-500 dark:text-slate-400">App language.</p>
+						</div>
 					<select
 						bind:value={selectedLanguage}
 						class="rounded-2xl border-slate-200 bg-white py-2 pl-3 pr-8 text-sm font-bold text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
 					>
 						<option value="en">English</option>
-						<option value="pt">Português</option>
-					</select>
-				</label>
-			</div>
-		</section>
+							<option value="pt">Português</option>
+						</select>
+					</label>
+
+					<a
+						href={resolve('/saved-events')}
+						class="flex items-center justify-between gap-4 p-4 transition hover:bg-slate-100 dark:hover:bg-slate-700"
+					>
+						<span>
+							<span class="block font-black text-slate-950 dark:text-slate-50">Saved events</span>
+							<span class="block text-xs text-slate-500 dark:text-slate-400">
+								Review the events you bookmarked.
+							</span>
+						</span>
+						<span class="text-slate-300">›</span>
+					</a>
+				</div>
+			</section>
 
 		{#if profile?.accountType === 'organization' && profile.activeOrganizationId}
 			<section>

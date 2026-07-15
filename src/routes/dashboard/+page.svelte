@@ -12,6 +12,7 @@
 		getUpcomingEvents,
 		sortEventsByStartDate,
 		isEventFinished,
+		getEffectiveEventStatus,
 		isPromotionActive,
 		getEventById,
 		notifyEventFinished
@@ -23,6 +24,7 @@
 		getVisibleEventsForUser,
 		subscribeToPromotedEventsForUser
 	} from '$lib/services/explore.service';
+	import { getOrganizationsFollowedByUser } from '$lib/services/organization.service';
 	import type { EventInvite, SportEvent, UserProfile } from '$lib/schema';
 	import EventCard from '$lib/components/EventCard.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -32,6 +34,7 @@
 		subscribeToEventCatalogChanges,
 		subscribeToUserActivityChanges
 	} from '$lib/services/realtime.service';
+	import { notificationState } from '$lib/notifications.svelte';
 
 	let user = $state<User | null>(null);
 	let profile = $state<UserProfile | null>(null);
@@ -40,8 +43,10 @@
 	let joinedEvents = $state<SportEvent[]>([]);
 	let allUserEvents = $state<SportEvent[]>([]);
 	let invites = $state<EventInvite[]>([]);
+	let inviteEventsById = $state<Record<string, SportEvent>>({});
 	let promotedEvents = $state<SportEvent[]>([]);
 	let publicEvents = $state<SportEvent[]>([]);
+	let followedOrganizationIds = $state<string[]>([]);
 	let friends = $state<UserProfile[]>([]);
 	let invitePreviewEvent = $state<SportEvent | null>(null);
 	let invitePreviewUser = $state<UserProfile | null>(null);
@@ -51,11 +56,12 @@
 	let showPastEvents = $state(false);
 	let showCancelledEvents = $state(false);
 	let showUpcomingRallies = $state(false);
-	let nearbyIndex = $state(0);
+	let showNotifications = $state(false);
 	let radiusKm = $state(20);
-	let discoverTab = $state<'nearby' | 'recommended'>('nearby');
+	let discoverTab = $state<'nearby' | 'recommended' | 'following'>('nearby');
 	let userDeviceLocation = $state<{ lat: number; lng: number } | null>(null);
 	let locationStatus = $state<'idle' | 'loading' | 'ready' | 'blocked' | 'unsupported'>('idle');
+	let scrollContainer = $state<HTMLDivElement>();
 
 	let hostingEvents = $derived(
 		events.filter((event) => !isEventFinished(event) && event.status !== 'cancelled')
@@ -92,7 +98,10 @@
 		return Array.from(eventsById.values());
 	});
 
-	let pendingInvites = $derived(invites.filter((i) => i.status === 'pending'));
+	let pendingInvites = $derived(
+		invites.filter((invite) => invite.status === 'pending' && isInviteEventActive(inviteEventsById[invite.eventId]))
+	);
+	let notificationCount = $derived(notificationState.total);
 	let upcomingRallies = $derived(getUpcomingEvents(allUserEvents));
 	let nextEvent = $derived(upcomingRallies[0] ?? null);
 	let userEventIds = $derived(new Set(allUserEvents.map((event) => event.id)));
@@ -110,9 +119,15 @@
 			.sort((a, b) => (a.distance ?? Number.POSITIVE_INFINITY) - (b.distance ?? Number.POSITIVE_INFINITY))
 			.map(({ event }) => event);
 	});
-	let currentNearbyEvent = $derived(
-		nearbyEvents.length ? nearbyEvents[nearbyIndex % nearbyEvents.length] : null
-	);
+	let dashboardPromotedEvents = $derived.by(() => {
+		const excluded = (event: SportEvent) =>
+			userEventIds.has(event.id) ||
+			event.participantIds.includes(user?.uid ?? '') ||
+			event.creatorId === user?.uid ||
+			isEventFinished(event);
+
+		return visiblePromotedEvents.filter((event) => !excluded(event)).slice(0, 6);
+	});
 	let recommendedEvents = $derived.by(() => {
 		const excluded = (event: SportEvent) =>
 			userEventIds.has(event.id) ||
@@ -121,14 +136,32 @@
 			isEventFinished(event);
 
 		const sports = profile?.sports ?? [];
-		const promoted = visiblePromotedEvents.filter((event) => !excluded(event));
 		const preferredEvents = publicEvents
 			.filter((event) => event.visibility === 'public')
 			.filter((event) => !excluded(event))
 			.filter((event) => sports.includes(event.sport))
-			.filter((event) => !promoted.some((promotedEvent) => promotedEvent.id === event.id));
+			.filter(
+				(event) =>
+					!dashboardPromotedEvents.some((promotedEvent) => promotedEvent.id === event.id)
+			);
 
-		return [...promoted, ...preferredEvents].slice(0, 8);
+		return preferredEvents.slice(0, 8);
+	});
+	let followingEvents = $derived.by(() => {
+		const followedIds = new Set(followedOrganizationIds);
+		const excluded = (event: SportEvent) =>
+			userEventIds.has(event.id) ||
+			event.participantIds.includes(user?.uid ?? '') ||
+			event.creatorId === user?.uid ||
+			isEventFinished(event);
+
+		if (followedIds.size === 0) return [];
+
+		return publicEvents
+			.filter((event) => event.visibility === 'public')
+			.filter((event) => !excluded(event))
+			.filter((event) => event.organizationId && followedIds.has(event.organizationId))
+			.slice(0, 8);
 	});
 	let hasFavoriteSports = $derived((profile?.sports?.length ?? 0) > 0);
 
@@ -156,6 +189,10 @@
 		}
 
 		return 'Date not set';
+	}
+
+	function formatBadge(value: number) {
+		return value > 9 ? '9+' : String(value);
 	}
 
 	function getDistanceKm(anchor: { lat: number; lng: number } | null, event: SportEvent) {
@@ -187,14 +224,13 @@
 
 		locationStatus = 'loading';
 		navigator.geolocation.getCurrentPosition(
-			(position) => {
-				userDeviceLocation = {
-					lat: position.coords.latitude,
-					lng: position.coords.longitude
-				};
-				locationStatus = 'ready';
-				nearbyIndex = 0;
-			},
+				(position) => {
+					userDeviceLocation = {
+						lat: position.coords.latitude,
+						lng: position.coords.longitude
+					};
+					locationStatus = 'ready';
+				},
 			() => {
 				locationStatus = 'blocked';
 			},
@@ -204,6 +240,31 @@
 				maximumAge: 5 * 60 * 1000
 			}
 		);
+	}
+
+	function isInviteEventActive(event: SportEvent | null | undefined) {
+		if (!event) return false;
+		const status = getEffectiveEventStatus(event);
+		return status !== 'finished' && status !== 'cancelled';
+	}
+
+	async function getActiveInvitesWithEvents(loadedInvites: EventInvite[]) {
+		const inviteEntries = await Promise.all(
+			loadedInvites.map(async (invite) => {
+				const event = await getEventById(invite.eventId);
+				return { invite, event };
+			})
+		);
+		const activeInviteEvents: Record<string, SportEvent> = {};
+		const activeInvites: EventInvite[] = [];
+
+		for (const { invite, event } of inviteEntries) {
+			if (!event || !isInviteEventActive(event)) continue;
+			activeInviteEvents[invite.eventId] = event;
+			activeInvites.push(invite);
+		}
+
+		return { activeInvites, activeInviteEvents };
 	}
 
 	async function loadInvitePreview(pending: EventInvite[]) {
@@ -217,9 +278,15 @@
 
 		try {
 			const [eventPreview, userPreview] = await Promise.all([
-				getEventById(invite.eventId),
+				Promise.resolve(inviteEventsById[invite.eventId] ?? getEventById(invite.eventId)),
 				getUserProfile(invite.fromUserId)
 			]);
+
+			if (!isInviteEventActive(eventPreview)) {
+				invitePreviewEvent = null;
+				invitePreviewUser = null;
+				return;
+			}
 
 			invitePreviewEvent = eventPreview;
 			invitePreviewUser = userPreview;
@@ -256,24 +323,26 @@
 		}
 	}
 
-	function showNearby(index: number) {
-		if (!nearbyEvents.length) return;
-		nearbyIndex = (index + nearbyEvents.length) % nearbyEvents.length;
-	}
-
 	function changeRadius(radius: number) {
 		radiusKm = radius;
-		nearbyIndex = 0;
 	}
 
 	async function refreshDashboardData(userId: string) {
-		const [createdEvents, participantEvents, loadedInvites, loadedPublicEvents, loadedFriends] = await Promise.all([
-			getEventsCreatedByUser(userId),
-			getEventsForUser(userId),
-			getInvitesForUser(userId),
-			getVisibleEventsForUser(userId),
-			getFriendsForUser(userId)
-		]);
+			const [
+				createdEvents,
+				participantEvents,
+				loadedInvites,
+				loadedPublicEvents,
+				loadedFriends,
+				followedOrganizations
+			] = await Promise.all([
+				getEventsCreatedByUser(userId),
+				getEventsForUser(userId),
+				getInvitesForUser(userId),
+				getVisibleEventsForUser(userId),
+				getFriendsForUser(userId),
+				getOrganizationsFollowedByUser(userId)
+			]);
 		const eventsById = new SvelteMap<string, SportEvent>();
 		for (const event of createdEvents) eventsById.set(event.id, event);
 		for (const event of participantEvents) eventsById.set(event.id, event);
@@ -290,10 +359,13 @@
 		joinedEvents = allUserEvents.filter(
 			(event) => event.creatorId !== userId && event.participantIds.includes(userId)
 		);
-		invites = loadedInvites;
-		publicEvents = loadedPublicEvents;
-		friends = loadedFriends;
-		await loadInvitePreview(loadedInvites.filter((invite) => invite.status === 'pending'));
+		const { activeInvites, activeInviteEvents } = await getActiveInvitesWithEvents(loadedInvites);
+		inviteEventsById = activeInviteEvents;
+			invites = activeInvites;
+			publicEvents = loadedPublicEvents;
+			followedOrganizationIds = followedOrganizations.map((organization) => organization.id);
+			friends = loadedFriends;
+		await loadInvitePreview(activeInvites.filter((invite) => invite.status === 'pending'));
 	}
 
 	onMount(() => {
@@ -455,22 +527,109 @@
 				</p>
 			</div>
 
-			<div class="flex shrink-0 items-center gap-2 sm:gap-3">
-				<a
-					href={resolve('/messages')}
+			<div class="relative flex shrink-0 items-center gap-2 sm:gap-3">
+				<button
+					type="button"
+					onclick={() => (showNotifications = !showNotifications)}
 					class="relative grid h-11 w-11 place-items-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-blue-200 hover:text-blue-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
-					aria-label="Messages"
+					aria-label="Notifications"
+					aria-expanded={showNotifications}
 				>
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
 							<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
 							<path d="M13.73 21a2 2 0 0 1-3.46 0" />
 						</svg>
-					{#if pendingInvites.length > 0}
+					{#if notificationCount > 0}
 						<span class="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">
-							{pendingInvites.length}
+							{formatBadge(notificationCount)}
 						</span>
 					{/if}
-				</a>
+				</button>
+
+				{#if showNotifications}
+					<button
+						type="button"
+						class="fixed inset-0 z-30 cursor-default"
+						aria-label="Close notifications"
+						onclick={() => (showNotifications = false)}
+					></button>
+					<div
+						class="absolute right-0 top-12 z-40 w-[min(18.5rem,calc(100vw-1.5rem))] overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white p-2 text-left shadow-2xl shadow-slate-300/60 dark:border-slate-800 dark:bg-slate-950 dark:shadow-black/30 sm:w-[23rem] sm:rounded-[1.5rem] sm:p-3"
+					>
+						<div class="flex items-center justify-between px-1 pb-2">
+							<div>
+								<p class="text-xs font-black text-slate-950 dark:text-slate-50 sm:text-sm">Notifications</p>
+								<p class="text-xs font-semibold text-slate-500 dark:text-slate-400">
+									{notificationCount > 0 ? `${notificationCount} new update${notificationCount === 1 ? '' : 's'}` : 'All caught up'}
+								</p>
+							</div>
+							<span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-600 dark:bg-blue-950 dark:text-blue-300">
+								{formatBadge(notificationCount)}
+							</span>
+						</div>
+
+						<div class="max-h-[18rem] space-y-1.5 overflow-y-auto pr-1 sm:max-h-[24rem] sm:space-y-2">
+							{#if notificationState.previews.length > 0}
+								{#each notificationState.previews as item (item.id)}
+								<a
+									href={item.href}
+									onclick={() => (showNotifications = false)}
+									class="flex items-center gap-2 rounded-2xl bg-slate-50 p-2 transition hover:bg-blue-50 dark:bg-slate-900 dark:hover:bg-blue-950/30 sm:gap-3 sm:p-3"
+								>
+									{#if item.photoURL}
+										<img src={item.photoURL} alt="" class="h-9 w-9 shrink-0 rounded-full object-cover sm:h-11 sm:w-11" />
+									{:else}
+										<span
+											class={`grid h-9 w-9 shrink-0 place-items-center rounded-full sm:h-11 sm:w-11 ${
+												item.type === 'message'
+													? 'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-300'
+													: item.type === 'invite'
+														? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300'
+														: 'bg-purple-100 text-purple-600 dark:bg-purple-950 dark:text-purple-300'
+											}`}
+										>
+											{#if item.type === 'message'}
+												<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+													<path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+												</svg>
+											{:else if item.type === 'invite'}
+												<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+													<path d="M8 2v4" />
+													<path d="M16 2v4" />
+													<rect x="3" y="4" width="18" height="18" rx="2" />
+													<path d="M3 10h18" />
+												</svg>
+											{:else}
+												<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+													<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+													<circle cx="9" cy="7" r="4" />
+													<path d="M19 8v6" />
+													<path d="M22 11h-6" />
+												</svg>
+											{/if}
+										</span>
+									{/if}
+									<div class="min-w-0 flex-1">
+										<p class="truncate text-xs font-black text-slate-950 dark:text-slate-50 sm:text-sm">
+											{item.title}
+										</p>
+										<p class="truncate text-[11px] font-semibold text-slate-500 dark:text-slate-400 sm:text-xs">
+											{item.body}
+										</p>
+									</div>
+									<span class="hidden rounded-full bg-white px-2 py-1 text-[10px] font-black uppercase tracking-wide text-slate-400 dark:bg-slate-950 dark:text-slate-500 sm:inline-flex">
+										{item.type === 'friend_request' ? 'friend' : item.type}
+									</span>
+								</a>
+								{/each}
+							{:else}
+								<div class="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+									No new notifications right now.
+								</div>
+							{/if}
+						</div>
+					</div>
+				{/if}
 
 				<a href={resolve('/profile')} class="rounded-full transition hover:opacity-80" aria-label="Profile">
 					<UserAvatar photoURL={profile?.photoURL ?? user?.photoURL} displayName={profile?.displayName ?? user?.displayName} email={profile?.email ?? user?.email} size="md" />
@@ -552,7 +711,7 @@
 				</div>
 			{/if}
 
-			<nav class="flex gap-2 overflow-x-auto pb-1">
+			<nav class="flex gap-2 overflow-x-auto pb-5 sm:pb-3">
 				<a href={resolve('/explore')} class="inline-flex shrink-0 items-center gap-2 rounded-full bg-blue-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700">
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
 							<circle cx="11" cy="11" r="8" />
@@ -578,7 +737,7 @@
 					</a>
 			</nav>
 
-			<section class="mt-6 space-y-3">
+			<section class="mt-5 space-y-3">
 				<div class="flex items-end justify-between gap-4">
 					<div>
 						<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">Featured event</p>
@@ -633,7 +792,95 @@
 				{/if}
 			</section>
 
-			<section class="mt-6 grid gap-5 lg:grid-cols-[1fr_300px]">
+			{#if friends.length > 0}
+				<section class="mt-6 space-y-3">
+					<div class="flex items-end justify-between gap-4">
+						<div>
+							<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">
+								Friends up for something
+							</h2>
+							<p class="text-sm font-semibold text-slate-500 dark:text-slate-400">
+								Invite someone to your next game.
+							</p>
+						</div>
+						<a
+							href={resolve('/profile')}
+							class="shrink-0 text-sm font-black text-blue-600 dark:text-blue-400"
+						>
+							See all
+						</a>
+					</div>
+
+					<div class="-mx-4 flex gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
+						{#each friends.slice(0, 8) as friend (friend.id)}
+							<a
+								href={resolve(`/users/${friend.id}`)}
+								class="w-16 shrink-0 text-center transition hover:-translate-y-0.5 hover:opacity-90 sm:w-20"
+							>
+								<div class="flex justify-center">
+									<UserAvatar
+										photoURL={friend.photoURL}
+										displayName={friend.displayName}
+										email={friend.email}
+										size="lg"
+										plain
+									/>
+								</div>
+								<p class="mt-2 truncate text-xs font-black text-slate-800 dark:text-slate-100">
+									{friend.displayName}
+								</p>
+								<p class="text-[11px] font-bold text-slate-500 dark:text-slate-400">Friend</p>
+							</a>
+						{/each}
+
+						<a
+							href={resolve('/friends/add')}
+							class="w-16 shrink-0 text-center transition hover:-translate-y-0.5 hover:opacity-90 sm:w-20"
+						>
+							<span class="mx-auto grid h-14 w-14 place-items-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 sm:h-16 sm:w-16">
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+									<path d="M12 5v14" />
+									<path d="M5 12h14" />
+								</svg>
+							</span>
+							<p class="mt-2 text-xs font-black text-slate-800 dark:text-slate-100">Invite</p>
+							<p class="text-[11px] font-bold text-slate-500 dark:text-slate-400">Friends</p>
+						</a>
+					</div>
+				</section>
+			{/if}
+
+			{#if dashboardPromotedEvents.length > 0}
+				<section class="mt-6 space-y-3">
+					<div class="flex items-end justify-between gap-4">
+						<div>
+							<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">
+								Sponsored
+							</p>
+							<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">
+								Promoted for you
+							</h2>
+						</div>
+						<a
+							href={resolve('/explore')}
+							class="shrink-0 text-sm font-black text-blue-600 dark:text-blue-400"
+						>
+							View all
+						</a>
+					</div>
+
+					<div class="max-w-2xl">
+						<PromotedEventCarousel
+							events={dashboardPromotedEvents}
+							cardVariant="hero"
+							compactHero
+							heroCtaLabel="View event"
+						/>
+					</div>
+				</section>
+			{/if}
+
+			<section class="mt-6 space-y-3">
 				<div class="min-w-0 space-y-3">
 					<div class="flex flex-wrap items-end justify-between gap-3">
 						<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Discover</h2>
@@ -648,30 +895,6 @@
 									>
 										Use my location
 									</button>
-								{/if}
-								{#if nearbyEvents.length > 1}
-									<div class="flex items-center gap-1 rounded-full bg-white p-1 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
-										<button
-											type="button"
-											onclick={() => showNearby(nearbyIndex - 1)}
-											class="grid h-8 w-8 place-items-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-blue-600 dark:text-slate-300 dark:hover:bg-slate-800"
-											aria-label="Previous nearby event"
-										>
-											<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
-												<path d="m15 18-6-6 6-6" />
-											</svg>
-										</button>
-										<button
-											type="button"
-											onclick={() => showNearby(nearbyIndex + 1)}
-											class="grid h-8 w-8 place-items-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-blue-600 dark:text-slate-300 dark:hover:bg-slate-800"
-											aria-label="Next nearby event"
-										>
-											<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
-												<path d="m9 18 6-6-6-6" />
-											</svg>
-										</button>
-									</div>
 								{/if}
 								<div class="flex items-center gap-1 rounded-full bg-white p-1 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
 									{#each [10, 20, 50] as radius}
@@ -688,21 +911,21 @@
 										</button>
 									{/each}
 								</div>
-							{:else}
-								<a href={resolve('/explore')} class="shrink-0 text-sm font-black text-blue-600 hover:text-blue-700 dark:text-blue-400">View all</a>
-							{/if}
+								{:else}
+									<a href={resolve('/explore')} class="shrink-0 text-sm font-black text-blue-600 hover:text-blue-700 dark:text-blue-400">View all</a>
+								{/if}
+							</div>
 						</div>
-					</div>
 
-					<div class="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800">
-						<button
-							type="button"
-							onclick={() => (discoverTab = 'nearby')}
-							class={`relative pb-3 pr-5 text-sm font-bold transition ${
-								discoverTab === 'nearby'
-									? 'text-slate-950 dark:text-slate-50'
-									: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
-							}`}
+						<div class="flex items-center gap-1 overflow-x-auto border-b border-slate-200 dark:border-slate-800">
+							<button
+								type="button"
+								onclick={() => (discoverTab = 'nearby')}
+								class={`relative shrink-0 pb-3 pr-5 text-sm font-bold transition ${
+									discoverTab === 'nearby'
+										? 'text-slate-950 dark:text-slate-50'
+										: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
+								}`}
 						>
 							Nearby
 							{#if discoverTab === 'nearby'}
@@ -710,21 +933,36 @@
 							{/if}
 						</button>
 
-						<button
-							type="button"
-							onclick={() => (discoverTab = 'recommended')}
-							class={`relative pb-3 pr-5 text-sm font-bold transition ${
-								discoverTab === 'recommended'
-									? 'text-slate-950 dark:text-slate-50'
-									: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
-							}`}
+							<button
+								type="button"
+								onclick={() => (discoverTab = 'recommended')}
+								class={`relative shrink-0 pb-3 pr-5 text-sm font-bold transition ${
+									discoverTab === 'recommended'
+										? 'text-slate-950 dark:text-slate-50'
+										: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
+								}`}
 						>
-							{visiblePromotedEvents.length > 0 ? 'Promoted' : 'For you'}
+							For you
 							{#if discoverTab === 'recommended'}
-								<span class="absolute bottom-0 left-0 right-5 h-0.5 rounded-full bg-slate-950 dark:bg-white"></span>
-							{/if}
-						</button>
-					</div>
+									<span class="absolute bottom-0 left-0 right-5 h-0.5 rounded-full bg-slate-950 dark:bg-white"></span>
+								{/if}
+							</button>
+
+							<button
+								type="button"
+								onclick={() => (discoverTab = 'following')}
+								class={`relative shrink-0 pb-3 pr-5 text-sm font-bold transition ${
+									discoverTab === 'following'
+										? 'text-slate-950 dark:text-slate-50'
+										: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
+								}`}
+							>
+								Following
+								{#if discoverTab === 'following'}
+									<span class="absolute bottom-0 left-0 right-5 h-0.5 rounded-full bg-slate-950 dark:bg-white"></span>
+								{/if}
+							</button>
+						</div>
 
 					{#if discoverTab === 'nearby'}
 						<p class="text-sm font-semibold text-slate-500 dark:text-slate-400">
@@ -741,27 +979,15 @@
 							{/if}
 						</p>
 
-						{#if currentNearbyEvent}
+						{#if nearbyEvents.length > 0}
 							<div class="space-y-3">
-								<EventCard
-									event={currentNearbyEvent}
-									variant="hero"
+								<PromotedEventCarousel
+									events={nearbyEvents}
+									cardVariant="hero"
 									compactHero
 									heroCtaLabel="View event"
+									ariaLabel="Nearby events"
 								/>
-
-								{#if nearbyEvents.length > 1}
-									<div class="flex flex-wrap items-center justify-center gap-1.5">
-										{#each nearbyEvents as event, index (event.id)}
-											<button
-												type="button"
-												onclick={() => showNearby(index)}
-												class={`h-2 rounded-full transition-all ${index === nearbyIndex ? 'w-6 bg-blue-600' : 'w-2 bg-blue-200 dark:bg-blue-900'}`}
-												aria-label={`Show nearby event ${index + 1}`}
-											></button>
-										{/each}
-									</div>
-								{/if}
 							</div>
 						{:else}
 							<div class="rounded-[1.5rem] border border-dashed border-slate-200 bg-white/70 p-5 text-sm dark:border-slate-800 dark:bg-slate-900/70">
@@ -775,60 +1001,59 @@
 								</p>
 							</div>
 						{/if}
-					{:else if recommendedEvents.length > 0}
-						<PromotedEventCarousel events={recommendedEvents} cardVariant="profile" />
-					{:else}
-						<div class="rounded-[1.5rem] border border-dashed border-slate-200 bg-white/70 p-5 text-sm dark:border-slate-800 dark:bg-slate-900/70">
-							<p class="font-black text-slate-800 dark:text-slate-100">
-								{hasFavoriteSports ? 'No recommendations right now' : 'Choose your favourite sports'}
-							</p>
-							<p class="mt-1 text-slate-500 dark:text-slate-400">
-								{hasFavoriteSports
-									? 'Promoted events and events matching your sports will appear here.'
-									: 'Go to your profile and select sports so Rally can recommend better events.'}
-							</p>
-							{#if !hasFavoriteSports}
-								<a href={resolve('/profile')} class="mt-3 inline-flex rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700">
-									Update profile
-								</a>
+						{:else if discoverTab === 'recommended'}
+							{#if recommendedEvents.length > 0}
+								<PromotedEventCarousel
+									events={recommendedEvents}
+									cardVariant="hero"
+									compactHero
+									heroCtaLabel="View event"
+									ariaLabel="Recommended events"
+								/>
+							{:else}
+								<div class="rounded-[1.5rem] border border-dashed border-slate-200 bg-white/70 p-5 text-sm dark:border-slate-800 dark:bg-slate-900/70">
+									<p class="font-black text-slate-800 dark:text-slate-100">
+										{hasFavoriteSports ? 'No recommendations right now' : 'Choose your favourite sports'}
+									</p>
+									<p class="mt-1 text-slate-500 dark:text-slate-400">
+										{hasFavoriteSports
+											? 'Events matching your favourite sports will appear here.'
+											: 'Go to your profile and select sports so Rally can recommend better events.'}
+									</p>
+									{#if !hasFavoriteSports}
+										<a href={resolve('/profile')} class="mt-3 inline-flex rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700">
+											Update profile
+										</a>
+									{/if}
+								</div>
 							{/if}
-						</div>
-					{/if}
-				</div>
-
-				<div class="space-y-3 rounded-[1.5rem] border border-slate-200 bg-white/60 p-4 dark:border-slate-800 dark:bg-slate-900/60">
-					<div class="flex items-center justify-between gap-2">
-						<h3 class="text-sm font-black text-slate-950 dark:text-slate-50">Friends</h3>
-						<a href={resolve('/profile')} class="shrink-0 text-xs font-black text-blue-600 dark:text-blue-400">See all</a>
+						{:else}
+							{#if followingEvents.length > 0}
+								<PromotedEventCarousel
+									events={followingEvents}
+									cardVariant="hero"
+									compactHero
+									heroCtaLabel="View event"
+									ariaLabel="Events from followed organizations"
+								/>
+							{:else}
+								<div class="rounded-[1.5rem] border border-dashed border-slate-200 bg-white/70 p-5 text-sm dark:border-slate-800 dark:bg-slate-900/70">
+									<p class="font-black text-slate-800 dark:text-slate-100">
+										{followedOrganizationIds.length > 0 ? 'No events from followed organizations' : 'Follow organizations to see their events'}
+									</p>
+									<p class="mt-1 text-slate-500 dark:text-slate-400">
+										{followedOrganizationIds.length > 0
+											? 'When clubs you follow create public events, they will appear here.'
+											: 'Open an organization profile and follow it to keep its events close.'}
+									</p>
+									<a href={resolve('/explore')} class="mt-3 inline-flex rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700">
+										Explore organizations
+									</a>
+								</div>
+							{/if}
+						{/if}
 					</div>
 
-					<div class="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
-						{#each friends.slice(0, 8) as friend (friend.id)}
-							<a
-								href={resolve(`/users/${friend.id}`)}
-								class="flex items-center gap-3 py-2.5 transition hover:opacity-80"
-							>
-								<UserAvatar photoURL={friend.photoURL} displayName={friend.displayName} email={friend.email} size="sm" />
-								<p class="min-w-0 flex-1 truncate text-sm font-bold text-slate-800 dark:text-slate-200">
-									{friend.displayName}
-								</p>
-							</a>
-						{/each}
-
-						<a
-							href={resolve('/friends/add')}
-							class="flex items-center gap-3 py-2.5 transition hover:opacity-80"
-						>
-							<span class="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
-									<path d="M12 5v14" />
-									<path d="M5 12h14" />
-								</svg>
-							</span>
-							<p class="text-sm font-bold text-slate-800 dark:text-slate-200">Invite friends</p>
-						</a>
-					</div>
-				</div>
 			</section>
 
 			<section class="mt-6 space-y-4">

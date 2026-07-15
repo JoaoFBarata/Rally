@@ -27,6 +27,7 @@
 	let isPlatformAdmin = $state(false);
 
 	let pathname = $derived(page.url.pathname);
+	const shellBackgroundClass = 'bg-white dark:bg-slate-950';
 
 	let organizationId = $derived(
 		profile?.accountType === 'organization' && profile.activeOrganizationId
@@ -292,7 +293,7 @@
 			<aside class="hidden md:flex flex-col h-screen w-71 fixed bg-[#f6f6f6] dark:bg-[#212121]">
 				<div class="w-full pl-6.75 mt-13.25">
 					<RallyLogo size="md" href={organizationManageHref ?? '/'}/>
-					<button class="mt-10.25 w-53.25 h-14.5 bg-[#48b3ff] rounded-[10px] text-white cursor-pointer" onclick={() => goto(resolve(createEventHref))}>
+					<button class="mt-10.25 w-53.25 h-14.5 bg-[#48b3ff] rounded-[10px] text-white cursor-pointer" onclick={() => goto(resolveNavHref(createEventHref))}>
 						<h3 class="text-[20px] font-semibold">+ New event</h3>
 					</button>
 				</div>
@@ -311,12 +312,12 @@
 								</span>
 								<span>{item.label}</span>
 
-								{#if item.href === '/messages' && notificationState.total > 0}
+								{#if item.href === '/messages' && notificationState.unreadMessages > 0}
 									<span
 										class={`ml-auto flex min-h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold ${
 											isActive(item.href) ? 'bg-white text-blue-600' : 'bg-red-500 text-white'
 										}`}>
-										{formatBadge(notificationState.total)}
+										{formatBadge(notificationState.unreadMessages)}
 									</span>
 								{/if}
 							</a>
@@ -366,23 +367,19 @@
 				{#each mobileNavItems as item, idx (item.href)}
 					<a href={resolveNavHref(item.href)} class="flex flex-col items-center justify-end gap-1">
 						<span
-							class={`relative flex items-center justify-center text-lg transition-all ${
-								item.primary
-									? `${mobileNavItems.length > 5 ? 'h-10 w-10' : 'h-11 w-11'} -translate-y-2 rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/35 hover:bg-blue-700 active:scale-95`
-									: `h-9 w-9 rounded-2xl ${
-											isActive(item.href)
-												? 'bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400'
-												: 'text-slate-400 dark:text-slate-500'
-										}`
+							class={`relative flex items-center justify-center text-lg transition-all h-9 w-9 rounded-2xl ${
+								isActive(item.href)
+									? 'bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400'
+									: 'text-slate-400 dark:text-slate-500'
 							}`}
 						>
 							<NavIcon name={item.icon} />
 
-							{#if item.href === '/messages' && notificationState.total > 0}
+							{#if item.href === '/messages' && notificationState.unreadMessages > 0}
 								<span
 									class="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black text-white"
 								>
-									{formatBadge(notificationState.total)}
+									{formatBadge(notificationState.unreadMessages)}
 								</span>
 							{/if}
 						</span>

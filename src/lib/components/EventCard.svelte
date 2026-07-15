@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
-	import { PUBLIC_MAPBOX_ACCESS_TOKEN } from '$env/static/public';
 	import { auth } from '$lib/firebase';
 	import type { EventStatus, SportEvent } from '$lib/schema';
 	import {
@@ -10,6 +9,15 @@
 		trackEventPromotionView
 	} from '$lib/services/event.service';
 	import EventWeather from '$lib/components/EventWeather.svelte';
+	import { getUserProfile } from '$lib/services/user.service';
+	import {
+		formatDate,
+		formatShortDate,
+		formatSport,
+		formatPrice,
+		formatCapacity,
+		getMiniMapUrl
+	} from '$lib/utils/format.utils';
 
 	let {
 		event,
@@ -22,7 +30,7 @@
 	} = $props<{
 		event: SportEvent;
 		showImage?: boolean;
-		variant?: 'default' | 'profile' | 'hero';
+		variant?: 'default' | 'profile' | 'hero' | 'vertical';
 		compactHero?: boolean;
 		miniHero?: boolean;
 		heroCtaLabel?: string;
@@ -31,41 +39,32 @@
 
 	let showPromotion = $derived(isPromotionActive(event) && event.promotionAudienceMatch !== false);
 
-	function formatDate(dateValue: unknown) {
-		try {
-			const timestamp = dateValue as { toDate?: () => Date };
+	const formattedCapacity = $derived(formatCapacity(event));
+	const formattedPrice = $derived(formatPrice(event));
+	const formattedSportLabel = $derived(formatSport(event.sport));
+	const miniMapUrl = $derived(getMiniMapUrl(event.location?.lat, event.location?.lng, 176, 128));
 
-			if (timestamp?.toDate) {
-				return timestamp.toDate().toLocaleString('en-GB', {
-					day: '2-digit',
-					month: 'short',
-					hour: '2-digit',
-					minute: '2-digit'
-				});
-			}
+	let creatorPhotoURL = $state<string | null>(null);
+	let creatorName = $state('');
 
-			return 'Date not set';
-		} catch {
-			return 'Date not set';
-		}
-	}
-
-	function formatShortDate(dateValue: unknown) {
-		try {
-			const timestamp = dateValue as { toDate?: () => Date };
-
-			if (timestamp?.toDate) {
-				return timestamp.toDate().toLocaleDateString('en-GB', {
-					day: '2-digit',
-					month: 'short'
-				});
-			}
-		} catch {
-			// fall through
+	$effect(() => {
+		if (variant === 'vertical' && event.hostType === 'organization') {
+			creatorPhotoURL = event.organizationLogoURL || null;
+			creatorName = event.organizationName || 'Organization';
+			return;
 		}
 
-		return 'Soon';
-	}
+		if (variant === 'vertical' && event.creatorId) {
+			getUserProfile(event.creatorId).then(profile => {
+				if (profile) {
+					creatorPhotoURL = profile.photoURL || null;
+					creatorName = profile.displayName || '';
+				}
+			}).catch(err => {
+				console.error('Error fetching creator profile:', err);
+			});
+		}
+	});
 
 	function getTimestampMillis(value: unknown) {
 		try {
@@ -113,22 +112,11 @@
 		return status === 'open' || status === 'full' ? 'Upcoming' : 'Past';
 	}
 
-	function formatCapacity() {
-		if (event.eventKind === 'tournament') {
-			return `${event.participantIds?.length ?? 0}/${event.maxTournamentEntries ?? event.maxParticipants} entries`;
-		}
 
-		return `${event.participantIds?.length ?? 0}/${event.maxParticipants} joined`;
-	}
 
-	function formatPrice() {
-		if (event.pricePerPerson) return `€${event.pricePerPerson.toFixed(2)} / person`;
-		if (event.priceTotal) return `€${event.priceTotal.toFixed(2)} total`;
-		return 'Free';
-	}
-
-	function formatSportLabel() {
-		return event.sport.charAt(0).toUpperCase() + event.sport.slice(1);
+	function formatHeroLocation() {
+		const address = event.location?.address?.trim();
+		return address || 'Location not set';
 	}
 
 	function getHeroBackgroundClasses() {
@@ -189,17 +177,7 @@
 		return 'border-slate-200 bg-white shadow-slate-200/70 hover:border-blue-200 hover:bg-blue-50/30 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none dark:hover:border-blue-700 dark:hover:bg-slate-800';
 	}
 
-	function getMiniMapUrl() {
-		const lat = event.location?.lat;
-		const lng = event.location?.lng;
 
-		if (!PUBLIC_MAPBOX_ACCESS_TOKEN || typeof lat !== 'number' || typeof lng !== 'number') {
-			return '';
-		}
-
-		const marker = `pin-s+2563eb(${lng},${lat})`;
-		return `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${marker}/${lng},${lat},13,0/176x128@2x?access_token=${PUBLIC_MAPBOX_ACCESS_TOKEN}`;
-	}
 
 	function handleClick() {
 		if (!showPromotion) return;
@@ -226,8 +204,8 @@
 			miniHero
 				? 'min-h-[7.8rem] sm:min-h-[11.5rem]'
 				: compactHero
-					? 'min-h-[10.5rem] sm:min-h-[13rem]'
-					: 'min-h-[12rem] sm:min-h-[18rem]'
+					? 'min-h-[10rem] sm:min-h-[12.25rem]'
+					: 'min-h-[11.5rem] sm:min-h-[16.5rem]'
 		}`}
 	>
 		<div class="absolute inset-0 opacity-70">
@@ -252,7 +230,7 @@
 		</div>
 
 		<div class={`relative flex h-full min-h-[inherit] flex-col justify-between ${miniHero ? 'p-3 sm:p-4' : `p-4 ${compactHero ? 'sm:p-4' : 'sm:p-5'}`}`}>
-			<div class="flex items-start justify-between gap-3">
+			<div class="mb-2 flex items-start justify-between gap-3 sm:mb-0">
 				<span class={`rounded-full bg-emerald-500/90 font-black text-white shadow-lg shadow-emerald-950/20 ${miniHero ? 'px-2.5 py-0.5 text-[10px] sm:px-3 sm:py-1 sm:text-xs' : 'px-3 py-1 text-xs'}`}>
 					{formatDate(event.startAt)}
 				</span>
@@ -262,9 +240,9 @@
 			</div>
 
 			<div>
-				<div class={`${miniHero ? 'mb-1.5 sm:mb-3' : 'mb-3'} flex flex-wrap gap-2`}>
+				<div class={`${miniHero ? 'mb-1.5 sm:mb-3' : compactHero ? 'mb-2' : 'mb-3'} flex flex-wrap gap-2`}>
 					<span class={`rounded-full bg-white/15 font-black backdrop-blur ${miniHero ? 'px-2 py-0.5 text-[10px] sm:px-3 sm:py-1 sm:text-xs' : 'px-3 py-1 text-xs'}`}>
-						{formatSportLabel()}
+						{formattedSportLabel}
 					</span>
 					<span class={`rounded-full bg-white/15 font-black capitalize backdrop-blur ${miniHero ? 'hidden px-2 py-0.5 text-[10px] sm:inline-flex sm:px-3 sm:py-1 sm:text-xs' : 'px-3 py-1 text-xs'}`}>
 						{event.level ?? 'casual'}
@@ -275,12 +253,12 @@
 					{event.title}
 				</h3>
 				<p class={`${miniHero ? 'mt-1 text-xs sm:mt-2 sm:text-sm' : 'mt-2 text-sm'} truncate font-bold text-white/80`}>
-					{event.location.name}
+					{formatHeroLocation()}
 				</p>
 
 				<div class={`${miniHero ? 'mt-2 sm:mt-4' : 'mt-3 sm:mt-4'} flex items-center justify-between gap-3`}>
 					<span class={`${miniHero ? 'text-xs sm:text-sm' : 'text-sm'} truncate font-bold text-white/75`}>
-						{formatPrice()}
+						{formattedPrice}
 					</span>
 					<span
 						class={`shrink-0 rounded-2xl font-black shadow-lg transition ${miniHero ? 'px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm' : 'px-4 py-2 text-sm'} ${
@@ -305,8 +283,8 @@
 			<div
 				class="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800 sm:h-24 sm:w-32"
 			>
-				{#if getMiniMapUrl()}
-					<img src={getMiniMapUrl()} alt={event.location.name} class="h-full w-full object-cover" />
+				{#if miniMapUrl}
+					<img src={miniMapUrl} alt={event.location.name} class="h-full w-full object-cover" />
 				{:else if event.groupPhotoURL}
 					<img src={event.groupPhotoURL} alt={event.title} class="h-full w-full object-cover" />
 				{:else}
@@ -336,17 +314,102 @@
 			</div>
 
 			<p class="mt-1 truncate text-xs font-bold text-slate-500 dark:text-slate-400">
-				{formatSportLabel()} - {event.location.name}
+				{formattedSportLabel} - {event.location.name}
 			</p>
 			<p class="mt-2 truncate text-xs font-black text-slate-400 dark:text-slate-500">
-				{formatDate(event.startAt)} - {formatCapacity()} - {formatPrice()}
+				{formatDate(event.startAt)} - {formattedCapacity} - {formattedPrice}
 			</p>
 		</div>
 	</a>
 {:else}
-<a
-	href={`/events/${event.id}`}
-	onclick={handleClick}
+	{#if variant === 'vertical'}
+		<a
+			href={`/events/${event.id}`}
+			onclick={handleClick}
+			class="group flex h-full flex-col overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900 sm:rounded-[1.5rem]"
+		>
+			{#if showImage}
+				<div class="relative h-24 w-full shrink-0 overflow-hidden bg-slate-100 dark:bg-slate-800 sm:h-28">
+					{#if event.groupPhotoURL}
+						<img src={event.groupPhotoURL} alt={event.title} class="h-full w-full object-cover" />
+					{:else}
+						<img src={getDefaultSportImage()} alt={event.title} class="h-full w-full object-cover" />
+					{/if}
+
+					{#if showPromotion}
+						<span class="absolute left-2 top-2 rounded-full bg-blue-600 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow-lg">
+							Promoted
+						</span>
+					{/if}
+					<span class="absolute bottom-2 left-2 rounded-full bg-white/90 px-2 py-0.5 text-[9px] font-black text-slate-700 shadow-sm backdrop-blur dark:bg-slate-950/85 dark:text-slate-200">
+						{formatShortDate(event.startAt)}
+					</span>
+
+				</div>
+			{/if}
+
+			<div class="flex flex-1 flex-col p-3 sm:p-4">
+				<div class="flex items-start justify-between gap-2 sm:gap-3">
+					<div class="min-w-0 flex-1">
+						<div class="flex min-w-0 items-center gap-1.5">
+							<span class="shrink-0 text-[9px] font-black uppercase tracking-wide text-blue-600 dark:text-blue-400 sm:text-[10px]">
+								{event.sport}
+							</span>
+							<span class={`shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-black sm:px-2 sm:text-[9px] ${getStatusClasses()}`}>
+								{getStatusLabel()}
+							</span>
+						</div>
+
+						<h3 class="mt-1 line-clamp-1 text-sm font-black leading-tight text-slate-950 dark:text-slate-50 sm:mt-1.5 sm:text-sm">
+							{event.title}
+						</h3>
+					</div>
+
+					<!-- Creator avatar bubble -->
+					{#if creatorPhotoURL}
+						<div class="h-8 w-8 shrink-0 overflow-hidden rounded-full border border-slate-200 shadow-sm dark:border-slate-800 sm:h-9 sm:w-9">
+							<img src={creatorPhotoURL} alt={creatorName} class="h-full w-full object-cover" title={`Created by ${creatorName}`} />
+						</div>
+					{:else if creatorName}
+						<div class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-blue-500 text-xs font-black text-white shadow-sm sm:h-9 sm:w-9">
+							{creatorName.charAt(0).toUpperCase()}
+						</div>
+					{/if}
+				</div>
+
+				<p class="mt-1 truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
+					📍 {event.location.name}
+				</p>
+
+				<p class="mt-1 truncate text-xs font-semibold text-slate-400 dark:text-slate-500">
+					🕒 {formatDate(event.startAt)}
+				</p>
+
+				<div class="mt-auto flex items-center justify-between gap-2 border-t border-slate-100 pt-2 dark:border-slate-800/60 sm:pt-3">
+					<span class="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-black capitalize text-slate-600 dark:bg-slate-800 dark:text-slate-300 sm:px-2.5 sm:text-[10px]">
+						{event.level ?? 'casual'}
+					</span>
+					<div class="min-w-0 text-right">
+						<p class="truncate whitespace-nowrap text-[10px] font-black text-blue-600 dark:text-blue-300 sm:text-xs">
+							{event.participantIds.length}/{event.maxParticipants} players
+						</p>
+						{#if event.pricePerPerson}
+							<p class="truncate text-[9px] font-bold text-slate-500 dark:text-slate-400 sm:text-[10px]">
+								{formattedPrice}
+							</p>
+						{:else}
+							<p class="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 sm:text-[10px]">
+								Free
+							</p>
+						{/if}
+					</div>
+				</div>
+			</div>
+		</a>
+	{:else}
+		<a
+			href={`/events/${event.id}`}
+			onclick={handleClick}
 	class={`group flex h-full min-h-[6.7rem] overflow-hidden rounded-[1.35rem] border shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg sm:min-h-[8.25rem] sm:rounded-[1.5rem] ${getCardClasses()}`}
 >
 	{#if showImage}
@@ -357,8 +420,8 @@
 		>
 			{#if event.groupPhotoURL}
 				<img src={event.groupPhotoURL} alt={event.title} class="h-full w-full object-cover" />
-			{:else if getMiniMapUrl()}
-				<img src={getMiniMapUrl()} alt={event.location.name} class="h-full w-full object-cover" />
+			{:else if miniMapUrl}
+				<img src={miniMapUrl} alt={event.location.name} class="h-full w-full object-cover" />
 			{:else}
 				<div class="grid h-full w-full place-items-center text-3xl font-black text-blue-500/70">
 					{event.title.charAt(0).toUpperCase()}
@@ -485,12 +548,13 @@
 				{event.level ?? 'casual'}
 			</span>
 
-			{#if event.pricePerPerson}
+			{#if formattedPrice !== 'Free'}
 				<span class="text-sm font-medium text-slate-600 dark:text-slate-300">
-					€{event.pricePerPerson.toFixed(2)} / person
+					{formattedPrice}
 				</span>
 			{/if}
 		</div>
 	</div>
 </a>
+{/if}
 {/if}

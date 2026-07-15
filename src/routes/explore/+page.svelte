@@ -23,6 +23,28 @@
 	type PriceFilter = 'all' | 'free' | 'paid';
 	type AudienceFilter = 'all' | 'mine' | 'friends' | 'public' | 'joined';
 
+	const defaultDateFilter: DateFilter = '7';
+	const defaultPriceFilter: PriceFilter = 'all';
+	const defaultAudienceFilter: AudienceFilter = 'all';
+	const availableLevels: SportLevel[] = ['beginner', 'casual', 'intermediate', 'advanced'];
+	const validDateFilters: DateFilter[] = ['today', '7', '14', '30', 'all'];
+	const validPriceFilters: PriceFilter[] = ['all', 'free', 'paid'];
+	const validAudienceFilters: AudienceFilter[] = ['all', 'mine', 'friends', 'public', 'joined'];
+
+	function getValidParam<T extends string>(key: string, validValues: T[], fallback: T) {
+		const value = page.url.searchParams.get(key) as T | null;
+		return value && validValues.includes(value) ? value : fallback;
+	}
+
+	function getListParam<T extends string>(key: string) {
+		return (page.url.searchParams.get(key)?.split(',').filter(Boolean) ?? []) as T[];
+	}
+
+	function getNumberParam(key: string, fallback: number) {
+		const value = Number(page.url.searchParams.get(key));
+		return Number.isFinite(value) && value > 0 ? value : fallback;
+	}
+
 	let events = $state<SportEvent[]>([]);
 	let promotedCampaignEvents = $state<SportEvent[]>([]);
 	let profile = $state<UserProfile | null>(null);
@@ -32,18 +54,27 @@
 	let friendIds = $state<string[]>([]);
 	let filteredEventCount = $state(0);
 	let selectedMapEventId = $state<string | null>(null);
-	let selectedSports = $state<Sport[]>([]);
-	let selectedLevels = $state<SportLevel[]>([]);
-	let dateFilter = $state<DateFilter>('7');
-	let priceFilter = $state<PriceFilter>('all');
-	let maxPrice = $state(50);
-	let audienceFilter = $state<AudienceFilter>('all');
-	let searchTerm = $derived(page.url.searchParams.get('search')?.trim() ?? '');
+	let viewMode = $state<'map' | 'feed'>((page.url.searchParams.get('view') as 'map' | 'feed') || 'map');
+	let selectedSports = $state<Sport[]>(getListParam<Sport>('sports'));
+	let selectedLevels = $state<SportLevel[]>(
+		getListParam<SportLevel>('levels').filter((level) => availableLevels.includes(level))
+	);
+	let dateFilter = $state<DateFilter>(
+		getValidParam('date', validDateFilters, defaultDateFilter)
+	);
+	let dateFilterManuallyChanged = $state(page.url.searchParams.has('date'));
+	let priceFilter = $state<PriceFilter>(
+		getValidParam('price', validPriceFilters, defaultPriceFilter)
+	);
+	let maxPrice = $state(getNumberParam('maxPrice', 50));
+	let audienceFilter = $state<AudienceFilter>(
+		getValidParam('audience', validAudienceFilters, defaultAudienceFilter)
+	);
+	let searchTerm = $state(page.url.searchParams.get('search')?.trim() ?? '');
+	let promotedPage = $state(0);
+	let promotedRotationSeed = $state(0);
+	const promotedPageSize = 4;
 
-	const defaultDateFilter: DateFilter = '7';
-	const defaultPriceFilter: PriceFilter = 'all';
-	const defaultAudienceFilter: AudienceFilter = 'all';
-	const availableLevels: SportLevel[] = ['beginner', 'casual', 'intermediate', 'advanced'];
 	const dateFilterOptions = [
 		{ value: 'today' as const, label: 'Today' },
 		{ value: '7' as const, label: '7 days' },
@@ -64,13 +95,20 @@
 		{ value: 'joined' as const, label: 'Joined' }
 	];
 
+	let allExploreEvents = $derived.by(() => {
+		const eventsById = new Map<string, SportEvent>();
+		for (const event of events) eventsById.set(event.id, event);
+		for (const event of promotedCampaignEvents) eventsById.set(event.id, event);
+		return Array.from(eventsById.values());
+	});
+
 	let availableSports = $derived.by((): Sport[] => {
-		const sports = events.map((event) => event.sport);
+		const sports = allExploreEvents.map((event) => event.sport);
 		return [...new Set<Sport>(sports)].sort();
 	});
 
 	let highestPrice = $derived.by(() => {
-		const prices = events
+		const prices = allExploreEvents
 			.map((event) => event.pricePerPerson ?? 0)
 			.filter((price) => price > 0);
 		return Math.max(10, Math.ceil(Math.max(...prices, 0)));
@@ -82,7 +120,8 @@
 			selectedLevels.length +
 			(dateFilter === defaultDateFilter ? 0 : 1) +
 			(priceFilter === defaultPriceFilter ? 0 : 1) +
-			(audienceFilter === defaultAudienceFilter ? 0 : 1)
+			(audienceFilter === defaultAudienceFilter ? 0 : 1) +
+			(searchTerm.trim() ? 1 : 0)
 		);
 	});
 
@@ -97,6 +136,14 @@
 		const now = new Date();
 		const eventDate = new Date(startAtMs);
 
+		if (
+			!dateFilterManuallyChanged &&
+			dateFilter === defaultDateFilter &&
+			event.visibility === 'public' &&
+			isPromotionActive(event)
+		) {
+			return startAtMs >= Date.now();
+		}
 		if (dateFilter === 'all') return startAtMs >= Date.now();
 		if (dateFilter === 'today') {
 			return (
@@ -127,10 +174,23 @@
 		return true;
 	}
 
-	let filteredEvents = $derived.by(() => {
-		const term = searchTerm.toLocaleLowerCase('pt-PT');
+	function getPromotedContextScore(event: SportEvent) {
+		let score = 0;
+		const targetSport = event.promotionTargetSport ?? event.sport;
 
-		return events.filter((event) => {
+		if (selectedSports.includes(targetSport)) score += 80;
+		if (profile?.sports?.includes(targetSport)) score += 45;
+		if (event.promotionPlan === 'sport') score += 24;
+		if (event.promotionPlan === 'local') score += 16;
+		if (event.promotionPlan === 'featured') score += 8;
+
+		return score;
+	}
+
+	let filteredEvents = $derived.by(() => {
+		const term = searchTerm.trim().toLocaleLowerCase('pt-PT');
+
+		return allExploreEvents.filter((event) => {
 			const matchesSearch =
 				!term ||
 				[
@@ -179,9 +239,43 @@
 			}
 		}
 
-		return Array.from(eventsById.values());
+		const rankedEvents = Array.from(eventsById.values()).sort((a, b) => {
+			const scoreDiff = getPromotedContextScore(b) - getPromotedContextScore(a);
+			if (scoreDiff !== 0) return scoreDiff;
+
+			return getEventStartAtMillis(a) - getEventStartAtMillis(b);
+		});
+
+		if (rankedEvents.length <= 1) return rankedEvents;
+
+		const rotationOffset = promotedRotationSeed % rankedEvents.length;
+		return [
+			...rankedEvents.slice(rotationOffset),
+			...rankedEvents.slice(0, rotationOffset)
+		];
 	});
+	let promotedPageCount = $derived(Math.max(1, Math.ceil(promotedEvents.length / promotedPageSize)));
+	let visiblePromotedEvents = $derived(
+		promotedEvents.slice(
+			promotedPage * promotedPageSize,
+			promotedPage * promotedPageSize + promotedPageSize
+		)
+	);
 	let refreshing = false;
+
+	function getVisiblePageDots(pageCount: number, activePage: number) {
+		if (pageCount <= 7) return Array.from({ length: pageCount }, (_, index) => index);
+
+		const indexes = new Set<number>([0, pageCount - 1, activePage - 1, activePage, activePage + 1]);
+		return [...indexes]
+			.filter((index) => index >= 0 && index < pageCount)
+			.sort((a, b) => a - b);
+	}
+
+	function setPromotedPage(page: number) {
+		if (!promotedPageCount) return;
+		promotedPage = (page + promotedPageCount) % promotedPageCount;
+	}
 
 	async function loadExploreData(userId: string) {
 		if (refreshing) return;
@@ -200,11 +294,48 @@
 		selectedMapEventId = null;
 	}
 
+	function syncExploreQuery() {
+		const params = new URLSearchParams(page.url.searchParams);
+		const trimmedSearch = searchTerm.trim();
+
+		if (trimmedSearch) params.set('search', trimmedSearch);
+		else params.delete('search');
+
+		if (dateFilter !== defaultDateFilter) params.set('date', dateFilter);
+		else params.delete('date');
+
+		if (selectedSports.length) params.set('sports', selectedSports.join(','));
+		else params.delete('sports');
+
+		if (selectedLevels.length) params.set('levels', selectedLevels.join(','));
+		else params.delete('levels');
+
+		if (priceFilter !== defaultPriceFilter) params.set('price', priceFilter);
+		else params.delete('price');
+
+		if (priceFilter === 'paid') params.set('maxPrice', String(maxPrice));
+		else params.delete('maxPrice');
+
+		if (audienceFilter !== defaultAudienceFilter) params.set('audience', audienceFilter);
+		else params.delete('audience');
+
+		if (viewMode !== 'map') params.set('view', viewMode);
+		else params.delete('view');
+
+		const query = params.toString();
+		void goto(`${page.url.pathname}${query ? `?${query}` : ''}`, {
+			replaceState: true,
+			noScroll: true,
+			keepFocus: true
+		});
+	}
+
 	function toggleSportFilter(sport: Sport) {
 		selectedSports = selectedSports.includes(sport)
 			? selectedSports.filter((item) => item !== sport)
 			: [...selectedSports, sport];
 		clearSelectedEvent();
+		syncExploreQuery();
 	}
 
 	function toggleLevelFilter(level: SportLevel) {
@@ -212,11 +343,14 @@
 			? selectedLevels.filter((item) => item !== level)
 			: [...selectedLevels, level];
 		clearSelectedEvent();
+		syncExploreQuery();
 	}
 
 	function setDateFilter(value: DateFilter) {
 		dateFilter = value;
+		dateFilterManuallyChanged = true;
 		clearSelectedEvent();
+		syncExploreQuery();
 		if (currentUserId) void loadExploreData(currentUserId);
 	}
 
@@ -224,32 +358,48 @@
 		priceFilter = value;
 		if (value === 'paid' && maxPrice > highestPrice) maxPrice = highestPrice;
 		clearSelectedEvent();
+		syncExploreQuery();
 	}
 
 	function setMaxPrice(value: number) {
 		maxPrice = value;
 		clearSelectedEvent();
+		syncExploreQuery();
 	}
 
 	function setAudienceFilter(value: AudienceFilter) {
 		audienceFilter = value;
 		clearSelectedEvent();
+		syncExploreQuery();
+	}
+
+	function setSearchTerm(value: string) {
+		searchTerm = value;
+		clearSelectedEvent();
+		syncExploreQuery();
 	}
 
 	function clearAllFilters() {
 		selectedSports = [];
 		selectedLevels = [];
 		dateFilter = defaultDateFilter;
+		dateFilterManuallyChanged = false;
 		priceFilter = defaultPriceFilter;
 		audienceFilter = defaultAudienceFilter;
 		maxPrice = highestPrice;
+		searchTerm = '';
 		clearSelectedEvent();
+		syncExploreQuery();
 		if (currentUserId) void loadExploreData(currentUserId);
 	}
 
 	onMount(() => {
 		let unsubscribeEvents = () => {};
 		let unsubscribePromotions = () => {};
+		const promotionRotationTimer = window.setInterval(() => {
+			promotedRotationSeed += 1;
+			setPromotedPage(promotedPage + 1);
+		}, 9000);
 		void (async () => {
 			const currentUser = auth.currentUser;
 			if (!currentUser) {
@@ -278,19 +428,43 @@
 			}
 		})();
 		return () => {
+			window.clearInterval(promotionRotationTimer);
 			unsubscribeEvents();
 			unsubscribePromotions();
 		};
 	});
+
+	$effect(() => {
+		const count = promotedPageCount;
+		if (promotedPage >= count) promotedPage = 0;
+	});
 </script>
 
-<main class="mx-auto w-full max-w-[1500px] px-2.5 py-3 sm:px-5 sm:py-8 h-[calc(100dvh-96px)] flex flex-col overflow-hidden md:h-auto md:overflow-visible">
-	<header class="mb-2 sm:mb-6 shrink-0">
-		<RallyWordmark size="sm" />
-		<h1 class="mt-1 text-2xl font-bold sm:mt-2 sm:text-3xl">Explore</h1>
-		<p class="mt-1 hidden text-sm text-slate-500 sm:block">
-			{searchTerm ? `Showing results for "${searchTerm}".` : 'Find games, teams and sports partners nearby.'}
-		</p>
+<main class="mx-auto flex min-h-[calc(100dvh-96px)] w-full max-w-[1500px] flex-col overflow-visible px-2.5 pb-28 pt-3 sm:px-5 sm:py-8 md:h-auto md:pb-8">
+	<header class="mb-2 sm:mb-6 shrink-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+		<div>
+			<RallyWordmark size="sm" />
+			<h1 class="mt-1 text-2xl font-bold sm:mt-2 sm:text-3xl">Explore</h1>
+			<p class="mt-1 hidden text-sm text-slate-500 sm:block">
+				{searchTerm ? `Showing results for "${searchTerm}".` : 'Find games, teams and sports partners nearby.'}
+			</p>
+		</div>
+		<div class="inline-flex rounded-full bg-slate-100 p-1 dark:bg-slate-800 self-start sm:self-center">
+			<button
+				type="button"
+				onclick={() => { viewMode = 'map'; syncExploreQuery(); }}
+				class="rounded-full px-4 py-2 text-xs font-black transition duration-200 {viewMode === 'map' ? 'bg-white text-slate-950 shadow-md dark:bg-slate-700 dark:text-slate-50' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'}"
+			>
+				🗺️ Map View
+			</button>
+			<button
+				type="button"
+				onclick={() => { viewMode = 'feed'; syncExploreQuery(); }}
+				class="rounded-full px-4 py-2 text-xs font-black transition duration-200 {viewMode === 'feed' ? 'bg-white text-slate-950 shadow-md dark:bg-slate-700 dark:text-slate-50' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'}"
+			>
+				📰 Feed View
+			</button>
+		</div>
 	</header>
 
 	{#if loading}
@@ -304,11 +478,12 @@
 			{error}
 		</section>
 	{:else}
-		<div class="flex flex-col gap-3 flex-1 min-h-0">
+		<div class="flex flex-col gap-3 md:min-h-0 md:flex-1">
 			<!-- Positioning container for Map and Desktop Promoted Overlay -->
-			<div class="relative flex-1 min-h-0 flex flex-col">
+			<div class="relative flex flex-col md:min-h-0 md:flex-1">
 				<ExploreMap
 					events={filteredEvents}
+					totalEventsCount={allExploreEvents.length}
 					{currentUserId}
 					{friendIds}
 					{availableSports}
@@ -320,21 +495,25 @@
 					{maxPrice}
 					{highestPrice}
 					{audienceFilter}
+					{searchTerm}
 					{activeFilterCount}
 					{dateFilterOptions}
 					{priceFilterOptions}
 					{audienceFilterOptions}
+					{profile}
+					{viewMode}
 					onToggleSport={toggleSportFilter}
 					onToggleLevel={toggleLevelFilter}
 					onDateFilterChange={setDateFilter}
 					onPriceFilterChange={setPriceFilter}
 					onMaxPriceChange={setMaxPrice}
 					onAudienceFilterChange={setAudienceFilter}
+					onSearchChange={setSearchTerm}
 					onClearFilters={clearAllFilters}
 					onFilteredCountChange={(count) => (filteredEventCount = count)}
 					onSelectedEventChange={(eventId) => (selectedMapEventId = eventId)}
 				/>
-				{#if !selectedMapEventId}
+				{#if viewMode === 'map' && !selectedMapEventId}
 					<div
 						class="pointer-events-none absolute inset-x-3 bottom-3 z-20 hidden md:block md:inset-x-auto md:left-5 md:top-5 md:bottom-auto md:w-80"
 					>
@@ -359,13 +538,25 @@
 
 							{#if promotedEvents.length}
 								<div class="max-h-[52dvh] space-y-3 overflow-y-auto pr-1 md:max-h-[520px]">
-									{#each promotedEvents as event (event.id)}
+									{#each visiblePromotedEvents as event (event.id)}
 										<EventCard {event} variant="profile" />
 									{/each}
 								</div>
+								{#if promotedPageCount > 1}
+									<div class="flex items-center justify-center gap-1.5 rounded-full bg-white/90 px-3 py-2 shadow-sm backdrop-blur dark:bg-slate-950/90">
+										{#each getVisiblePageDots(promotedPageCount, promotedPage) as pageIndex (pageIndex)}
+											<button
+												type="button"
+												onclick={() => setPromotedPage(pageIndex)}
+												class={`h-2 rounded-full transition-all ${pageIndex === promotedPage ? 'w-6 bg-blue-600' : 'w-2 bg-blue-200 dark:bg-blue-900'}`}
+												aria-label={`Show promoted page ${pageIndex + 1}`}
+											></button>
+										{/each}
+									</div>
+								{/if}
 							{:else}
 								<div
-									class="rounded-[1.5rem] border border-dashed border-slate-300 bg-white/95 p-4 text-sm font-bold text-slate-500 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-950/95 dark:text-slate-400"
+									class="rounded-[1.5rem] border border-dashed border-slate-350 bg-white/95 p-4 text-sm font-bold text-slate-500 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-950/95 dark:text-slate-400"
 								>
 									No promoted events right now.
 								</div>
@@ -376,63 +567,79 @@
 			</div>
 
 			<!-- Mobile Promoted Section -->
-			<section class="mt-1 md:hidden shrink-0">
-				<div class="mb-2 flex items-center justify-between gap-3">
-					<div>
-						<p class="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">
-							Promoted
-						</p>
+			{#if viewMode === 'map'}
+				<section class="mt-1 md:hidden shrink-0">
+					<div class="mb-2 flex items-center justify-between gap-3">
+						<div>
+							<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">
+								Promoted
+							</p>
+							<p class="mt-0.5 text-xs font-bold text-slate-500 dark:text-slate-400">
+								Events boosted near your filters.
+							</p>
+						</div>
 					</div>
-					<span class="text-[10px] font-bold text-slate-450 dark:text-slate-550">Sponsored</span>
-				</div>
 
-				{#if promotedEvents.length}
-					<div class="flex snap-x gap-2.5 overflow-x-auto pb-1">
-						{#each promotedEvents.slice(0, 5) as event (event.id)}
-							<div class="w-[70vw] max-w-[260px] shrink-0 snap-start">
-								<a
-									href={`/events/${event.id}`}
-									class="block rounded-2xl border border-blue-200/80 bg-blue-50/20 p-3 shadow-md dark:border-blue-900/60 dark:bg-slate-900/60 active:scale-95 transition-all"
-								>
-									<div class="flex items-center justify-between gap-3">
-										<div class="min-w-0 flex-1">
-											<div class="flex items-center gap-1.5">
-												<span class="text-[9px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">
-													{event.sport}
-												</span>
-												<span class="rounded-full bg-blue-100 px-1.5 py-0.5 text-[8px] font-black uppercase text-blue-700 dark:bg-blue-950/80 dark:text-blue-300">
-													PROMOTED
-												</span>
+					{#if promotedEvents.length}
+						<div class="max-h-[24rem] space-y-2.5 overflow-y-auto pr-1">
+							{#each visiblePromotedEvents as event (event.id)}
+								<div>
+									<a
+										href={`/events/${event.id}`}
+										class="block rounded-[1.35rem] border border-blue-200/80 bg-white p-3.5 shadow-md shadow-slate-200/70 transition-all active:scale-[0.98] dark:border-blue-900/60 dark:bg-slate-900/80 dark:shadow-none"
+									>
+										<div class="flex items-center justify-between gap-3">
+											<div class="min-w-0 flex-1">
+												<div class="flex items-center gap-2">
+													<span class="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">
+														{event.sport}
+													</span>
+													<span class="rounded-full bg-blue-100 px-2 py-0.5 text-[9px] font-black uppercase text-blue-700 dark:bg-blue-950/80 dark:text-blue-300">
+														PROMOTED
+													</span>
+												</div>
+
+												<h3 class="mt-1.5 truncate text-sm font-black text-slate-900 dark:text-slate-100">
+													{event.title}
+												</h3>
+
+												<div class="mt-1 flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+													<span class="truncate">📍 {event.location.name}</span>
+												</div>
 											</div>
 
-											<h3 class="mt-1 truncate text-xs font-black text-slate-900 dark:text-slate-100">
-												{event.title}
-											</h3>
-
-											<div class="mt-1 flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500">
-												<span class="truncate">📍 {event.location.name}</span>
+											<div class="shrink-0 rounded-2xl bg-blue-50 px-3 py-2 text-center dark:bg-blue-950/80">
+												<p class="text-sm font-black text-blue-600 dark:text-blue-300">
+													{event.participantIds.length}/{event.maxParticipants}
+												</p>
+												<p class="text-[9px] font-bold text-slate-500 dark:text-slate-400">players</p>
 											</div>
 										</div>
-
-										<div class="shrink-0 rounded-xl bg-blue-50 px-2 py-1 text-center dark:bg-blue-950/80">
-											<p class="text-xs font-black text-blue-600 dark:text-blue-300">
-												{event.participantIds.length}/{event.maxParticipants}
-											</p>
-											<p class="text-[8px] font-bold text-slate-500 dark:text-slate-400">players</p>
-										</div>
-									</div>
-								</a>
+									</a>
+								</div>
+							{/each}
+						</div>
+						{#if promotedPageCount > 1}
+							<div class="mt-3 flex items-center justify-center gap-1.5">
+								{#each getVisiblePageDots(promotedPageCount, promotedPage) as pageIndex (pageIndex)}
+									<button
+										type="button"
+										onclick={() => setPromotedPage(pageIndex)}
+										class={`h-2 rounded-full transition-all ${pageIndex === promotedPage ? 'w-6 bg-blue-600' : 'w-2 bg-blue-200 dark:bg-blue-100'}`}
+										aria-label={`Show promoted page ${pageIndex + 1}`}
+									></button>
+								{/each}
 							</div>
-						{/each}
-					</div>
-				{:else}
-					<div
-						class="rounded-xl border border-dashed border-slate-350 bg-white p-2.5 text-xs font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
-					>
-						No promoted events right now.
-					</div>
-				{/if}
-			</section>
+						{/if}
+					{:else}
+						<div
+							class="rounded-xl border border-dashed border-slate-350 bg-white p-2.5 text-xs font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
+						>
+							No promoted events right now.
+						</div>
+					{/if}
+				</section>
+			{/if}
 		</div>
 	{/if}
 </main>

@@ -12,6 +12,7 @@
 		calculatePromotionStats,
 		ensureEventGroupConversation,
 		finishEvent,
+		getAvailablePromotionPlanOptions,
 		getEventById,
 		getEventGroupConversationId,
 		getEffectiveEventStatus,
@@ -38,7 +39,7 @@
 		sendMessage,
 		setUserTyping
 	} from '$lib/services/chat.service';
-	import { getUserProfilesByIds } from '$lib/services/user.service';
+	import { getUserProfilesByIds, getUserProfile } from '$lib/services/user.service';
 	import EventMap from '$lib/components/maps/EventMap.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import EventWeather from '$lib/components/EventWeather.svelte';
@@ -46,6 +47,7 @@
 		ChatConversation,
 		ChatMessage,
 		EventJoinRequest,
+		OrganizationReview,
 		SportEvent,
 		UserProfile,
 		EventPromotionPlan
@@ -57,8 +59,10 @@
 	import { getTypingLabel } from '$lib/utils/chat-typing.utils';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
+	import { getCurrencySymbol } from '$lib/utils/format.utils';
 	import { getOrCreateOrganizationConversation } from '$lib/services/chat.service';
 	import TournamentPanel from '$lib/components/tournaments/TournamentPanel.svelte';
+	import { getOrganizationReviews } from '$lib/services/organization.service';
 
 	let event = $state<SportEvent | null>(null);
 	let loading = $state(true);
@@ -84,6 +88,10 @@
 	let joinRequestActionLoading = $state(false);
 	let unsubscribeMyJoinRequest: Unsubscribe | null = null;
 	let unsubscribeJoinRequests: Unsubscribe | null = null;
+	let organizationReviews = $state<OrganizationReview[]>([]);
+	let activeEventTab = $state<'overview' | 'players' | 'chat' | 'location'>('overview');
+	let isSavedEvent = $state(false);
+	let currentUserProfile = $state<UserProfile | null>(null);
 
 	type ConfirmDialogConfig = {
 		title: string;
@@ -156,6 +164,7 @@
 	let canJoin = $derived.by(() => {
 		return (
 			!!event &&
+			currentUserProfile?.accountType !== 'organization' &&
 			event.eventKind !== 'tournament' &&
 			(event.joinPolicy ?? 'open') === 'open' &&
 			!isCreator &&
@@ -171,6 +180,7 @@
 	let canRequestJoin = $derived.by(() => {
 		return (
 			!!event &&
+			currentUserProfile?.accountType !== 'organization' &&
 			event.eventKind !== 'tournament' &&
 			event.joinPolicy === 'approval' &&
 			!isCreator &&
@@ -200,12 +210,7 @@
 
 	let contactLoading = $state(false);
 
-	let promotionPlanOptions = $derived(
-		Object.entries(PROMOTION_PLANS) as [
-			EventPromotionPlan,
-			(typeof PROMOTION_PLANS)[EventPromotionPlan]
-		][]
-	);
+	let promotionPlanOptions = $derived(getAvailablePromotionPlanOptions());
 
 	let selectedPromotionPlan = $derived(PROMOTION_PLANS[promotionPlan]);
 
@@ -219,6 +224,10 @@
 	});
 
 	let promotionStats = $derived(event ? calculatePromotionStats(event) : null);
+	let organizationAverageRating = $derived.by(() => {
+		if (!organizationReviews.length) return 0;
+		return organizationReviews.reduce((sum, review) => sum + review.rating, 0) / organizationReviews.length;
+	});
 
 	let canPromoteThisEvent = $derived.by(() => {
 		const currentUser = auth.currentUser;
@@ -348,9 +357,69 @@
 	}
 
 	function formatPriceLabel(currentEvent: SportEvent) {
-		if (currentEvent.pricePerPerson) return `€${currentEvent.pricePerPerson.toFixed(2)} per person`;
-		if (currentEvent.priceTotal) return `€${currentEvent.priceTotal.toFixed(2)} total`;
+		const currencySymbol = getCurrencySymbol(currentEvent.currency);
+		if (currentEvent.pricePerPerson) return `${currencySymbol}${currentEvent.pricePerPerson.toFixed(2)} per person`;
+		if (currentEvent.priceTotal) return `${currencySymbol}${currentEvent.priceTotal.toFixed(2)} total`;
 		return 'Free / not defined';
+	}
+
+	function getEventHeroImage(currentEvent: SportEvent) {
+		if (currentEvent.groupPhotoURL) return currentEvent.groupPhotoURL;
+
+		const sport = (currentEvent.sport || 'other').toLowerCase();
+		const backgrounds: Record<string, string> = {
+			basketball: '/event-backgrounds/basketball.png',
+			football: '/event-backgrounds/football.png',
+			gym: '/event-backgrounds/gym.png',
+			padel: '/event-backgrounds/padel.png',
+			running: '/event-backgrounds/running.png',
+			tennis: '/event-backgrounds/tennis.png',
+			volleyball: '/event-backgrounds/volleyball.png',
+			other: '/event-backgrounds/other.png'
+		};
+
+		return backgrounds[sport] ?? backgrounds.other;
+	}
+
+	function syncSavedEventState(eventId: string) {
+		if (typeof localStorage === 'undefined') return;
+		const saved = JSON.parse(localStorage.getItem('rally-saved-events') ?? '[]') as string[];
+		isSavedEvent = saved.includes(eventId);
+	}
+
+	function toggleSavedEvent() {
+		if (!event || typeof localStorage === 'undefined') return;
+		const currentEvent = event;
+		const saved = JSON.parse(localStorage.getItem('rally-saved-events') ?? '[]') as string[];
+		const nextSaved = saved.includes(currentEvent.id)
+			? saved.filter((id) => id !== currentEvent.id)
+			: [...saved, currentEvent.id];
+
+		localStorage.setItem('rally-saved-events', JSON.stringify(nextSaved));
+		isSavedEvent = nextSaved.includes(currentEvent.id);
+	}
+
+	async function shareEvent() {
+		if (!event || typeof window === 'undefined') return;
+		const url = `${window.location.origin}${resolve(`/events/${event.id}`)}`;
+
+		try {
+			if (navigator.share) {
+				await navigator.share({
+					title: event.title,
+					text: `Check this event on Rally: ${event.title}`,
+					url
+				});
+			} else {
+				await navigator.clipboard?.writeText(url);
+				error = 'Event link copied.';
+			}
+		} catch (err) {
+			if ((err as Error)?.name !== 'AbortError') {
+				console.error('Share event error:', err);
+				error = 'Could not share this event right now.';
+			}
+		}
 	}
 
 	function stopGroupMessagesListener() {
@@ -495,12 +564,15 @@
 
 		const updatedEvent = await getEventById(event.id);
 
-		if (updatedEvent) {
-			event = updatedEvent;
-			participants = await getUserProfilesByIds(updatedEvent.participantIds ?? []);
-			await loadGroupMessages(updatedEvent);
+			if (updatedEvent) {
+				event = updatedEvent;
+				participants = await getUserProfilesByIds(updatedEvent.participantIds ?? []);
+				organizationReviews = updatedEvent.organizationId
+					? await getOrganizationReviews(updatedEvent.organizationId)
+					: [];
+				await loadGroupMessages(updatedEvent);
+			}
 		}
-	}
 
 	async function loadEventPage() {
 		const currentUser = auth.currentUser;
@@ -526,9 +598,14 @@
 				return;
 			}
 
-			event = loadedEvent;
-			participants = await getUserProfilesByIds(loadedEvent.participantIds ?? []);
-			syncJoinRequestsListener(loadedEvent, currentUser.uid);
+				event = loadedEvent;
+				participants = await getUserProfilesByIds(loadedEvent.participantIds ?? []);
+				currentUserProfile = await getUserProfile(currentUser.uid);
+				organizationReviews = loadedEvent.organizationId
+					? await getOrganizationReviews(loadedEvent.organizationId)
+					: [];
+				syncSavedEventState(loadedEvent.id);
+				syncJoinRequestsListener(loadedEvent, currentUser.uid);
 
 			if (
 				isEventFinished(loadedEvent) &&
@@ -925,11 +1002,9 @@
 <button
 	type="button"
 	onclick={() => goBack(resolve('/dashboard'))}
-	class="ml-5 inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold leading-none text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900 sm:ml-0 sm:px-5"
+	class="hidden items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-black text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900 sm:inline-flex"
 >
-	<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="h-4 w-4 shrink-0">
-		<path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-	</svg>
+	<span class="leading-none">←</span>
 	<span>Back</span>
 </button>
 
@@ -946,315 +1021,376 @@
 		{error}
 	</div>
 {:else if event}
-	<div class="mt-4 grid min-w-0 max-w-full gap-6 px-5 pb-28 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)] sm:mt-8 sm:px-0 sm:pb-0">
+	<div class="mt-0 grid min-w-0 max-w-full gap-6 px-5 pb-28 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)] sm:mt-8 sm:px-0 sm:pb-0">
 		<div class="min-w-0 max-w-full space-y-6">
-			<section class="space-y-5 sm:hidden">
-				<div class="flex items-start gap-4">
-					<div class="relative h-[4.5rem] w-[4.5rem] shrink-0">
-						{#if event.groupPhotoURL}
-							<img src={event.groupPhotoURL} alt={event.title} class="h-[4.5rem] w-[4.5rem] rounded-full object-cover ring-4 ring-white dark:ring-slate-900" />
-						{:else}
-							<div class="flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full bg-blue-100 text-3xl font-black text-blue-600 ring-4 ring-white dark:bg-blue-950 dark:text-blue-300 dark:ring-slate-900">
-								{event.title.slice(0, 1).toUpperCase()}
-							</div>
-						{/if}
+						<section class="space-y-4 sm:hidden">
+							<div class="relative -mx-5 -mt-2 overflow-hidden bg-slate-950">
+									<img src={getEventHeroImage(event)} alt={event.title} class="h-52 w-full object-cover" loading="eager" />
+								<div class="absolute inset-0 bg-gradient-to-t from-white via-white/10 to-transparent dark:from-slate-950"></div>
 
-						{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
-							<label
-								title="Edit group photo"
-								class="absolute -bottom-1 -right-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-white text-xs text-blue-600 shadow-lg ring-2 ring-white transition hover:bg-blue-50 dark:bg-white dark:text-blue-600 dark:ring-slate-900"
-							>
-								{#if groupPhotoSaving}
-								…
-							{:else}
-								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.4" stroke="currentColor" class="h-4 w-4">
-									<path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18A2.25 2.25 0 0 0 4.5 20.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
-									<path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
-								</svg>
-							{/if}
-								<input type="file" accept="image/*" class="hidden" onchange={handleGroupPhotoFileChange} />
-							</label>
-						{/if}
-					</div>
-
-					<div class="min-w-0 flex-1 pt-1">
-						<div class="flex flex-wrap items-center gap-2">
-							<span class="text-[11px] font-black uppercase tracking-[0.22em] text-blue-600 dark:text-blue-400">
-								{event.eventKind === 'tournament' ? 'Tournament' : event.sport}
-							</span>
-
-							<span class="text-xs font-black capitalize text-slate-500 dark:text-slate-400">
-								{effectiveStatus}
-							</span>
-						</div>
-
-						<h1 class="mt-2 break-words text-3xl font-black leading-tight tracking-tight text-slate-950 dark:text-slate-50">
-							{event.title}
-						</h1>
-
-						<p class="mt-1 text-sm font-bold capitalize text-slate-500 dark:text-slate-400">
-							{event.level ?? 'casual'} level
-						</p>
-					</div>
-				</div>
-
-				{#if event.description}
-					<p class="text-[15px] leading-6 text-slate-600 dark:text-slate-300">
-						{event.description}
-					</p>
-				{/if}
-
-				<div class="rounded-[1.75rem] bg-white/80 p-4 shadow-sm shadow-slate-200/60 ring-1 ring-slate-200/70 dark:bg-slate-900/80 dark:shadow-none dark:ring-slate-800">
-					<div class="grid grid-cols-3 gap-3">
-						<div>
-							<p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Date</p>
-							<p class="mt-1 truncate text-sm font-black text-slate-950 dark:text-slate-50">{formatShortDate(event.startAt)}</p>
-						</div>
-						<div>
-							<p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Time</p>
-							<p class="mt-1 truncate text-sm font-black text-slate-950 dark:text-slate-50">{formatShortTime(event.startAt)}</p>
-						</div>
-						<div>
-							<p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Duration</p>
-							<p class="mt-1 truncate text-sm font-black text-slate-950 dark:text-slate-50">{formatEventDuration(event)}</p>
-						</div>
-					</div>
-
-					<div class="mt-4 flex items-start justify-between gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
-						<div class="min-w-0">
-							<p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Location</p>
-							<p class="mt-1 truncate text-sm font-black text-slate-950 dark:text-slate-50">{event.location.name}</p>
-							{#if event.location.address}
-								<p class="mt-0.5 line-clamp-2 text-xs leading-5 text-slate-500 dark:text-slate-400">{event.location.address}</p>
-							{/if}
-							<div class="mt-2.5 flex flex-wrap items-center gap-3">
-								{#if event.location.lat && event.location.lng}
-									<a
-										href={`https://www.google.com/maps/dir/?api=1&destination=${event.location.lat},${event.location.lng}`}
-										target="_blank"
-										rel="noopener noreferrer"
-										class="inline-flex items-center gap-1.5 text-[11px] font-black text-blue-600 dark:text-blue-400 hover:underline"
-									>
-										<svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-											<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#EA4335" />
-											<circle cx="12" cy="9" r="3" fill="#34A853" />
-											<path d="M12 2c2.1 0 4 .9 5.3 2.3L15 6.5C14.2 5.6 13.2 5 12 5c-2.2 0-4 1.8-4 4 0 .5.1 1 .3 1.5L6.1 12.2C5.4 11.2 5 10.1 5 9c0-3.87 3.13-7 7-7z" fill="#FBBC05" />
-											<path d="M12 22s7-7.75 7-13c0-.4-.1-.8-.2-1.2l-2.2 2.2c.2.6.4 1.3.4 2 0 3.2-3.5 8.1-5 9.8z" fill="#4285F4" />
-										</svg>
-										<span>Get Directions</span>
-									</a>
-								{/if}
-								<EventWeather lat={event.location.lat} lng={event.location.lng} startAt={event.startAt} size="sm" />
-							</div>
-						</div>
-
-						<div class="shrink-0 text-right">
-							<p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Price</p>
-							<p class="mt-1 max-w-[7rem] text-sm font-black text-slate-950 dark:text-slate-50">{formatPriceLabel(event)}</p>
-						</div>
-					</div>
-				</div>
-
-				<EventMap
-					lat={event.location.lat ?? null}
-					lng={event.location.lng ?? null}
-					name={event.location.name}
-					address={event.location.address ?? ''}
-					compact={true}
-				/>
-
-				{#if event.hostType === 'organization'}
-					<div class="rounded-[1.75rem] bg-white/80 p-4 shadow-sm shadow-slate-200/60 ring-1 ring-slate-200/70 dark:bg-slate-900/80 dark:shadow-none dark:ring-slate-800">
-						<p class="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">Hosted by</p>
-
-						<a href={resolve(`/organizations/${event.organizationId}`)} class="mt-3 flex items-center gap-3">
-							<div class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-lg font-black text-blue-600 dark:bg-slate-800 dark:text-blue-300">
-								{#if event.organizationLogoURL}
-									<img src={event.organizationLogoURL} alt={event.organizationName ?? 'Organization'} class="h-full w-full object-cover" />
-								{:else}
-									{event.organizationName?.charAt(0).toUpperCase() ?? 'O'}
-								{/if}
-							</div>
-
-							<div class="min-w-0 flex-1">
-								<div class="flex items-center gap-2">
-									<p class="truncate font-black text-slate-950 dark:text-slate-50">{event.organizationName ?? 'Organization'}</p>
-									{#if event.organizationVerificationStatus === 'verified'}
-										<span class="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300">Verified</span>
-									{/if}
-								</div>
-								<p class="text-xs text-slate-500 dark:text-slate-400">Official organizer</p>
-							</div>
-						</a>
-
-						<div class="mt-4 grid gap-2 {canContactOrganizer && canPromoteThisEvent ? 'grid-cols-2' : 'grid-cols-1'}">
-							{#if canContactOrganizer}
-								<button type="button" onclick={contactOrganizer} disabled={contactLoading} class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-800 transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100">
-									{contactLoading ? 'Opening...' : 'Contact organizer'}
-								</button>
-							{/if}
-
-							{#if canPromoteThisEvent}
-								{#if isPromotionActive(event)}
-									<button type="button" onclick={handleStopPromotion} disabled={stoppingPromotion} class="rounded-2xl bg-blue-50 px-4 py-3 text-sm font-black text-blue-700 transition hover:bg-blue-100 disabled:opacity-60 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900">
-										{stoppingPromotion ? 'Stopping...' : 'Promotion active'}
-									</button>
-								{:else}
-									<button type="button" onclick={() => (showPromoteModal = true)} class="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700">
-										Promote
-									</button>
-								{/if}
-							{/if}
-						</div>
-					</div>
-				{:else if hostProfile}
-					<a href={resolve(`/users/${hostProfile.id}`)} class="flex items-center gap-3 rounded-[1.5rem] bg-white/70 p-3 shadow-sm shadow-slate-200/50 ring-1 ring-slate-200/70 dark:bg-slate-900/70 dark:shadow-none dark:ring-slate-800">
-						<UserAvatar photoURL={hostProfile.photoURL} displayName={hostProfile.displayName} email={hostProfile.email} size="sm" />
-						<div class="min-w-0">
-							<p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Host</p>
-							<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">{hostProfile.displayName}</p>
-						</div>
-					</a>
-				{/if}
-
-				{#if event?.eventKind !== 'tournament'}
-					<div class="space-y-3">
-						<div class="flex items-center justify-between gap-4">
-							<div>
-								<p class="text-base font-black text-slate-950 dark:text-slate-50">Players</p>
-								<p class="text-sm font-bold text-slate-500 dark:text-slate-400">{participants.length}/{event.maxParticipants} confirmed</p>
-							</div>
-
-							<div class="flex -space-x-2 overflow-hidden pl-2">
-								{#each participants.slice(0, 4) as participant (participant.id)}
-									<UserAvatar photoURL={participant.photoURL} displayName={participant.displayName} email={participant.email} size="sm" />
-								{/each}
-
-								{#if participants.length > 4}
-									<span class="flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-slate-100 text-xs font-black text-slate-600 dark:border-slate-950 dark:bg-slate-800 dark:text-slate-300">+{participants.length - 4}</span>
-								{/if}
-							</div>
-						</div>
-
-						<div class="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-							<div class="h-full rounded-full bg-blue-600" style={`width: ${Math.min(100, (participants.length / event.maxParticipants) * 100)}%`}></div>
-						</div>
-
-						<div class="grid grid-cols-2 gap-3">
-							{#if canInvite}
-								<a href={resolve(`/events/${event.id}/invite`)} class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center text-sm font-black text-slate-800 shadow-sm transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800">Invite</a>
-							{/if}
-
-							{#if canJoin}
-								<button onclick={handleJoinEvent} disabled={actionLoading} class="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:opacity-60">
-									{actionLoading ? 'Joining...' : 'Join event'}
-								</button>
-							{:else if canRequestJoin}
-								<button onclick={handleRequestToJoin} disabled={actionLoading} class="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:opacity-60">
-									{actionLoading ? 'Requesting...' : 'Request to join'}
-								</button>
-							{:else if hasPendingJoinRequest}
-								<button disabled class="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-									Request pending
-								</button>
-							{/if}
-
-							{#if isParticipant && !isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
 								<button
 									type="button"
-									onclick={handleLeaveEvent}
-									disabled={actionLoading}
-									class="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-black text-red-700 transition hover:bg-red-100 disabled:opacity-60 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950"
+									onclick={() => goBack(resolve('/dashboard'))}
+									class="absolute left-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-slate-950 shadow-sm backdrop-blur"
+									aria-label="Back"
 								>
-									{actionLoading ? 'Leaving...' : 'Leave event'}
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="2.8" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+									</svg>
 								</button>
-							{/if}
 
-							{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
-								<a href={resolve(`/events/${event.id}/edit`)} class="rounded-2xl bg-slate-950 px-4 py-3 text-center text-sm font-black text-white shadow-lg shadow-slate-950/10 transition hover:bg-slate-800 dark:bg-white dark:text-slate-950">Edit</a>
-								<button type="button" onclick={handleFinishEvent} disabled={actionLoading} class="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-black text-blue-700 transition hover:bg-blue-100 disabled:opacity-60 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900">
-									Finish
+								<div class="absolute right-4 top-4 flex items-center gap-2">
+									<button
+										type="button"
+										onclick={shareEvent}
+										class="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-slate-950 shadow-sm backdrop-blur"
+										aria-label="Share event"
+									>
+										<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 overflow-visible" fill="none" viewBox="0 0 24 24" stroke-width="2.1" stroke="currentColor">
+											<path stroke-linecap="round" d="m8.9 10.75 6.2-3.5M8.9 13.25l6.2 3.5" />
+											<circle cx="6.75" cy="12" r="2.35" />
+											<circle cx="17.25" cy="6" r="2.35" />
+											<circle cx="17.25" cy="18" r="2.35" />
+										</svg>
+									</button>
+								<button
+									type="button"
+									onclick={toggleSavedEvent}
+									class="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-slate-950 shadow-sm backdrop-blur"
+									aria-label={isSavedEvent ? 'Unsave event' : 'Save event'}
+								>
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill={isSavedEvent ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" />
+									</svg>
 								</button>
-							{/if}
-						</div>
-					</div>
-				{/if}
-
-				{#if error}
-					<div class="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
-						{error}
-					</div>
-				{/if}
-			</section>
-
-			<section
-				class="hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:block sm:rounded-4xl sm:p-8"
-			>
-				<div class="flex flex-col gap-5 sm:flex-row sm:items-start">
-					<div class="relative h-20 w-20 shrink-0">
-						{#if event.groupPhotoURL}
-							<img
-								src={event.groupPhotoURL}
-								alt={event.title}
-								class="h-20 w-20 rounded-full object-cover ring-4 ring-slate-100 dark:ring-slate-800"
-							/>
-						{:else}
-							<div
-								class="flex h-20 w-20 items-center justify-center rounded-full bg-blue-100 text-3xl font-black text-blue-600 ring-4 ring-slate-100 dark:bg-blue-950 dark:text-blue-300 dark:ring-slate-800"
-							>
-								{event.title.slice(0, 1).toUpperCase()}
 							</div>
+						</div>
+
+							<div class="space-y-3 pt-1">
+								<h1 class="break-words text-[2rem] font-black leading-[1.02] tracking-tight text-slate-950 dark:text-slate-50">
+									{event.title}
+								</h1>
+
+							<div class="flex flex-wrap items-center gap-2">
+								<span class="rounded-full bg-blue-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.08em] text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+									{event.eventKind === 'tournament' ? 'Tournament' : event.sport}
+								</span>
+								<span class="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-black capitalize text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">{effectiveStatus}</span>
+								<span class="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-black capitalize text-amber-700 dark:bg-amber-950 dark:text-amber-300">{event.level ?? 'casual'}</span>
+								{#if isPromotionActive(event)}
+									<span class="rounded-full bg-orange-50 px-3 py-1 text-[11px] font-black text-orange-600 dark:bg-orange-950 dark:text-orange-300">↗ Promoted</span>
+								{/if}
+							</div>
+						</div>
+
+							<div class="sticky top-0 z-20 -mx-5 bg-white/95 px-5 py-2 backdrop-blur dark:bg-slate-950/95">
+								<div class="grid grid-cols-4 rounded-[1.35rem] bg-white p-1 text-sm font-black text-slate-500 shadow-sm shadow-slate-200/70 ring-1 ring-slate-200/80 dark:bg-slate-900 dark:text-slate-400 dark:shadow-none dark:ring-slate-800">
+								{#each [
+									['overview', 'Overview'],
+									['players', 'Players'],
+									['chat', 'Chat'],
+									['location', 'Location']
+								] as [tab, label]}
+									<button
+										type="button"
+										onclick={() => (activeEventTab = tab as typeof activeEventTab)}
+											class={`min-w-0 rounded-[1rem] px-2 py-2.5 text-center transition ${
+												activeEventTab === tab
+													? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+													: 'hover:bg-slate-50 hover:text-slate-800 dark:hover:bg-slate-800 dark:hover:text-slate-100'
+											}`}
+										>
+											<span class="block truncate">{label}</span>
+									</button>
+								{/each}
+							</div>
+						</div>
+
+						{#if activeEventTab === 'overview'}
+								<div class="rounded-[1.25rem] bg-white p-3.5 shadow-sm shadow-slate-200/60 ring-1 ring-slate-200/70 dark:bg-slate-900 dark:shadow-none dark:ring-slate-800">
+									<div class="grid grid-cols-2 gap-3">
+										<div class="min-w-0 border-r border-slate-100 pr-3 dark:border-slate-800">
+											<div class="flex items-center gap-1.5 text-slate-400">
+												<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor">
+													<path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25m10.5-2.25v2.25M3.75 8.25h16.5M5.25 5.25h13.5a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5v-12a1.5 1.5 0 0 1 1.5-1.5Z" />
+												</svg>
+												<p class="text-[10px] font-black uppercase tracking-[0.16em]">Date</p>
+											</div>
+											<p class="mt-1 truncate text-sm font-black text-slate-950 dark:text-slate-50">{formatShortDate(event.startAt)}</p>
+											<p class="text-xs font-semibold text-slate-500 dark:text-slate-400">{formatShortTime(event.startAt)}</p>
+										</div>
+										<div class="min-w-0">
+											<div class="flex items-center gap-1.5 text-slate-400">
+												<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor">
+													<path stroke-linecap="round" stroke-linejoin="round" d="M12 21s6-5.25 6-11a6 6 0 1 0-12 0c0 5.75 6 11 6 11Z" />
+													<path stroke-linecap="round" stroke-linejoin="round" d="M12 10.5h.008" />
+												</svg>
+												<p class="text-[10px] font-black uppercase tracking-[0.16em]">Location</p>
+											</div>
+											<p class="mt-1 truncate text-sm font-black text-slate-950 dark:text-slate-50">{event.location.name}</p>
+											<p class="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">{event.location.address ?? formatPriceLabel(event)}</p>
+										</div>
+								</div>
+							</div>
+
+							<div class="rounded-[1.25rem] bg-white p-3.5 shadow-sm shadow-slate-200/60 ring-1 ring-slate-200/70 dark:bg-slate-900 dark:shadow-none dark:ring-slate-800">
+								<div class="flex items-center justify-between gap-3">
+									{#if event.hostType === 'organization'}
+										<a href={resolve(`/organizations/${event.organizationId}`)} class="flex min-w-0 flex-1 items-center gap-3">
+											<div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-lg font-black text-blue-600 dark:bg-slate-800 dark:text-blue-300">
+												{#if event.organizationLogoURL}
+													<img src={event.organizationLogoURL} alt={event.organizationName ?? 'Organization'} class="h-full w-full object-cover" />
+												{:else}
+													{event.organizationName?.charAt(0).toUpperCase() ?? 'O'}
+												{/if}
+											</div>
+											<div class="min-w-0">
+												<div class="flex items-center gap-1.5">
+													<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">{event.organizationName ?? 'Organization'}</p>
+													{#if event.organizationVerificationStatus === 'verified'}<span class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-blue-600 text-[10px] font-black text-white">✓</span>{/if}
+												</div>
+												<p class="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
+													{organizationReviews.length ? `${organizationAverageRating.toFixed(1)} ★ · ${organizationReviews.length} reviews` : 'Official organizer'}
+												</p>
+											</div>
+										</a>
+									{:else if hostProfile}
+										<a href={resolve(`/users/${hostProfile.id}`)} class="flex min-w-0 flex-1 items-center gap-3">
+											<UserAvatar photoURL={hostProfile.photoURL} displayName={hostProfile.displayName} email={hostProfile.email} size="sm" />
+											<div class="min-w-0">
+												<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">{hostProfile.displayName}</p>
+												<p class="text-xs font-semibold text-slate-500 dark:text-slate-400">Host</p>
+											</div>
+										</a>
+									{/if}
+
+									<div class="shrink-0 border-l border-slate-100 pl-3 text-right dark:border-slate-800">
+										<p class="text-sm font-black text-blue-600 dark:text-blue-300">{participants.length}/{event.maxParticipants}</p>
+										<p class="text-[11px] font-bold text-slate-500 dark:text-slate-400">Players</p>
+									</div>
+								</div>
+
+								{#if canContactOrganizer}
+									<button type="button" onclick={contactOrganizer} disabled={contactLoading} class="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-800 transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100">
+										{contactLoading ? 'Opening...' : 'Message organizer'}
+									</button>
+								{/if}
+							</div>
+
+							<div class="rounded-[1.25rem] bg-white p-3.5 shadow-sm shadow-slate-200/60 ring-1 ring-slate-200/70 dark:bg-slate-900 dark:shadow-none dark:ring-slate-800">
+								<div class="flex items-center justify-between gap-3">
+									<div>
+										<p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Price</p>
+										<p class="mt-1 text-sm font-black text-slate-950 dark:text-slate-50">{formatPriceLabel(event)}</p>
+									</div>
+									<span class="rounded-full bg-green-50 px-3 py-1.5 text-xs font-black text-green-700 dark:bg-green-950 dark:text-green-300">
+										{effectiveStatus === 'full' ? 'Event full' : 'Spots available'}
+									</span>
+								</div>
+							</div>
+
+							<div class="space-y-2 px-1">
+								<p class="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Description</p>
+								<p class="text-[14px] font-medium leading-6 text-slate-700 dark:text-slate-300">
+									{event.description || 'No description provided yet.'}
+								</p>
+							</div>
+
+							<div class="grid grid-cols-3 divide-x divide-slate-100 overflow-hidden rounded-[1.15rem] bg-white shadow-sm shadow-slate-200/60 ring-1 ring-slate-200/70 dark:divide-slate-800 dark:bg-slate-900 dark:shadow-none dark:ring-slate-800">
+								<div class="min-w-0 p-3 text-center">
+									<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Skill</p>
+									<p class="mt-1 truncate text-xs font-black capitalize text-slate-950 dark:text-slate-50">{event.level ?? 'casual'}</p>
+								</div>
+								<div class="min-w-0 p-3 text-center">
+									<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Weather</p>
+									<div class="mt-1 flex justify-center"><EventWeather lat={event.location.lat} lng={event.location.lng} startAt={event.startAt} size="sm" /></div>
+								</div>
+								<div class="min-w-0 p-3 text-center">
+									<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Duration</p>
+									<p class="mt-1 truncate text-xs font-black text-slate-950 dark:text-slate-50">{formatEventDuration(event)}</p>
+								</div>
+							</div>
+
+							{#if event.whatToBring}
+								<div class="rounded-[1.25rem] bg-white p-3.5 shadow-sm shadow-slate-200/60 ring-1 ring-slate-200/70 dark:bg-slate-900 dark:shadow-none dark:ring-slate-800">
+									<p class="text-sm font-black text-slate-950 dark:text-slate-50">What to bring</p>
+									<p class="mt-1 whitespace-pre-line text-xs font-semibold leading-5 text-slate-500 dark:text-slate-400">{event.whatToBring}</p>
+								</div>
+							{/if}
+
+							{#if event?.eventKind !== 'tournament'}
+								<div class="rounded-[1.25rem] bg-white p-4 shadow-sm shadow-slate-200/60 ring-1 ring-slate-200/70 dark:bg-slate-900 dark:shadow-none dark:ring-slate-800">
+									<div class="flex items-center justify-between gap-4">
+										<div>
+											<p class="text-base font-black text-slate-950 dark:text-slate-50">Players</p>
+											<p class="text-sm font-bold text-slate-500 dark:text-slate-400">{participants.length}/{event.maxParticipants} confirmed</p>
+										</div>
+										<div class="flex -space-x-2 overflow-hidden pl-2">
+											{#each participants.slice(0, 4) as participant (participant.id)}
+												<UserAvatar photoURL={participant.photoURL} displayName={participant.displayName} email={participant.email} size="sm" />
+											{/each}
+											{#if participants.length > 4}<span class="flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-slate-100 text-xs font-black text-slate-600 dark:border-slate-950 dark:bg-slate-800 dark:text-slate-300">+{participants.length - 4}</span>{/if}
+										</div>
+									</div>
+									<div class="mt-3 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+										<div class="h-full rounded-full bg-blue-600" style={`width: ${Math.min(100, (participants.length / event.maxParticipants) * 100)}%`}></div>
+									</div>
+										<div class="mt-4 grid grid-cols-2 gap-2">
+											{#if canInvite}<a href={resolve(`/events/${event.id}/invite`)} class="inline-flex min-h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-800 shadow-sm shadow-slate-200/50 transition active:scale-[0.98] dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:shadow-none">Invite</a>{/if}
+											{#if canJoin}
+												<button onclick={handleJoinEvent} disabled={actionLoading} class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition active:scale-[0.98] disabled:opacity-60">{actionLoading ? 'Joining...' : 'Join event'}</button>
+											{:else if canRequestJoin}
+												<button onclick={handleRequestToJoin} disabled={actionLoading} class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition active:scale-[0.98] disabled:opacity-60">{actionLoading ? 'Requesting...' : 'Request to join'}</button>
+											{:else if hasPendingJoinRequest}
+												<button disabled class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-slate-100 px-4 py-2.5 text-sm font-black text-slate-500 dark:bg-slate-800 dark:text-slate-400">Request pending</button>
+											{/if}
+											{#if isParticipant && !isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}<button type="button" onclick={handleLeaveEvent} disabled={actionLoading} class="inline-flex min-h-11 items-center justify-center rounded-2xl border border-red-100 bg-red-50 px-4 py-2.5 text-sm font-black text-red-700 transition active:scale-[0.98] disabled:opacity-60 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">{actionLoading ? 'Leaving...' : 'Leave event'}</button>{/if}
+											{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
+												<a href={resolve(`/events/${event.id}/edit`)} class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-slate-950/10 transition active:scale-[0.98] dark:bg-white dark:text-slate-950">Edit</a>
+												<button type="button" onclick={handleFinishEvent} disabled={actionLoading} class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition active:scale-[0.98] disabled:opacity-60">Finish event</button>
+												<button type="button" onclick={handleCancelEvent} disabled={actionLoading} class="col-span-2 inline-flex min-h-11 items-center justify-center rounded-2xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-black text-red-700 transition active:scale-[0.98] disabled:opacity-60 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">Cancel event</button>
+											{/if}
+										</div>
+									</div>
+								{/if}
+							{:else if activeEventTab === 'players'}
+								<div class="-mx-1 space-y-3">
+									<div class="flex items-center justify-between px-1">
+										<div>
+											<p class="text-lg font-black text-slate-950 dark:text-slate-50">Players</p>
+											<p class="text-sm font-bold text-slate-500 dark:text-slate-400">{participants.length}/{event.maxParticipants} confirmed</p>
+										</div>
+										{#if canInvite}<a href={resolve(`/events/${event.id}/invite`)} class="rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white">Invite</a>{/if}
+									</div>
+									<div class="divide-y divide-slate-200 overflow-hidden rounded-2xl bg-white dark:divide-slate-800 dark:bg-slate-900">
+										{#each participants as participant (participant.id)}
+											<a href={resolve(`/users/${participant.id}`)} class="flex items-center gap-3 px-3 py-3 transition hover:bg-slate-50 dark:hover:bg-slate-800">
+												<UserAvatar photoURL={participant.photoURL} displayName={participant.displayName} email={participant.email} size="sm" />
+												<div class="min-w-0 flex-1">
+													<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">{participant.displayName}</p>
+													<p class="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">@{participant.rallyTag ?? participant.email}</p>
+												</div>
+												{#if participant.id === event.creatorId}<span class="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300">Host</span>{/if}
+											</a>
+										{:else}
+											<p class="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500 dark:bg-slate-950 dark:text-slate-400">No players yet.</p>
+										{/each}
+									</div>
+								</div>
+								{:else if activeEventTab === 'location'}
+									<div class="-mx-1 space-y-4">
+										<div class="flex items-start justify-between gap-3 px-1">
+											<div class="min-w-0">
+												<p class="truncate text-lg font-black text-slate-950 dark:text-slate-50">{event.location.name}</p>
+												{#if event.location.address}<p class="mt-0.5 line-clamp-2 text-sm font-semibold leading-5 text-slate-500 dark:text-slate-400">{event.location.address}</p>{/if}
+											</div>
+											{#if event.location.lat && event.location.lng}
+												<a href={`https://www.google.com/maps/dir/?api=1&destination=${event.location.lat},${event.location.lng}`} target="_blank" rel="noopener noreferrer" class="shrink-0 rounded-full bg-blue-50 px-3.5 py-2 text-xs font-black text-blue-600 transition active:scale-[0.98] dark:bg-blue-950 dark:text-blue-300">Directions</a>
+											{/if}
+										</div>
+										<div class="overflow-hidden rounded-[1.35rem] bg-white shadow-sm shadow-slate-200/60 ring-1 ring-slate-200/70 dark:bg-slate-900 dark:shadow-none dark:ring-slate-800">
+											<EventMap lat={event.location.lat ?? null} lng={event.location.lng ?? null} name={event.location.name} address={event.location.address ?? ''} compact={true} showHeader={false} />
+										</div>
+									</div>
+								{:else if activeEventTab === 'chat'}
+										{#if canAccessGroupChat && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
+											<section class="-mx-5 -mb-6 flex min-h-[calc(100dvh-18rem)] flex-col bg-white dark:bg-slate-950">
+											<div bind:this={messagesContainer} class="min-h-[20rem] flex-1 overflow-y-auto px-4 py-5">
+												{#if groupChatLoading}
+													<div class="flex h-full items-center justify-center text-sm text-slate-500 dark:text-slate-400">Loading group chat...</div>
+												{:else if groupMessages.length === 0}
+												<div class="flex h-full items-center justify-center text-center">
+													<div class="flex flex-col items-center">
+														<div class="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-2xl font-black text-blue-600 dark:bg-slate-800 dark:text-blue-300">
+															{event.title.slice(0, 1).toUpperCase()}
+														</div>
+														<p class="mt-3 font-bold text-slate-700 dark:text-slate-200">No messages yet</p>
+														<p class="mt-1 max-w-[17rem] text-sm text-slate-500 dark:text-slate-400">Send the first message to the event group.</p>
+													</div>
+												</div>
+											{:else}
+													<ChatMessageList messages={groupMessages} currentUserId={auth.currentUser?.uid} getSenderProfile={(senderId) => participantById[senderId]} typingLabel={groupTypingLabel} showSenderName={true} />
+												{/if}
+											</div>
+											<form class="sticky bottom-0 border-t border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950" onsubmit={(submitEvent) => { submitEvent.preventDefault(); handleSendGroupMessage(); }}>
+												<div class="mx-auto flex max-w-3xl items-center gap-2 rounded-full bg-slate-100 px-3 py-2 dark:bg-slate-900">
+													<input bind:value={groupMessageText} oninput={handleGroupTyping} placeholder="Message the group..." class="min-w-0 flex-1 border-0 bg-transparent px-2 text-sm text-slate-950 placeholder:text-slate-400 focus:ring-0 dark:text-white" />
+													<button type="submit" disabled={groupChatSending || !groupMessageText.trim()} class="rounded-full bg-blue-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-blue-700 disabled:opacity-50">{groupChatSending ? '...' : 'Send'}</button>
+												</div>
+										</form>
+									</section>
+							{:else}
+								<p class="rounded-2xl bg-white p-4 text-sm font-semibold text-slate-500 shadow-sm ring-1 ring-slate-200/70 dark:bg-slate-900 dark:text-slate-400 dark:ring-slate-800">Join the event to access the group chat.</p>
+							{/if}
 						{/if}
 
-						{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
-							<label
-								title="Edit group photo"
-								class="absolute -bottom-1 -right-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-white text-sm text-blue-600 shadow-lg ring-2 ring-slate-100 transition hover:bg-blue-50 dark:bg-white dark:text-blue-600 dark:ring-slate-800"
-							>
-								{#if groupPhotoSaving}
+						{#if error}
+							<div class="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+								{error}
+							</div>
+						{/if}
+					</section>
+
+			<section
+				class="hidden overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:block sm:rounded-4xl"
+			>
+					<div class="relative h-56 overflow-hidden bg-slate-950 lg:h-64">
+					<img src={getEventHeroImage(event)} alt={event.title} class="h-full w-full object-cover" />
+					<div class="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/35 to-transparent"></div>
+
+					<div class="absolute bottom-0 left-0 right-0 p-8">
+						<div class="flex flex-wrap items-center gap-2">
+							<span class="rounded-full bg-white/95 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-blue-600">
+								{event.sport}
+							</span>
+							<span class="rounded-full bg-white/90 px-3 py-1 text-xs font-black capitalize text-slate-700">
+								{effectiveStatus}
+							</span>
+							<span class="rounded-full bg-white/90 px-3 py-1 text-xs font-black capitalize text-slate-700">
+								{event.level ?? 'casual'}
+							</span>
+							{#if isPromotionActive(event)}
+								<span class="rounded-full bg-orange-500 px-3 py-1 text-xs font-black text-white">
+									Promoted
+								</span>
+							{/if}
+						</div>
+
+						<h1 class="mt-4 max-w-3xl break-words text-4xl font-black tracking-tight text-white">
+							{event.title}
+						</h1>
+					</div>
+
+					{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
+						<label
+							title="Edit group photo"
+							class="absolute right-5 top-5 flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-white text-blue-600 shadow-lg transition hover:bg-blue-50"
+						>
+							{#if groupPhotoSaving}
 								…
 							{:else}
-								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.4" stroke="currentColor" class="h-4 w-4">
+								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.4" stroke="currentColor" class="h-5 w-5">
 									<path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18A2.25 2.25 0 0 0 4.5 20.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
 									<path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
 								</svg>
 							{/if}
-								<input
-									type="file"
-									accept="image/*"
-									class="hidden"
-									onchange={handleGroupPhotoFileChange}
-								/>
-							</label>
-						{/if}
-					</div>
-
-					<div class="min-w-0 flex-1">
-						<p
-							class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400"
-						>
-							{event.sport}
-						</p>
-
-						<h1
-							class="mt-3 break-words text-3xl font-black tracking-tight text-slate-950 dark:text-slate-50 sm:text-4xl"
-						>
-							{event.title}
-						</h1>
-
-						{#if event.recurringGroupId}
-							<span
-								class="mt-2 inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-							>
-								🔁 Part of a recurring series ({event.recurringIndex}/{event.recurringTotal})
-							</span>
-						{/if}
-
-						<p class="mt-4 text-slate-600 dark:text-slate-300">
-							{event.description || 'No description provided.'}
-						</p>
-					</div>
+							<input type="file" accept="image/*" class="hidden" onchange={handleGroupPhotoFileChange} />
+						</label>
+					{/if}
 				</div>
+
+				<div class="p-8">
+					{#if event.recurringGroupId}
+						<span
+							class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+						>
+							🔁 Part of a recurring series ({event.recurringIndex}/{event.recurringTotal})
+						</span>
+					{/if}
+
+					<p class="text-slate-600 dark:text-slate-300 {event.recurringGroupId ? 'mt-4' : ''}">
+						{event.description || 'No description provided.'}
+					</p>
 
 				<div class="mt-6 grid grid-cols-2 gap-3 sm:mt-8 sm:grid-cols-3 sm:gap-4">
 					<div class="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800">
@@ -1283,12 +1419,7 @@
 								rel="noopener noreferrer"
 								class="mt-3 inline-flex items-center gap-1.5 text-xs font-black text-blue-600 dark:text-blue-400 hover:underline"
 							>
-								<svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-									<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#EA4335" />
-									<circle cx="12" cy="9" r="3" fill="#34A853" />
-									<path d="M12 2c2.1 0 4 .9 5.3 2.3L15 6.5C14.2 5.6 13.2 5 12 5c-2.2 0-4 1.8-4 4 0 .5.1 1 .3 1.5L6.1 12.2C5.4 11.2 5 10.1 5 9c0-3.87 3.13-7 7-7z" fill="#FBBC05" />
-									<path d="M12 22s7-7.75 7-13c0-.4-.1-.8-.2-1.2l-2.2 2.2c.2.6.4 1.3.4 2 0 3.2-3.5 8.1-5 9.8z" fill="#4285F4" />
-								</svg>
+								<img src="/map_location_icon.png" alt="Map icon" class="h-5 w-5 shrink-0 object-contain" />
 								<span>Get Directions</span>
 							</a>
 						{/if}
@@ -1331,6 +1462,8 @@
 						</p>
 					</div>
 				{/if}
+
+				</div>
 
 				{#if event?.eventKind !== 'tournament'}
 					<div
@@ -1422,7 +1555,7 @@
 				{/if}
 			</section>
 
-			{#if isCreator && event?.joinPolicy === 'approval'}
+				{#if isCreator && event?.joinPolicy === 'approval' && activeEventTab === 'overview'}
 				<section
 					class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-4xl sm:p-6 sm:shadow-xl sm:shadow-slate-200/70"
 				>
@@ -1507,43 +1640,43 @@
 				</section>
 			{/if}
 
-			{#if event?.eventKind === 'tournament'}
-				<TournamentPanel {event} {currentUserId} canManage={canManageTournament} />
-			{/if}
+				{#if event?.eventKind === 'tournament' && activeEventTab === 'overview'}
+					<TournamentPanel {event} {currentUserId} canManage={canManageTournament} />
+				{/if}
 
-			{#if canAccessGroupChat && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
-				<section
-					class="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-4xl sm:shadow-xl sm:shadow-slate-200/70"
-				>
-					<div class="flex items-center gap-3 border-b border-slate-100 p-4 dark:border-slate-800 sm:gap-4 sm:p-5">
+				{#if canAccessGroupChat && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
+						<section
+							class="hidden overflow-hidden rounded-[1.4rem] border border-slate-200 bg-white shadow-sm shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:block sm:rounded-4xl sm:shadow-xl sm:shadow-slate-200/70"
+					>
+						<div class="flex items-center gap-3 border-b border-slate-100 p-3 dark:border-slate-800 sm:gap-4 sm:p-5">
 						{#if event.groupPhotoURL}
 							<img
 								src={event.groupPhotoURL}
 								alt={event.title}
-								class="h-10 w-10 rounded-full object-cover ring-2 ring-white dark:ring-slate-800 sm:h-12 sm:w-12"
+									class="h-9 w-9 rounded-full object-cover ring-2 ring-white dark:ring-slate-800 sm:h-12 sm:w-12"
 							/>
 						{:else}
 							<div
-								class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-base font-black text-blue-600 ring-2 ring-white dark:bg-blue-950 dark:text-blue-300 dark:ring-slate-800 sm:h-12 sm:w-12 sm:text-lg"
+									class="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-base font-black text-blue-600 ring-2 ring-white dark:bg-blue-950 dark:text-blue-300 dark:ring-slate-800 sm:h-12 sm:w-12 sm:text-lg"
 							>
 								{event.title.slice(0, 1).toUpperCase()}
 							</div>
 						{/if}
 
 						<div class="min-w-0 flex-1">
-							<p class="truncate text-base font-black text-slate-950 dark:text-white sm:text-lg">
+								<p class="truncate text-sm font-black text-slate-950 dark:text-white sm:text-lg">
 								{event.title}
 							</p>
-							<p class="truncate text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
+								<p class="truncate text-[11px] text-slate-500 dark:text-slate-400 sm:text-sm">
 								Group chat · {event.participantIds.length} members
 							</p>
 						</div>
 					</div>
 
-					<div
-						bind:this={messagesContainer}
-						class="h-[20rem] overflow-y-auto bg-slate-50 px-4 py-4 dark:bg-slate-950 sm:h-[22.5rem] sm:px-5 sm:py-5"
-					>
+						<div
+							bind:this={messagesContainer}
+							class="h-[14rem] overflow-y-auto bg-slate-50 px-4 py-4 dark:bg-slate-950 sm:h-[22.5rem] sm:px-5 sm:py-5"
+						>
 						{#if groupChatLoading}
 							<div
 								class="flex h-full items-center justify-center text-sm text-slate-500 dark:text-slate-400"
@@ -1562,9 +1695,9 @@
 							{/if}
 							<div class="flex h-full items-center justify-center text-center">
 								<div>
-									<p class="text-4xl">💬</p>
-									<p class="mt-3 font-black text-slate-700 dark:text-slate-200">No messages yet</p>
-									<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+									<p class="text-3xl sm:text-4xl">💬</p>
+									<p class="mt-2 text-sm font-black text-slate-700 dark:text-slate-200 sm:mt-3 sm:text-base">No messages yet</p>
+									<p class="mt-1 text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
 										Send the first message to the event group.
 									</p>
 								</div>
@@ -1581,14 +1714,14 @@
 					</div>
 
 					<form
-						class="border-t border-slate-100 bg-white px-3 py-3 dark:border-slate-800 dark:bg-slate-900 sm:px-4"
+						class="border-t border-slate-100 bg-white px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900 sm:px-4 sm:py-3"
 						onsubmit={(submitEvent) => {
 							submitEvent.preventDefault();
 							handleSendGroupMessage();
 						}}
 					>
 						<div
-							class="mx-auto flex max-w-3xl items-center gap-2 rounded-full bg-slate-100 px-3 py-2 dark:bg-slate-950"
+							class="mx-auto flex max-w-3xl items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 dark:bg-slate-950 sm:py-2"
 						>
 							<input
 								bind:value={groupMessageText}
@@ -1600,7 +1733,7 @@
 							<button
 								type="submit"
 								disabled={groupChatSending || !groupMessageText.trim()}
-								class="rounded-full bg-blue-600 px-5 py-2 text-sm font-black text-white transition hover:bg-blue-700 disabled:opacity-50"
+								class="rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700 disabled:opacity-50 sm:px-5"
 							>
 								{groupChatSending ? '...' : 'Send'}
 							</button>
@@ -1713,16 +1846,16 @@
 						<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Team status</h2>
 
 						{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
-							<div class="flex items-center gap-2">
+							<div class="flex flex-wrap items-center justify-end gap-2">
 								<button
 									type="button"
 									onclick={handleFinishEvent}
 									disabled={actionLoading}
 									title="Finish event"
 									aria-label="Finish event"
-									class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-sm font-black text-blue-600 transition hover:bg-blue-100 disabled:opacity-60 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+									class="inline-flex min-h-10 items-center justify-center rounded-2xl bg-blue-600 px-4 text-sm font-black text-white shadow-sm shadow-blue-600/20 transition hover:bg-blue-700 disabled:opacity-60"
 								>
-									✓
+									Finish event
 								</button>
 
 								<button
@@ -1731,9 +1864,9 @@
 									disabled={actionLoading}
 									title="Cancel event"
 									aria-label="Cancel event"
-									class="flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-xl font-black text-red-600 transition hover:bg-red-100 disabled:opacity-60 dark:bg-red-950 dark:text-red-300 dark:hover:bg-red-900"
+									class="inline-flex min-h-10 items-center justify-center rounded-2xl border border-red-200 bg-red-50 px-4 text-sm font-black text-red-700 transition hover:bg-red-100 disabled:opacity-60 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
 								>
-									×
+									Cancel event
 								</button>
 							</div>
 						{:else if isParticipant && !isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
@@ -1743,9 +1876,9 @@
 								disabled={actionLoading}
 								title="Leave event"
 								aria-label="Leave event"
-								class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-lg font-black text-slate-600 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-60 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-red-950 dark:hover:text-red-300"
+								class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 transition hover:bg-red-50 disabled:opacity-60 dark:bg-slate-800 dark:hover:bg-red-950"
 							>
-								↩
+								<img src="/leave_icon.png" alt="Leave event" class="h-5 w-5 object-contain" />
 							</button>
 						{/if}
 					</div>

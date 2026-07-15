@@ -12,6 +12,49 @@
 	let weather = $state<WeatherForecast | null>(null);
 	let loading = $state(true);
 
+	function getEventDate(): Date | null {
+		if (!startAt) return null;
+		if (typeof startAt.toDate === 'function') {
+			return startAt.toDate();
+		} else if (startAt instanceof Date) {
+			return startAt;
+		} else if (typeof startAt === 'string' || typeof startAt === 'number') {
+			const d = new Date(startAt);
+			return Number.isNaN(d.getTime()) ? null : d;
+		}
+		return null;
+	}
+
+	function getFallbackInfo() {
+		const date = getEventDate();
+		if (!date) {
+			return {
+				tooltip: 'Weather forecast not available.',
+				label: 'Forecast not available'
+			};
+		}
+
+		const now = Date.now();
+		if (date.getTime() < now - 24 * 3600 * 1000) {
+			return {
+				tooltip: 'Weather data is not available for past events.',
+				label: 'Past event (no weather data)'
+			};
+		}
+
+		if (date.getTime() - now > 14 * 24 * 3600 * 1000) {
+			return {
+				tooltip: 'Weather forecast is only available up to 14 days before the event.',
+				label: 'Forecast available 14 days before event'
+			};
+		}
+
+		return {
+			tooltip: 'Weather forecast not available.',
+			label: 'Forecast not available'
+		};
+	}
+
 	onMount(() => {
 		async function fetchWeather() {
 			if (lat === null || lat === undefined || lng === null || lng === undefined || !startAt) {
@@ -30,24 +73,45 @@
 	});
 </script>
 
-{#if !loading && weather}
-	{#if size === 'sm'}
-		<span
-			class="inline-flex items-center gap-1 rounded-full bg-slate-100/70 px-2 py-0.5 text-[10px] font-black text-slate-600 dark:bg-slate-850 dark:text-slate-300"
-			title={weather.description}
-		>
-			<span>{weather.icon}</span>
-			<span>{Math.round(weather.temp)}°C</span>
-		</span>
+{#if !loading}
+	{#if weather}
+		{#if size === 'sm'}
+			<span
+				class="inline-flex items-center gap-1 rounded-full bg-slate-100/70 px-2 py-0.5 text-[10px] font-black text-slate-600 dark:bg-slate-850 dark:text-slate-300"
+				title={weather.description}
+			>
+				<span>{weather.icon}</span>
+				<span>{Math.round(weather.temp)}°C</span>
+			</span>
+		{:else}
+			<div
+				class="inline-flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-slate-100 dark:bg-slate-800/80 dark:text-slate-300 dark:ring-slate-700/60"
+				title={weather.description}
+			>
+				<span class="text-base">{weather.icon}</span>
+				<span>{Math.round(weather.temp)}°C</span>
+				<span class="hidden text-xs text-slate-400 dark:text-slate-500 sm:inline-block">•</span>
+				<span class="hidden text-xs text-slate-500 dark:text-slate-400 sm:inline-block capitalize">{weather.description}</span>
+			</div>
+		{/if}
 	{:else}
-		<div
-			class="inline-flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-slate-100 dark:bg-slate-800/80 dark:text-slate-300 dark:ring-slate-700/60"
-			title={weather.description}
-		>
-			<span class="text-base">{weather.icon}</span>
-			<span>{Math.round(weather.temp)}°C</span>
-			<span class="hidden text-xs text-slate-400 dark:text-slate-500 sm:inline-block">•</span>
-			<span class="hidden text-xs text-slate-500 dark:text-slate-400 sm:inline-block capitalize">{weather.description}</span>
-		</div>
+		{@const info = getFallbackInfo()}
+		{#if size === 'sm'}
+			<span
+				class="inline-flex items-center gap-1 rounded-full bg-slate-50/50 px-2 py-0.5 text-[10px] font-semibold text-slate-400 dark:bg-slate-850/50 dark:text-slate-500 cursor-help"
+				title={info.tooltip}
+			>
+				<span>☁️</span>
+				<span>N/A</span>
+			</span>
+		{:else}
+			<div
+				class="inline-flex items-center gap-2 rounded-xl bg-slate-50/50 px-3 py-1.5 text-xs font-semibold text-slate-400 shadow-sm ring-1 ring-slate-100/80 dark:bg-slate-800/40 dark:text-slate-500 dark:ring-slate-750/30 cursor-help"
+				title={info.tooltip}
+			>
+				<span class="text-sm">☁️</span>
+				<span>{info.label}</span>
+			</div>
+		{/if}
 	{/if}
 {/if}

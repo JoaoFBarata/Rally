@@ -152,7 +152,7 @@
 					class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-slate-100 text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
 					aria-label="Show my QR code"
 				>
-					<img src="/qr-code.png" alt="" class="h-6 w-6 object-contain dark:invert" />
+					<img src="/qr-code.png" alt="" class="h-6 w-6 object-contain" />
 				</button>
 			</div>
 
