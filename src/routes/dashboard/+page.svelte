@@ -57,7 +57,6 @@
 	let showCancelledEvents = $state(false);
 	let showUpcomingRallies = $state(false);
 	let showNotifications = $state(false);
-	let nearbyIndex = $state(0);
 	let radiusKm = $state(20);
 	let discoverTab = $state<'nearby' | 'recommended' | 'following'>('nearby');
 	let userDeviceLocation = $state<{ lat: number; lng: number } | null>(null);
@@ -120,9 +119,6 @@
 			.sort((a, b) => (a.distance ?? Number.POSITIVE_INFINITY) - (b.distance ?? Number.POSITIVE_INFINITY))
 			.map(({ event }) => event);
 	});
-	let currentNearbyEvent = $derived(
-		nearbyEvents.length ? nearbyEvents[nearbyIndex % nearbyEvents.length] : null
-	);
 	let dashboardPromotedEvents = $derived.by(() => {
 		const excluded = (event: SportEvent) =>
 			userEventIds.has(event.id) ||
@@ -228,14 +224,13 @@
 
 		locationStatus = 'loading';
 		navigator.geolocation.getCurrentPosition(
-			(position) => {
-				userDeviceLocation = {
-					lat: position.coords.latitude,
-					lng: position.coords.longitude
-				};
-				locationStatus = 'ready';
-				nearbyIndex = 0;
-			},
+				(position) => {
+					userDeviceLocation = {
+						lat: position.coords.latitude,
+						lng: position.coords.longitude
+					};
+					locationStatus = 'ready';
+				},
 			() => {
 				locationStatus = 'blocked';
 			},
@@ -328,33 +323,8 @@
 		}
 	}
 
-	let touchStartX = 0;
-	let touchEndX = 0;
-
-	function handleTouchStart(e: TouchEvent) {
-		touchStartX = e.changedTouches[0].screenX;
-	}
-
-	function handleTouchEnd(e: TouchEvent) {
-		touchEndX = e.changedTouches[0].screenX;
-		const diff = touchStartX - touchEndX;
-		if (Math.abs(diff) > 50) {
-			if (diff > 0) {
-				showNearby(nearbyIndex + 1);
-			} else {
-				showNearby(nearbyIndex - 1);
-			}
-		}
-	}
-
-	function showNearby(index: number) {
-		if (!nearbyEvents.length) return;
-		nearbyIndex = (index + nearbyEvents.length) % nearbyEvents.length;
-	}
-
 	function changeRadius(radius: number) {
 		radiusKm = radius;
-		nearbyIndex = 0;
 	}
 
 	async function refreshDashboardData(userId: string) {
@@ -741,7 +711,7 @@
 				</div>
 			{/if}
 
-			<nav class="flex gap-2 overflow-x-auto pb-4 sm:pb-3">
+			<nav class="flex gap-2 overflow-x-auto pb-5 sm:pb-3">
 				<a href={resolve('/explore')} class="inline-flex shrink-0 items-center gap-2 rounded-full bg-blue-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700">
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
 							<circle cx="11" cy="11" r="8" />
@@ -1011,92 +981,13 @@
 
 						{#if nearbyEvents.length > 0}
 							<div class="space-y-3">
-								<div class="relative flex items-center group/carousel">
-									{#if nearbyEvents.length > 2}
-										<!-- Left Arrow Button (PC Only) -->
-										<button
-											type="button"
-											onclick={() => showNearby(nearbyIndex - 1)}
-											class="hidden md:grid absolute left-[-1.25rem] z-10 h-10 w-10 place-items-center rounded-full bg-white/95 text-slate-700 shadow-md ring-1 ring-slate-200 transition-all hover:scale-105 hover:bg-slate-50 dark:bg-slate-900/95 dark:text-slate-200 dark:ring-slate-800 dark:hover:bg-slate-800 active:scale-95"
-											aria-label="Previous event"
-										>
-											<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
-												<path d="m15 18-6-6 6-6" />
-											</svg>
-										</button>
-
-										<!-- Right Arrow Button (PC Only) -->
-										<button
-											type="button"
-											onclick={() => showNearby(nearbyIndex + 1)}
-											class="hidden md:grid absolute right-[-1.25rem] z-10 h-10 w-10 place-items-center rounded-full bg-white/95 text-slate-700 shadow-md ring-1 ring-slate-200 transition-all hover:scale-105 hover:bg-slate-50 dark:bg-slate-900/95 dark:text-slate-200 dark:ring-slate-800 dark:hover:bg-slate-800 active:scale-95"
-											aria-label="Next event"
-										>
-											<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
-												<path d="m9 18 6-6-6-6" />
-											</svg>
-										</button>
-									{/if}
-
-									<!-- Mobile View: Exactly 1 card with swipe gestures -->
-									<div
-										class="block md:hidden w-full select-none"
-										role="group"
-										aria-label="Nearby events carousel"
-										ontouchstart={handleTouchStart}
-										ontouchend={handleTouchEnd}
-									>
-										{#if nearbyEvents[nearbyIndex]}
-											<EventCard
-												event={nearbyEvents[nearbyIndex]}
-												variant="hero"
-												compactHero
-												heroCtaLabel="View event"
-											/>
-										{/if}
-									</div>
-
-									<!-- Desktop/PC View: Exactly 2 cards side-by-side -->
-									<div class="hidden md:flex gap-4 w-full">
-										{#if nearbyEvents[nearbyIndex]}
-											<div class="w-1/2">
-												<EventCard
-													event={nearbyEvents[nearbyIndex]}
-													variant="hero"
-													compactHero
-													heroCtaLabel="View event"
-												/>
-											</div>
-										{/if}
-										{#if nearbyEvents.length > 1}
-											{@const nextIndex = (nearbyIndex + 1) % nearbyEvents.length}
-											{#if nearbyEvents[nextIndex]}
-												<div class="w-1/2">
-													<EventCard
-														event={nearbyEvents[nextIndex]}
-														variant="hero"
-														compactHero
-														heroCtaLabel="View event"
-													/>
-												</div>
-											{/if}
-										{/if}
-									</div>
-								</div>
-
-								<!-- Navigation Dots -->
-								{#if nearbyEvents.length > 1}
-									<div class="flex flex-wrap items-center justify-center gap-1.5 pt-1">
-										{#each nearbyEvents as event, index (event.id)}
-											<button
-												type="button"
-												onclick={() => showNearby(index)}
-												class={`h-2 rounded-full transition-all ${index === nearbyIndex ? 'w-6 bg-blue-600' : 'w-2 bg-blue-200 dark:bg-blue-900'}`}
-												aria-label={`Show nearby event ${index + 1}`}
-											></button>
-										{/each}
-									</div>
-								{/if}
+								<PromotedEventCarousel
+									events={nearbyEvents}
+									cardVariant="hero"
+									compactHero
+									heroCtaLabel="View event"
+									ariaLabel="Nearby events"
+								/>
 							</div>
 						{:else}
 							<div class="rounded-[1.5rem] border border-dashed border-slate-200 bg-white/70 p-5 text-sm dark:border-slate-800 dark:bg-slate-900/70">
@@ -1112,7 +1003,13 @@
 						{/if}
 						{:else if discoverTab === 'recommended'}
 							{#if recommendedEvents.length > 0}
-								<PromotedEventCarousel events={recommendedEvents} cardVariant="profile" />
+								<PromotedEventCarousel
+									events={recommendedEvents}
+									cardVariant="hero"
+									compactHero
+									heroCtaLabel="View event"
+									ariaLabel="Recommended events"
+								/>
 							{:else}
 								<div class="rounded-[1.5rem] border border-dashed border-slate-200 bg-white/70 p-5 text-sm dark:border-slate-800 dark:bg-slate-900/70">
 									<p class="font-black text-slate-800 dark:text-slate-100">
@@ -1132,7 +1029,13 @@
 							{/if}
 						{:else}
 							{#if followingEvents.length > 0}
-								<PromotedEventCarousel events={followingEvents} cardVariant="profile" />
+								<PromotedEventCarousel
+									events={followingEvents}
+									cardVariant="hero"
+									compactHero
+									heroCtaLabel="View event"
+									ariaLabel="Events from followed organizations"
+								/>
 							{:else}
 								<div class="rounded-[1.5rem] border border-dashed border-slate-200 bg-white/70 p-5 text-sm dark:border-slate-800 dark:bg-slate-900/70">
 									<p class="font-black text-slate-800 dark:text-slate-100">

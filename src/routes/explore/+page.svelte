@@ -71,6 +71,9 @@
 		getValidParam('audience', validAudienceFilters, defaultAudienceFilter)
 	);
 	let searchTerm = $state(page.url.searchParams.get('search')?.trim() ?? '');
+	let promotedPage = $state(0);
+	let promotedRotationSeed = $state(0);
+	const promotedPageSize = 4;
 
 	const dateFilterOptions = [
 		{ value: 'today' as const, label: 'Today' },
@@ -236,14 +239,43 @@
 			}
 		}
 
-		return Array.from(eventsById.values()).sort((a, b) => {
+		const rankedEvents = Array.from(eventsById.values()).sort((a, b) => {
 			const scoreDiff = getPromotedContextScore(b) - getPromotedContextScore(a);
 			if (scoreDiff !== 0) return scoreDiff;
 
 			return getEventStartAtMillis(a) - getEventStartAtMillis(b);
 		});
+
+		if (rankedEvents.length <= 1) return rankedEvents;
+
+		const rotationOffset = promotedRotationSeed % rankedEvents.length;
+		return [
+			...rankedEvents.slice(rotationOffset),
+			...rankedEvents.slice(0, rotationOffset)
+		];
 	});
+	let promotedPageCount = $derived(Math.max(1, Math.ceil(promotedEvents.length / promotedPageSize)));
+	let visiblePromotedEvents = $derived(
+		promotedEvents.slice(
+			promotedPage * promotedPageSize,
+			promotedPage * promotedPageSize + promotedPageSize
+		)
+	);
 	let refreshing = false;
+
+	function getVisiblePageDots(pageCount: number, activePage: number) {
+		if (pageCount <= 7) return Array.from({ length: pageCount }, (_, index) => index);
+
+		const indexes = new Set<number>([0, pageCount - 1, activePage - 1, activePage, activePage + 1]);
+		return [...indexes]
+			.filter((index) => index >= 0 && index < pageCount)
+			.sort((a, b) => a - b);
+	}
+
+	function setPromotedPage(page: number) {
+		if (!promotedPageCount) return;
+		promotedPage = (page + promotedPageCount) % promotedPageCount;
+	}
 
 	async function loadExploreData(userId: string) {
 		if (refreshing) return;
@@ -364,6 +396,10 @@
 	onMount(() => {
 		let unsubscribeEvents = () => {};
 		let unsubscribePromotions = () => {};
+		const promotionRotationTimer = window.setInterval(() => {
+			promotedRotationSeed += 1;
+			setPromotedPage(promotedPage + 1);
+		}, 9000);
 		void (async () => {
 			const currentUser = auth.currentUser;
 			if (!currentUser) {
@@ -392,9 +428,15 @@
 			}
 		})();
 		return () => {
+			window.clearInterval(promotionRotationTimer);
 			unsubscribeEvents();
 			unsubscribePromotions();
 		};
+	});
+
+	$effect(() => {
+		const count = promotedPageCount;
+		if (promotedPage >= count) promotedPage = 0;
 	});
 </script>
 
@@ -496,10 +538,22 @@
 
 							{#if promotedEvents.length}
 								<div class="max-h-[52dvh] space-y-3 overflow-y-auto pr-1 md:max-h-[520px]">
-									{#each promotedEvents as event (event.id)}
+									{#each visiblePromotedEvents as event (event.id)}
 										<EventCard {event} variant="profile" />
 									{/each}
 								</div>
+								{#if promotedPageCount > 1}
+									<div class="flex items-center justify-center gap-1.5 rounded-full bg-white/90 px-3 py-2 shadow-sm backdrop-blur dark:bg-slate-950/90">
+										{#each getVisiblePageDots(promotedPageCount, promotedPage) as pageIndex (pageIndex)}
+											<button
+												type="button"
+												onclick={() => setPromotedPage(pageIndex)}
+												class={`h-2 rounded-full transition-all ${pageIndex === promotedPage ? 'w-6 bg-blue-600' : 'w-2 bg-blue-200 dark:bg-blue-900'}`}
+												aria-label={`Show promoted page ${pageIndex + 1}`}
+											></button>
+										{/each}
+									</div>
+								{/if}
 							{:else}
 								<div
 									class="rounded-[1.5rem] border border-dashed border-slate-350 bg-white/95 p-4 text-sm font-bold text-slate-500 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-950/95 dark:text-slate-400"
@@ -528,7 +582,7 @@
 
 					{#if promotedEvents.length}
 						<div class="max-h-[24rem] space-y-2.5 overflow-y-auto pr-1">
-							{#each promotedEvents.slice(0, 5) as event (event.id)}
+							{#each visiblePromotedEvents as event (event.id)}
 								<div>
 									<a
 										href={`/events/${event.id}`}
@@ -565,6 +619,18 @@
 								</div>
 							{/each}
 						</div>
+						{#if promotedPageCount > 1}
+							<div class="mt-3 flex items-center justify-center gap-1.5">
+								{#each getVisiblePageDots(promotedPageCount, promotedPage) as pageIndex (pageIndex)}
+									<button
+										type="button"
+										onclick={() => setPromotedPage(pageIndex)}
+										class={`h-2 rounded-full transition-all ${pageIndex === promotedPage ? 'w-6 bg-blue-600' : 'w-2 bg-blue-200 dark:bg-blue-100'}`}
+										aria-label={`Show promoted page ${pageIndex + 1}`}
+									></button>
+								{/each}
+							</div>
+						{/if}
 					{:else}
 						<div
 							class="rounded-xl border border-dashed border-slate-350 bg-white p-2.5 text-xs font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"

@@ -628,8 +628,8 @@
 						<span class="block text-sm font-black">Rally QR</span>
 						<span class="block text-xs text-blue-100">Share your code to connect</span>
 			        </span>
-			        <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/15">
-						<img src="/qr-code.png" alt="QR code" class="h-6 w-6 object-contain invert" />
+			        <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white">
+						<img src="/qr-code.png" alt="QR code" class="h-6 w-6 object-contain" />
 			        </span>
 			    </button>
 			{/if}
@@ -706,7 +706,7 @@
 			    {#if friends.length === 0}
 			        <p class="mt-3 text-sm text-slate-500 dark:text-slate-400">Add friends using a Rally tag.</p>
 			    {:else}
-			        <div class="mt-4 flex gap-3 overflow-x-auto pb-1">
+			        <div class="mt-4 flex gap-3 overflow-x-auto pb-4">
 						{#each friends as friend (friend.id)}
 						    <a href={resolve(`/users/${friend.id}`)} class="w-16 shrink-0 text-center">
 						        <div class="mx-auto h-12 w-12">
@@ -1030,7 +1030,7 @@
 							aria-label="Show QR code"
 							title="Show QR code"
 						>
-							<img src="/qr-code.png" alt="QR code" class="h-6 w-6 object-contain dark:invert" />
+							<img src="/qr-code.png" alt="QR code" class="h-6 w-6 object-contain" />
 						</button>
 					</div>
 
