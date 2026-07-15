@@ -20,6 +20,9 @@ importers:
       '@capawesome/capacitor-google-sign-in':
         specifier: ^0.1.2
         version: 0.1.2(@capacitor/core@8.4.1)
+      '@lucide/svelte':
+        specifier: ^1.23.0
+        version: 1.23.0(svelte@5.55.10(@typescript-eslint/types@8.60.0))
       capacitor:
         specifier: ^0.5.6
         version: 0.5.6
@@ -526,6 +529,11 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@lucide/svelte@1.23.0':
+    resolution: {integrity: sha512-3LQbKXx9vId6Nx4E2Nu2qwgJfdmr5+CVeVJbxe5cy+HcnCRd9QVVtZXqvgBYAV1OJrPmQAf9/3gJWLCpASC/Ng==}
+    peerDependencies:
+      svelte: ^5
 
   '@mapbox/mapbox-gl-supported@3.0.0':
     resolution: {integrity: sha512-2XghOwu16ZwPJLOFVuIOaLbN0iKMn867evzXFyf0P22dqugezfJwLmdanAgU25ITvz1TvOfVP4jsDImlDJzcWg==}
@@ -2831,6 +2839,10 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@lucide/svelte@1.23.0(svelte@5.55.10(@typescript-eslint/types@8.60.0))':
+    dependencies:
+      svelte: 5.55.10(@typescript-eslint/types@8.60.0)
 
   '@mapbox/mapbox-gl-supported@3.0.0': {}
 

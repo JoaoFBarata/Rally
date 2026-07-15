@@ -6,7 +6,6 @@
 	import { auth } from '$lib/firebase';
 	import { onAuthStateChanged } from 'firebase/auth';
 	import RallyLogo from '$lib/components/RallyLogo.svelte';
-	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import NavIcon from '$lib/components/NavIcon.svelte';
 	import { initTheme } from '$lib/theme.svelte';
 	import type { UserProfile } from '$lib/schema';
@@ -50,12 +49,6 @@
 		if (organizationId && organizationManageHref && organizationPublicHref) {
 			items = [
 				{
-					label: 'Create event',
-					href: createEventHref,
-					icon: 'create',
-					primary: true
-				},
-				{
 					label: 'Explore',
 					href: '/explore',
 					icon: 'explore'
@@ -78,12 +71,6 @@
 			];
 		} else {
 			items = [
-				{
-					label: 'Create event',
-					href: '/events/create',
-					icon: 'create',
-					primary: true
-				},
 				{
 					label: 'Explore',
 					href: '/explore',
@@ -126,20 +113,6 @@
 			filtered = navItems.filter((item) => item.href !== replaceableHref);
 		}
 
-		// Reorganize so the primary item (Create event) is in the middle (index 2)
-		const primaryItem = filtered.find((item) => item.primary);
-		const secondaryItems = filtered.filter((item) => !item.primary);
-
-		if (primaryItem && secondaryItems.length === 4) {
-			return [
-				secondaryItems[0],
-				secondaryItems[1],
-				primaryItem,
-				secondaryItems[2],
-				secondaryItems[3]
-			];
-		}
-
 		return filtered.slice(0, isPlatformAdmin ? 6 : 5);
 	});
 
@@ -148,7 +121,6 @@
 	);
 
 	function mobileLabel(label: string) {
-		if (label === 'Create event') return 'Create';
 		if (label === 'Organization') return 'Org';
 		return label;
 	}
@@ -310,14 +282,62 @@
 </script>
 
 {#if shouldHideNavigation()}
-	<div class="min-h-[100dvh] bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
+	<div class="min-h-dvh bg-white text-black dark:bg-[#111111] dark:text-white font-montserrat">
 		{@render children()}
 	</div>
 {:else}
-	<div class="min-h-screen bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
+	<div class="min-h-screen bg-white text-black dark:bg-[#111111] dark:text-white font-montserrat">
 		<div class="flex min-h-screen min-w-0 overflow-x-clip">
 			<!-- Desktop sidebar -->
-			<aside
+			<aside class="hidden md:flex flex-col h-screen w-71 fixed bg-[#f6f6f6] dark:bg-[#212121]">
+				<div class="w-full pl-6.75 mt-13.25">
+					<RallyLogo size="md" href={organizationManageHref ?? '/'}/>
+					<button class="mt-10.25 w-53.25 h-14.5 bg-[#48b3ff] rounded-[10px] text-white cursor-pointer" onclick={() => goto(resolve(createEventHref))}>
+						<h3 class="text-[20px] font-semibold">+ New event</h3>
+					</button>
+				</div>
+				<div class="w-full grow flex flex-col justify-between bg-[#eaeaea] dark:bg-[#1A1A1A] rounded-tr-[75px] mt-10 pb-9">
+					<div>
+						{#each navItems as item, idx (item.href)}
+							<a
+								href={resolveNavHref(item.href)}
+								class={`flex flex-row items-center gap-6 text-[1.25rem] ${idx==0 ? 'rounded-tr-[75px] ' : ''}font-medium transition pl-[2.59375rem] py-5 w-full ${
+												isActive(item.href)
+													? 'bg-blue-600 text-white'
+													: 'text-slate-600 hover:bg-slate-300 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
+										  }`}>
+								<span class="flex items-center justify-center h-6 w-6 text-lg">
+									<NavIcon name={item.icon} />
+								</span>
+								<span>{item.label}</span>
+
+								{#if item.href === '/messages' && notificationState.total > 0}
+									<span
+										class={`ml-auto flex min-h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold ${
+											isActive(item.href) ? 'bg-white text-blue-600' : 'bg-red-500 text-white'
+										}`}>
+										{formatBadge(notificationState.total)}
+									</span>
+								{/if}
+							</a>
+						{/each}
+					</div>
+					<div>
+						<a href={resolveNavHref('/settings')}
+							class={`flex flex-row items-center gap-6 text-[1.25rem] font-medium transition pl-[2.59375rem] py-5 w-full ${
+												isActive('/settings')
+													? 'bg-blue-600 text-white'
+													: 'text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
+									}`}>
+							<span class="flex items-center justify-center h-6 w-6 text-lg">
+								<NavIcon name="settings"/>
+							</span>
+							<span>Settings</span>
+						</a>
+					</div>
+				</div>
+			</aside>
+			<!-- <aside
 				class="hidden w-72 shrink-0 border-r border-slate-200 bg-white px-5 py-6 dark:border-slate-800 dark:bg-slate-900 md:sticky md:top-0 md:flex md:h-screen md:flex-col md:overflow-y-auto"
 			>
 				<div>
@@ -329,62 +349,10 @@
 					<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
 						{organizationId ? 'Manage official sports experiences' : 'Find your game.'}
 					</p>
-				</div>
-
-				<nav class="mt-10 space-y-1">
-					{#each navItems as item (item.href)}
-						<a
-							href={resolveNavHref(item.href)}
-							class={`flex items-center text-sm font-semibold transition ${
-								item.primary
-									? 'mb-6 w-fit gap-3 rounded-2xl bg-blue-300 px-3 py-2.5 pr-5 text-slate-800 shadow-none hover:bg-blue-300 hover:text-slate-800 hover:shadow-lg hover:shadow-slate-400/30 dark:bg-blue-950/70 dark:text-blue-300 dark:hover:bg-blue-950/70 dark:hover:text-blue-300 dark:hover:shadow-black/40'
-									: `-ml-5 mr-3 w-auto gap-5 rounded-l-none rounded-r-full py-3 pl-10 pr-5 ${
-											isActive(item.href)
-												? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-												: 'text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
-										}`
-							}`}
-						>
-							<span
-								class={`flex items-center justify-center rounded-xl ${
-									item.primary ? 'h-7 w-7 text-blue-700 dark:text-blue-200' : 'h-7 w-7 text-lg'
-								}`}
-							>
-								<NavIcon name={item.icon} />
-							</span>
-
-							<span>{item.label}</span>
-
-							{#if item.href === '/messages' && notificationState.total > 0}
-								<span
-									class={`ml-auto flex min-h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-black ${
-										isActive(item.href) ? 'bg-white text-blue-600' : 'bg-red-500 text-white'
-									}`}
-								>
-									{formatBadge(notificationState.total)}
-								</span>
-							{/if}
-						</a>
-					{/each}
-				</nav>
-
-				<a
-					href={resolveNavHref('/settings')}
-					class={`-ml-5 mr-3 mt-auto flex w-auto items-center gap-5 rounded-l-none rounded-r-full py-3 pl-10 pr-5 text-sm font-semibold transition ${
-						isActive('/settings')
-							? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-							: 'text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
-					}`}
-				>
-					<span class="flex h-7 w-7 items-center justify-center rounded-xl text-lg">
-						<NavIcon name="settings" />
-					</span>
-					<span>Settings</span>
-				</a>
-			</aside>
+				</div>-->
 
 			<div class="flex min-w-0 flex-1 flex-col overflow-x-clip">
-				<main class="min-h-screen min-w-0 overflow-x-clip pb-28 md:pb-0">
+				<main class="min-h-screen min-w-0 overflow-x-clip pb-28 md:px-28 pt-22.25">
 					{@render children()}
 				</main>
 			</div>
@@ -392,10 +360,10 @@
 
 		<!-- Mobile bottom navigation -->
 		<nav
-			class="fixed inset-x-3 bottom-3 z-[100] rounded-3xl border border-slate-200 bg-white px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-2xl shadow-slate-400/30 [transform:translateZ(0)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/50 md:hidden"
+			class="fixed inset-x-3 bottom-3 z-100 rounded-3xl border border-slate-200 bg-[#f6f6f6] px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-2xl shadow-slate-400/30 [transform:translateZ(0)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/50 md:hidden"
 		>
 			<div class={`mx-auto grid ${mobileNavGridClass} items-end`}>
-				{#each mobileNavItems as item (item.href)}
+				{#each mobileNavItems as item, idx (item.href)}
 					<a href={resolveNavHref(item.href)} class="flex flex-col items-center justify-end gap-1">
 						<span
 							class={`relative flex items-center justify-center text-lg transition-all ${
@@ -420,7 +388,6 @@
 						</span>
 
 						<span
-							class:hidden={item.primary}
 							class={`max-w-12 truncate text-[10px] font-medium sm:text-[11px] ${
 								isActive(item.href)
 									? 'text-blue-600 dark:text-blue-400'
@@ -430,6 +397,15 @@
 							{mobileLabel(item.label)}
 						</span>
 					</a>
+					{#if idx == Math.floor(mobileNavItems.length / 2) - 1}
+						<a href={resolveNavHref(createEventHref)} class="flex flex-col items-center justify-end gap-1">
+							<span
+								class={`relative flex items-center justify-center text-lg transition-all ${mobileNavItems.length > 5 ? 'h-10 w-10' : 'h-11 w-11'} -translate-y-2 rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/35 hover:bg-blue-700 active:scale-95`}
+							>
+								<NavIcon name="create" />
+							</span>
+						</a>
+					{/if}
 				{/each}
 			</div>
 		</nav>

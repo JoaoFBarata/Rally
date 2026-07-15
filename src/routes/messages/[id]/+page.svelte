@@ -592,14 +592,14 @@
 	});
 </script>
 
-<main class="flex h-[100dvh] flex-col bg-white text-slate-950 dark:bg-slate-950 dark:text-white">
+<main class="flex h-dvh flex-col bg-[#eaeaea] text-black dark:bg-[#1A1A1A] dark:text-white">
 	<header
-		class="flex items-center gap-3 border-b border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950"
+		class="flex items-center gap-3 border-b border-slate-100 bg-[#eaeaea] px-4 py-3 dark:border-slate-800 dark:bg-[#1A1A1A]"
 	>
 		<button
 			type="button"
 			onclick={() => goBack(resolve('/messages'))}
-			class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xl font-bold transition hover:bg-slate-100 dark:hover:bg-slate-900"
+			class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xl font-bold transition hover:bg-slate-100 dark:hover:bg-[#212121]"
 			aria-label="Back to messages"
 		>
 			←
@@ -608,7 +608,7 @@
 		{#if conversationProfileHref}
 			<a
 				href={conversationProfileHref}
-				class="flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-1 transition hover:bg-slate-100 dark:hover:bg-slate-900"
+				class="flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-1 transition hover:bg-slate-100 dark:hover:bg-[#212121]"
 			>
 				<div
 					class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-base font-black text-blue-600 dark:bg-slate-800 dark:text-blue-300"
@@ -751,7 +751,7 @@
 			aria-labelledby="group-info-title"
 		>
 			<section
-				class="w-full max-w-lg overflow-hidden rounded-[2rem] bg-white shadow-2xl dark:bg-slate-900"
+				class="w-full max-w-lg overflow-hidden rounded-4xl bg-white shadow-2xl dark:bg-[#111111]"
 			>
 				<div class="border-b border-slate-100 p-6 dark:border-slate-800">
 					<div class="flex items-start justify-between gap-4">
@@ -851,7 +851,7 @@
 
 	<section
 		bind:this={messagesContainer}
-		class="flex-1 overflow-y-auto bg-slate-50 px-4 py-5 dark:bg-slate-950"
+		class="flex-1 overflow-y-auto bg-white px-4 py-5 dark:bg-[#111111]"
 	>
 		{#if loading}
 			<div class="flex h-full items-center justify-center text-sm text-slate-500">
@@ -915,15 +915,15 @@
 
 	{#if isRallySystemChat}
 		<div
-			class="border-t border-slate-100 bg-white px-4 py-3 text-center dark:border-slate-800 dark:bg-slate-950"
+			class="border-t border-slate-100 bg-[#f6f6f6] px-4 py-3 text-center dark:border-slate-800 dark:bg-[#212121]"
 		>
-			<p class="text-xs text-slate-400 dark:text-slate-500">
+			<p class="text-xs text-black dark:text-white">
 				This is your Rally activity feed. Updates are sent automatically.
 			</p>
 		</div>
 	{:else}
 		<form
-			class="border-t border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950"
+			class="border-t border-slate-100 bg-[#f6f6f6] px-4 py-3 dark:border-slate-800 dark:bg-[#212121]"
 			onsubmit={(e) => {
 				e.preventDefault();
 				if (editingMessage) {
@@ -949,7 +949,7 @@
 			{/if}
 
 			<div
-				class="mx-auto flex max-w-3xl items-center gap-2 rounded-full bg-slate-100 px-3 py-2 dark:bg-slate-900"
+				class="mx-auto flex max-w-3xl items-center gap-2 rounded-full bg-[#EAEAEA] px-3 py-2 dark:bg-[#1A1A1A]"
 			>
 				<input bind:this={imageInput} type="file" class="hidden" onchange={handleFileSelected} />
 

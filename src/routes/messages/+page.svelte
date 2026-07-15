@@ -609,7 +609,7 @@
 </script>
 
 <main
-	class="min-h-screen bg-white text-slate-950 dark:bg-slate-950 dark:text-white"
+	class="min-h-screen"
 	onpointerdown={closeConversationMenuOnOutsidePress}
 >
 	<div class="mx-auto max-w-4xl px-4 py-4 sm:px-5 sm:py-6">
