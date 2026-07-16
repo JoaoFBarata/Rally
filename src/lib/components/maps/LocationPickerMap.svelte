@@ -5,6 +5,7 @@
 	import { PUBLIC_MAPBOX_ACCESS_TOKEN } from '$env/static/public';
 	import { themeState } from '$lib/theme.svelte';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
+	import { i18n } from '$lib/services/i18n.svelte';
 
 	let {
 		lat = $bindable<number | null>(),
@@ -123,7 +124,7 @@
 			const response = await fetch(url);
 
 			if (!response.ok) {
-				throw new Error('Could not search address.');
+				throw new Error(i18n.t('could_not_search_address'));
 			}
 
 			const data = await response.json();
@@ -131,7 +132,7 @@
 			suggestions = data.features ?? [];
 		} catch (err) {
 			console.error('Address search error:', err);
-			searchError = getFriendlyErrorMessage(err, 'Could not search address.');
+			searchError = getFriendlyErrorMessage(err, i18n.t('could_not_search_address'));
 			suggestions = [];
 		} finally {
 			searchLoading = false;
@@ -164,7 +165,7 @@
 			const response = await fetch(url);
 
 			if (!response.ok) {
-				throw new Error('Could not fetch address.');
+				throw new Error(i18n.t('could_not_fetch_address'));
 			}
 
 			const data = await response.json();
@@ -221,7 +222,7 @@
 		const selectedAddress = getFeatureAddress(feature);
 
 		if (!coords) {
-			searchError = 'Could not get coordinates for this address.';
+			searchError = i18n.t('could_not_get_coords');
 			return;
 		}
 
@@ -237,7 +238,7 @@
 		const cleanAddress = address.trim();
 
 		if (!cleanAddress) {
-			searchError = 'Please type an address first.';
+			searchError = i18n.t('please_type_address');
 			return;
 		}
 
@@ -256,22 +257,21 @@
 			const response = await fetch(url);
 
 			if (!response.ok) {
-				throw new Error('Could not find this address.');
+				throw new Error(i18n.t('could_not_find_address'));
 			}
 
 			const data = await response.json();
 			const feature = data.features?.[0] as MapboxGeocodeFeature | undefined;
 
 			if (!feature) {
-				searchError =
-					'Could not find an approximate location. Try a street name, postal code, or click on the map.';
+				searchError = i18n.t('could_not_find_approx_location');
 				return;
 			}
 
 			const coords = getFeatureCoords(feature);
 
 			if (!coords) {
-				searchError = 'Could not get coordinates for this address.';
+				searchError = i18n.t('could_not_get_coords');
 				return;
 			}
 
@@ -348,13 +348,13 @@
 >
 	<div class="border-b border-slate-200 p-3 dark:border-slate-800 sm:p-5">
 		<p class="text-[10px] font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400 sm:text-sm">
-			Location
+			{i18n.t('location')}
 		</p>
 
-		<h2 class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:text-xl">Pick event location</h2>
+		<h2 class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:text-xl">{i18n.t('pick_event_location')}</h2>
 
 		<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">
-			Search by street, postal code, or click on the map to define the event location.
+			{i18n.t('pick_location_sub')}
 		</p>
 	</div>
 
@@ -363,7 +363,7 @@
 	>
 		<div>
 			<label for="address-search" class="text-xs font-bold text-slate-700 dark:text-slate-300 sm:text-sm">
-				Search address
+				{i18n.t('search_address')}
 			</label>
 
 			<div class="relative mt-1.5 sm:mt-2">
@@ -371,7 +371,7 @@
 					id="address-search"
 					value={searchQuery}
 					oninput={handleSearchInput}
-					placeholder="Street, postal code, place name..."
+					placeholder={i18n.t('search_address_placeholder')}
 					class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:ring-blue-950 sm:px-4 sm:py-3 sm:text-base"
 				/>
 
@@ -396,13 +396,13 @@
 		<div class="grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:gap-3">
 			<div>
 				<label for="manual-address" class="text-xs font-bold text-slate-700 dark:text-slate-300 sm:text-sm">
-					Address
+					{i18n.t('manual_address')}
 				</label>
 
 				<input
 					id="manual-address"
 					bind:value={address}
-					placeholder="You can also type the address manually"
+					placeholder={i18n.t('manual_address_placeholder')}
 					class="mt-1.5 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:ring-blue-950 sm:mt-2 sm:px-4 sm:py-3 sm:text-base"
 				/>
 			</div>
@@ -413,7 +413,7 @@
 				disabled={searchLoading || !address.trim()}
 				class="self-end rounded-2xl bg-blue-600 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 sm:px-5 sm:py-3 sm:text-base"
 			>
-				{searchLoading ? 'Searching...' : 'Find on map'}
+				{searchLoading ? i18n.t('searching') : i18n.t('find_on_map')}
 			</button>
 		</div>
 
@@ -426,7 +426,7 @@
 		{/if}
 
 		<p class="hidden text-xs font-medium text-slate-500 dark:text-slate-400 sm:block">
-			Tip: after searching, you can still click on the map to adjust the marker.
+			{i18n.t('location_picker_tip')}
 		</p>
 	</div>
 
@@ -436,13 +436,13 @@
 		class="hidden grid-cols-2 gap-3 border-t border-slate-200 bg-slate-50 p-4 text-xs dark:border-slate-800 dark:bg-slate-800 sm:grid sm:p-5 sm:text-sm"
 	>
 		<div>
-			<p class="font-bold text-slate-700 dark:text-slate-300">Latitude</p>
-			<p class="mt-1 text-slate-500 dark:text-slate-400">{lat ?? 'Not selected'}</p>
+			<p class="font-bold text-slate-700 dark:text-slate-300">{i18n.t('latitude')}</p>
+			<p class="mt-1 text-slate-500 dark:text-slate-400">{lat ?? i18n.t('not_selected')}</p>
 		</div>
 
 		<div>
-			<p class="font-bold text-slate-700 dark:text-slate-300">Longitude</p>
-			<p class="mt-1 text-slate-500 dark:text-slate-400">{lng ?? 'Not selected'}</p>
+			<p class="font-bold text-slate-700 dark:text-slate-300">{i18n.t('longitude')}</p>
+			<p class="mt-1 text-slate-500 dark:text-slate-400">{lng ?? i18n.t('not_selected')}</p>
 		</div>
 	</div>
 </div>

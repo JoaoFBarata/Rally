@@ -2,6 +2,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { i18n } from '$lib/services/i18n.svelte';
 	import { auth } from '$lib/firebase';
 	import LocationPickerMap from '$lib/components/maps/LocationPickerMap.svelte';
 	import VoiceRecordButton from '$lib/components/VoiceRecordButton.svelte';
@@ -45,7 +46,7 @@
 	let loading = $state(false);
 	let error = $state('');
 	let voiceLocationHint = $state('');
-	let step = $state<'choice' | 'form'>('choice');
+	let step = $state<'choice' | 'form'>('form');
 
 	let whatToBring = $state('');
 	let joinPolicy = $state<EventJoinPolicy>('open');
@@ -109,43 +110,42 @@
 		}
 
 		if (
-			!title ||
-			!locationName ||
+			!title.trim() ||
 			!startDate ||
 			!startTime ||
 			maxParticipants < 2 ||
 			!visibility ||
 			!level
 		) {
-			error = 'Please fill in the required fields.';
+			error = i18n.t('required_fields_error');
 			return;
 		}
 		const startAt = new Date(`${startDate}T${startTime}`);
 		const duration = Number(durationMinutes);
 		if (isNaN(startAt.getTime()) || startAt <= new Date()) {
-			error = 'The event must be scheduled in the future.';
+			error = i18n.t('future_date_error');
 			return;
 		}
 
 		if (!duration || duration < 15) {
-			error = 'Add a valid event duration.';
+			error = i18n.t('valid_duration_error');
 			return;
 		}
 
 		const endAt = new Date(startAt.getTime() + duration * 60_000);
 
 		if (sport === 'other' && !customSport.trim()) {
-			error = 'No sport added! Please specify to make it easier for others.';
+			error = i18n.t('no_sport_error');
 			return;
 		}
 
 		if (lat === null || lng === null) {
-			error = 'Please search an address or click on the map to select the event location.';
+			error = i18n.t('select_location_error');
 			return;
 		}
 
 		if (!address.trim()) {
-			error = 'Please add an address for the event location.';
+			error = i18n.t('add_address_error');
 			return;
 		}
 
@@ -191,7 +191,7 @@
 			showInviteModal = true;
 		} catch (err) {
 			console.error('Create event error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not create event.');
+			error = getFriendlyErrorMessage(err, i18n.t('create_event_failed'));
 		} finally {
 			loading = false;
 		}
@@ -219,7 +219,7 @@
 			groupPhotoPath = uploaded.path;
 		} catch (err) {
 			console.error('Group photo upload error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not upload group photo.');
+			error = getFriendlyErrorMessage(err, i18n.t('upload_photo_failed'));
 		} finally {
 			groupPhotoUploading = false;
 			input.value = '';
@@ -272,7 +272,7 @@
 
 			await goto(resolve('/dashboard'));
 		} catch (err) {
-			inviteError = getFriendlyErrorMessage(err, 'Could not send invites.');
+			inviteError = getFriendlyErrorMessage(err, i18n.t('send_invites_failed'));
 			inviteSending = false;
 		}
 	}
@@ -285,51 +285,34 @@
 		class="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-black text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
 	>
 		<span class="leading-none">←</span>
-		<span>Back</span>
+		<span>{i18n.t('back_aria')}</span>
 	</button>
 
 	<div class={cardClass}>
 		{#if step === 'choice'}
-			<div class="mb-4 sm:mb-8">
-				<h2 class="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50 sm:text-3xl">Create event</h2>
-
-				<p class="mt-2 text-slate-500 dark:text-slate-400">How do you want to create it?</p>
-			</div>
-
-			<div class="grid gap-3 sm:grid-cols-2 sm:gap-4">
-				<div
-					class="flex flex-col items-start rounded-2xl border-2 border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/40 sm:p-5"
-				>
-					<p class="text-sm font-bold text-blue-700 dark:text-blue-300">🎤 Use your voice</p>
-
-					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-						Describe the event out loud — we'll fill in the form for you.
+			<!-- Choice bypassed but left as fallback -->
+			<div class="mb-4 sm:mb-8 flex flex-col justify-between sm:flex-row sm:items-center gap-4">
+				<div>
+					<h2 class="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50 sm:text-3xl">{i18n.t('create_event')}</h2>
+					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400 sm:text-base">
+						{i18n.t('create_event_sub')}
 					</p>
-
-					<div class="mt-4">
-						<VoiceRecordButton onExtracted={handleVoiceExtracted} />
-					</div>
 				</div>
-
-				<button
-					type="button"
-					onclick={() => (step = 'form')}
-					class="flex flex-col items-start rounded-2xl border-2 border-slate-200 bg-slate-50 p-4 text-left transition hover:border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 sm:p-5"
-				>
-					<p class="text-sm font-bold text-slate-700 dark:text-slate-300">✍️ Enter manually</p>
-
-					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-						Fill in the details yourself.
-					</p>
-				</button>
+				<div class="flex items-center gap-2 rounded-2xl bg-blue-50/70 p-3 ring-1 ring-blue-100/80 dark:bg-blue-950/30 dark:ring-blue-900/40">
+					<VoiceRecordButton onExtracted={handleVoiceExtracted} />
+				</div>
 			</div>
 		{:else}
-			<div class="mb-4 sm:mb-8">
-				<h2 class="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50 sm:text-3xl">Create event</h2>
-
-				<p class="mt-1 text-sm text-slate-500 dark:text-slate-400 sm:text-base">
-					Fill in the event details and start inviting people.
-				</p>
+			<div class="mb-4 sm:mb-8 flex flex-col justify-between sm:flex-row sm:items-center gap-4 border-b border-slate-100 pb-4 dark:border-slate-800">
+				<div>
+					<h2 class="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50 sm:text-3xl">{i18n.t('create_event')}</h2>
+					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400 sm:text-base">
+						{i18n.t('create_event_sub')}
+					</p>
+				</div>
+				<div class="flex items-center gap-2 rounded-2xl bg-blue-50/70 p-3 ring-1 ring-blue-100/80 dark:bg-blue-950/30 dark:ring-blue-900/40">
+					<VoiceRecordButton onExtracted={handleVoiceExtracted} />
+				</div>
 			</div>
 
 			{#if error}
@@ -350,14 +333,14 @@
 			>
 				<div>
 					<label for="title" class={labelClass}>
-						Event title
+						{i18n.t('event_title_label')}
 					</label>
 
 					<input
 						id="title"
 						bind:value={title}
 						maxlength={TEXT_LIMITS.eventTitle}
-						placeholder="Saturday football match"
+						placeholder={i18n.t('event_title_placeholder')}
 						class={`mt-2 ${inputClass}`}
 					/>
 				</div>
@@ -379,7 +362,7 @@
 						{/if}
 
 						<label
-							title="Add group photo"
+							title={i18n.t('add_group_photo')}
 							class="absolute -bottom-1 -right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-white text-xs text-blue-600 shadow-lg ring-2 ring-slate-100 transition hover:bg-blue-50 dark:bg-white dark:text-blue-600 dark:ring-slate-800 sm:h-7 sm:w-7"
 						>
 							{#if groupPhotoUploading}
@@ -415,15 +398,15 @@
 					</div>
 
 						<div class="min-w-0">
-						<p class="text-sm font-bold text-slate-700 dark:text-slate-300">Group photo</p>
-						<p class="text-xs text-slate-500 dark:text-slate-400 sm:text-sm">Optional, shown on the event page.</p>
+						<p class="text-sm font-bold text-slate-700 dark:text-slate-300">{i18n.t('group_photo')}</p>
+						<p class="text-xs text-slate-500 dark:text-slate-400 sm:text-sm">{i18n.t('optional_group_photo_sub')}</p>
 					</div>
 				</div>
 
 				<div class="grid grid-cols-2 gap-3 sm:gap-5">
 					<div class="min-w-0">
 						<label for="sport" class={labelClass}>
-							Sport
+							{i18n.t('sport_label')}
 						</label>
 
 						<select
@@ -431,29 +414,29 @@
 							bind:value={sport}
 							class={`mt-2 ${inputClass}`}
 						>
-							<option value="football">Football</option>
-							<option value="padel">Padel</option>
-							<option value="basketball">Basketball</option>
-							<option value="running">Running</option>
-							<option value="gym">Gym</option>
-							<option value="tennis">Tennis</option>
-							<option value="cycling">Cycling</option>
-							<option value="volleyball">Volleyball</option>
-							<option value="other">Other</option>
+							<option value="football">{i18n.t('sport_football')}</option>
+							<option value="padel">{i18n.t('sport_padel')}</option>
+							<option value="basketball">{i18n.t('sport_basketball')}</option>
+							<option value="running">{i18n.t('sport_running')}</option>
+							<option value="gym">{i18n.t('sport_gym')}</option>
+							<option value="tennis">{i18n.t('sport_tennis')}</option>
+							<option value="cycling">{i18n.t('sport_cycling')}</option>
+							<option value="volleyball">{i18n.t('sport_volleyball')}</option>
+							<option value="other">{i18n.t('sport_other')}</option>
 						</select>
 
 						{#if sport === 'other'}
 							<input
 								bind:value={customSport}
 								maxlength={TEXT_LIMITS.customSport}
-								placeholder="e.g. Climbing, Hockey, Surfing..."
+								placeholder={i18n.t('custom_sport_placeholder')}
 								class={`mt-3 ${inputClass}`}
 							/>
 						{/if}
 					</div>
 					<div class="min-w-0">
 						<label for="level" class={labelClass}>
-							Event level
+							{i18n.t('level_label')}
 						</label>
 
 						<select
@@ -461,44 +444,44 @@
 							bind:value={level}
 							class={`mt-2 ${inputClass}`}
 						>
-							<option value="beginner">Beginner</option>
-							<option value="casual">Casual</option>
-							<option value="intermediate">Intermediate</option>
-							<option value="advanced">Advanced</option>
+							<option value="beginner">{i18n.t('beginner')}</option>
+							<option value="casual">{i18n.t('casual')}</option>
+							<option value="intermediate">{i18n.t('intermediate')}</option>
+							<option value="advanced">{i18n.t('advanced')}</option>
 						</select>
 					</div>
 				</div>
 				<div>
 						<label for="description" class={labelClass}>
-							Description
+							{i18n.t('description_label')}
 						</label>
 
 					<textarea
 						id="description"
 						bind:value={description}
 						maxlength={TEXT_LIMITS.eventDescription}
-						placeholder="Casual game, all levels welcome..."
+						placeholder={i18n.t('description_placeholder')}
 						class={`mt-2 min-h-24 sm:min-h-28 ${inputClass}`}
 					></textarea>
 				</div>
 
 				<div>
 						<label for="whatToBring" class={labelClass}>
-							What to bring
+							{i18n.t('what_to_bring_label')}
 						</label>
 
 					<textarea
 						id="whatToBring"
 						bind:value={whatToBring}
 						maxlength={TEXT_LIMITS.whatToBring}
-						placeholder="Football boots, water bottle, your own racket..."
+						placeholder={i18n.t('what_to_bring_placeholder')}
 						class={`mt-2 min-h-16 sm:min-h-20 ${inputClass}`}
 					></textarea>
 				</div>
 
 				<div>
 						<label for="location" class={labelClass}>
-							Location name
+							{i18n.t('location_name_label')}
 						</label>
 
 					<input
@@ -513,7 +496,7 @@
 				<div class="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5">
 					<div class="min-w-0">
 						<label for="startDate" class={labelClass}>
-							Date
+							{i18n.t('date_label')}
 						</label>
 
 						<input
@@ -527,7 +510,7 @@
 
 					<div class="min-w-0">
 						<label for="startTime" class={labelClass}>
-							Start
+							{i18n.t('start_time_label')}
 						</label>
 
 						<TimeSelect id="startTime" bind:value={startTime} placeholder="Choose time" />
@@ -538,7 +521,7 @@
 							for="durationMinutes"
 								class={labelClass}
 							>
-							Duration
+							{i18n.t('duration_label')}
 						</label>
 
 						<input
@@ -557,7 +540,7 @@
 							for="maxParticipants"
 								class={labelClass}
 						>
-							Max players
+							{i18n.t('max_players_label')}
 						</label>
 
 						<input
@@ -576,10 +559,10 @@
 					<label class="flex cursor-pointer items-center justify-between gap-4">
 						<div>
 							<p class="text-sm font-bold text-slate-700 dark:text-slate-300">
-								Repeat this event
+								{i18n.t('repeat_event_label')}
 							</p>
 							<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">
-								Creates a series of separate events people join individually.
+								{i18n.t('repeat_event_sub')}
 							</p>
 						</div>
 
@@ -597,7 +580,7 @@
 									for="recurringFrequency"
 									class={labelClass}
 								>
-									Repeats
+									{i18n.t('repeats_label')}
 								</label>
 
 								<select
@@ -605,9 +588,9 @@
 									bind:value={recurringFrequency}
 									class={`mt-2 bg-white dark:bg-slate-900 ${inputClass}`}
 								>
-									<option value="weekly">Every week</option>
-									<option value="biweekly">Every 2 weeks</option>
-									<option value="monthly">Every month</option>
+									<option value="weekly">{i18n.t('every_week')}</option>
+									<option value="biweekly">{i18n.t('every_2_weeks')}</option>
+									<option value="monthly">{i18n.t('every_month')}</option>
 								</select>
 							</div>
 
@@ -616,7 +599,7 @@
 									for="recurringOccurrences"
 									class={labelClass}
 								>
-									Number of events
+									{i18n.t('number_of_events_label')}
 								</label>
 
 								<input
@@ -632,7 +615,7 @@
 
 						{#if recurringEndDateLabel}
 							<p class="mt-3 text-sm font-medium text-slate-500 dark:text-slate-400">
-								Creates {recurringOccurrences} events, the last one on {recurringEndDateLabel}.
+								{i18n.t('series_events_summary', { count: recurringOccurrences, date: recurringEndDateLabel })}
 							</p>
 						{/if}
 					{/if}
@@ -641,7 +624,7 @@
 				<div class="grid grid-cols-2 gap-3 sm:gap-5">
 					<div>
 					<label for="visibility" class={labelClass}>
-							Visibility
+							{i18n.t('visibility_label')}
 						</label>
 
 						<select
@@ -649,14 +632,14 @@
 							bind:value={visibility}
 							class={`mt-2 ${inputClass}`}
 						>
-							<option value="private">Private</option>
-							<option value="friends">Friends</option>
-							<option value="public">Public</option>
+							<option value="private">{i18n.t('visibility_private')}</option>
+							<option value="friends">{i18n.t('visibility_friends')}</option>
+							<option value="public">{i18n.t('visibility_public')}</option>
 						</select>
 					</div>
 
 					<div>
-						<span class={labelClass}>Pricing</span>
+						<span class={labelClass}>{i18n.t('pricing_label')}</span>
 						<div class="mt-2 grid grid-cols-3 gap-2">
 							<button
 								type="button"
@@ -667,7 +650,7 @@
 										: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
 								}`}
 							>
-								Free
+								{i18n.t('free')}
 							</button>
 							<button
 								type="button"
@@ -678,7 +661,7 @@
 										: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
 								}`}
 							>
-								Per person
+								{i18n.t('per_person_pricing')}
 							</button>
 							<button
 								type="button"
@@ -689,7 +672,7 @@
 										: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
 								}`}
 							>
-								Total (Split)
+								{i18n.t('total_split_pricing')}
 							</button>
 						</div>
 					</div>
@@ -697,7 +680,7 @@
 					{#if priceMode !== 'free'}
 						<div class="sm:col-span-2">
 							<label for="price" class={labelClass}>
-								{priceMode === 'per_person' ? 'Price per person' : 'Total event price'}
+								{priceMode === 'per_person' ? i18n.t('price_per_person_label') : i18n.t('total_event_price_label')}
 							</label>
 
 							<div class="mt-2 grid grid-cols-[minmax(0,1fr)_6.5rem] gap-2">
@@ -722,7 +705,7 @@
 				</div>
 
 				<div>
-					<p class="text-sm font-bold text-slate-700 dark:text-slate-300">Who can join</p>
+					<p class="text-sm font-bold text-slate-700 dark:text-slate-300">{i18n.t('who_can_join_label')}</p>
 
 					<div class="mt-2 grid grid-cols-2 gap-3">
 						<button
@@ -734,9 +717,9 @@
 									: 'border-slate-200 bg-white hover:border-blue-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-blue-500'
 							}`}
 						>
-							<p class="text-sm font-bold text-slate-950 dark:text-slate-50 sm:text-base">Open</p>
+							<p class="text-sm font-bold text-slate-950 dark:text-slate-50 sm:text-base">{i18n.t('open_join_label')}</p>
 							<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">
-								Anyone can join instantly.
+								{i18n.t('open_join_sub')}
 							</p>
 						</button>
 
@@ -749,9 +732,9 @@
 									: 'border-slate-200 bg-white hover:border-blue-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-blue-500'
 							}`}
 						>
-							<p class="text-sm font-bold text-slate-950 dark:text-slate-50 sm:text-base">Request</p>
+							<p class="text-sm font-bold text-slate-950 dark:text-slate-50 sm:text-base">{i18n.t('request_join_label')}</p>
 							<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">
-								You approve each request.
+								{i18n.t('request_join_sub')}
 							</p>
 						</button>
 					</div>
@@ -765,7 +748,7 @@
 					disabled={loading || groupPhotoUploading}
 					class="mt-3 w-full rounded-2xl bg-blue-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:shadow-blue-950/40 sm:py-4 sm:text-base"
 				>
-					{loading ? 'Creating...' : groupPhotoUploading ? 'Uploading photo...' : 'Create event'}
+					{loading ? i18n.t('creating_btn') : groupPhotoUploading ? i18n.t('uploading_photo_btn') : i18n.t('create_event_btn')}
 				</button>
 			</form>
 		</div>
@@ -777,7 +760,7 @@
 	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
 		<button
 			type="button"
-			aria-label="Skip inviting friends"
+			aria-label={i18n.t('skip')}
 			class="absolute inset-0 bg-black/40 backdrop-blur-sm"
 			onclick={() => goto(resolve('/dashboard'))}
 		></button>
@@ -787,9 +770,9 @@
 		>
 			<div class="flex items-start justify-between gap-4 p-6 pb-4">
 				<div>
-					<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">Invite friends?</h2>
+					<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">{i18n.t('invite_friends_modal_title')}</h2>
 					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-						to <span class="font-bold text-slate-700 dark:text-slate-300">{createdEventTitle}</span>
+						{i18n.t('to_event_text')} <span class="font-bold text-slate-700 dark:text-slate-300">{createdEventTitle}</span>
 					</p>
 				</div>
 
@@ -826,14 +809,14 @@
 				<div class="px-6 pb-6 pt-2 text-center">
 					<p class="text-3xl">👥</p>
 					<p class="mt-3 text-sm text-slate-500 dark:text-slate-400">
-						You have no friends to invite yet.
+						{i18n.t('no_friends_to_invite')}
 					</p>
 					<button
 						type="button"
 						onclick={() => goto(resolve('/dashboard'))}
 						class="mt-5 w-full rounded-2xl bg-blue-600 px-5 py-3 font-black text-white transition hover:bg-blue-700"
 					>
-						Do it later
+						{i18n.t('do_it_later')}
 					</button>
 				</div>
 			{:else}
@@ -881,7 +864,7 @@
 						onclick={() => goto(resolve('/dashboard'))}
 						class="flex-1 rounded-2xl border border-slate-200 px-4 py-3 font-black text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
 					>
-						Skip
+						{i18n.t('skip')}
 					</button>
 
 					<button
@@ -891,8 +874,8 @@
 						class="flex-1 rounded-2xl bg-blue-600 px-4 py-3 font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						{inviteSending
-							? 'Sending...'
-							: `Invite${selectedFriendIds.length > 0 ? ` (${selectedFriendIds.length})` : ''}`}
+							? i18n.t('sending') !== 'sending' ? i18n.t('sending') : 'Sending...'
+							: `${i18n.t('invite_btn')}${selectedFriendIds.length > 0 ? ` (${selectedFriendIds.length})` : ''}`}
 					</button>
 				</div>
 			{/if}

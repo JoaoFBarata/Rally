@@ -559,9 +559,9 @@
 					>
 						<div class="flex items-center justify-between px-1 pb-2">
 							<div>
-								<p class="text-xs font-black text-slate-950 dark:text-slate-50 sm:text-sm">Notifications</p>
+								<p class="text-xs font-black text-slate-950 dark:text-slate-50 sm:text-sm">{i18n.t('notifications')}</p>
 								<p class="text-xs font-semibold text-slate-500 dark:text-slate-400">
-									{notificationCount > 0 ? `${notificationCount} new update${notificationCount === 1 ? '' : 's'}` : 'All caught up'}
+									{notificationCount > 0 ? i18n.t('new_updates_count', { count: notificationCount }) : i18n.t('all_caught_up')}
 								</p>
 							</div>
 							<span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-600 dark:bg-blue-950 dark:text-blue-300">
@@ -612,20 +612,20 @@
 									{/if}
 									<div class="min-w-0 flex-1">
 										<p class="truncate text-xs font-black text-slate-950 dark:text-slate-50 sm:text-sm">
-											{item.title}
+											{item.title === 'Event invite' ? i18n.t('event_invite_label') : item.title}
 										</p>
 										<p class="truncate text-[11px] font-semibold text-slate-500 dark:text-slate-400 sm:text-xs">
-											{item.body}
+											{item.body === 'Sent you a friend request' ? i18n.t('sent_friend_request') : item.body}
 										</p>
 									</div>
 									<span class="hidden rounded-full bg-white px-2 py-1 text-[10px] font-black uppercase tracking-wide text-slate-400 dark:bg-slate-950 dark:text-slate-500 sm:inline-flex">
-										{item.type === 'friend_request' ? 'friend' : item.type}
+										{item.type === 'friend_request' ? i18n.t('friend_label') : item.type === 'message' ? i18n.t('message') : i18n.t('invite')}
 									</span>
 								</a>
 								{/each}
 							{:else}
 								<div class="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500 dark:bg-slate-900 dark:text-slate-400">
-									No new notifications right now.
+									{i18n.t('no_new_notifications')}
 								</div>
 							{/if}
 						</div>

@@ -641,7 +641,7 @@
 	class="min-h-screen"
 	onpointerdown={closeConversationMenuOnOutsidePress}
 >
-	<div class="mx-auto max-w-4xl px-4 py-4 sm:px-5 sm:py-6">
+	<div class="mx-auto max-w-6xl px-4 py-4 sm:px-5 sm:py-6">
 		<header class="mb-4 sm:mb-6">
 			<div class="hidden sm:block">
 				<RallyWordmark size="sm" />

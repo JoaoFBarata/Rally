@@ -176,31 +176,26 @@
 				</div>
 			</div>
 
-			<div class="hidden gap-4 md:grid md:grid-cols-2">
-				{#key currentEvent.id}
-					<EventCard
-						event={currentEvent}
-						variant={cardVariant}
-						{compactHero}
-						{miniHero}
-						{heroCtaLabel}
-					/>
-				{/key}
-
-				{#if nextEvent}
-					{#key nextEvent.id}
-						<EventCard
-							event={nextEvent}
-							variant={cardVariant}
-							{compactHero}
-							{miniHero}
-							{heroCtaLabel}
-						/>
-					{/key}
-				{/if}
+			<div class="hidden md:block overflow-hidden relative rounded-[2rem]">
+				<div
+					class="flex will-change-transform transition-transform duration-500 ease-out"
+					style={`transform: translateX(calc(-100% * ${currentIndex}));`}
+				>
+					{#each events as event (event.id)}
+						<div class="w-full shrink-0">
+							<EventCard
+								event={event}
+								variant={cardVariant}
+								{compactHero}
+								{miniHero}
+								{heroCtaLabel}
+							/>
+						</div>
+					{/each}
+				</div>
 			</div>
 
-			{#if events.length > 2}
+			{#if events.length > 1}
 				<button
 					type="button"
 					onclick={showPrevious}
