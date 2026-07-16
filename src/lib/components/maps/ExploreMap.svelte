@@ -492,7 +492,7 @@
 
 	function getMarkerColor(event: SportEvent) {
 		if (selectedEvent?.id === event.id) {
-			return '#0057ff';
+			return '#00f2ff';
 		}
 		if (event.creatorId === currentUserId) {
 			return '#00B4D8'; // Blue - My events

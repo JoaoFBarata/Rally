@@ -169,13 +169,13 @@
 	function getCardClasses() {
 		const status = getEffectiveStatus();
 		if (status === 'finished' || status === 'cancelled') {
-			return 'border-red-100 bg-white/80 shadow-slate-200/60 hover:border-red-200 hover:bg-red-50/30 dark:border-red-950/50 dark:bg-slate-900/80 dark:shadow-none dark:hover:border-red-900/60 opacity-75';
+			return 'border-red-100 bg-white/80 shadow-slate-200/60 hover:border-red-200 dark:border-red-950/50 dark:bg-slate-900/80 dark:shadow-none opacity-75';
 		}
 		if (showPromotion) {
-			return 'border-blue-200 bg-white shadow-blue-100/80 hover:border-blue-400 hover:bg-blue-50/30 dark:border-blue-900/70 dark:bg-slate-900 dark:shadow-none dark:hover:border-blue-500';
+			return 'border-blue-200 bg-white shadow-blue-100/80 hover:border-blue-400 dark:border-blue-900/70 dark:bg-slate-900 dark:shadow-none dark:hover:border-blue-500';
 		}
 
-		return 'border-slate-200 bg-white shadow-slate-200/70 hover:border-blue-200 hover:bg-blue-50/30 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none dark:hover:border-blue-700 dark:hover:bg-slate-800';
+		return 'border-slate-200 bg-white shadow-slate-200/70 hover:border-blue-200 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none dark:hover:border-blue-700';
 	}
 
 
@@ -327,7 +327,7 @@
 		<a
 			href={`/events/${event.id}`}
 			onclick={handleClick}
-			class="group flex h-full flex-col overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900 sm:rounded-[1.5rem]"
+			class="group flex h-full flex-col overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900 sm:rounded-3xl"
 		>
 			{#if showImage}
 				<div class="relative h-24 w-full shrink-0 overflow-hidden bg-slate-100 dark:bg-slate-800 sm:h-28">
