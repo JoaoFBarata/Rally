@@ -10,6 +10,7 @@
 	import { initTheme } from '$lib/theme.svelte';
 	import type { UserProfile } from '$lib/schema';
 	import { ensureUserProfile, saveUserFcmToken } from '$lib/services/user.service';
+	import { i18n } from '$lib/services/i18n.svelte';
 	import { isPlatformAdminEmail } from '$lib/admin';
 	import {
 		notificationState,
@@ -50,22 +51,22 @@
 		if (organizationId && organizationManageHref && organizationPublicHref) {
 			items = [
 				{
-					label: 'Explore',
+					label: i18n.t('explore'),
 					href: '/explore',
 					icon: 'explore'
 				},
 				{
-					label: 'Organization',
+					label: i18n.t('organization'),
 					href: organizationManageHref,
 					icon: 'organization'
 				},
 				{
-					label: 'Messages',
+					label: i18n.t('messages'),
 					href: '/messages',
 					icon: 'messages'
 				},
 				{
-					label: 'Profile',
+					label: i18n.t('profile'),
 					href: organizationPublicHref,
 					icon: 'profile'
 				}
@@ -73,22 +74,22 @@
 		} else {
 			items = [
 				{
-					label: 'Explore',
+					label: i18n.t('explore'),
 					href: '/explore',
 					icon: 'explore'
 				},
 				{
-					label: 'Home',
+					label: i18n.t('home'),
 					href: '/dashboard',
 					icon: 'dashboard'
 				},
 				{
-					label: 'Messages',
+					label: i18n.t('messages'),
 					href: '/messages',
 					icon: 'messages'
 				},
 				{
-					label: 'Profile',
+					label: i18n.t('profile'),
 					href: '/profile',
 					icon: 'profile'
 				}
@@ -97,7 +98,7 @@
 
 		if (isPlatformAdmin) {
 			items.push({
-				label: 'Admin',
+				label: i18n.t('admin'),
 				href: '/admin',
 				icon: 'admin'
 			});
@@ -256,6 +257,9 @@
 
 				try {
 					profile = await ensureUserProfile(user);
+					if (profile?.language) {
+						i18n.setLanguage(profile.language as any);
+					}
 					registerPushNotifications(user.uid);
 				} catch (err) {
 					console.error('Load shell profile error:', err);
@@ -294,7 +298,7 @@
 				<div class="w-full pl-6.75 mt-13.25">
 					<RallyLogo size="md" href={organizationManageHref ?? '/'}/>
 					<button class="mt-10.25 w-53.25 h-14.5 bg-[#48b3ff] rounded-[10px] text-white cursor-pointer" onclick={() => goto(resolveNavHref(createEventHref))}>
-						<h3 class="text-[20px] font-semibold">+ New event</h3>
+						<h3 class="text-[20px] font-semibold">{i18n.t('new_event')}</h3>
 					</button>
 				</div>
 				<div class="w-full grow flex flex-col justify-between bg-[#eaeaea] dark:bg-[#1A1A1A] rounded-tr-[75px] mt-10 pb-9">
@@ -333,7 +337,7 @@
 							<span class="flex items-center justify-center h-6 w-6 text-lg">
 								<NavIcon name="settings"/>
 							</span>
-							<span>Settings</span>
+							<span>{i18n.t('settings')}</span>
 						</a>
 					</div>
 				</div>
@@ -353,7 +357,7 @@
 				</div>-->
 
 			<div class="flex min-w-0 flex-1 flex-col overflow-x-clip">
-				<main class="min-h-screen min-w-0 overflow-x-clip pb-28 md:px-28 pt-22.25">
+				<main class="min-h-screen min-w-0 overflow-x-clip pb-28 md:px-28">
 					{@render children()}
 				</main>
 			</div>

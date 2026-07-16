@@ -1,6 +1,7 @@
 <!-- src/routes/events/[id]/+page.svelte -->
 <script lang="ts">
 	import { onDestroy, onMount, tick } from 'svelte';
+	import { i18n } from '$lib/services/i18n.svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
@@ -59,7 +60,7 @@
 	import { getTypingLabel } from '$lib/utils/chat-typing.utils';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
-	import { getCurrencySymbol } from '$lib/utils/format.utils';
+	import { formatSport, getCurrencySymbol } from '$lib/utils/format.utils';
 	import { getOrCreateOrganizationConversation } from '$lib/services/chat.service';
 	import TournamentPanel from '$lib/components/tournaments/TournamentPanel.svelte';
 	import { getOrganizationReviews } from '$lib/services/organization.service';
@@ -202,6 +203,11 @@
 		);
 	});
 
+	let googleCalendarUrl = $derived(event ? getGoogleCalendarUrl(event) : '');
+	let canAddToGoogleCalendar = $derived(
+		!!googleCalendarUrl && (isCreator || isParticipant)
+	);
+
 	let participantById = $derived.by(() => {
 		return Object.fromEntries(
 			participants.map((participant) => [participant.id, participant])
@@ -283,7 +289,7 @@
 			await goto(resolve(`/messages/${conversationId}`));
 		} catch (err) {
 			console.error('Contact organizer error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not contact organizer.');
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_contact_organizer'));
 		} finally {
 			contactLoading = false;
 		}
@@ -294,7 +300,7 @@
 			const timestamp = dateValue as { toDate?: () => Date };
 
 			if (timestamp?.toDate) {
-				return timestamp.toDate().toLocaleString('en-GB', {
+				return timestamp.toDate().toLocaleString(getLocale(), {
 					weekday: 'long',
 					day: '2-digit',
 					month: 'long',
@@ -304,17 +310,21 @@
 				});
 			}
 
-			return 'Date not set';
+			return i18n.t('date_not_set');
 		} catch {
-			return 'Date not set';
+			return i18n.t('date_not_set');
 		}
+	}
+
+	function getLocale() {
+		return { en: 'en-GB', pt: 'pt-PT', es: 'es-ES', fr: 'fr-FR' }[i18n.currentLang];
 	}
 
 	function formatShortDate(dateValue: unknown) {
 		const date = timestampToDate(dateValue);
-		if (!date) return 'Date not set';
+		if (!date) return i18n.t('date_not_set');
 
-		return date.toLocaleDateString('en-GB', {
+		return date.toLocaleDateString(getLocale(), {
 			weekday: 'short',
 			day: '2-digit',
 			month: 'short'
@@ -323,9 +333,9 @@
 
 	function formatShortTime(dateValue: unknown) {
 		const date = timestampToDate(dateValue);
-		if (!date) return 'Time not set';
+		if (!date) return i18n.t('time_not_set');
 
-		return date.toLocaleTimeString('en-GB', {
+		return date.toLocaleTimeString(getLocale(), {
 			hour: '2-digit',
 			minute: '2-digit'
 		});
@@ -345,22 +355,51 @@
 	function formatEventDuration(currentEvent: SportEvent) {
 		const start = timestampToDate(currentEvent.startAt);
 		const end = timestampToDate(currentEvent.endAt);
-		if (!start || !end || end <= start) return 'Not set';
+		if (!start || !end || end <= start) return i18n.t('duration_not_set');
 
 		const totalMinutes = Math.round((end.getTime() - start.getTime()) / 60000);
 		const hours = Math.floor(totalMinutes / 60);
 		const minutes = totalMinutes % 60;
 
-		if (!hours) return `${minutes} min`;
+		if (!hours) return i18n.t('minutes', { count: minutes });
 		if (!minutes) return `${hours}h`;
 		return `${hours}h ${minutes}min`;
 	}
 
+	function formatGoogleCalendarDate(date: Date) {
+		return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+	}
+
+	function getGoogleCalendarUrl(currentEvent: SportEvent) {
+		const start = timestampToDate(currentEvent.startAt);
+
+		if (!start) return '';
+
+		const suppliedEnd = timestampToDate(currentEvent.endAt);
+		const end =
+			suppliedEnd && suppliedEnd > start
+				? suppliedEnd
+				: new Date(start.getTime() + 60 * 60 * 1000);
+		const location = [currentEvent.location.name, currentEvent.location.address]
+			.filter(Boolean)
+			.join(', ');
+		const details = currentEvent.description?.trim() || '';
+		const params = new URLSearchParams({
+			action: 'TEMPLATE',
+			text: currentEvent.title,
+			dates: `${formatGoogleCalendarDate(start)}/${formatGoogleCalendarDate(end)}`,
+			details,
+			location
+		});
+
+		return `https://calendar.google.com/calendar/render?${params.toString()}`;
+	}
+
 	function formatPriceLabel(currentEvent: SportEvent) {
 		const currencySymbol = getCurrencySymbol(currentEvent.currency);
-		if (currentEvent.pricePerPerson) return `${currencySymbol}${currentEvent.pricePerPerson.toFixed(2)} per person`;
-		if (currentEvent.priceTotal) return `${currencySymbol}${currentEvent.priceTotal.toFixed(2)} total`;
-		return 'Free / not defined';
+		if (currentEvent.pricePerPerson) return `${currencySymbol}${currentEvent.pricePerPerson.toFixed(2)} ${i18n.t('per_person_label')}`;
+		if (currentEvent.priceTotal) return `${currencySymbol}${currentEvent.priceTotal.toFixed(2)}${i18n.t('total_label')}`;
+		return i18n.t('free_not_defined');
 	}
 
 	function getEventHeroImage(currentEvent: SportEvent) {
@@ -412,12 +451,12 @@
 				});
 			} else {
 				await navigator.clipboard?.writeText(url);
-				error = 'Event link copied.';
+				error = i18n.t('event_link_copied');
 			}
 		} catch (err) {
 			if ((err as Error)?.name !== 'AbortError') {
 				console.error('Share event error:', err);
-				error = 'Could not share this event right now.';
+				error = i18n.t('could_not_share_event');
 			}
 		}
 	}
@@ -586,7 +625,7 @@
 			const eventId = page.params.id;
 
 			if (!eventId) {
-				error = 'Event ID not found.';
+				error = i18n.t('event_id_not_found');
 				loading = false;
 				return;
 			}
@@ -594,7 +633,7 @@
 			const loadedEvent = await getEventById(eventId);
 
 			if (!loadedEvent) {
-				error = 'Event not found.';
+				error = i18n.t('event_not_found');
 				return;
 			}
 
@@ -623,7 +662,7 @@
 			}
 		} catch (err) {
 			console.error('Event detail error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not load event.');
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_load_event'));
 		} finally {
 			loading = false;
 		}
@@ -664,7 +703,7 @@
 			await reloadEvent();
 		} catch (err) {
 			console.error('Join event error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not join event.');
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_join_event'));
 		} finally {
 			actionLoading = false;
 		}
@@ -683,7 +722,7 @@
 			await reloadEvent();
 		} catch (err) {
 			console.error('Request to join error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not request to join event.');
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_request_join'));
 		} finally {
 			actionLoading = false;
 		}
@@ -707,7 +746,7 @@
 			await reloadEvent();
 		} catch (err) {
 			console.error('Respond to join request error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not update join request.');
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_update_join_request'));
 		} finally {
 			joinRequestActionLoading = false;
 		}
@@ -719,10 +758,9 @@
 		if (!currentUser || !event) return;
 
 		const confirmed = await showConfirm({
-			title: 'Leave this event?',
-			message:
-				'You will be removed from the participant list. You can rejoin later if there are spots available.',
-			confirmLabel: 'Leave event',
+			title: i18n.t('leave_event_title'),
+			message: i18n.t('leave_event_message'),
+			confirmLabel: i18n.t('leave_event'),
 			danger: true
 		});
 
@@ -736,7 +774,7 @@
 			await reloadEvent();
 		} catch (err) {
 			console.error('Leave event error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not leave event.');
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_leave_event'));
 		} finally {
 			actionLoading = false;
 		}
@@ -748,9 +786,9 @@
 		if (!currentUser || !event) return;
 
 		const confirmed = await showConfirm({
-			title: 'Cancel this event?',
-			message: `This will permanently cancel "${event.title}" and notify all participants. This cannot be undone.`,
-			confirmLabel: 'Cancel event',
+			title: i18n.t('cancel_event_title'),
+			message: i18n.t('cancel_event_message', { title: event.title }),
+			confirmLabel: i18n.t('cancel_event'),
 			danger: true
 		});
 
@@ -764,7 +802,7 @@
 			await reloadEvent();
 		} catch (err) {
 			console.error('Cancel event error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not cancel event.');
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_cancel_event'));
 		} finally {
 			actionLoading = false;
 		}
@@ -776,10 +814,9 @@
 		if (!currentUser || !event) return;
 
 		const confirmed = await showConfirm({
-			title: 'Finish this event?',
-			message:
-				'This will close the event, stop active promotion and move it out of upcoming events.',
-			confirmLabel: 'Finish event'
+			title: i18n.t('finish_event_title'),
+			message: i18n.t('finish_event_message'),
+			confirmLabel: i18n.t('finish_event')
 		});
 
 		if (!confirmed) return;
@@ -792,7 +829,7 @@
 			await reloadEvent();
 		} catch (err) {
 			console.error('Finish event error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not finish event.');
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_finish_event'));
 		} finally {
 			actionLoading = false;
 		}
@@ -804,10 +841,9 @@
 		if (!currentUser || !event) return;
 
 		const confirmed = await showConfirm({
-			title: 'Remove this player?',
-			message:
-				'They will be removed from the participant list and can rejoin if spots are available.',
-			confirmLabel: 'Remove player',
+			title: i18n.t('remove_player_title'),
+			message: i18n.t('remove_player_message'),
+			confirmLabel: i18n.t('remove_player'),
 			danger: true
 		});
 
@@ -826,7 +862,7 @@
 			await reloadEvent();
 		} catch (err) {
 			console.error('Remove participant error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not remove participant.');
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_remove_player'));
 		} finally {
 			actionLoading = false;
 		}
@@ -913,7 +949,7 @@
 			await scrollGroupChatToBottom();
 		} catch (err) {
 			console.error('Send group message error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not send message.');
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_send_message'));
 		} finally {
 			groupChatSending = false;
 		}
@@ -1005,14 +1041,14 @@
 	class="hidden items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-black text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900 sm:inline-flex"
 >
 	<span class="leading-none">←</span>
-	<span>Back</span>
+	<span>{i18n.t('back')}</span>
 </button>
 
 {#if loading}
 	<div
 		class="mt-8 rounded-4xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 	>
-		<p class="text-slate-500 dark:text-slate-400">Loading event...</p>
+		<p class="text-slate-500 dark:text-slate-400">{i18n.t('loading_event')}</p>
 	</div>
 {:else if error && !event}
 	<div
@@ -1032,7 +1068,7 @@
 									type="button"
 									onclick={() => goBack(resolve('/dashboard'))}
 									class="absolute left-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-slate-950 shadow-sm backdrop-blur"
-									aria-label="Back"
+					aria-label={i18n.t('back_aria')}
 								>
 									<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="2.8" stroke="currentColor">
 										<path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
@@ -1044,7 +1080,7 @@
 										type="button"
 										onclick={shareEvent}
 										class="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-slate-950 shadow-sm backdrop-blur"
-										aria-label="Share event"
+						aria-label={i18n.t('share_event_aria')}
 									>
 										<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 overflow-visible" fill="none" viewBox="0 0 24 24" stroke-width="2.1" stroke="currentColor">
 											<path stroke-linecap="round" d="m8.9 10.75 6.2-3.5M8.9 13.25l6.2 3.5" />
@@ -1057,7 +1093,7 @@
 									type="button"
 									onclick={toggleSavedEvent}
 									class="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-slate-950 shadow-sm backdrop-blur"
-									aria-label={isSavedEvent ? 'Unsave event' : 'Save event'}
+					aria-label={isSavedEvent ? i18n.t('unsave_event_aria') : i18n.t('save_event_aria')}
 								>
 									<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill={isSavedEvent ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor">
 										<path stroke-linecap="round" stroke-linejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" />
@@ -1073,10 +1109,10 @@
 
 							<div class="flex flex-wrap items-center gap-2">
 								<span class="rounded-full bg-blue-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.08em] text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-									{event.eventKind === 'tournament' ? 'Tournament' : event.sport}
+					{event.eventKind === 'tournament' ? i18n.t('status_tournament') : formatSport(event.sport)}
 								</span>
 								<span class="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-black capitalize text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">{effectiveStatus}</span>
-								<span class="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-black capitalize text-amber-700 dark:bg-amber-950 dark:text-amber-300">{event.level ?? 'casual'}</span>
+					<span class="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-black capitalize text-amber-700 dark:bg-amber-950 dark:text-amber-300">{event.level ? event.level : i18n.t('casual')}</span>
 								{#if isPromotionActive(event)}
 									<span class="rounded-full bg-orange-50 px-3 py-1 text-[11px] font-black text-orange-600 dark:bg-orange-950 dark:text-orange-300">↗ Promoted</span>
 								{/if}
@@ -1086,10 +1122,10 @@
 							<div class="sticky top-0 z-20 -mx-5 bg-white/95 px-5 py-2 backdrop-blur dark:bg-slate-950/95">
 								<div class="grid grid-cols-4 rounded-[1.35rem] bg-white p-1 text-sm font-black text-slate-500 shadow-sm shadow-slate-200/70 ring-1 ring-slate-200/80 dark:bg-slate-900 dark:text-slate-400 dark:shadow-none dark:ring-slate-800">
 								{#each [
-									['overview', 'Overview'],
-									['players', 'Players'],
-									['chat', 'Chat'],
-									['location', 'Location']
+									['overview', i18n.t('overview')],
+									['players', i18n.t('players')],
+									['chat', i18n.t('chat')],
+									['location', i18n.t('location')]
 								] as [tab, label]}
 									<button
 										type="button"
@@ -1114,7 +1150,7 @@
 												<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor">
 													<path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25m10.5-2.25v2.25M3.75 8.25h16.5M5.25 5.25h13.5a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5v-12a1.5 1.5 0 0 1 1.5-1.5Z" />
 												</svg>
-												<p class="text-[10px] font-black uppercase tracking-[0.16em]">Date</p>
+												<p class="text-[10px] font-black uppercase tracking-[0.16em]">{i18n.t('date')}</p>
 											</div>
 											<p class="mt-1 truncate text-sm font-black text-slate-950 dark:text-slate-50">{formatShortDate(event.startAt)}</p>
 											<p class="text-xs font-semibold text-slate-500 dark:text-slate-400">{formatShortTime(event.startAt)}</p>
@@ -1125,7 +1161,7 @@
 													<path stroke-linecap="round" stroke-linejoin="round" d="M12 21s6-5.25 6-11a6 6 0 1 0-12 0c0 5.75 6 11 6 11Z" />
 													<path stroke-linecap="round" stroke-linejoin="round" d="M12 10.5h.008" />
 												</svg>
-												<p class="text-[10px] font-black uppercase tracking-[0.16em]">Location</p>
+												<p class="text-[10px] font-black uppercase tracking-[0.16em]">{i18n.t('location')}</p>
 											</div>
 											<p class="mt-1 truncate text-sm font-black text-slate-950 dark:text-slate-50">{event.location.name}</p>
 											<p class="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">{event.location.address ?? formatPriceLabel(event)}</p>
@@ -1159,20 +1195,20 @@
 											<UserAvatar photoURL={hostProfile.photoURL} displayName={hostProfile.displayName} email={hostProfile.email} size="sm" />
 											<div class="min-w-0">
 												<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">{hostProfile.displayName}</p>
-												<p class="text-xs font-semibold text-slate-500 dark:text-slate-400">Host</p>
+												<p class="text-xs font-semibold text-slate-500 dark:text-slate-400">{i18n.t('host')}</p>
 											</div>
 										</a>
 									{/if}
 
 									<div class="shrink-0 border-l border-slate-100 pl-3 text-right dark:border-slate-800">
 										<p class="text-sm font-black text-blue-600 dark:text-blue-300">{participants.length}/{event.maxParticipants}</p>
-										<p class="text-[11px] font-bold text-slate-500 dark:text-slate-400">Players</p>
+										<p class="text-[11px] font-bold text-slate-500 dark:text-slate-400">{i18n.t('players')}</p>
 									</div>
 								</div>
 
 								{#if canContactOrganizer}
 									<button type="button" onclick={contactOrganizer} disabled={contactLoading} class="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-800 transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100">
-										{contactLoading ? 'Opening...' : 'Message organizer'}
+										{contactLoading ? i18n.t('opening') : i18n.t('message_organizer')}
 									</button>
 								{/if}
 							</div>
@@ -1180,40 +1216,40 @@
 							<div class="rounded-[1.25rem] bg-white p-3.5 shadow-sm shadow-slate-200/60 ring-1 ring-slate-200/70 dark:bg-slate-900 dark:shadow-none dark:ring-slate-800">
 								<div class="flex items-center justify-between gap-3">
 									<div>
-										<p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Price</p>
+										<p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{i18n.t('price')}</p>
 										<p class="mt-1 text-sm font-black text-slate-950 dark:text-slate-50">{formatPriceLabel(event)}</p>
 									</div>
 									<span class="rounded-full bg-green-50 px-3 py-1.5 text-xs font-black text-green-700 dark:bg-green-950 dark:text-green-300">
-										{effectiveStatus === 'full' ? 'Event full' : 'Spots available'}
+										{effectiveStatus === 'full' ? i18n.t('event_full_msg') : i18n.t('spots_available')}
 									</span>
 								</div>
 							</div>
 
 							<div class="space-y-2 px-1">
-								<p class="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Description</p>
+								<p class="text-xs font-black uppercase tracking-[0.18em] text-slate-400">{i18n.t('description')}</p>
 								<p class="text-[14px] font-medium leading-6 text-slate-700 dark:text-slate-300">
-									{event.description || 'No description provided yet.'}
+									{event.description || i18n.t('no_description')}
 								</p>
 							</div>
 
 							<div class="grid grid-cols-3 divide-x divide-slate-100 overflow-hidden rounded-[1.15rem] bg-white shadow-sm shadow-slate-200/60 ring-1 ring-slate-200/70 dark:divide-slate-800 dark:bg-slate-900 dark:shadow-none dark:ring-slate-800">
 								<div class="min-w-0 p-3 text-center">
-									<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Skill</p>
+									<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">{i18n.t('skill')}</p>
 									<p class="mt-1 truncate text-xs font-black capitalize text-slate-950 dark:text-slate-50">{event.level ?? 'casual'}</p>
 								</div>
 								<div class="min-w-0 p-3 text-center">
-									<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Weather</p>
+									<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">{i18n.t('weather')}</p>
 									<div class="mt-1 flex justify-center"><EventWeather lat={event.location.lat} lng={event.location.lng} startAt={event.startAt} size="sm" /></div>
 								</div>
 								<div class="min-w-0 p-3 text-center">
-									<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Duration</p>
+									<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">{i18n.t('duration')}</p>
 									<p class="mt-1 truncate text-xs font-black text-slate-950 dark:text-slate-50">{formatEventDuration(event)}</p>
 								</div>
 							</div>
 
 							{#if event.whatToBring}
 								<div class="rounded-[1.25rem] bg-white p-3.5 shadow-sm shadow-slate-200/60 ring-1 ring-slate-200/70 dark:bg-slate-900 dark:shadow-none dark:ring-slate-800">
-									<p class="text-sm font-black text-slate-950 dark:text-slate-50">What to bring</p>
+									<p class="text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('what_to_bring')}</p>
 									<p class="mt-1 whitespace-pre-line text-xs font-semibold leading-5 text-slate-500 dark:text-slate-400">{event.whatToBring}</p>
 								</div>
 							{/if}
@@ -1222,8 +1258,8 @@
 								<div class="rounded-[1.25rem] bg-white p-4 shadow-sm shadow-slate-200/60 ring-1 ring-slate-200/70 dark:bg-slate-900 dark:shadow-none dark:ring-slate-800">
 									<div class="flex items-center justify-between gap-4">
 										<div>
-											<p class="text-base font-black text-slate-950 dark:text-slate-50">Players</p>
-											<p class="text-sm font-bold text-slate-500 dark:text-slate-400">{participants.length}/{event.maxParticipants} confirmed</p>
+											<p class="text-base font-black text-slate-950 dark:text-slate-50">{i18n.t('players')}</p>
+											<p class="text-sm font-bold text-slate-500 dark:text-slate-400">{participants.length}/{event.maxParticipants} {i18n.t('confirmed')}</p>
 										</div>
 										<div class="flex -space-x-2 overflow-hidden pl-2">
 											{#each participants.slice(0, 4) as participant (participant.id)}
@@ -1236,6 +1272,36 @@
 										<div class="h-full rounded-full bg-blue-600" style={`width: ${Math.min(100, (participants.length / event.maxParticipants) * 100)}%`}></div>
 									</div>
 										<div class="mt-4 grid grid-cols-2 gap-2">
+											{#if canAddToGoogleCalendar}
+												<a
+													href={googleCalendarUrl}
+													target="_blank"
+													rel="noopener noreferrer"
+													aria-label={i18n.t('add_to_google_calendar_aria')}
+													class="col-span-2 inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-black text-blue-700 shadow-sm shadow-blue-100/70 transition active:scale-[0.98] dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-200"
+												>
+													<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+														<rect x="3" y="5" width="18" height="16" rx="2" />
+														<path d="M7 3v4M17 3v4M3 10h18M12 14v4M10 16h4" />
+													</svg>
+													{i18n.t('add_to_google_calendar')}
+												</a>
+											{/if}
+											{#if event.location.lat && event.location.lng}
+												<a
+													href={`https://www.google.com/maps/dir/?api=1&destination=${event.location.lat},${event.location.lng}`}
+													target="_blank"
+													rel="noopener noreferrer"
+													aria-label={i18n.t('get_directions_aria')}
+													class="col-span-2 inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm shadow-slate-200/50 transition active:scale-[0.98] dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:shadow-none"
+												>
+													<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+														<path d="M12 21s7-4.35 7-11a7 7 0 1 0-14 0c0 6.65 7 11 7 11Z" />
+														<circle cx="12" cy="10" r="2.5" />
+													</svg>
+													{i18n.t('get_directions')}
+												</a>
+											{/if}
 											{#if canInvite}<a href={resolve(`/events/${event.id}/invite`)} class="inline-flex min-h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-800 shadow-sm shadow-slate-200/50 transition active:scale-[0.98] dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:shadow-none">Invite</a>{/if}
 											{#if canJoin}
 												<button onclick={handleJoinEvent} disabled={actionLoading} class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition active:scale-[0.98] disabled:opacity-60">{actionLoading ? 'Joining...' : 'Join event'}</button>
@@ -1257,8 +1323,8 @@
 								<div class="-mx-1 space-y-3">
 									<div class="flex items-center justify-between px-1">
 										<div>
-											<p class="text-lg font-black text-slate-950 dark:text-slate-50">Players</p>
-											<p class="text-sm font-bold text-slate-500 dark:text-slate-400">{participants.length}/{event.maxParticipants} confirmed</p>
+											<p class="text-lg font-black text-slate-950 dark:text-slate-50">{i18n.t('players')}</p>
+											<p class="text-sm font-bold text-slate-500 dark:text-slate-400">{participants.length}/{event.maxParticipants} {i18n.t('confirmed')}</p>
 										</div>
 										{#if canInvite}<a href={resolve(`/events/${event.id}/invite`)} class="rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white">Invite</a>{/if}
 									</div>
@@ -1270,10 +1336,10 @@
 													<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">{participant.displayName}</p>
 													<p class="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">@{participant.rallyTag ?? participant.email}</p>
 												</div>
-												{#if participant.id === event.creatorId}<span class="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300">Host</span>{/if}
+												{#if participant.id === event.creatorId}<span class="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300">{i18n.t('host')}</span>{/if}
 											</a>
 										{:else}
-											<p class="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500 dark:bg-slate-950 dark:text-slate-400">No players yet.</p>
+											<p class="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500 dark:bg-slate-950 dark:text-slate-400">{i18n.t('no_players')}</p>
 										{/each}
 									</div>
 								</div>
@@ -1285,7 +1351,7 @@
 												{#if event.location.address}<p class="mt-0.5 line-clamp-2 text-sm font-semibold leading-5 text-slate-500 dark:text-slate-400">{event.location.address}</p>{/if}
 											</div>
 											{#if event.location.lat && event.location.lng}
-												<a href={`https://www.google.com/maps/dir/?api=1&destination=${event.location.lat},${event.location.lng}`} target="_blank" rel="noopener noreferrer" class="shrink-0 rounded-full bg-blue-50 px-3.5 py-2 text-xs font-black text-blue-600 transition active:scale-[0.98] dark:bg-blue-950 dark:text-blue-300">Directions</a>
+												<a href={`https://www.google.com/maps/dir/?api=1&destination=${event.location.lat},${event.location.lng}`} target="_blank" rel="noopener noreferrer" aria-label={i18n.t('get_directions_aria')} class="shrink-0 rounded-full bg-blue-50 px-3.5 py-2 text-xs font-black text-blue-600 transition active:scale-[0.98] dark:bg-blue-950 dark:text-blue-300">{i18n.t('get_directions')}</a>
 											{/if}
 										</div>
 										<div class="overflow-hidden rounded-[1.35rem] bg-white shadow-sm shadow-slate-200/60 ring-1 ring-slate-200/70 dark:bg-slate-900 dark:shadow-none dark:ring-slate-800">
@@ -1389,19 +1455,19 @@
 					{/if}
 
 					<p class="text-slate-600 dark:text-slate-300 {event.recurringGroupId ? 'mt-4' : ''}">
-						{event.description || 'No description provided.'}
+						{event.description || i18n.t('no_description')}
 					</p>
 
 				<div class="mt-6 grid grid-cols-2 gap-3 sm:mt-8 sm:grid-cols-3 sm:gap-4">
 					<div class="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800">
-						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Date and time</p>
+						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">{i18n.t('date')}</p>
 						<p class="mt-2 font-bold text-slate-950 dark:text-slate-50">
 							{formatDate(event.startAt)}
 						</p>
 					</div>
 
 					<div class="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800">
-						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Location</p>
+						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">{i18n.t('location')}</p>
 						<p class="mt-2 font-bold text-slate-950 dark:text-slate-50">
 							{event.location.name}
 						</p>
@@ -1420,34 +1486,34 @@
 								class="mt-3 inline-flex items-center gap-1.5 text-xs font-black text-blue-600 dark:text-blue-400 hover:underline"
 							>
 								<img src="/map_location_icon.png" alt="Map icon" class="h-5 w-5 shrink-0 object-contain" />
-								<span>Get Directions</span>
+								<span>{i18n.t('directions')}</span>
 							</a>
 						{/if}
 					</div>
 
 					<div class="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800">
-						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Level</p>
+						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">{i18n.t('skill')}</p>
 						<p class="mt-2 font-bold capitalize text-slate-950 dark:text-slate-50">
 							{event.level ?? 'casual'}
 						</p>
 					</div>
 
 					<div class="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800">
-						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Duration</p>
+						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">{i18n.t('duration')}</p>
 						<p class="mt-2 font-bold text-slate-950 dark:text-slate-50">
 							{formatEventDuration(event)}
 						</p>
 					</div>
 
 					<div class="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800">
-						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Price</p>
+						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">{i18n.t('price')}</p>
 						<p class="mt-2 font-bold text-slate-950 dark:text-slate-50">
 							{formatPriceLabel(event)}
 						</p>
 					</div>
 
 					<div class="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800 flex flex-col justify-between">
-						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Weather</p>
+						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">{i18n.t('weather')}</p>
 						<div class="mt-2.5">
 							<EventWeather lat={event.location.lat} lng={event.location.lng} startAt={event.startAt} size="md" />
 						</div>
@@ -1456,7 +1522,7 @@
 
 				{#if event.whatToBring}
 					<div class="mt-6 rounded-2xl bg-slate-50 p-5 dark:bg-slate-800">
-						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">What to bring</p>
+						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">{i18n.t('what_to_bring')}</p>
 						<p class="mt-2 whitespace-pre-line font-bold text-slate-950 dark:text-slate-50">
 							{event.whatToBring}
 						</p>
@@ -1564,10 +1630,10 @@
 							<p
 								class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400"
 							>
-								Requests
+								{i18n.t('requests')}
 							</p>
 							<h2 class="mt-2 text-xl font-black text-slate-950 dark:text-slate-50 sm:text-2xl">
-								Join requests
+								{i18n.t('join_requests')}
 							</h2>
 						</div>
 
@@ -1584,7 +1650,7 @@
 					{#if pendingJoinRequests.length === 0}
 						<div class="mt-5 rounded-2xl bg-slate-50 p-5 text-center dark:bg-slate-800">
 							<p class="text-sm font-semibold text-slate-500 dark:text-slate-400">
-								No pending requests.
+								{i18n.t('no_pending_requests')}
 							</p>
 						</div>
 					{:else}
@@ -1621,7 +1687,7 @@
 											disabled={joinRequestActionLoading}
 											class="rounded-full px-3 py-2 text-sm font-black text-red-600 transition hover:bg-red-50 disabled:opacity-60 dark:text-red-400 dark:hover:bg-red-950"
 										>
-											Decline
+											{i18n.t('decline')}
 										</button>
 
 										<button
@@ -1681,7 +1747,7 @@
 							<div
 								class="flex h-full items-center justify-center text-sm text-slate-500 dark:text-slate-400"
 							>
-								Loading group chat...
+								{i18n.t('loading_group_chat')}
 							</div>
 						{:else if groupMessages.length === 0}
 							{#if groupTypingLabel}
@@ -1696,9 +1762,9 @@
 							<div class="flex h-full items-center justify-center text-center">
 								<div>
 									<p class="text-3xl sm:text-4xl">💬</p>
-									<p class="mt-2 text-sm font-black text-slate-700 dark:text-slate-200 sm:mt-3 sm:text-base">No messages yet</p>
+									<p class="mt-2 text-sm font-black text-slate-700 dark:text-slate-200 sm:mt-3 sm:text-base">{i18n.t('no_messages_yet')}</p>
 									<p class="mt-1 text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
-										Send the first message to the event group.
+										{i18n.t('first_group_message')}
 									</p>
 								</div>
 							</div>
@@ -1726,7 +1792,7 @@
 							<input
 								bind:value={groupMessageText}
 								oninput={handleGroupTyping}
-								placeholder="Message the group..."
+								placeholder={i18n.t('message_group_placeholder')}
 								class="min-w-0 flex-1 border-0 bg-transparent px-2 text-sm text-slate-950 placeholder:text-slate-400 focus:ring-0 dark:text-white"
 							/>
 
@@ -1735,7 +1801,7 @@
 								disabled={groupChatSending || !groupMessageText.trim()}
 								class="rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700 disabled:opacity-50 sm:px-5"
 							>
-								{groupChatSending ? '...' : 'Send'}
+								{groupChatSending ? '...' : i18n.t('send')}
 							</button>
 						</div>
 					</form>
@@ -1749,7 +1815,7 @@
 					class="rounded-4xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 				>
 					<p class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
-						Hosted by
+						{i18n.t('hosted_by')}
 					</p>
 
 					<a
@@ -1796,7 +1862,7 @@
 							disabled={contactLoading}
 							class="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3 font-black text-slate-800 transition hover:border-blue-300 hover:bg-blue-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-blue-500 dark:hover:bg-slate-700"
 						>
-							{contactLoading ? 'Opening chat...' : 'Contact organizer'}
+							{contactLoading ? i18n.t('opening_chat') : i18n.t('contact_organizer')}
 						</button>
 					{/if}
 
@@ -1843,7 +1909,7 @@
 					class="rounded-4xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 				>
 					<div class="flex items-center justify-between gap-3">
-						<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Team status</h2>
+						<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">{i18n.t('team_status')}</h2>
 
 						{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
 							<div class="flex flex-wrap items-center justify-end gap-2">
@@ -1851,22 +1917,22 @@
 									type="button"
 									onclick={handleFinishEvent}
 									disabled={actionLoading}
-									title="Finish event"
-									aria-label="Finish event"
+									title={i18n.t('finish_event')}
+									aria-label={i18n.t('finish_event')}
 									class="inline-flex min-h-10 items-center justify-center rounded-2xl bg-blue-600 px-4 text-sm font-black text-white shadow-sm shadow-blue-600/20 transition hover:bg-blue-700 disabled:opacity-60"
 								>
-									Finish event
+									{i18n.t('finish_event')}
 								</button>
 
 								<button
 									type="button"
 									onclick={handleCancelEvent}
 									disabled={actionLoading}
-									title="Cancel event"
-									aria-label="Cancel event"
+									title={i18n.t('cancel_event')}
+									aria-label={i18n.t('cancel_event')}
 									class="inline-flex min-h-10 items-center justify-center rounded-2xl border border-red-200 bg-red-50 px-4 text-sm font-black text-red-700 transition hover:bg-red-100 disabled:opacity-60 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
 								>
-									Cancel event
+									{i18n.t('cancel_event')}
 								</button>
 							</div>
 						{:else if isParticipant && !isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
@@ -1874,11 +1940,11 @@
 								type="button"
 								onclick={handleLeaveEvent}
 								disabled={actionLoading}
-								title="Leave event"
-								aria-label="Leave event"
+								title={i18n.t('leave_event')}
+								aria-label={i18n.t('leave_event')}
 								class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 transition hover:bg-red-50 disabled:opacity-60 dark:bg-slate-800 dark:hover:bg-red-950"
 							>
-								<img src="/leave_icon.png" alt="Leave event" class="h-5 w-5 object-contain" />
+								<img src="/leave_icon.png" alt={i18n.t('leave_event')} class="h-5 w-5 object-contain" />
 							</button>
 						{/if}
 					</div>
@@ -1888,7 +1954,7 @@
 							{event.participantIds.length}/{event.maxParticipants}
 						</p>
 						<p class="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
-							confirmed players
+							{i18n.t('confirmed_players')}
 						</p>
 					</div>
 
@@ -1896,19 +1962,19 @@
 						<div
 							class="mt-5 rounded-2xl bg-red-50 px-5 py-4 text-center font-bold text-red-700 dark:bg-red-950 dark:text-red-300"
 						>
-							This event has been cancelled
+							{i18n.t('event_cancelled_msg')}
 						</div>
 					{:else if effectiveStatus === 'finished'}
 						<div
 							class="mt-5 rounded-2xl bg-slate-100 px-5 py-4 text-center font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300"
 						>
-							This event has already finished
+							{i18n.t('event_finished_msg')}
 						</div>
 					{:else if event.status === 'full'}
 						<div
 							class="mt-5 rounded-2xl bg-slate-100 px-5 py-4 text-center font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300"
 						>
-							Event full
+							{i18n.t('event_full_msg')}
 						</div>
 					{:else if canJoin}
 						<button
@@ -1916,7 +1982,7 @@
 							disabled={actionLoading}
 							class="mt-5 w-full rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-700 disabled:opacity-60"
 						>
-							{actionLoading ? 'Joining...' : 'Join event'}
+							{actionLoading ? i18n.t('joining') : i18n.t('join_event')}
 						</button>
 					{:else if canRequestJoin}
 						<button
@@ -1924,15 +1990,31 @@
 							disabled={actionLoading}
 							class="mt-5 w-full rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-700 disabled:opacity-60"
 						>
-							{actionLoading ? 'Requesting...' : 'Request to join'}
+							{actionLoading ? i18n.t('requesting') : i18n.t('request_to_join')}
 						</button>
 					{:else if hasPendingJoinRequest}
 						<button
 							disabled
 							class="mt-5 w-full rounded-2xl bg-slate-100 px-5 py-3 font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400"
 						>
-							Request pending
+							{i18n.t('request_pending')}
 						</button>
+					{/if}
+
+					{#if canAddToGoogleCalendar}
+						<a
+							href={googleCalendarUrl}
+							target="_blank"
+							rel="noopener noreferrer"
+							aria-label={i18n.t('add_to_google_calendar_aria')}
+							class="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-5 py-3 font-bold text-blue-700 transition hover:border-blue-300 hover:bg-blue-100 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-200 dark:hover:bg-blue-950/60"
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<rect x="3" y="5" width="18" height="16" rx="2" />
+								<path d="M7 3v4M17 3v4M3 10h18M12 14v4M10 16h4" />
+							</svg>
+							{i18n.t('add_to_google_calendar')}
+						</a>
 					{/if}
 
 					{#if canInvite}
@@ -1940,7 +2022,7 @@
 							href={resolve(`/events/${event.id}/invite`)}
 							class="mt-3 block rounded-2xl border border-slate-200 bg-white px-5 py-3 text-center font-bold text-slate-700 transition hover:border-blue-200 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-500 dark:hover:text-blue-400"
 						>
-							Invite people
+							{i18n.t('invite_people')}
 						</a>
 					{/if}
 
@@ -1949,7 +2031,7 @@
 							href={resolve(`/events/${event.id}/edit`)}
 							class="mt-3 block rounded-2xl border border-slate-200 bg-white px-5 py-3 text-center font-bold text-slate-700 transition hover:border-blue-200 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-500 dark:hover:text-blue-400"
 						>
-							Edit event
+							{i18n.t('edit_event')}
 						</a>
 					{/if}
 				</div>
@@ -2151,7 +2233,7 @@
 					onclick={() => dismissConfirm(false)}
 					class="flex-1 py-4 text-sm font-bold text-slate-500 transition hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800"
 				>
-					Keep it
+					{i18n.t('keep_it')}
 				</button>
 				<div class="w-px bg-slate-100 dark:bg-slate-800"></div>
 				<button

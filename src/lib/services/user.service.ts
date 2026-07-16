@@ -16,6 +16,7 @@ import { type User, updateProfile } from 'firebase/auth';
 import { auth, db } from '$lib/firebase';
 import { authState } from '$lib/auth.svelte';
 import type { AccountType, Sport, UserProfile } from '$lib/schema';
+import { i18n } from './i18n.svelte';
 
 function slugify(value: string) {
 	return value
@@ -42,6 +43,7 @@ export async function createUserProfile(params: {
 	sports?: Sport[];
 	accountType?: AccountType;
 	activeOrganizationId?: string | null;
+	language?: string;
 }) {
 	const userRef = doc(db, 'users', params.id);
 	const rallyTag = generateRallyTag(params.displayName, params.email, params.id);
@@ -60,6 +62,7 @@ export async function createUserProfile(params: {
 		country: '',
 		age: null,
 		sports: params.sports ?? [],
+		language: params.language ?? i18n.currentLang,
 		createdAt: serverTimestamp(),
 		updatedAt: serverTimestamp()
 	};
@@ -273,6 +276,13 @@ export async function saveUserFcmToken(userId: string, token: string) {
 export async function removeUserFcmToken(userId: string, token: string) {
 	await updateDoc(doc(db, 'users', userId), {
 		fcmTokens: arrayRemove(token),
+		updatedAt: serverTimestamp()
+	});
+}
+
+export async function updateUserLanguage(userId: string, language: string) {
+	await updateDoc(doc(db, 'users', userId), {
+		language,
 		updatedAt: serverTimestamp()
 	});
 }

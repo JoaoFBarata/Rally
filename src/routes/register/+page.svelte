@@ -8,6 +8,7 @@
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
 	import { themeState } from '$lib/theme.svelte';
+	import { i18n } from '$lib/services/i18n.svelte';
 
 	let displayName = $state('');
 	let email = $state('');
@@ -16,6 +17,7 @@
 	let loading = $state(false);
 	let error = $state('');
 	let showPassword = $state(false);
+	let registerLanguage = $state(i18n.currentLang);
 
 	async function handleRegister() {
 		error = '';
@@ -38,7 +40,8 @@
 		loading = true;
 
 		try {
-			await authService.register(email, password, displayName);
+			await authService.register(email, password, displayName, registerLanguage);
+			i18n.setLanguage(registerLanguage as any);
 			await goto(resolve('/dashboard'));
 		} catch (err) {
 			console.error('Register error:', err);
@@ -165,6 +168,23 @@
 							placeholder="Your name"
 							class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
 						/>
+					</div>
+
+					<div>
+						<label for="language" class="text-sm font-bold text-slate-700 dark:text-slate-300">
+							{i18n.t('select_language')}
+						</label>
+
+						<select
+							id="language"
+							bind:value={registerLanguage}
+							class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950 font-bold"
+						>
+							<option value="en">English</option>
+							<option value="pt">Português</option>
+							<option value="es">Español</option>
+							<option value="fr">Français</option>
+						</select>
 					</div>
 
 					<div>

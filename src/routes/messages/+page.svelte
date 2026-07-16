@@ -32,6 +32,7 @@
 	} from '$lib/schema';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import type { Unsubscribe } from 'firebase/firestore';
+	import { i18n } from '$lib/services/i18n.svelte';
 
 	type InviteWithEvent = EventInvite & {
 		event: SportEvent | null;
@@ -216,6 +217,26 @@
 		});
 	}
 
+	function translateSystemPreview(text: string | undefined | null, type: string): string {
+		if (!text) return '';
+		if (type !== 'rally_system') return text;
+		const lang = i18n.currentLang;
+		if (lang === 'en') return text;
+		if (text === 'Welcome to Rally! You will receive event updates and more through this chat.') return i18n.t('welcome_personal');
+		if (text === 'Welcome to Rally! You will receive organization updates and event activity through this chat.') return i18n.t('welcome_org');
+		let m = text.match(/^You joined "(.+)" on (.+) at (.+)\.$/);
+		if (m) { if (lang === 'pt') return `Juntaste-te a "${m[1]}" em ${m[2]} no local ${m[3]}.`; if (lang === 'es') return `Te uniste a "${m[1]}" el ${m[2]} en ${m[3]}.`; if (lang === 'fr') return `Vous avez rejoint "${m[1]}" le ${m[2]} à ${m[3]}.`; }
+		m = text.match(/^You left "(.+)"\.$/);
+		if (m) { if (lang === 'pt') return `Saíste de "${m[1]}".`; if (lang === 'es') return `Saliste de "${m[1]}".`; if (lang === 'fr') return `Vous avez quitté "${m[1]}".`; }
+		m = text.match(/^You were removed from "(.+)" by the host\.$/);
+		if (m) { if (lang === 'pt') return `Foste removido de "${m[1]}" pelo organizador.`; if (lang === 'es') return `Fuiste eliminado de "${m[1]}" por el organizador.`; if (lang === 'fr') return `Vous avez été retiré de "${m[1]}" par l'organisateur.`; }
+		m = text.match(/^Your request to join "(.+)" was approved/);
+		if (m) { if (lang === 'pt') return `O teu pedido para "${m[1]}" foi aprovado!`; if (lang === 'es') return `Tu solicitud para "${m[1]}" fue aprobada!`; if (lang === 'fr') return `Votre demande pour "${m[1]}" a été approuvée !`; }
+		m = text.match(/^Your request to join "(.+)" was declined\.$/);
+		if (m) { if (lang === 'pt') return `O teu pedido para "${m[1]}" foi recusado.`; if (lang === 'es') return `Tu solicitud para "${m[1]}" fue rechazada.`; if (lang === 'fr') return `Votre demande pour "${m[1]}" a été refusée.`; }
+		return text;
+	}
+
 	function formatDate(dateValue: unknown) {
 		try {
 			const timestamp = dateValue as { toDate?: () => Date };
@@ -260,7 +281,7 @@
 						unreadCount,
 						lastInteractionAtMs: getConversationLastInteraction(conversation),
 						displayName: 'Rally',
-						displaySubtitle: isCleared ? 'No messages' : 'Activity & event updates',
+						displaySubtitle: isCleared ? i18n.t('no_messages_yet') : i18n.t('rally_chat_subtitle'),
 						lastMessage: isCleared ? '' : conversation.lastMessage,
 						displayPhotoURL: null,
 						displayHref: `/messages/${conversation.id}`,
@@ -275,8 +296,8 @@
 						otherUser: null,
 						unreadCount,
 						lastInteractionAtMs: getConversationLastInteraction(conversation),
-						displayName: conversation.title ?? 'Event group',
-						displaySubtitle: isCleared ? 'No messages' : 'Event group chat',
+						displayName: conversation.title ?? i18n.t('event_group'),
+						displaySubtitle: isCleared ? i18n.t('no_messages_yet') : i18n.t('event_group'),
 						lastMessage: isCleared ? '' : conversation.lastMessage,
 						displayPhotoURL: conversation.photoURL ?? null,
 						displayHref: `/messages/${conversation.id}`,
@@ -291,8 +312,8 @@
 						otherUser: null,
 						unreadCount,
 						lastInteractionAtMs: getConversationLastInteraction(conversation),
-						displayName: conversation.title ?? 'Tournament team',
-						displaySubtitle: isCleared ? 'No messages' : 'Team chat',
+						displayName: conversation.title ?? i18n.t('tournament_team'),
+						displaySubtitle: isCleared ? i18n.t('no_messages_yet') : i18n.t('tournament_team'),
 						lastMessage: isCleared ? '' : conversation.lastMessage,
 						displayPhotoURL: conversation.photoURL ?? null,
 						displayHref: `/messages/${conversation.id}`,
@@ -307,8 +328,8 @@
 						otherUser: null,
 						unreadCount,
 						lastInteractionAtMs: getConversationLastInteraction(conversation),
-						displayName: conversation.organizationName ?? conversation.title ?? 'Organization',
-						displaySubtitle: isCleared ? 'No messages' : 'Organization inbox',
+						displayName: conversation.organizationName ?? conversation.title ?? i18n.t('organization'),
+						displaySubtitle: isCleared ? i18n.t('no_messages_yet') : i18n.t('org_chat_subtitle'),
 						lastMessage: isCleared ? '' : conversation.lastMessage,
 						displayPhotoURL: conversation.organizationLogoURL ?? conversation.photoURL ?? null,
 						displayHref: `/messages/${conversation.id}`,
@@ -324,9 +345,9 @@
 					otherUser,
 					unreadCount,
 					lastInteractionAtMs: getConversationLastInteraction(conversation),
-					displayName: otherUser?.displayName ?? 'Rally user',
+					displayName: otherUser?.displayName ?? i18n.t('rally_user'),
 					displaySubtitle: isConversationClearedForUser(conversation, currentUserId)
-						? 'No messages'
+						? i18n.t('no_messages_yet')
 						: `@${otherUser?.rallyTag ?? 'rally'}`,
 					lastMessage: isConversationClearedForUser(conversation, currentUserId)
 						? ''
@@ -625,9 +646,9 @@
 			<div class="hidden sm:block">
 				<RallyWordmark size="sm" />
 			</div>
-			<h1 class="text-2xl font-black tracking-tight sm:mt-3 sm:text-3xl">Messages</h1>
+			<h1 class="text-2xl font-black tracking-tight sm:mt-3 sm:text-3xl">{i18n.t('messages')}</h1>
 			<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">
-				Invitations, chats and Rally friends.
+				{i18n.t('messages_sub')}
 			</p>
 		</header>
 
@@ -641,7 +662,7 @@
 
 		{#if loading}
 			<div class="py-16 text-center text-sm text-slate-500 dark:text-slate-400">
-				Loading messages...
+				{i18n.t('loading_messages')}
 			</div>
 		{:else}
 			{#if invites.length > 0}
@@ -864,7 +885,7 @@
 										</div>
 
 										<p class="truncate text-xs text-slate-500 dark:text-slate-400">
-											{conversation.lastMessage ?? conversation.displaySubtitle}
+											{translateSystemPreview(conversation.lastMessage, conversation.type) || conversation.displaySubtitle}
 										</p>
 									</div>
 
@@ -948,7 +969,7 @@
 								<span
 									class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500"
 								>
-									Finished events
+									{i18n.t('finished_events')}
 								</span>
 								<span
 									class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500 dark:bg-slate-800 dark:text-slate-400"
@@ -1008,7 +1029,7 @@
 													{conversation.displayName}
 												</p>
 												<p class="truncate text-xs text-slate-500 dark:text-slate-400">
-													{conversation.lastMessage ?? conversation.displaySubtitle}
+													{translateSystemPreview(conversation.lastMessage, conversation.type) || conversation.displaySubtitle}
 												</p>
 											</div>
 

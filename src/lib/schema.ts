@@ -76,6 +76,7 @@ export interface UserProfile {
 	displayName: string;
 	photoURL?: string | null;
 	profilePhotoPath?: string | null;
+	language?: string;
 
 	accountType?: AccountType;
 	activeOrganizationId?: string | null;

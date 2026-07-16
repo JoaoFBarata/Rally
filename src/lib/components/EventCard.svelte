@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { i18n } from '$lib/services/i18n.svelte';
 	import { browser } from '$app/environment';
 	import { auth } from '$lib/firebase';
 	import type { EventStatus, SportEvent } from '$lib/schema';
@@ -96,27 +97,27 @@
 	function getStatusLabel() {
 		const status = getEffectiveStatus();
 
-		if (status === 'cancelled') return 'Cancelled';
-		if (status === 'finished') return 'Finished';
-		if (status === 'full') return 'Full';
-		if (status === 'open') return 'Open';
+		if (status === 'cancelled') return i18n.t('status_cancelled');
+		if (status === 'finished') return i18n.t('status_finished');
+		if (status === 'full') return i18n.t('status_full');
+		if (status === 'open') return i18n.t('status_open');
 
 		return status;
 	}
 
 	function getProfileStatusLabel() {
 		const status = getEffectiveStatus();
-		if (status === 'cancelled') return 'Cancelled';
-		if (status === 'finished') return 'Finished';
-		if (event.eventKind === 'tournament') return 'Tournament';
-		return status === 'open' || status === 'full' ? 'Upcoming' : 'Past';
+		if (status === 'cancelled') return i18n.t('status_cancelled');
+		if (status === 'finished') return i18n.t('status_finished');
+		if (event.eventKind === 'tournament') return i18n.t('status_tournament');
+		return status === 'open' || status === 'full' ? i18n.t('status_upcoming') : i18n.t('status_past');
 	}
 
 
 
 	function formatHeroLocation() {
 		const address = event.location?.address?.trim();
-		return address || 'Location not set';
+		return address || i18n.t('location_not_set');
 	}
 
 	function getHeroBackgroundClasses() {

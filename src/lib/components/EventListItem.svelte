@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { i18n } from '$lib/services/i18n.svelte';
 	import type { EventStatus, SportEvent } from '$lib/schema';
 	import EventWeather from '$lib/components/EventWeather.svelte';
 	import {
@@ -44,10 +45,10 @@
 
 	function getStatusLabel() {
 		const status = getEffectiveStatus();
-		if (status === 'cancelled') return 'Cancelled';
-		if (status === 'finished') return 'Finished';
-		if (status === 'full') return 'Full';
-		if (status === 'open') return 'Open';
+		if (status === 'cancelled') return i18n.t('status_cancelled');
+		if (status === 'finished') return i18n.t('status_finished');
+		if (status === 'full') return i18n.t('status_full');
+		if (status === 'open') return i18n.t('status_open');
 		return status;
 	}
 

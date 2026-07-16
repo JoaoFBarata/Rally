@@ -8,7 +8,8 @@
 	import type { UserProfile } from '$lib/schema';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
-	import { ensureUserProfile, updateUserPrivacy } from '$lib/services/user.service';
+	import { ensureUserProfile, updateUserPrivacy, updateUserLanguage } from '$lib/services/user.service';
+	import { i18n } from '$lib/services/i18n.svelte';
 	import {
 		canFastSwitchDeviceAccount,
 		getDeviceAccounts,
@@ -30,7 +31,26 @@
 	let privacySaving = $state(false);
 
 	let notificationsEnabled = $state(true);
-	let selectedLanguage = $state('en');
+	let selectedLanguage = $state<string>(i18n.currentLang);
+
+	$effect(() => {
+		if (profile?.language) {
+			selectedLanguage = profile.language;
+		}
+	});
+
+	async function handleLanguageChange(lang: string) {
+		selectedLanguage = lang;
+		i18n.setLanguage(lang as any);
+		if (profile) {
+			try {
+				await updateUserLanguage(profile.id, lang);
+				profile.language = lang;
+			} catch (err) {
+				console.error('Failed to update language in profile:', err);
+			}
+		}
+	}
 
 	let showAccountSwitcher = $state(false);
 	let deviceAccounts = $state<DeviceAccount[]>([]);
@@ -186,13 +206,13 @@
 		class="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-black text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
 	>
 		<span class="leading-none">←</span>
-		<span>Back</span>
+		<span>{i18n.t('back')}</span>
 	</button>
 
 	<div>
-		<h1 class="text-3xl font-black text-slate-950 dark:text-slate-50">Settings</h1>
+		<h1 class="text-3xl font-black text-slate-950 dark:text-slate-50">{i18n.t('settings_title')}</h1>
 		<p class="mt-1 text-slate-500 dark:text-slate-400">
-			Notifications, appearance, language, privacy and account.
+			{i18n.t('settings_sub')}
 		</p>
 	</div>
 
@@ -205,11 +225,11 @@
 	{/if}
 
 	{#if loading}
-		<p class="font-bold text-slate-500 dark:text-slate-400">Loading settings...</p>
+		<p class="font-bold text-slate-500 dark:text-slate-400">{i18n.t('loading_settings')}</p>
 	{:else}
 		<section>
 			<p class="mb-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-				App
+				{i18n.t('app')}
 			</p>
 
 			<div
@@ -217,9 +237,9 @@
 			>
 				<div class="flex items-center justify-between gap-4 p-4">
 					<div>
-						<p class="font-black text-slate-950 dark:text-slate-50">Notifications</p>
+						<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('notifications')}</p>
 						<p class="text-xs text-slate-500 dark:text-slate-400">
-							Event invites, messages and friend requests.
+							{i18n.t('notifications_sub')}
 						</p>
 					</div>
 					<button
@@ -236,24 +256,27 @@
 
 				<div class="flex items-center justify-between gap-4 p-4">
 					<div>
-						<p class="font-black text-slate-950 dark:text-slate-50">Appearance</p>
-						<p class="text-xs text-slate-500 dark:text-slate-400">Switch light or dark mode.</p>
+						<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('appearance')}</p>
+						<p class="text-xs text-slate-500 dark:text-slate-400">{i18n.t('appearance_sub')}</p>
 					</div>
 					<ThemeToggle />
 				</div>
 
 					<label class="flex items-center justify-between gap-4 p-4">
 						<div>
-							<p class="font-black text-slate-950 dark:text-slate-50">Language</p>
-							<p class="text-xs text-slate-500 dark:text-slate-400">App language.</p>
+							<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('language')}</p>
+							<p class="text-xs text-slate-500 dark:text-slate-400">{i18n.t('select_language')}</p>
 						</div>
 					<select
-						bind:value={selectedLanguage}
+						value={selectedLanguage}
+						onchange={(e) => handleLanguageChange(e.currentTarget.value)}
 						class="rounded-2xl border-slate-200 bg-white py-2 pl-3 pr-8 text-sm font-bold text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
 					>
 						<option value="en">English</option>
-							<option value="pt">Português</option>
-						</select>
+						<option value="pt">Português</option>
+						<option value="es">Español</option>
+						<option value="fr">Français</option>
+					</select>
 					</label>
 
 					<a
@@ -261,9 +284,9 @@
 						class="flex items-center justify-between gap-4 p-4 transition hover:bg-slate-100 dark:hover:bg-slate-700"
 					>
 						<span>
-							<span class="block font-black text-slate-950 dark:text-slate-50">Saved events</span>
+							<span class="block font-black text-slate-950 dark:text-slate-50">{i18n.t('saved_events')}</span>
 							<span class="block text-xs text-slate-500 dark:text-slate-400">
-								Review the events you bookmarked.
+								{i18n.t('saved_events_sub')}
 							</span>
 						</span>
 						<span class="text-slate-300">›</span>
@@ -274,7 +297,7 @@
 		{#if profile?.accountType === 'organization' && profile.activeOrganizationId}
 			<section>
 				<p class="mb-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-					Organization
+					{i18n.t('organization')}
 				</p>
 
 				<div
@@ -286,10 +309,10 @@
 					>
 						<span>
 							<span class="block font-black text-slate-950 dark:text-slate-50">
-								Manage organization
+								{i18n.t('manage_org')}
 							</span>
 							<span class="block text-xs text-slate-500 dark:text-slate-400">
-								Edit profile, verification, events and promotions.
+								{i18n.t('manage_org_sub')}
 							</span>
 						</span>
 						<span class="text-slate-300">›</span>
@@ -301,10 +324,10 @@
 					>
 						<span>
 							<span class="block font-black text-slate-950 dark:text-slate-50">
-								Promote events
+								{i18n.t('promote_events')}
 							</span>
 							<span class="block text-xs text-slate-500 dark:text-slate-400">
-								Choose an organization event to boost.
+								{i18n.t('promote_events_sub')}
 							</span>
 						</span>
 						<span class="text-slate-300">›</span>
@@ -315,15 +338,15 @@
 
 		<section>
 			<p class="mb-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-				Privacy
+				{i18n.t('privacy')}
 			</p>
 
 			<div class="overflow-hidden rounded-3xl bg-slate-50 dark:bg-slate-800">
 				<div class="flex items-center justify-between gap-4 p-4">
 					<div>
-						<p class="font-black text-slate-950 dark:text-slate-50">Make your profile private</p>
+						<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('private_profile')}</p>
 						<p class="text-xs text-slate-500 dark:text-slate-400">
-							Only people you've shared an event with will be able to view your profile.
+							{i18n.t('private_profile_sub')}
 						</p>
 					</div>
 					<button
@@ -343,19 +366,19 @@
 
 		<section>
 			<p class="mb-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-				Security
+				{i18n.t('security')}
 			</p>
 
 			<div class="overflow-hidden rounded-3xl bg-slate-50 dark:bg-slate-800">
 				{#if canChangePassword}
 					<div class="flex items-center justify-between gap-4 p-4">
 						<div>
-							<p class="font-black text-slate-950 dark:text-slate-50">Change password</p>
+							<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('change_password')}</p>
 							<p class="text-xs text-slate-500 dark:text-slate-400">
 								{#if resetSent}
-									Check your inbox for a link to set a new password.
+									{i18n.t('password_reset_sent')}
 								{:else}
-									We'll email you a link to set a new password.
+									{i18n.t('password_reset_will_send')}
 								{/if}
 							</p>
 						</div>
@@ -365,14 +388,14 @@
 							disabled={resetLoading}
 							class="shrink-0 rounded-2xl bg-white px-4 py-2.5 text-sm font-black text-slate-900 shadow-sm transition hover:bg-slate-100 disabled:opacity-60 dark:bg-slate-900 dark:text-slate-50 dark:hover:bg-slate-700"
 						>
-							{resetLoading ? 'Sending...' : resetSent ? 'Resend' : 'Send reset email'}
+							{resetLoading ? i18n.t('sending') : resetSent ? i18n.t('resend') : i18n.t('send_reset_email')}
 						</button>
 					</div>
 				{:else}
 					<div class="p-4">
-						<p class="font-black text-slate-950 dark:text-slate-50">Change password</p>
+						<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('change_password')}</p>
 						<p class="text-xs text-slate-500 dark:text-slate-400">
-							This account signs in with Google, so there's no Rally password to change.
+							{i18n.t('google_no_password_msg')}
 						</p>
 					</div>
 				{/if}
@@ -382,7 +405,7 @@
 		<section>
 			<div class="mb-2 flex items-center justify-between gap-3">
 				<p class="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-					Account
+					{i18n.t('account')}
 				</p>
 				{#if showAccountSwitcher}
 					<button
@@ -390,7 +413,7 @@
 						onclick={() => (showAccountSwitcher = false)}
 						class="text-xs font-black text-blue-600 dark:text-blue-400"
 					>
-						Back
+						{i18n.t('back')}
 					</button>
 				{/if}
 			</div>
@@ -430,11 +453,11 @@
 										{#if account.id !== auth.currentUser?.uid}
 											<p class="mt-0.5 text-[0.68rem] font-bold text-slate-400 dark:text-slate-500">
 												{#if switchingAccountId === account.id}
-													Switching...
+													{i18n.t('switching')}
 												{:else if canFastSwitchDeviceAccount(account)}
-													Quick switch with Google
+													{i18n.t('quick_switch_google')}
 												{:else}
-													Password required
+													{i18n.t('password_required')}
 												{/if}
 											</p>
 										{/if}
@@ -451,7 +474,7 @@
 										type="button"
 										onclick={() => handleForgetDeviceAccount(account.id)}
 										class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-white hover:text-red-500 dark:hover:bg-slate-900"
-										aria-label="Forget account on this device"
+										aria-label={i18n.t('forget_account_aria')}
 									>
 										×
 									</button>
@@ -472,18 +495,17 @@
 						>
 						<span>
 							<span class="block font-black text-slate-950 dark:text-slate-50"
-								>Add another account</span
+								>{i18n.t('add_another_account')}</span
 							>
 							<span class="block text-xs text-slate-500 dark:text-slate-400"
-								>It will be saved on this device.</span
+								>{i18n.t('saved_on_device_msg')}</span
 							>
 						</span>
 					</button>
 
 					<div class="px-4 pb-4 pt-1">
 						<p class="text-[0.7rem] leading-relaxed text-slate-400 dark:text-slate-500">
-							Google accounts can quick switch. Email/password accounts still require the
-							password for security.
+							{i18n.t('switch_account_footer_note')}
 						</p>
 					</div>
 				</div>
@@ -510,7 +532,7 @@
 							onclick={() => (showAccountSwitcher = true)}
 							class="rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-900 shadow-sm transition hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-50 dark:hover:bg-slate-700"
 						>
-							Switch
+							{i18n.t('switch')}
 						</button>
 
 						<button
@@ -518,7 +540,7 @@
 							disabled={logoutLoading}
 							class="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-slate-50 dark:text-slate-950 dark:hover:bg-slate-200"
 						>
-							{logoutLoading ? '...' : 'Log out'}
+							{logoutLoading ? '...' : i18n.t('logout')}
 						</button>
 					</div>
 				</div>

@@ -18,6 +18,7 @@
 	import { getEventStartAtMillis, isPromotionActive } from '$lib/services/event.service';
 	import { subscribeToEventCatalogChanges } from '$lib/services/realtime.service';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
+	import { i18n } from '$lib/services/i18n.svelte';
 
 	type DateFilter = 'today' | '7' | '14' | '30' | 'all';
 	type PriceFilter = 'all' | 'free' | 'paid';
@@ -444,9 +445,9 @@
 	<header class="mb-2 sm:mb-6 shrink-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 		<div>
 			<RallyWordmark size="sm" />
-			<h1 class="mt-1 text-2xl font-bold sm:mt-2 sm:text-3xl">Explore</h1>
+			<h1 class="mt-1 text-2xl font-bold sm:mt-2 sm:text-3xl">{i18n.t('explore')}</h1>
 			<p class="mt-1 hidden text-sm text-slate-500 sm:block">
-				{searchTerm ? `Showing results for "${searchTerm}".` : 'Find games, teams and sports partners nearby.'}
+				{searchTerm ? i18n.t('showing_results', { searchTerm }) : i18n.t('explore_subtitle')}
 			</p>
 		</div>
 		<div class="inline-flex rounded-full bg-slate-100 p-1 dark:bg-slate-800 self-start sm:self-center">
@@ -455,14 +456,14 @@
 				onclick={() => { viewMode = 'map'; syncExploreQuery(); }}
 				class="rounded-full px-4 py-2 text-xs font-black transition duration-200 {viewMode === 'map' ? 'bg-white text-slate-950 shadow-md dark:bg-slate-700 dark:text-slate-50' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'}"
 			>
-				🗺️ Map View
+				🗺️ {i18n.t('map_view')}
 			</button>
 			<button
 				type="button"
 				onclick={() => { viewMode = 'feed'; syncExploreQuery(); }}
 				class="rounded-full px-4 py-2 text-xs font-black transition duration-200 {viewMode === 'feed' ? 'bg-white text-slate-950 shadow-md dark:bg-slate-700 dark:text-slate-50' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'}"
 			>
-				📰 Feed View
+				📰 {i18n.t('feed_view')}
 			</button>
 		</div>
 	</header>
@@ -524,15 +525,15 @@
 								<p
 									class="text-xs font-black uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400"
 								>
-									Promoted
+									{i18n.t('sponsored')}
 								</p>
 
 								<h2 class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50">
-									Featured near you
+									{i18n.t('featured_near_you')}
 								</h2>
 
 								<p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
-									Organizations paid to boost these events.
+									{i18n.t('promoted_boost_msg')}
 								</p>
 							</section>
 
