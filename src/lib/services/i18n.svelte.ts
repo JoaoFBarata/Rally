@@ -958,7 +958,7 @@ class I18nService {
 			"pick_event_location": "Escolher localização do evento",
 			"pick_location_sub": "Pesquisa um endereço ou clica no mapa para definir a localização do evento.",
 			"not_added_yet": "Ainda não adicionado",
-			"years_old": "anos de idade",
+			"years_old": "anos",
 			"friends": "Amigos",
 			"add_friend": "Adicionar amigo",
 			"add_friend_sub": "Usa uma Rally tag ou mostra o teu código QR.",
