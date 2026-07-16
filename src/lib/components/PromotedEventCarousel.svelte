@@ -142,7 +142,7 @@
 					class:duration-200={!isDragging && isSettling}
 					style={`transform: translateX(calc(-100% + ${dragOffset}px));`}
 				>
-					<div class="w-full shrink-0 pr-2 opacity-80">
+					<div class="w-full shrink-0 px-1">
 						{#if previousEvent}
 							<EventCard
 								event={previousEvent}
@@ -162,7 +162,7 @@
 							{heroCtaLabel}
 						/>
 					</div>
-					<div class="w-full shrink-0 pl-2 opacity-80">
+					<div class="w-full shrink-0 px-1">
 						{#if nextEvent}
 							<EventCard
 								event={nextEvent}
@@ -176,31 +176,26 @@
 				</div>
 			</div>
 
-			<div class="hidden gap-4 md:grid md:grid-cols-2">
-				{#key currentEvent.id}
-					<EventCard
-						event={currentEvent}
-						variant={cardVariant}
-						{compactHero}
-						{miniHero}
-						{heroCtaLabel}
-					/>
-				{/key}
-
-				{#if nextEvent}
-					{#key nextEvent.id}
-						<EventCard
-							event={nextEvent}
-							variant={cardVariant}
-							{compactHero}
-							{miniHero}
-							{heroCtaLabel}
-						/>
-					{/key}
-				{/if}
+			<div class="hidden md:block overflow-hidden relative rounded-[2rem]">
+				<div
+					class="flex will-change-transform transition-transform duration-500 ease-out"
+					style={`transform: translateX(calc(-100% * ${currentIndex}));`}
+				>
+					{#each events as event (event.id)}
+						<div class="w-full shrink-0">
+							<EventCard
+								event={event}
+								variant={cardVariant}
+								{compactHero}
+								{miniHero}
+								{heroCtaLabel}
+							/>
+						</div>
+					{/each}
+				</div>
 			</div>
 
-			{#if events.length > 2}
+			{#if events.length > 1}
 				<button
 					type="button"
 					onclick={showPrevious}

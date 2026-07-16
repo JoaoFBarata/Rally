@@ -30,6 +30,7 @@
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
 	import { getCurrencySymbol } from '$lib/utils/format.utils';
+	import { TEXT_LIMITS } from '$lib/constants/text-limits';
 
 	let organization = $state<Organization | null>(null);
 
@@ -465,12 +466,14 @@
 					<div class="mt-4 space-y-3 sm:mt-5 sm:space-y-4">
 						<input
 							bind:value={title}
+							maxlength={TEXT_LIMITS.eventTitle}
 							placeholder="Event title"
 							class={inputClass}
 						/>
 
 						<textarea
 							bind:value={description}
+							maxlength={TEXT_LIMITS.eventDescription}
 							rows="3"
 							placeholder="Description, rules, what people should bring..."
 							class={inputClass}
@@ -495,6 +498,7 @@
 								{#if sport === 'other'}
 									<input
 										bind:value={customSport}
+										maxlength={TEXT_LIMITS.customSport}
 										placeholder="e.g. Climbing, Skateboarding, Surfing..."
 										class={inputClass}
 									/>

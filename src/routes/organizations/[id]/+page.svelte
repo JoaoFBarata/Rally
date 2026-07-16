@@ -2,6 +2,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
+	import { i18n } from '$lib/services/i18n.svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { onAuthStateChanged } from 'firebase/auth';
@@ -25,6 +26,7 @@
 	import { getEventsCreatedByOrganization, getUpcomingEvents } from '$lib/services/event.service';
 	import { getOrCreateOrganizationConversation } from '$lib/services/chat.service';
 	import EventCard from '$lib/components/EventCard.svelte';
+	import ExpandableText from '$lib/components/ExpandableText.svelte';
 	import {
 		subscribeToEventCatalogChanges,
 		subscribeToOrganizationChanges
@@ -38,6 +40,7 @@
 		formatCapacity,
 		getMiniMapUrl as getMiniMapUrlUtil
 	} from '$lib/utils/format.utils';
+	import { TEXT_LIMITS } from '$lib/constants/text-limits';
 
 	let organization = $state<Organization | null>(null);
 	let events = $state<SportEvent[]>([]);
@@ -748,7 +751,7 @@
 <main class="mx-auto w-full max-w-6xl overflow-x-hidden px-6 pb-28 pt-5 sm:px-6 sm:py-8">
 	{#if loading}
 		<section class="rounded-[2rem] bg-white p-6 shadow-sm dark:bg-slate-900">
-			<p class="font-bold text-slate-500 dark:text-slate-400">Loading organization...</p>
+			<p class="font-bold text-slate-500 dark:text-slate-400">{i18n.t('loading_org')}</p>
 		</section>
 	{:else if error && !organization}
 		<section class="rounded-[2rem] bg-red-50 p-6 font-bold text-red-700 dark:bg-red-950/40 dark:text-red-300">
@@ -826,7 +829,7 @@
 								{/each}
 								{#if extraSportCount > 0}
 									<span class="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-sm font-bold text-slate-800 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
-										+ {extraSportCount} more
+										+ {extraSportCount}{i18n.t('more_suffix')}
 									</span>
 								{:else if organizationSports.length === 0}
 									<span class="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-sm font-bold text-slate-800 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
@@ -838,15 +841,15 @@
 							<div class="mt-5 grid grid-cols-3 divide-x divide-slate-200 border-y border-slate-200 py-3 dark:divide-slate-800 dark:border-slate-800">
 								<div class="text-center">
 									<p class="text-xl font-black text-slate-950 dark:text-slate-50">{playersReached}</p>
-									<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Players</p>
+									<p class="text-xs font-bold text-slate-500 dark:text-slate-400">{i18n.t('players')}</p>
 								</div>
 								<div class="text-center">
 									<p class="text-xl font-black text-slate-950 dark:text-slate-50">{displayedFollowersCount}</p>
-									<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Followers</p>
+									<p class="text-xs font-bold text-slate-500 dark:text-slate-400">{i18n.t('followers')}</p>
 								</div>
 								<div class="text-center">
 									<p class="text-xl font-black text-slate-950 dark:text-slate-50">{events.length}</p>
-									<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Events</p>
+									<p class="text-xs font-bold text-slate-500 dark:text-slate-400">{i18n.t('events')}</p>
 								</div>
 							</div>
 
@@ -864,28 +867,28 @@
 										{/each}
 									</div>
 									<p class="min-w-0 truncate">
-										Followed by {mutualFollowerFriends.map((friend) => friend.displayName).slice(0, 2).join(', ')}
-										{mutualFollowerFriends.length > 2 ? ` and ${mutualFollowerFriends.length - 2} more` : ''}
+										{i18n.t('followed_by')}{mutualFollowerFriends.map((friend) => friend.displayName).slice(0, 2).join(', ')}
+										{mutualFollowerFriends.length > 2 ? `${i18n.t('and_conjunction')}${mutualFollowerFriends.length - 2}${i18n.t('more_suffix')}` : ''}
 									</p>
 								</div>
 							{/if}
 
 							<div class="mt-5 grid grid-cols-[1.15fr_1fr_auto] gap-2">
 								<button type="button" onclick={toggleFollow} disabled={actionLoading} class={`rounded-xl px-3 py-2.5 text-sm font-black transition disabled:opacity-60 sm:rounded-2xl sm:py-3 ${following ? 'bg-slate-100 text-slate-950 ring-1 ring-slate-200 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-50 dark:ring-slate-800 dark:hover:bg-slate-800' : 'bg-blue-600 text-white shadow-sm shadow-blue-600/20 hover:bg-blue-700'}`}>
-									{actionLoading ? '...' : following ? 'Following' : 'Follow'}
+									{actionLoading ? '...' : following ? i18n.t('following') : i18n.t('follow')}
 								</button>
 								<button type="button" onclick={messageOrganization} disabled={messageLoading} class="rounded-xl bg-slate-100 px-3 py-2.5 text-sm font-black text-slate-950 transition hover:bg-slate-200 disabled:opacity-60 dark:bg-slate-900 dark:text-slate-50 dark:hover:bg-slate-800 sm:rounded-2xl sm:py-3">
-									{messageLoading ? '...' : 'Message'}
+									{messageLoading ? '...' : i18n.t('message')}
 								</button>
 								{#if galleryPhotoURLs.length > 0}
 									<button type="button" onclick={() => openGallery()} class="rounded-xl bg-slate-100 px-3 py-2.5 text-center text-sm font-black text-slate-950 transition hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-50 dark:hover:bg-slate-800 sm:rounded-2xl sm:py-3" aria-label="Open photos">
 										<span class="sm:hidden">📷</span>
-										<span class="hidden sm:inline">Photos</span>
+										<span class="hidden sm:inline">{i18n.t('photos')}</span>
 									</button>
 								{:else}
 									<a href="#organization-reviews" class="rounded-xl bg-slate-100 px-3 py-2.5 text-center text-sm font-black text-slate-950 transition hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-50 dark:hover:bg-slate-800 sm:rounded-2xl sm:py-3" aria-label="Go to reviews">
 										<span class="sm:hidden">★</span>
-										<span class="hidden sm:inline">Reviews</span>
+										<span class="hidden sm:inline">{i18n.t('reviews')}</span>
 									</a>
 								{/if}
 							</div>
@@ -894,21 +897,21 @@
 
 					<section id="organization-events" class="mx-auto max-w-5xl border-t border-slate-200 px-6 py-5 dark:border-slate-800">
 						<div class="mb-3 flex items-center justify-between gap-3">
-							<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Upcoming Events</h2>
+							<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">{i18n.t('upcoming_events')}</h2>
 							{#if upcomingEvents.length > 2}
-								<a href="#organization-events" class="text-sm font-black text-blue-600 dark:text-blue-400">View All Events ›</a>
+								<a href="#organization-events" class="text-sm font-black text-blue-600 dark:text-blue-400">{i18n.t('view_all_events')}</a>
 							{/if}
 						</div>
 
 						{#if featuredEvents.length === 0}
 							<div class="rounded-[1.5rem] border border-dashed border-slate-200 p-5 text-center dark:border-slate-800">
-								<p class="font-black text-slate-950 dark:text-slate-50">No upcoming events yet</p>
-								<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">New events from this organization will appear here.</p>
+								<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('no_upcoming_events')}</p>
+								<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{i18n.t('no_upcoming_events_sub')}</p>
 							</div>
 						{:else}
 							<div class="grid max-w-3xl gap-4">
 								{#each featuredEvents as event (event.id)}
-									<EventCard {event} variant="hero" miniHero heroCtaLabel="View event" />
+									<EventCard {event} variant="hero" miniHero heroCtaLabel={i18n.t('view_event')} />
 								{/each}
 							</div>
 						{/if}
@@ -916,11 +919,11 @@
 
 					<section class="mx-auto max-w-5xl border-t border-slate-200 px-6 py-5 dark:border-slate-800">
 						<div class="flex items-center justify-between gap-3">
-							<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">About</h2>
+							<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">{i18n.t('about')}</h2>
 							<span class={`rounded-full px-3 py-1 text-xs font-black ${verificationClasses()}`}>{verificationLabel()}</span>
 						</div>
 						<p class="mt-2 max-w-3xl leading-relaxed text-slate-700 dark:text-slate-300">
-							{organization.description || 'This organization has not added an about description yet.'}
+							{organization.description || i18n.t('no_bio_provided')}
 						</p>
 
 						<div class="mt-4 grid gap-4 sm:grid-cols-[1fr_11rem]">
@@ -935,7 +938,7 @@
 									<div>
 										<p class="font-black text-slate-950 dark:text-slate-50">{organization.publicLocation?.name || 'Home venue'}</p>
 										<p class="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-											{organization.publicLocation?.address || organization.address || organization.city || 'No public venue set yet.'}
+											{organization.publicLocation?.address || organization.address || organization.city || i18n.t('no_public_venue_set')}
 										</p>
 									</div>
 								</div>
@@ -948,7 +951,7 @@
 										<a href={`tel:${organization.phone}`} class="rounded-full bg-slate-50 px-3 py-2 text-slate-700 transition hover:text-blue-600 dark:bg-slate-900 dark:text-slate-200">📞 {organization.phone}</a>
 									{/if}
 									{#if organization.website}
-										<a href={getWebsiteHref(organization.website)} target="_blank" rel="noreferrer" class="rounded-full bg-blue-50 px-3 py-2 text-blue-700 dark:bg-blue-950 dark:text-blue-300">Website</a>
+										<a href={getWebsiteHref(organization.website)} target="_blank" rel="noreferrer" class="rounded-full bg-blue-50 px-3 py-2 text-blue-700 dark:bg-blue-950 dark:text-blue-300">{i18n.t('website')}</a>
 									{/if}
 								</div>
 							</div>
@@ -962,9 +965,9 @@
 					{#if galleryPhotoURLs.length > 0}
 						<section class="mx-auto max-w-5xl border-t border-slate-200 px-6 py-5 dark:border-slate-800">
 							<div class="flex items-center justify-between gap-3">
-								<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Gallery</h2>
+								<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">{i18n.t('gallery')}</h2>
 								<button type="button" onclick={() => openGallery()} class="text-sm font-black text-blue-600 transition hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
-									View All Photos ›
+									{i18n.t('view_all_photos')} ›
 								</button>
 							</div>
 							<div class="mt-3 flex gap-2 overflow-x-auto pb-1">
@@ -985,19 +988,19 @@
 					<section id="organization-reviews" class="mx-auto max-w-5xl border-t border-slate-200 px-6 py-5 dark:border-slate-800">
 						<div class="flex flex-wrap items-end justify-between gap-3">
 							<div>
-								<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Reviews</h2>
+								<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">{i18n.t('reviews')}</h2>
 								<p class="text-sm font-bold text-slate-500 dark:text-slate-400">
 									{#if reviews.length > 0}
-										⭐ {averageRating.toFixed(1)} from {reviews.length} {reviews.length === 1 ? 'review' : 'reviews'}
+										{i18n.t('rating_from_reviews', { rating: averageRating.toFixed(1), count: reviews.length, reviewText: reviews.length === 1 ? i18n.t('review_singular') : i18n.t('review_plural') })}
 									{:else}
-										No reviews yet
+										{i18n.t('no_reviews_yet')}
 									{/if}
 								</p>
 							</div>
 						</div>
 
 						<div class="mt-4 rounded-[1.5rem] bg-slate-50 p-4 dark:bg-slate-900">
-							<p class="font-black text-slate-950 dark:text-slate-50">Rate this organization</p>
+							<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('rate_this_org')}</p>
 							<div class="mt-2 flex gap-1">
 								{#each [1, 2, 3, 4, 5] as star}
 									<button type="button" onclick={() => (reviewRating = star)} class={`text-2xl transition ${reviewRating >= star ? 'text-yellow-400' : 'text-slate-300 dark:text-slate-700'}`} aria-label={`Rate ${star} stars`}>
@@ -1005,12 +1008,12 @@
 									</button>
 								{/each}
 							</div>
-							<textarea bind:value={reviewComment} rows="2" class="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-950 outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:focus:ring-blue-950" placeholder="Leave a comment..."></textarea>
+							<textarea bind:value={reviewComment} maxlength={TEXT_LIMITS.reviewComment} rows="2" class="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-950 outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:focus:ring-blue-950" placeholder={i18n.t('leave_comment_placeholder')}></textarea>
 							<button type="button" onclick={submitReview} disabled={reviewSubmitting || reviewRating < 1} class="mt-3 rounded-2xl bg-blue-600 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:opacity-60">
-								{reviewSubmitting ? 'Saving...' : 'Save review'}
+								{reviewSubmitting ? i18n.t('saving') : i18n.t('save_review')}
 							</button>
 							{#if reviewMessage}
-								<p class={`mt-3 text-sm font-bold ${reviewMessage === 'Review saved.' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+								<p class={`mt-3 text-sm font-bold ${reviewMessage === 'Review saved.' || reviewMessage === 'Avaliação guardada.' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
 									{reviewMessage}
 								</p>
 							{/if}
@@ -1021,23 +1024,23 @@
 								{#each paginatedReviews as review (review.id)}
 									<div class="rounded-[1.35rem] bg-slate-50 p-4 dark:bg-slate-900">
 										<div class="flex items-center justify-between gap-3">
-											<p class="truncate font-black text-slate-950 dark:text-slate-50">{review.authorName ?? 'Rally user'}</p>
+											<p class="truncate font-black text-slate-950 dark:text-slate-50">{review.authorName ?? i18n.t('rally_user')}</p>
 											<p class="shrink-0 text-sm font-black text-yellow-500">{'★'.repeat(review.rating)}</p>
 										</div>
 										{#if review.comment}
-											<p class="mt-2 text-sm font-bold leading-relaxed text-slate-500 dark:text-slate-400">{review.comment}</p>
+											<ExpandableText text={review.comment} class="mt-2 text-sm font-bold leading-relaxed text-slate-500 dark:text-slate-400" />
 										{/if}
 										{#if review.replies?.length}
 											<div class="mt-3 space-y-2 border-l-2 border-blue-100 pl-3 dark:border-blue-950">
 												{#each review.replies.slice(-3) as reply (reply.id)}
 													<div class="rounded-2xl bg-white px-3 py-2 dark:bg-slate-950">
 														<div class="flex items-center gap-2">
-															<p class="text-xs font-black text-slate-950 dark:text-slate-50">{reply.authorName ?? 'Rally user'}</p>
+															<p class="text-xs font-black text-slate-950 dark:text-slate-50">{reply.authorName ?? i18n.t('rally_user')}</p>
 															{#if reply.authorRole === 'organization'}
-																<span class="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-blue-700 dark:bg-blue-950 dark:text-blue-300">Org</span>
+																<span class="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-blue-700 dark:bg-blue-950 dark:text-blue-300">{i18n.t('org_admin_reply_label')}</span>
 															{/if}
 														</div>
-														<p class="mt-1 text-xs font-bold leading-relaxed text-slate-500 dark:text-slate-400">{reply.comment}</p>
+														<ExpandableText text={reply.comment} initialLines={2} stepLines={2} maxPreviewChars={120} class="mt-1 text-xs font-bold leading-relaxed text-slate-500 dark:text-slate-400" />
 													</div>
 												{/each}
 											</div>
@@ -1045,13 +1048,13 @@
 										{#if reviewCanReply()}
 											<div class="mt-3">
 												{#if replyingToReviewId === review.id}
-													<textarea bind:value={replyComment} rows="2" class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:focus:ring-blue-950" placeholder="Reply to this review..."></textarea>
+													<textarea bind:value={replyComment} maxlength={TEXT_LIMITS.reviewReply} rows="2" class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:focus:ring-blue-950" placeholder={i18n.t('reply_placeholder')}></textarea>
 													<div class="mt-2 flex gap-2">
 														<button type="button" onclick={() => submitReviewReply(review)} disabled={replySubmitting || !replyComment.trim()} class="rounded-full bg-blue-600 px-4 py-2 text-xs font-black text-white transition hover:bg-blue-700 disabled:opacity-60">
-															{replySubmitting ? 'Sending...' : 'Reply'}
+															{replySubmitting ? i18n.t('sending') : i18n.t('reply_btn')}
 														</button>
 														<button type="button" onclick={() => { replyingToReviewId = null; replyComment = ''; replyMessage = ''; }} class="rounded-full bg-white px-4 py-2 text-xs font-black text-slate-600 transition hover:text-slate-950 dark:bg-slate-950 dark:text-slate-300">
-															Cancel
+															{i18n.t('cancel')}
 														</button>
 													</div>
 													{#if replyMessage}
@@ -1059,7 +1062,7 @@
 													{/if}
 												{:else}
 													<button type="button" onclick={() => { replyingToReviewId = review.id; replyComment = ''; replyMessage = ''; }} class="text-xs font-black text-blue-600 transition hover:text-blue-700 dark:text-blue-400">
-														Reply
+														{i18n.t('reply_btn')}
 													</button>
 												{/if}
 											</div>
@@ -1070,7 +1073,7 @@
 							{#if reviewPages > 1}
 								<div class="mt-4 flex items-center justify-center gap-2">
 									<button type="button" onclick={() => goToReviewPage(reviewPage - 1)} disabled={reviewPage === 0} class="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600 transition hover:text-blue-600 disabled:opacity-40 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
-										Previous
+										{i18n.t('previous_btn')}
 									</button>
 									{#each Array(reviewPages) as _, index}
 										<button type="button" onclick={() => goToReviewPage(index)} class={`h-8 min-w-8 rounded-full px-3 text-xs font-black transition ${reviewPage === index ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 hover:text-blue-600 dark:bg-slate-950 dark:text-slate-300'}`}>
@@ -1078,7 +1081,7 @@
 										</button>
 									{/each}
 									<button type="button" onclick={() => goToReviewPage(reviewPage + 1)} disabled={reviewPage >= reviewPages - 1} class="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600 transition hover:text-blue-600 disabled:opacity-40 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
-										Next
+										{i18n.t('next_btn')}
 									</button>
 								</div>
 							{/if}
@@ -1103,7 +1106,7 @@
 					type="button"
 					onclick={openEditProfile}
 					class="absolute bottom-4 right-4 z-10 grid h-10 w-10 place-items-center rounded-full bg-white/95 text-slate-950 shadow-lg transition hover:bg-white disabled:opacity-60 md:hidden"
-					aria-label="Change cover photo"
+					aria-label={i18n.t('cover_photo')}
 				>
 					<svg viewBox="0 0 24 24" class="h-5 w-5" aria-hidden="true">
 						<path fill="currentColor" d="M4 17.7V20h2.3L17.1 9.2l-2.3-2.3L4 17.7Zm14.8-10.3c.3-.3.3-.8 0-1.1l-1.1-1.1c-.3-.3-.8-.3-1.1 0l-.9.9L18 8.3l.8-.9Z" />
@@ -1121,11 +1124,11 @@
 						{/if}
 					</div>
 					<div class="relative z-10 hidden gap-2 self-end md:flex">
-						<button type="button" onclick={openEditProfile} class="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-slate-950/15 transition hover:-translate-y-0.5 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200" aria-label="Edit organization profile">
+						<button type="button" onclick={openEditProfile} class="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-slate-950/15 transition hover:-translate-y-0.5 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200" aria-label={i18n.t('edit_org_profile_title')}>
 							<svg viewBox="0 0 24 24" class="h-[1.125rem] w-[1.125rem]" aria-hidden="true">
 								<path fill="currentColor" d="M4 17.7V20h2.3L17.1 9.2l-2.3-2.3L4 17.7Zm14.8-10.3c.3-.3.3-.8 0-1.1l-1.1-1.1c-.3-.3-.8-.3-1.1 0l-.9.9L18 8.3l.8-.9Z" />
 							</svg>
-							<span>Edit profile</span>
+							<span>{i18n.t('edit_profile')}</span>
 						</button>
 					</div>
 				</div>
@@ -1168,7 +1171,7 @@
 					{/each}
 					{#if extraSportCount > 0}
 						<span class="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-sm font-bold text-slate-800 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
-							+ {extraSportCount} more
+							+ {extraSportCount}{i18n.t('more_suffix')}
 						</span>
 					{:else if organizationSports.length === 0}
 						<span class="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-sm font-bold text-slate-800 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
@@ -1185,7 +1188,7 @@
 						</svg>
 					</p>
 					<p class="mt-2 text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">{events.length}</p>
-					<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Events</p>
+					<p class="text-xs font-bold text-slate-500 dark:text-slate-400">{i18n.t('events')}</p>
 				</div>
 				<div class="rounded-2xl bg-white px-2 py-3 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
 					<p class="mx-auto grid h-8 w-8 place-items-center text-slate-500 dark:text-slate-400">
@@ -1195,7 +1198,7 @@
 						</svg>
 					</p>
 					<p class="mt-2 text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">{upcomingEvents.length}</p>
-					<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Upcoming</p>
+					<p class="text-xs font-bold text-slate-500 dark:text-slate-400">{i18n.t('upcoming')}</p>
 				</div>
 				<div class="rounded-2xl bg-white px-2 py-3 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
 					<p class="mx-auto grid h-8 w-8 place-items-center text-slate-500 dark:text-slate-400">
@@ -1206,13 +1209,13 @@
 						</svg>
 					</p>
 					<p class="mt-2 text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">{displayedFollowersCount}</p>
-					<p class="text-xs font-bold text-slate-500 dark:text-slate-400">Followers</p>
+					<p class="text-xs font-bold text-slate-500 dark:text-slate-400">{i18n.t('followers')}</p>
 				</div>
 			</div>
 
 			{#if !canManage}
 				<button type="button" onclick={messageOrganization} disabled={messageLoading} class="mt-5 w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-950 sm:w-auto">
-					{messageLoading ? 'Opening...' : 'Contact organizer'}
+					{messageLoading ? '...' : i18n.t('message')}
 				</button>
 			{/if}
 			</div>
@@ -1222,11 +1225,11 @@
 			<section class="min-w-0 max-w-full space-y-5 overflow-hidden">
 				<div class="flex items-center justify-between gap-3">
 					<div>
-						<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">Upcoming events</h2>
-						<p class="text-sm font-bold text-slate-500 dark:text-slate-400">Events hosted by {organization.name}</p>
+						<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">{i18n.t('upcoming_events')}</h2>
+						<p class="text-sm font-bold text-slate-500 dark:text-slate-400">{i18n.t('events_hosted_by')} {organization.name}</p>
 					</div>
 					{#if upcomingEvents.length > 2}
-						<span class="text-sm font-black text-blue-600 dark:text-blue-400">See all</span>
+						<span class="text-sm font-black text-blue-600 dark:text-blue-400">{i18n.t('see_all')}</span>
 					{/if}
 				</div>
 
@@ -1237,17 +1240,17 @@
 								<path stroke-linecap="round" stroke-linejoin="round" d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" />
 							</svg>
 						</p>
-						<p class="mt-3 font-black text-slate-950 dark:text-slate-50">No upcoming events yet</p>
-						<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">New events from this organization will appear here.</p>
+						<p class="mt-3 font-black text-slate-950 dark:text-slate-50">{i18n.t('no_upcoming_events')}</p>
+						<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{i18n.t('no_upcoming_events_sub')}</p>
 					</div>
 				{:else}
 					<div class="grid gap-4">
 						{#each promotedEvents as event (event.id)}
-							<EventCard {event} variant="hero" compactHero heroCtaLabel="View event" />
+							<EventCard {event} variant="hero" compactHero heroCtaLabel={i18n.t('view_event')} />
 						{/each}
 
 						{#each normalUpcomingEvents as event (event.id)}
-							<EventCard {event} variant="hero" compactHero heroCtaLabel="View event" />
+							<EventCard {event} variant="hero" compactHero heroCtaLabel={i18n.t('view_event')} />
 						{/each}
 					</div>
 				{/if}
@@ -1258,8 +1261,8 @@
 					<div class="max-w-full overflow-hidden rounded-[1.7rem] bg-white p-4 shadow-sm dark:bg-slate-900">
 						<div class="flex items-center justify-between gap-3">
 							<div>
-								<h3 class="font-black text-slate-950 dark:text-slate-50">Organization tools</h3>
-								<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">Create events, answer messages and boost visibility.</p>
+								<h3 class="font-black text-slate-950 dark:text-slate-50">{i18n.t('organization_tools')}</h3>
+								<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">{i18n.t('org_tools_description')}</p>
 							</div>
 						</div>
 
@@ -1268,27 +1271,27 @@
 								<svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
 									<path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14" />
 								</svg>
-								<span>Event</span>
+								<span>{i18n.t('event_btn')}</span>
 							</a>
 							<a href={resolve(`/organizations/${organization.id}/tournaments/create`)} class="grid gap-1 rounded-2xl bg-slate-50 p-3 text-xs font-black text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-100 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-slate-700 dark:hover:text-white">
 								<svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
 									<path stroke-linecap="round" stroke-linejoin="round" d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4Z" />
 									<path stroke-linecap="round" stroke-linejoin="round" d="M7 6H4a3 3 0 0 0 3 3M17 6h3a3 3 0 0 1-3 3" />
 								</svg>
-								<span>Tournament</span>
+								<span>{i18n.t('tourney_btn')}</span>
 							</a>
 							<a href={resolve('/messages')} class="grid gap-1 rounded-2xl bg-slate-50 p-3 text-xs font-black text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-100 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-slate-700 dark:hover:text-white">
 								<svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
 									<path stroke-linecap="round" stroke-linejoin="round" d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
 								</svg>
-								<span>Inbox</span>
+								<span>{i18n.t('inbox_btn')}</span>
 							</a>
 							<a href={resolve(`/organizations/${organization.id}/manage#upcoming-events`)} class="grid gap-1 rounded-2xl bg-slate-950 p-3 text-xs font-black text-white ring-1 ring-slate-950 transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:ring-white dark:hover:bg-slate-200">
 								<svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
 									<path stroke-linecap="round" stroke-linejoin="round" d="M4 13h3l8 5V6l-8 5H4v2Z" />
 									<path stroke-linecap="round" stroke-linejoin="round" d="M18 9a4 4 0 0 1 0 6" />
 								</svg>
-								<span>Promote</span>
+								<span>{i18n.t('promote_btn')}</span>
 							</a>
 						</div>
 					</div>
@@ -1298,11 +1301,11 @@
 
 		<section class="mt-8 max-w-full overflow-hidden border-t border-slate-200 pt-5 dark:border-slate-800">
 			<div class="flex items-center justify-between gap-3">
-				<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">About</h2>
+				<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">{i18n.t('about')}</h2>
 				<span class={`rounded-full px-3 py-1 text-xs font-black ${verificationClasses()}`}>{verificationLabel()}</span>
 			</div>
 			<p class="mt-2 max-w-3xl leading-relaxed text-slate-700 dark:text-slate-300">
-				{organization.description || 'Add a short description so players know what your organization offers.'}
+				{organization.description || i18n.t('no_bio_provided')}
 			</p>
 
 			<div class="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_16rem]">
@@ -1317,7 +1320,7 @@
 						<div>
 							<p class="font-black text-slate-950 dark:text-slate-50">{organization.publicLocation?.name || organization.name}</p>
 							<p class="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-								{organization.publicLocation?.address || organization.address || organization.city || 'No public location set yet.'}
+								{organization.publicLocation?.address || organization.address || organization.city || i18n.t('no_public_location_set')}
 							</p>
 						</div>
 					</div>
@@ -1333,7 +1336,7 @@
 							<a href={`tel:${organization.phone}`} class="rounded-full bg-slate-50 px-3 py-2 text-slate-700 transition hover:text-blue-600 dark:bg-slate-900 dark:text-slate-200">📞 {organization.phone}</a>
 						{/if}
 						{#if organization.website}
-							<a href={getWebsiteHref(organization.website)} target="_blank" rel="noreferrer" class="rounded-full bg-blue-50 px-3 py-2 text-blue-700 dark:bg-blue-950 dark:text-blue-300">Website</a>
+							<a href={getWebsiteHref(organization.website)} target="_blank" rel="noreferrer" class="rounded-full bg-blue-50 px-3 py-2 text-blue-700 dark:bg-blue-950 dark:text-blue-300">{i18n.t('website')}</a>
 						{/if}
 					</div>
 				</div>
@@ -1347,14 +1350,14 @@
 		<section class="mt-8 max-w-full overflow-hidden border-t border-slate-200 pt-5 dark:border-slate-800">
 			<div class="flex items-start justify-between gap-2">
 				<div>
-					<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">Gallery</h2>
-					<p class="max-w-[13rem] text-xs font-bold text-slate-500 dark:text-slate-400 sm:max-w-none sm:text-sm">Photos shown on your public profile.</p>
+					<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">{i18n.t('gallery')}</h2>
+					<p class="max-w-[13rem] text-xs font-bold text-slate-500 dark:text-slate-400 sm:max-w-none sm:text-sm">{i18n.t('photos_shown_public_profile_sub')}</p>
 				</div>
 				<div class="flex shrink-0 items-center justify-end gap-2">
 					{#if galleryPhotoURLs.length > 0}
 						<button type="button" onclick={() => openGallery()} class="rounded-2xl bg-white px-3 py-2 text-xs font-black text-blue-600 shadow-sm ring-1 ring-slate-200 transition hover:text-blue-700 dark:bg-slate-900 dark:text-blue-400 dark:ring-slate-800 sm:px-4 sm:py-2.5 sm:text-sm">
-							<span class="sm:hidden">All</span>
-							<span class="hidden sm:inline">View all photos</span>
+							<span class="sm:hidden">{i18n.t('all_filter')}</span>
+							<span class="hidden sm:inline">{i18n.t('view_all_photos')}</span>
 						</button>
 					{/if}
 					{#if canManage}
@@ -1368,7 +1371,7 @@
 						/>
 						<button type="button" onclick={() => galleryInput?.click()} disabled={uploadingGallery} class="rounded-2xl bg-blue-600 px-3 py-2 text-xs font-black text-white transition hover:bg-blue-700 disabled:opacity-60 sm:px-4 sm:py-2.5 sm:text-sm">
 							<span class="sm:hidden">{uploadingGallery ? '...' : '+'}</span>
-							<span class="hidden sm:inline">{uploadingGallery ? 'Uploading...' : '+ Add photos'}</span>
+							<span class="hidden sm:inline">{uploadingGallery ? i18n.t('uploading') : `+ ${i18n.t('add_photos')}`}</span>
 						</button>
 					{/if}
 				</div>
@@ -1386,7 +1389,7 @@
 									onclick={() => removeGalleryPhoto(photoURL)}
 									disabled={removingGalleryPhoto === photoURL}
 									class="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-slate-950/75 text-sm font-black text-white opacity-100 shadow-lg transition hover:bg-red-600 disabled:opacity-60 md:opacity-0 md:group-hover:opacity-100"
-									aria-label="Remove gallery photo"
+									aria-label={i18n.t('remove_gallery_photo')}
 								>
 									×
 								</button>
@@ -1396,8 +1399,8 @@
 				</div>
 			{:else}
 				<div class="mt-3 rounded-[1.5rem] border border-dashed border-slate-200 p-5 text-center dark:border-slate-800">
-					<p class="font-black text-slate-950 dark:text-slate-50">No gallery photos yet</p>
-					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Add a few real photos from your organization events or venue.</p>
+					<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('no_gallery_photos_yet')}</p>
+					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{i18n.t('add_gallery_photos_desc')}</p>
 				</div>
 			{/if}
 		</section>
@@ -1405,12 +1408,12 @@
 		<section class="mt-8 max-w-full overflow-hidden">
 			<div class="flex flex-wrap items-end justify-between gap-3">
 				<div>
-					<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">Reviews</h2>
+					<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">{i18n.t('reviews')}</h2>
 					<p class="text-sm font-bold text-slate-500 dark:text-slate-400">
 						{#if reviews.length > 0}
-							⭐ {averageRating.toFixed(1)} from {reviews.length} {reviews.length === 1 ? 'review' : 'reviews'}
+							{i18n.t('rating_from_reviews', { rating: averageRating.toFixed(1), count: reviews.length, reviewText: reviews.length === 1 ? i18n.t('review_singular') : i18n.t('review_plural') })}
 						{:else}
-							No reviews yet
+							{i18n.t('no_reviews_yet')}
 						{/if}
 					</p>
 				</div>
@@ -1418,7 +1421,7 @@
 
 			{#if !canManage}
 				<div class="mt-4 rounded-[1.7rem] bg-white p-4 shadow-sm dark:bg-slate-900">
-					<p class="font-black text-slate-950 dark:text-slate-50">Rate this organization</p>
+					<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('rate_this_org')}</p>
 					<div class="mt-3 flex gap-1">
 						{#each [1, 2, 3, 4, 5] as star}
 							<button
@@ -1433,9 +1436,10 @@
 					</div>
 					<textarea
 						bind:value={reviewComment}
+						maxlength={TEXT_LIMITS.reviewComment}
 						rows="3"
 						class="mt-3 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-950 outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:ring-blue-950"
-						placeholder="Leave a comment..."
+						placeholder={i18n.t('leave_comment_placeholder')}
 					></textarea>
 					<button
 						type="button"
@@ -1443,7 +1447,7 @@
 						disabled={reviewSubmitting || reviewRating < 1}
 						class="mt-3 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:opacity-60"
 					>
-						{reviewSubmitting ? 'Saving...' : 'Save review'}
+						{reviewSubmitting ? i18n.t('saving') : i18n.t('save_review')}
 					</button>
 				</div>
 			{/if}
@@ -1453,23 +1457,23 @@
 					{#each paginatedReviews as review (review.id)}
 						<div class="rounded-[1.5rem] bg-white p-4 shadow-sm dark:bg-slate-900">
 							<div class="flex items-center justify-between gap-3">
-								<p class="truncate font-black text-slate-950 dark:text-slate-50">{review.authorName ?? 'Rally user'}</p>
+								<p class="truncate font-black text-slate-950 dark:text-slate-50">{review.authorName ?? i18n.t('rally_user')}</p>
 								<p class="shrink-0 text-sm font-black text-yellow-500">{'★'.repeat(review.rating)}</p>
 							</div>
 							{#if review.comment}
-								<p class="mt-2 text-sm font-bold leading-relaxed text-slate-500 dark:text-slate-400">{review.comment}</p>
+								<ExpandableText text={review.comment} class="mt-2 text-sm font-bold leading-relaxed text-slate-500 dark:text-slate-400" />
 							{/if}
 							{#if review.replies?.length}
 								<div class="mt-3 space-y-2 border-l-2 border-blue-100 pl-3 dark:border-blue-950">
 									{#each review.replies.slice(-3) as reply (reply.id)}
 										<div class="rounded-2xl bg-slate-50 px-3 py-2 dark:bg-slate-950">
 											<div class="flex items-center gap-2">
-												<p class="text-xs font-black text-slate-950 dark:text-slate-50">{reply.authorName ?? 'Rally user'}</p>
+												<p class="text-xs font-black text-slate-950 dark:text-slate-50">{reply.authorName ?? i18n.t('rally_user')}</p>
 												{#if reply.authorRole === 'organization'}
-													<span class="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-blue-700 dark:bg-blue-950 dark:text-blue-300">Org</span>
+													<span class="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-blue-700 dark:bg-blue-950 dark:text-blue-300">{i18n.t('org_admin_reply_label')}</span>
 												{/if}
 											</div>
-											<p class="mt-1 text-xs font-bold leading-relaxed text-slate-500 dark:text-slate-400">{reply.comment}</p>
+											<ExpandableText text={reply.comment} initialLines={2} stepLines={2} maxPreviewChars={120} class="mt-1 text-xs font-bold leading-relaxed text-slate-500 dark:text-slate-400" />
 										</div>
 									{/each}
 								</div>
@@ -1477,13 +1481,13 @@
 							{#if reviewCanReply()}
 								<div class="mt-3">
 									{#if replyingToReviewId === review.id}
-										<textarea bind:value={replyComment} rows="2" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:ring-blue-950" placeholder="Reply to this review..."></textarea>
+										<textarea bind:value={replyComment} maxlength={TEXT_LIMITS.reviewReply} rows="2" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:ring-blue-950" placeholder={i18n.t('reply_placeholder')}></textarea>
 										<div class="mt-2 flex gap-2">
 											<button type="button" onclick={() => submitReviewReply(review)} disabled={replySubmitting || !replyComment.trim()} class="rounded-full bg-blue-600 px-4 py-2 text-xs font-black text-white transition hover:bg-blue-700 disabled:opacity-60">
-												{replySubmitting ? 'Sending...' : 'Reply'}
+												{replySubmitting ? i18n.t('sending') : i18n.t('reply_btn')}
 											</button>
 											<button type="button" onclick={() => { replyingToReviewId = null; replyComment = ''; replyMessage = ''; }} class="rounded-full bg-slate-50 px-4 py-2 text-xs font-black text-slate-600 transition hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300">
-												Cancel
+												{i18n.t('cancel')}
 											</button>
 										</div>
 										{#if replyMessage}
@@ -1491,7 +1495,7 @@
 										{/if}
 									{:else}
 										<button type="button" onclick={() => { replyingToReviewId = review.id; replyComment = ''; replyMessage = ''; }} class="text-xs font-black text-blue-600 transition hover:text-blue-700 dark:text-blue-400">
-											Reply
+											{i18n.t('reply_btn')}
 										</button>
 									{/if}
 								</div>
@@ -1502,7 +1506,7 @@
 				{#if reviewPages > 1}
 					<div class="mt-4 flex items-center justify-center gap-2">
 						<button type="button" onclick={() => goToReviewPage(reviewPage - 1)} disabled={reviewPage === 0} class="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600 transition hover:text-blue-600 disabled:opacity-40 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
-							Previous
+							{i18n.t('previous_btn')}
 						</button>
 						{#each Array(reviewPages) as _, index}
 							<button type="button" onclick={() => goToReviewPage(index)} class={`h-8 min-w-8 rounded-full px-3 text-xs font-black transition ${reviewPage === index ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 hover:text-blue-600 dark:bg-slate-950 dark:text-slate-300'}`}>
@@ -1510,7 +1514,7 @@
 							</button>
 						{/each}
 						<button type="button" onclick={() => goToReviewPage(reviewPage + 1)} disabled={reviewPage >= reviewPages - 1} class="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600 transition hover:text-blue-600 disabled:opacity-40 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
-							Next
+							{i18n.t('next_btn')}
 						</button>
 					</div>
 				{/if}
@@ -1522,8 +1526,8 @@
 				<div class="flex h-full w-full flex-col overflow-hidden bg-white dark:bg-slate-950 md:h-auto md:max-h-[calc(100svh-3rem)] md:max-w-3xl md:rounded-[2rem] md:shadow-2xl">
 					<div class="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
 						<div>
-							<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">Organization</p>
-							<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Edit profile</h2>
+							<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">{i18n.t('organization_label') || 'Organization'}</p>
+							<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">{i18n.t('edit_profile')}</h2>
 						</div>
 						<button type="button" onclick={closeEditProfile} class="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-xl font-black text-slate-600 transition hover:text-slate-950 dark:bg-slate-900 dark:text-slate-300">
 							×
@@ -1539,11 +1543,11 @@
 							</div>
 							<div class="flex items-center justify-between gap-3 p-4">
 								<div>
-									<p class="font-black text-slate-950 dark:text-slate-50">Cover photo</p>
-									<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">Appears at the top of your public profile.</p>
+									<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('cover_photo')}</p>
+									<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">{i18n.t('cover_photo_help')}</p>
 								</div>
 								<button type="button" onclick={() => coverInput?.click()} disabled={savingProfile} class="shrink-0 rounded-2xl bg-white px-4 py-2 text-sm font-black text-slate-800 shadow-sm transition hover:bg-slate-100 disabled:opacity-60 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700">
-									Change
+									{i18n.t('change') || 'Change'}
 								</button>
 							</div>
 						</div>
@@ -1557,74 +1561,74 @@
 								{/if}
 							</div>
 								<div class="min-w-0 flex-1">
-								<p class="font-black text-slate-950 dark:text-slate-50">Profile photo</p>
-								<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">Shown beside your organization name.</p>
+								<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('profile_photo')}</p>
+								<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">{i18n.t('logo_photo_help')}</p>
 								<input bind:this={logoInput} type="file" accept="image/*" class="hidden" onchange={handleDraftLogoUpload} />
 								<button type="button" onclick={() => logoInput?.click()} disabled={savingProfile} class="mt-3 rounded-2xl bg-white px-4 py-2 text-sm font-black text-slate-800 shadow-sm transition hover:bg-slate-100 disabled:opacity-60 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700">
-									Change logo
+									{i18n.t('change_logo') || 'Change logo'}
 								</button>
 							</div>
 						</div>
 
 						<div class="mt-4 grid gap-4 md:grid-cols-2">
 							<label class="block">
-								<span class="text-sm font-black text-slate-700 dark:text-slate-300">Name</span>
-								<input bind:value={editName} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
+								<span class="text-sm font-black text-slate-700 dark:text-slate-300">{i18n.t('name')}</span>
+								<input bind:value={editName} maxlength={TEXT_LIMITS.organizationName} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
 							</label>
 
 							<label class="block">
-								<span class="text-sm font-black text-slate-700 dark:text-slate-300">Type</span>
+								<span class="text-sm font-black text-slate-700 dark:text-slate-300">{i18n.t('type')}</span>
 								<select bind:value={editType} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950">
-									<option value="company">Company / Brand</option>
-									<option value="sports_club">Sports club</option>
-									<option value="venue">Sports venue / Courts</option>
-									<option value="gym">Gym</option>
-									<option value="event_organizer">Event organizer</option>
-									<option value="university">University group</option>
-									<option value="community_group">Community group</option>
-									<option value="other">Other</option>
+									<option value="company">{i18n.t('org_type_company')}</option>
+									<option value="sports_club">{i18n.t('org_type_club')}</option>
+									<option value="venue">{i18n.t('org_type_venue')}</option>
+									<option value="gym">{i18n.t('org_type_gym')}</option>
+									<option value="event_organizer">{i18n.t('org_type_organizer')}</option>
+									<option value="university">{i18n.t('org_type_university')}</option>
+									<option value="community_group">{i18n.t('org_type_community')}</option>
+									<option value="other">{i18n.t('org_type_other')}</option>
 								</select>
 							</label>
 
 							<label class="block md:col-span-2">
-								<span class="text-sm font-black text-slate-700 dark:text-slate-300">Description</span>
-								<textarea bind:value={editDescription} rows="3" class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" placeholder="Tell players what your organization does."></textarea>
+								<span class="text-sm font-black text-slate-700 dark:text-slate-300">{i18n.t('description')}</span>
+								<textarea bind:value={editDescription} maxlength={TEXT_LIMITS.organizationDescription} rows="3" class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" placeholder={i18n.t('org_desc_placeholder')}></textarea>
 							</label>
 
 							<label class="block">
-								<span class="text-sm font-black text-slate-700 dark:text-slate-300">Contact email</span>
-								<input bind:value={editContactEmail} type="email" class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
+								<span class="text-sm font-black text-slate-700 dark:text-slate-300">{i18n.t('contact_email') || 'Contact email'}</span>
+								<input bind:value={editContactEmail} type="email" maxlength={TEXT_LIMITS.contactEmail} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
 							</label>
 
 							<label class="block">
-								<span class="text-sm font-black text-slate-700 dark:text-slate-300">Phone</span>
-								<input bind:value={editPhone} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
+								<span class="text-sm font-black text-slate-700 dark:text-slate-300">{i18n.t('phone') || 'Phone'}</span>
+								<input bind:value={editPhone} maxlength={TEXT_LIMITS.phone} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
 							</label>
 
 							<label class="block">
-								<span class="text-sm font-black text-slate-700 dark:text-slate-300">Website</span>
-								<input bind:value={editWebsite} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
+								<span class="text-sm font-black text-slate-700 dark:text-slate-300">{i18n.t('website')}</span>
+								<input bind:value={editWebsite} maxlength={TEXT_LIMITS.website} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
 							</label>
 
 							<label class="block">
-								<span class="text-sm font-black text-slate-700 dark:text-slate-300">City</span>
-								<input bind:value={editCity} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
+								<span class="text-sm font-black text-slate-700 dark:text-slate-300">{i18n.t('city')}</span>
+								<input bind:value={editCity} maxlength={TEXT_LIMITS.city} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
 							</label>
 
 							<label class="block md:col-span-2">
-								<span class="text-sm font-black text-slate-700 dark:text-slate-300">Address</span>
-								<input bind:value={editAddress} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
+								<span class="text-sm font-black text-slate-700 dark:text-slate-300">{i18n.t('address')}</span>
+								<input bind:value={editAddress} maxlength={TEXT_LIMITS.address} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
 							</label>
 
 							<label class="block md:col-span-2">
-								<span class="text-sm font-black text-slate-700 dark:text-slate-300">NIF</span>
-								<input bind:value={editNif} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
+								<span class="text-sm font-black text-slate-700 dark:text-slate-300">{i18n.t('tax_id') || 'NIF'}</span>
+								<input bind:value={editNif} maxlength={TEXT_LIMITS.taxId} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
 							</label>
 						</div>
 
 						<div class="mt-5 rounded-[1.5rem] bg-slate-50 p-4 dark:bg-slate-900">
-							<p class="font-black text-slate-950 dark:text-slate-50">Sports shown publicly</p>
-							<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">These chips appear below the organization name.</p>
+							<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('sports_shown_publicly')}</p>
+							<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">{i18n.t('sports_shown_help')}</p>
 							<div class="mt-3 flex flex-wrap gap-2">
 								{#each availableSports as sport}
 									<button
@@ -1646,10 +1650,10 @@
 					<div class="border-t border-slate-200 p-4 dark:border-slate-800">
 						<div class="flex gap-3">
 							<button type="button" onclick={closeEditProfile} class="flex-1 rounded-2xl bg-slate-100 px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
-								Cancel
+								{i18n.t('cancel')}
 							</button>
 							<button type="button" onclick={saveEditableOrganizationProfile} disabled={savingProfile} class="flex-1 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:opacity-60">
-								{savingProfile ? 'Saving...' : 'Save'}
+								{savingProfile ? i18n.t('saving') : i18n.t('save')}
 							</button>
 						</div>
 					</div>
@@ -1662,8 +1666,8 @@
 				<div class="max-h-[calc(100svh-2rem)] w-full max-w-md overflow-y-auto rounded-[2rem] bg-white p-5 shadow-2xl dark:bg-slate-900">
 					<div class="flex items-start justify-between gap-4">
 						<div>
-							<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">Organization</p>
-							<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">Settings</h2>
+							<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">{i18n.t('organization_label') || 'Organization'}</p>
+							<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">{i18n.t('settings')}</h2>
 						</div>
 						<button type="button" onclick={() => (showOrganizationSettings = false)} class="grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-lg font-black text-slate-500 dark:bg-slate-800 dark:text-slate-300">×</button>
 					</div>
@@ -1671,8 +1675,8 @@
 					<div class="mt-5 space-y-3">
 						<button type="button" onclick={toggleOrganizationNotifications} class="flex w-full items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-left dark:bg-slate-800">
 							<span>
-								<span class="block font-black text-slate-950 dark:text-slate-50">Notifications</span>
-								<span class="text-sm font-bold text-slate-500 dark:text-slate-400">{orgNotificationsEnabled ? 'Enabled' : 'Disabled'} for this organization</span>
+								<span class="block font-black text-slate-950 dark:text-slate-50">{i18n.t('notifications')}</span>
+								<span class="text-sm font-bold text-slate-500 dark:text-slate-400">{orgNotificationsEnabled ? i18n.t('enabled') : i18n.t('disabled')} {i18n.t('for_this_org')}</span>
 							</span>
 							<span class={`h-7 w-12 rounded-full p-1 transition ${orgNotificationsEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}>
 								<span class={`block h-5 w-5 rounded-full bg-white transition ${orgNotificationsEnabled ? 'translate-x-5' : ''}`}></span>
@@ -1681,14 +1685,14 @@
 
 						<button type="button" onclick={toggleOrganizationDarkMode} class="flex w-full items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-left dark:bg-slate-800">
 							<span>
-								<span class="block font-black text-slate-950 dark:text-slate-50">Appearance</span>
-								<span class="text-sm font-bold text-slate-500 dark:text-slate-400">{orgDarkModeEnabled ? 'Dark mode' : 'Light mode'}</span>
+								<span class="block font-black text-slate-950 dark:text-slate-50">{i18n.t('appearance') || 'Appearance'}</span>
+								<span class="text-sm font-bold text-slate-500 dark:text-slate-400">{orgDarkModeEnabled ? i18n.t('dark_mode') : i18n.t('light_mode')}</span>
 							</span>
 							<span class="text-xl">{orgDarkModeEnabled ? '🌙' : '☀️'}</span>
 						</button>
 
 						<a href={resolve(`/organizations/${organization.id}/manage`)} class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 font-black text-slate-950 dark:bg-slate-800 dark:text-slate-50">
-							Edit organization
+							{i18n.t('edit_org_btn') || 'Edit organization'}
 							<span class="text-slate-300">›</span>
 						</a>
 					</div>
@@ -1714,8 +1718,8 @@
 				>
 					<div class="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-800 sm:px-5">
 						<div>
-							<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">Gallery</p>
-							<h2 class="text-lg font-black text-slate-950 dark:text-slate-50">{organization.name} photos</h2>
+							<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">{i18n.t('gallery')}</p>
+							<h2 class="text-lg font-black text-slate-950 dark:text-slate-50">{i18n.t('org_photos_title', { name: organization.name })}</h2>
 						</div>
 						<button type="button" onclick={closeGallery} class="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-xl font-black text-slate-600 transition hover:text-slate-950 dark:bg-slate-900 dark:text-slate-300">
 							×

@@ -728,19 +728,19 @@
 			{#if currentUserId}
 				<div class="flex items-center gap-1.5">
 					<span class="h-2.5 w-2.5 rounded-full bg-[#00B4D8]"></span>
-					<span>My events</span>
+					<span>{i18n.t('my_events')}</span>
 				</div>
 			{/if}
 
 			<div class="flex items-center gap-1.5">
 				<span class="h-2.5 w-2.5 rounded-full bg-red-600"></span>
-				<span>Public events</span>
+				<span>{i18n.t('public_events')}</span>
 			</div>
 
 			{#if currentUserId}
 				<div class="flex items-center gap-1.5">
 					<span class="h-2.5 w-2.5 rounded-full bg-yellow-600"></span>
-					<span>Friends events</span>
+					<span>{i18n.t('friends_events')}</span>
 				</div>
 			{/if}
 		</div>
@@ -787,7 +787,7 @@
 			class="absolute inset-x-4 top-16 z-30 max-h-[70%] overflow-y-auto rounded-3xl border border-slate-200 bg-white/95 p-5 shadow-2xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 md:hidden"
 		>
 			<div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-				<h3 class="text-base font-black text-slate-950 dark:text-slate-50">Filters</h3>
+				<h3 class="text-base font-black text-slate-950 dark:text-slate-50">{i18n.t('filters_label')}</h3>
 				<div class="flex items-center gap-3">
 					{#if activeFilterCount > 0}
 						<button
@@ -795,7 +795,7 @@
 							onclick={clearAllFilters}
 							class="text-xs font-bold text-red-500 hover:text-red-600 transition"
 						>
-							Clear All
+							{i18n.t('clear_all_filters')}
 						</button>
 					{/if}
 					<button
@@ -867,7 +867,7 @@
 							{/each}
 						{:else}
 							<p class="rounded-2xl border border-dashed border-slate-200 p-3 text-sm font-bold text-slate-500 dark:border-slate-700 dark:text-slate-400">
-								No events found for this search.
+								{i18n.t('no_events_found_search')}
 							</p>
 						{/if}
 					</div>
@@ -876,7 +876,7 @@
 
 			<!-- Date Filter -->
 			<div class="mt-4">
-				<p class="text-xs font-black uppercase tracking-wider text-slate-400">Date</p>
+				<p class="text-xs font-black uppercase tracking-wider text-slate-400">{i18n.t('date')}</p>
 				<div class="mt-2.5 flex flex-wrap gap-1.5">
 					{#each dateFilterOptions as option (option.value)}
 						<button
@@ -899,7 +899,7 @@
 
 			<!-- Audience Filter -->
 			<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
-				<p class="text-xs font-black uppercase tracking-wider text-slate-400">Audience</p>
+				<p class="text-xs font-black uppercase tracking-wider text-slate-400">{i18n.t('event_type_label')}</p>
 				<div class="mt-2.5 flex flex-wrap gap-1.5">
 					{#each audienceFilterOptions as option (option.value)}
 						<button
@@ -922,7 +922,7 @@
 
 			<!-- Price Filter -->
 			<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
-				<p class="text-xs font-black uppercase tracking-wider text-slate-400">Price</p>
+				<p class="text-xs font-black uppercase tracking-wider text-slate-400">{i18n.t('price')}</p>
 				<div class="mt-2.5 flex flex-wrap gap-1.5">
 					{#each priceFilterOptions as option (option.value)}
 						<button
@@ -945,7 +945,7 @@
 				{#if priceFilter === 'paid'}
 					<label class="mt-3 block">
 						<div class="mb-1 flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400">
-							<span>Max price</span>
+							<span>{i18n.t('max_price')}</span>
 							<span>€{maxPrice}</span>
 						</div>
 						<input
@@ -966,7 +966,7 @@
 			<!-- Sports Filter -->
 			<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
 				<div>
-					<p class="text-xs font-black uppercase tracking-wider text-slate-400">Sport</p>
+					<p class="text-xs font-black uppercase tracking-wider text-slate-400">{i18n.t('sport_label')}</p>
 				</div>
 
 				{#if availableSports.length === 0}
@@ -993,7 +993,7 @@
 			<!-- Levels Filter -->
 			<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
 				<div>
-					<p class="text-xs font-black uppercase tracking-wider text-slate-400">Level</p>
+					<p class="text-xs font-black uppercase tracking-wider text-slate-400">{i18n.t('level_label')}</p>
 				</div>
 
 				<div class="mt-2.5 flex flex-wrap gap-1.5">
@@ -1038,7 +1038,7 @@
 						<path d="M10 19h4" />
 					</svg>
 
-					<span>Filters</span>
+					<span>{i18n.t('filters_label')}</span>
 
 					{#if activeFilterCount > 0}
 						<span class="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white">
@@ -1058,7 +1058,7 @@
 					onclick={clearAllFilters}
 					class="text-sm font-bold text-slate-500 transition hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400"
 				>
-					Clear
+					{i18n.t('clear')}
 				</button>
 			{/if}
 		</div>
@@ -1122,7 +1122,7 @@
 							{/each}
 						{:else}
 							<p class="rounded-2xl border border-dashed border-slate-200 p-4 text-sm font-bold text-slate-500 dark:border-slate-700 dark:text-slate-400">
-								No events found for this search.
+								{i18n.t('no_events_found_search')}
 							</p>
 						{/if}
 					</div>
@@ -1131,9 +1131,9 @@
 
 			<div class="mt-5 grid gap-4 border-t border-slate-200 pt-4 dark:border-slate-700 lg:grid-cols-3">
 				<div>
-					<p class="text-sm font-black text-slate-950 dark:text-slate-50">Date</p>
+					<p class="text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('date')}</p>
 					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-						Default keeps Explore light.
+						{i18n.t('date_filter_sub')}
 					</p>
 					<div class="mt-3 flex flex-wrap gap-2">
 						{#each dateFilterOptions as option (option.value)}
@@ -1156,9 +1156,9 @@
 				</div>
 
 				<div>
-					<p class="text-sm font-black text-slate-950 dark:text-slate-50">Audience</p>
+					<p class="text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('event_type_label')}</p>
 					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-						Choose whose events appear.
+						{i18n.t('type_filter_sub')}
 					</p>
 					<div class="mt-3 flex flex-wrap gap-2">
 						{#each audienceFilterOptions as option (option.value)}
@@ -1181,9 +1181,9 @@
 				</div>
 
 				<div>
-					<p class="text-sm font-black text-slate-950 dark:text-slate-50">Price</p>
+					<p class="text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('price')}</p>
 					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-						Filter by entry cost.
+						{i18n.t('price_filter_sub')}
 					</p>
 					<div class="mt-3 flex flex-wrap gap-2">
 						{#each priceFilterOptions as option (option.value)}
@@ -1207,7 +1207,7 @@
 					{#if priceFilter === 'paid'}
 						<label class="mt-3 block">
 							<div class="mb-1 flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400">
-								<span>Max price</span>
+								<span>{i18n.t('max_price')}</span>
 								<span>€{maxPrice}</span>
 							</div>
 							<input
@@ -1256,9 +1256,9 @@
 			</div>
 
 			<div class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700">
-				<p class="text-sm font-black text-slate-950 dark:text-slate-50">Level</p>
+				<p class="text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('level_label')}</p>
 				<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-					Choose the difficulty level of the events.
+					{i18n.t('level_filter_sub')}
 				</p>
 
 				<div class="mt-4 flex flex-wrap gap-2">
@@ -1426,9 +1426,9 @@
 					<div class="rounded-full bg-slate-100 p-4 dark:bg-slate-800 text-3xl mb-4">
 						🔍
 					</div>
-					<h3 class="text-lg font-black text-slate-950 dark:text-slate-50">No events found</h3>
+					<h3 class="text-lg font-black text-slate-950 dark:text-slate-50">{i18n.t('no_events_found')}</h3>
 					<p class="mt-1 text-sm text-slate-500 max-w-sm dark:text-slate-400">
-						Try adjusting your filters or search term to discover more games.
+						{i18n.t('no_events_found_sub')}
 					</p>
 					{#if activeFilterCount > 0}
 						<button
@@ -1436,14 +1436,14 @@
 							onclick={clearAllFilters}
 							class="mt-4 rounded-full bg-blue-50 px-4 py-2 text-xs font-black text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
 						>
-							Clear all filters
+							{i18n.t('clear_all_filters')}
 						</button>
 					{/if}
 				</div>
 			{:else}
 				<div class="mb-6">
 					<p class="text-xs font-black uppercase tracking-wider text-slate-400">
-						Showing {shownFeedCount} of {totalEventsCount} events
+						{i18n.t('showing_events', { count: shownFeedCount, total: totalEventsCount })}
 					</p>
 				</div>
 

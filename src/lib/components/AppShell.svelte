@@ -155,6 +155,7 @@
 		return (
 			pathname === '/' ||
 			pathname === '/login' ||
+			pathname === '/verify-2fa' ||
 			pathname.startsWith('/register') ||
 			pathname === '/discover' ||
 			focusedPage

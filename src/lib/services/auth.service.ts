@@ -111,9 +111,12 @@ export const authService = {
 	async login(email: string, password: string) {
 		const credential = await signInWithEmailAndPassword(auth, email, password);
 
-		await ensureUserProfile(credential.user);
+		const profile = await ensureUserProfile(credential.user);
 
-		return credential.user;
+		return {
+			user: credential.user,
+			profile
+		};
 	},
 
 	async sendPasswordReset(email: string) {

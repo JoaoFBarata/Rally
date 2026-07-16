@@ -38,6 +38,7 @@
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { formatSport } from '$lib/utils/format.utils';
 	import { i18n } from '$lib/services/i18n.svelte';
+	import { TEXT_LIMITS } from '$lib/constants/text-limits';
 
 	const availableSports: Sport[] = [
 		'football',
@@ -440,6 +441,7 @@
 							<input
 								id="mobile-name"
 								bind:value={displayName}
+								maxlength={TEXT_LIMITS.displayName}
 								class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
 							/>
 						</div>
@@ -450,6 +452,7 @@
 								<input
 									id="mobile-city"
 									bind:value={city}
+									maxlength={TEXT_LIMITS.city}
 									class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
 								/>
 							</div>
@@ -485,6 +488,7 @@
 							<textarea
 								id="mobile-bio"
 								bind:value={bio}
+								maxlength={TEXT_LIMITS.bio}
 								rows="3"
 								placeholder={i18n.t('bio_placeholder')}
 								class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
@@ -864,6 +868,7 @@
 							<input
 								id="name"
 								bind:value={displayName}
+								maxlength={TEXT_LIMITS.displayName}
 								class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
 							/>
 						</div>
@@ -876,6 +881,7 @@
 								<input
 									id="city"
 									bind:value={city}
+									maxlength={TEXT_LIMITS.city}
 									placeholder="Lisbon, Portugal"
 									class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500"
 								/>
@@ -920,6 +926,7 @@
 							<textarea
 								id="bio"
 								bind:value={bio}
+								maxlength={TEXT_LIMITS.bio}
 								rows="4"
 								placeholder={i18n.t('bio_placeholder')}
 								class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500"

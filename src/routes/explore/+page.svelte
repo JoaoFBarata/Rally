@@ -445,7 +445,7 @@
 	<header class="mb-2 sm:mb-6 shrink-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 		<div>
 			<RallyWordmark size="sm" />
-			<h1 class="mt-1 text-2xl font-bold sm:mt-2 sm:text-3xl">{i18n.t('explore')}</h1>
+			<h1 class="text-2xl font-black tracking-tight sm:mt-3 sm:text-3xl">{i18n.t('explore')}</h1>
 			<p class="mt-1 hidden text-sm text-slate-500 sm:block">
 				{searchTerm ? i18n.t('showing_results', { searchTerm }) : i18n.t('explore_subtitle')}
 			</p>
@@ -613,7 +613,7 @@
 												<p class="text-sm font-black text-blue-600 dark:text-blue-300">
 													{event.participantIds.length}/{event.maxParticipants}
 												</p>
-												<p class="text-[9px] font-bold text-slate-500 dark:text-slate-400">players</p>
+												<p class="text-[9px] font-bold text-slate-500 dark:text-slate-400">{i18n.t('players')}</p>
 											</div>
 										</div>
 									</a>

@@ -25,6 +25,7 @@
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
 	import { i18n } from '$lib/services/i18n.svelte';
+	import { TEXT_LIMITS } from '$lib/constants/text-limits';
 	import type {
 		ChatConversation,
 		ChatMessage,
@@ -1038,6 +1039,7 @@
 					bind:this={messageInput}
 					bind:value={text}
 					oninput={handleTyping}
+					maxlength={TEXT_LIMITS.chatMessage}
 					placeholder={editingMessage ? i18n.t('edit_message_placeholder') : i18n.t('message_placeholder')}
 					class="min-w-0 flex-1 border-0 bg-transparent px-2 text-sm text-slate-950 placeholder:text-slate-400 focus:ring-0 dark:text-white"
 				/>

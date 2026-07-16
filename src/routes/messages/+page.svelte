@@ -641,7 +641,7 @@
 	class="min-h-screen"
 	onpointerdown={closeConversationMenuOnOutsidePress}
 >
-	<div class="mx-auto max-w-4xl px-4 py-4 sm:px-5 sm:py-6">
+	<div class="mx-auto max-w-6xl px-4 py-4 sm:px-5 sm:py-6">
 		<header class="mb-4 sm:mb-6">
 			<div class="hidden sm:block">
 				<RallyWordmark size="sm" />
@@ -903,7 +903,7 @@
 										type="button"
 										onclick={() => openConversationMenu(conversation.id)}
 										data-conversation-menu
-										class="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-white hover:text-slate-800 dark:hover:bg-slate-900 dark:hover:text-white md:flex"
+										class="hidden h-9 w-9 shrink-0 items-center justify-center text-slate-400 transition hover:text-slate-800 dark:text-slate-500 dark:hover:text-white md:flex"
 										aria-label="Conversation options"
 									>
 										⌄
@@ -1046,7 +1046,7 @@
 											type="button"
 											onclick={() => openConversationMenu(conversation.id)}
 											data-conversation-menu
-											class="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-white hover:text-slate-800 dark:hover:bg-slate-900 dark:hover:text-white md:flex"
+											class="hidden h-9 w-9 shrink-0 items-center justify-center text-slate-400 transition hover:text-slate-800 dark:text-slate-500 dark:hover:text-white md:flex"
 											aria-label="Conversation options"
 										>
 											⌄

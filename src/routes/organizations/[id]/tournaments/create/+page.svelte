@@ -15,6 +15,7 @@
 	import { createTournamentEvent } from '$lib/services/event.service';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
+	import { TEXT_LIMITS } from '$lib/constants/text-limits';
 	import type {
 		EntryFeeType,
 		Organization,
@@ -314,12 +315,14 @@
 					<div class="mt-4 space-y-3 sm:mt-5 sm:space-y-4">
 						<input
 							bind:value={title}
+							maxlength={TEXT_LIMITS.eventTitle}
 							placeholder="Tournament name"
 							class={inputClass}
 						/>
 
 						<textarea
 							bind:value={description}
+							maxlength={TEXT_LIMITS.eventDescription}
 							rows="3"
 							placeholder="Describe the tournament, format, requirements..."
 							class={inputClass}
@@ -449,6 +452,7 @@
 
 					<textarea
 						bind:value={rules}
+						maxlength={TEXT_LIMITS.eventDescription}
 						rows="4"
 						placeholder="Tournament rules, tie-breaks, match duration, required equipment..."
 						class={`mt-4 sm:mt-5 ${inputClass}`}
@@ -770,6 +774,7 @@
 						{#if prizeType !== 'none'}
 							<input
 								bind:value={prizeDescription}
+								maxlength={TEXT_LIMITS.whatToBring}
 								placeholder="Prize description"
 								class={inputClass}
 							/>

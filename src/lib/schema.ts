@@ -19,6 +19,7 @@ export type PaymentStatus = 'not_required' | 'pending' | 'paid' | 'refunded';
 export type PayoutStatus = 'not_applicable' | 'held' | 'released' | 'blocked';
 export type SportLevel = 'beginner' | 'casual' | 'intermediate' | 'advanced';
 export type FriendRequestStatus = 'pending' | 'accepted' | 'declined';
+export type TwoFactorMethod = 'email';
 
 export type OrganizationType =
 	| 'company'
@@ -91,6 +92,9 @@ export interface UserProfile {
 	rallyPointsTotal?: number;
 
 	isPrivate?: boolean;
+	twoFactorEnabled?: boolean;
+	twoFactorMethods?: TwoFactorMethod[];
+	twoFactorPreferredMethod?: TwoFactorMethod;
 	connections?: string[]; // user IDs this user has shared at least one event with (permanent once added)
 
 	createdAt: Timestamp;

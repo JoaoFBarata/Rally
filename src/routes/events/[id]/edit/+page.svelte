@@ -11,6 +11,7 @@
 	import { uploadEventGroupPhoto } from '$lib/services/storage.service';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
+	import { TEXT_LIMITS } from '$lib/constants/text-limits';
 	import type { Sport, EventVisibility, SportLevel, SportEvent, EventJoinPolicy, EventCurrency } from '$lib/schema';
 
 	let event = $state<SportEvent | null>(null);
@@ -344,6 +345,7 @@
 						<input
 							id="title"
 							bind:value={title}
+							maxlength={TEXT_LIMITS.eventTitle}
 							placeholder="Saturday football match"
 							class={`mt-2 ${inputClass}`}
 						/>
@@ -411,6 +413,7 @@
 							{#if sport === 'other'}
 								<input
 									bind:value={customSport}
+									maxlength={TEXT_LIMITS.customSport}
 									placeholder="e.g. Climbing, Hockey, Surfing..."
 									class={`mt-3 ${inputClass}`}
 								/>
@@ -441,6 +444,7 @@
 						<textarea
 							id="description"
 							bind:value={description}
+							maxlength={TEXT_LIMITS.eventDescription}
 							placeholder="Casual game, all levels welcome..."
 							class={`mt-2 min-h-24 sm:min-h-28 ${inputClass}`}
 						></textarea>
@@ -453,6 +457,7 @@
 						<textarea
 							id="whatToBring"
 							bind:value={whatToBring}
+							maxlength={TEXT_LIMITS.whatToBring}
 							placeholder="Football boots, water bottle, your own racket..."
 							class={`mt-2 min-h-16 sm:min-h-20 ${inputClass}`}
 						></textarea>
@@ -465,6 +470,7 @@
 						<input
 							id="location"
 							bind:value={locationName}
+							maxlength={TEXT_LIMITS.locationName}
 							placeholder="City Sports Center"
 							class={`mt-2 ${inputClass}`}
 						/>

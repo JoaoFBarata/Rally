@@ -5,6 +5,7 @@
 		type VoiceExtractedFields
 	} from '$lib/services/voice-event.service';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
+	import { i18n } from '$lib/services/i18n.svelte';
 
 	let { onExtracted }: { onExtracted: (fields: VoiceExtractedFields) => void } = $props();
 
@@ -117,12 +118,12 @@
 				></circle>
 				<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
 			</svg>
-			Listening to your recording...
+			{i18n.t('listening_to_recording')}
 		{:else if recordState === 'recording'}
 			<svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
 				<rect x="5" y="5" width="10" height="10" rx="2" />
 			</svg>
-			Tap to stop
+			{i18n.t('tap_to_stop')}
 		{:else}
 			<svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
 				<path d="M10 2a3 3 0 00-3 3v5a3 3 0 006 0V5a3 3 0 00-3-3z" />
@@ -130,7 +131,7 @@
 					d="M5.5 9a.75.75 0 00-1.5 0 6 6 0 005.25 5.955V17h-2a.75.75 0 000 1.5h5.5a.75.75 0 000-1.5h-2v-2.045A6 6 0 0016 9a.75.75 0 00-1.5 0 4.5 4.5 0 01-9 0z"
 				/>
 			</svg>
-			Fill in with your voice
+			{i18n.t('fill_with_voice')}
 		{/if}
 	</button>
 

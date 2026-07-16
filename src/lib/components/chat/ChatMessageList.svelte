@@ -256,10 +256,10 @@
 							type="button"
 							onclick={() => openMessageMenu(message.id)}
 							data-message-menu
-							class={`absolute top-1 hidden h-7 w-7 items-center justify-center rounded-full text-xs opacity-0 shadow-sm transition group-hover:opacity-100 md:group-hover:flex ${
+							class={`absolute top-1 hidden h-6 w-6 items-center justify-center rounded-full text-xs opacity-0 shadow-sm backdrop-blur transition group-hover:opacity-100 md:group-hover:flex ${
 								isOwnMessage
-									? 'left-1 bg-blue-700 text-white hover:bg-blue-800'
-									: 'right-1 bg-white text-slate-500 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+									? 'left-1 bg-blue-700/90 text-white hover:bg-blue-800'
+									: 'right-1 bg-white/95 text-slate-500 ring-1 ring-slate-200 hover:text-slate-900 dark:bg-slate-800/95 dark:text-slate-300 dark:ring-slate-700 dark:hover:text-white'
 							}`}
 							aria-label="Message options"
 						>

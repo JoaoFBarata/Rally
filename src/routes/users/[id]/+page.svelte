@@ -703,7 +703,7 @@
 											</p>
 											{#if event.status}
 												<span class="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-black capitalize text-slate-500 dark:bg-slate-800 dark:text-slate-300">
-													{event.status}
+													{i18n.t('status_' + event.status)}
 												</span>
 											{/if}
 										</div>
