@@ -615,7 +615,7 @@
 		{#if conversationProfileHref}
 			<a
 				href={conversationProfileHref}
-				class="flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-1 transition hover:bg-slate-100 dark:hover:bg-slate-900"
+				class="flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-1 transition hover:bg-slate-100 dark:hover:bg-[#212121]"
 			>
 				<div
 					class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-base font-black text-blue-600 dark:bg-slate-800 dark:text-blue-300"

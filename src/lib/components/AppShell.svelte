@@ -27,7 +27,6 @@
 	let isPlatformAdmin = $state(false);
 
 	let pathname = $derived(page.url.pathname);
-	const shellBackgroundClass = 'bg-white dark:bg-slate-950';
 
 	let organizationId = $derived(
 		profile?.accountType === 'organization' && profile.activeOrganizationId
