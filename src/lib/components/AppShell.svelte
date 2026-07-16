@@ -296,7 +296,7 @@
 			<aside class="hidden md:flex flex-col h-screen w-71 sticky top-0 shrink-0 bg-[#f6f6f6] dark:bg-[#212121]">
 				<div class="w-full pl-6.75 mt-13.25">
 					<RallyLogo size="md" href={organizationManageHref ?? '/'}/>
-					<button class="mt-10.25 w-53.25 h-14.5 bg-[#48b3ff] rounded-[10px] text-white cursor-pointer" onclick={() => goto(resolveNavHref(createEventHref))}>
+					<button class="mt-10.25 w-53.25 h-14.5 bg-[#0095ff] hover:bg-[#0077cc] rounded-[10px] text-white cursor-pointer" onclick={() => goto(resolveNavHref(createEventHref))}>
 						<h3 class="text-[20px] font-semibold">{i18n.t('new_event')}</h3>
 					</button>
 				</div>
@@ -341,20 +341,6 @@
 					</div>
 				</div>
 			</aside>
-			<!-- <aside
-				class="hidden w-72 shrink-0 border-r border-slate-200 bg-white px-5 py-6 dark:border-slate-800 dark:bg-slate-900 md:sticky md:top-0 md:flex md:h-screen md:flex-col md:overflow-y-auto"
-			>
-				<div>
-					<div class="flex items-center justify-between gap-3">
-						<RallyLogo size="sm" href={organizationManageHref ?? '/'} />
-						<ThemeToggle />
-					</div>
-
-					<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
-						{organizationId ? 'Manage official sports experiences' : 'Find your game.'}
-					</p>
-				</div>-->
-
 			<div class="flex min-w-0 flex-1 flex-col overflow-x-clip">
 				<main class="min-h-screen min-w-0 overflow-x-clip pb-28 md:px-28">
 					{@render children()}

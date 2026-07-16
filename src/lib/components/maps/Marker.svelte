@@ -41,6 +41,6 @@
     </div>
     <div id="marker-pin-wrapper" class="w-full flex flex-col items-center justify-center">
         <div id="marker-pin-connector" class="h-[calc(var(--marker-scale)*1.75125rem)] w-[0.001rem] mb-[calc(var(--marker-scale)*-0.6rem)] ml-[calc(var(--marker-scale)*0.005rem)] border-[calc(var(--marker-scale)*0.125rem)] border-solid border-[#0065fdFF] z-1 rounded-b-[calc(var(--marker-scale)*0.1875rem)]"></div>
-        <div id="marker-pin" class="w-[calc(var(--marker-scale)*1.0625rem)] h-[calc(var(--marker-scale)*1.0625rem)] rounded-full bg-[#fdfdfdFF] border-[calc(var(--marker-scale)*0.1875rem)] border-solid border-[#0065fdFF]"></div>
+        <div id="marker-pin" class="w-[calc(var(--marker-scale)*1.0625rem)] h-[calc(var(--marker-scale)*1.0625rem)] rounded-full bg-[#fdfdfdFF] dark:bg-[#212121] border-[calc(var(--marker-scale)*0.1875rem)] border-solid border-[#0065fdFF]"></div>
     </div>
 </div>
