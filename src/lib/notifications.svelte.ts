@@ -123,16 +123,18 @@ export function startNotifications(userId: string) {
 			const oldTime = lastMessageTimes.get(conversation.id);
 
 			if (conversationsInitialized && oldTime !== undefined && lastTime > oldTime) {
-				if (conversation.lastSenderId !== userId) {
+				if (
+					conversation.lastSenderId !== userId &&
+					conversation.lastSenderId !== 'rally-system'
+				) {
 					const senderId = conversation.lastSenderId;
 					if (senderId) {
 						getUserProfile(senderId).then((profile) => {
 							const senderName = profile?.displayName || 'Alguém';
-							const chatTitle = conversation.title || 'Mensagem Direta';
 							const textPreview = conversation.lastMessage || 'Nova mensagem';
 							toastState.add(
-								`Nova mensagem em ${chatTitle}`,
-								`${senderName}: "${textPreview}"`,
+								`Nova mensagem de ${senderName}`,
+								textPreview,
 								'message'
 							);
 						});

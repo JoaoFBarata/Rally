@@ -2,6 +2,7 @@
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import type { ChatMessage, UserProfile } from '$lib/schema';
 	import { formatMessageTime, shouldShowMessageTime } from '$lib/utils/chat-time.utils';
+	import { i18n } from '$lib/services/i18n.svelte';
 
 	let {
 		messages,
@@ -76,6 +77,121 @@
 
 	function attachmentContentType(message: ChatMessage) {
 		return message.attachmentContentType ?? message.imageContentType ?? '';
+	}
+
+	function translateSystemMessage(text: string): string {
+		const lang = i18n.currentLang;
+		if (lang === 'en') return text;
+
+		// 1. Welcome personal
+		if (text === 'Welcome to Rally! You will receive event updates and more through this chat.') {
+			return i18n.t('welcome_personal');
+		}
+		// 2. Welcome org
+		if (text === 'Welcome to Rally! You will receive organization updates and event activity through this chat.') {
+			return i18n.t('welcome_org');
+		}
+
+		// 3. You joined "event" on date at location.
+		let match = text.match(/^You joined "(.+)" on (.+) at (.+)\.$/);
+		if (match) {
+			const [, eventTitle, eventDate, eventLocation] = match;
+			if (lang === 'pt') return `Juntaste-te a "${eventTitle}" em ${eventDate} no local ${eventLocation}.`;
+			if (lang === 'es') return `Te uniste a "${eventTitle}" el ${eventDate} en ${eventLocation}.`;
+			if (lang === 'fr') return `Vous avez rejoint "${eventTitle}" le ${eventDate} à ${eventLocation}.`;
+		}
+
+		// 4. You left "event".
+		match = text.match(/^You left "(.+)"\.$/);
+		if (match) {
+			const [, eventTitle] = match;
+			if (lang === 'pt') return `Saíste de "${eventTitle}".`;
+			if (lang === 'es') return `Saliste de "${eventTitle}".`;
+			if (lang === 'fr') return `Vous avez quitté "${eventTitle}".`;
+		}
+
+		// 5. You were removed from "event" by the host.
+		match = text.match(/^You were removed from "(.+)" by the host\.$/);
+		if (match) {
+			const [, eventTitle] = match;
+			if (lang === 'pt') return `Foste removido de "${eventTitle}" pelo organizador.`;
+			if (lang === 'es') return `Fuiste eliminado de "${eventTitle}" por el organizador.`;
+			if (lang === 'fr') return `Vous avez été retiré de "${eventTitle}" par l'organisateur.`;
+		}
+
+		// 6. Promotion started for "event". You can follow its views, clicks and spend in the organization dashboard.
+		match = text.match(/^Promotion started for "(.+)". You can follow its views, clicks and spend in the organization dashboard\.$/);
+		if (match) {
+			const [, eventTitle] = match;
+			if (lang === 'pt') return `A promoção do evento "${eventTitle}" começou. Podes acompanhar as visualizações, cliques e gastos no painel da organização.`;
+			if (lang === 'es') return `La promoción de "${eventTitle}" ha comenzado. Puedes seguir sus vistas, clics y gastos en el panel de la organización.`;
+			if (lang === 'fr') return `La promotion a commencé pour "${eventTitle}". Vous pouvez suivre ses vues, clics et dépenses dans le tableau de bord de l'organisation.`;
+		}
+
+		// 7. Promotion ended for "event". Its final results remain available in the organization dashboard.
+		match = text.match(/^Promotion ended for "(.+)". Its final results remain available in the organization dashboard\.$/);
+		if (match) {
+			const [, eventTitle] = match;
+			if (lang === 'pt') return `A promoção do evento "${eventTitle}" terminou. Os resultados finais continuam disponíveis no painel da organização.`;
+			if (lang === 'es') return `La promoción de "${eventTitle}" ha finalizado. Sus resultados finales siguen disponibles en el panel de la organización.`;
+			if (lang === 'fr') return `La promotion est terminée pour "${eventTitle}". Ses résultats finaux restent disponibles dans le tableau de bord de l'organisation.`;
+		}
+
+		// 8. OrgName created "event" on date.
+		match = text.match(/^(.+) created "(.+)" on (.+)\.$/);
+		if (match) {
+			const [, orgName, eventTitle, eventDate] = match;
+			if (lang === 'pt') return `${orgName} criou o evento "${eventTitle}" em ${eventDate}.`;
+			if (lang === 'es') return `${orgName} creó el evento "${eventTitle}" el ${eventDate}.`;
+			if (lang === 'fr') return `${orgName} a créé l'événement "${eventTitle}" le ${eventDate}.`;
+		}
+
+		// 9. OrgName created "event".
+		match = text.match(/^(.+) created "(.+)"\.$/);
+		if (match) {
+			const [, orgName, eventTitle] = match;
+			if (lang === 'pt') return `${orgName} criou o evento "${eventTitle}".`;
+			if (lang === 'es') return `${orgName} creó el evento "${eventTitle}".`;
+			if (lang === 'fr') return `${orgName} a créé l'événement "${eventTitle}".`;
+		}
+
+		// 10. OrgName is promoting "event" in Rally.
+		match = text.match(/^(.+) is promoting "(.+)" in Rally\.$/);
+		if (match) {
+			const [, orgName, eventTitle] = match;
+			if (lang === 'pt') return `${orgName} está a promover "${eventTitle}" no Rally.`;
+			if (lang === 'es') return `${orgName} está promocionando "${eventTitle}" en Rally.`;
+			if (lang === 'fr') return `${orgName} fait la promotion de "${eventTitle}" sur Rally.`;
+		}
+
+		// 11. requesterName wants to join "event". Review the request on the event page.
+		match = text.match(/^(.+) wants to join "(.+)". Review the request on the event page\.$/);
+		if (match) {
+			const [, requesterName, eventTitle] = match;
+			if (lang === 'pt') return `${requesterName} quer juntar-se a "${eventTitle}". Revê o pedido na página do evento.`;
+			if (lang === 'es') return `${requesterName} quiere unirse a "${eventTitle}". Revisa la solicitud en la página del evento.`;
+			if (lang === 'fr') return `${requesterName} souhaite rejoindre "${eventTitle}". Vérifiez la demande sur la page de l'événement.`;
+		}
+
+		// 12. Your request to join "event" was approved. You're in!
+		match = text.match(/^Your request to join "(.+)" was approved. You're in!$/);
+		if (match) {
+			const [, eventTitle] = match;
+			if (lang === 'pt') return `O teu pedido para te juntares a "${eventTitle}" foi aprovado. Já estás dentro!`;
+			if (lang === 'es') return `Tu solicitud para unirte a "${eventTitle}" fue aprobada. ¡Ya estás dentro!`;
+			if (lang === 'fr') return `Votre demande pour rejoindre "${eventTitle}" a été approuvée. Vous y êtes !`;
+		}
+
+		// 13. Your request to join "event" was declined.
+		match = text.match(/^Your request to join "(.+)" was declined\.$/);
+		if (match) {
+			const [, eventTitle] = match;
+			if (lang === 'pt') return `O teu pedido para te juntares a "${eventTitle}" foi recusado.`;
+			if (lang === 'es') return `Tu solicitud para unirte a "${eventTitle}" fue rechazada.`;
+			if (lang === 'fr') return `Votre demande pour rejoindre "${eventTitle}" a été refusée.`;
+		}
+
+		return text;
 	}
 </script>
 
@@ -237,7 +353,7 @@
 
 						{#if message.text}
 							<p class="whitespace-pre-wrap break-words {fileURL ? 'mt-2' : ''}">
-								{message.text}
+								{message.senderId === 'rally-system' ? translateSystemMessage(message.text) : message.text}
 							</p>
 						{/if}
 					{/if}

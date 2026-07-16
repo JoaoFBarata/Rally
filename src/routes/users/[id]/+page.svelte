@@ -32,6 +32,7 @@
 		subscribeToUserChanges
 	} from '$lib/services/realtime.service';
 	import { formatCapacity, formatPrice, formatSport } from '$lib/utils/format.utils';
+	import { i18n } from '$lib/services/i18n.svelte';
 
 	let targetProfile = $state<UserProfile | null>(null);
 	let currentProfile = $state<UserProfile | null>(null);
@@ -101,20 +102,24 @@
 		return startMs ? new Date(startMs) : null;
 	}
 
+	function getLocale() {
+		return { en: 'en-GB', pt: 'pt-PT', es: 'es-ES', fr: 'fr-FR' }[i18n.currentLang];
+	}
+
 	function formatEventMonth(event: SportEvent) {
 		const date = getEventDate(event);
-		return date?.toLocaleDateString('en-US', { month: 'short' }).toUpperCase() ?? 'TBD';
+		return date?.toLocaleDateString(getLocale(), { month: 'short' }).toUpperCase() ?? '—';
 	}
 
 	function formatEventDay(event: SportEvent) {
 		const date = getEventDate(event);
-		return date?.toLocaleDateString('en-US', { day: '2-digit' }) ?? '--';
+		return date?.toLocaleDateString(getLocale(), { day: '2-digit' }) ?? '--';
 	}
 
 	function formatEventSchedule(event: SportEvent) {
 		const date = getEventDate(event);
-		if (!date) return 'Date not set';
-		return date.toLocaleDateString('en-US', {
+		if (!date) return i18n.t('date_not_set');
+		return date.toLocaleDateString(getLocale(), {
 			weekday: 'short',
 			month: 'short',
 			day: 'numeric',
@@ -128,7 +133,7 @@
 	}
 
 	function getEventLocation(event: SportEvent) {
-		return event.location?.address || event.location?.name || 'Location not set';
+		return event.location?.address || event.location?.name || i18n.t('location_not_set');
 	}
 
 	function formatCountryName(countryCode?: string | null) {
@@ -160,8 +165,8 @@
 	}
 
 	function getRecentActivityText(event: SportEvent) {
-		if (event.creatorId === targetProfile?.id) return 'hosted';
-		return 'joined';
+		if (event.creatorId === targetProfile?.id) return i18n.t('hosting').toLowerCase();
+		return i18n.t('joined').toLowerCase();
 	}
 
 	function isEventActive(event: SportEvent): boolean {
@@ -188,7 +193,7 @@
 			const targetUserId = page.params.id;
 
 			if (!targetUserId) {
-				error = 'User not found.';
+				error = i18n.t('user_not_found');
 				return;
 			}
 
@@ -223,7 +228,7 @@
 			}
 
 			if (!loadedTargetProfile) {
-				error = 'User not found.';
+				error = i18n.t('user_not_found');
 				return;
 			}
 
@@ -281,7 +286,7 @@
 			targetFriends = loadedTargetFriends;
 		} catch (err) {
 			console.error('Public user page error:', err);
-			error = 'Some profile information could not be loaded. Please try again.';
+			error = i18n.t('public_profile_load_error');
 		} finally {
 			loading = false;
 		}
@@ -303,10 +308,10 @@
 			});
 
 			relationship = 'request_sent';
-			success = `Friend request sent to ${targetProfile.displayName}.`;
+			success = i18n.t('friend_request_sent', { name: targetProfile.displayName });
 		} catch (err) {
 			console.error('Add friend from public profile error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not send friend request.');
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_send_friend_request'));
 
 			const updatedRelationship = await getRelationshipStatus({
 				currentUserId: currentUser.uid,
@@ -327,10 +332,10 @@
 
 		try {
 			await navigator.clipboard.writeText(targetProfile.rallyTag);
-			success = 'Rally tag copied.';
+			success = i18n.t('rally_tag_copied');
 		} catch (err) {
 			console.error('Copy rally tag error:', err);
-			error = 'Could not copy the Rally tag.';
+			error = i18n.t('could_not_copy_tag');
 		}
 	}
 
@@ -349,7 +354,7 @@
 			await goto(resolve(`/messages/${conversationId}`));
 		} catch (err) {
 			console.error('Message user error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not open conversation.');
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_open_conversation'));
 		} finally {
 			actionLoading = false;
 		}
@@ -376,10 +381,10 @@
 			});
 
 			relationship = 'none';
-			success = `${targetProfile.displayName} removed from your friends.`;
+			success = i18n.t('friend_removed', { name: targetProfile.displayName });
 		} catch (err) {
 			console.error('Remove friend from public profile error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not remove friend.');
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_remove_friend'));
 		} finally {
 			actionLoading = false;
 		}
@@ -425,7 +430,7 @@
 		type="button"
 		onclick={() => goBack(resolve('/dashboard'))}
 		class="-ml-2 flex h-11 w-11 items-center justify-center rounded-full text-slate-950 transition hover:bg-white/80 dark:text-slate-50 dark:hover:bg-slate-900"
-		aria-label="Back"
+		aria-label={i18n.t('back_aria')}
 	>
 		<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8">
 			<path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
@@ -434,14 +439,14 @@
 
 	{#if loading}
 		<section class="mt-8 rounded-[2rem] bg-white p-6 shadow-sm dark:bg-slate-900">
-			<p class="font-bold text-slate-500 dark:text-slate-400">Loading user...</p>
+			<p class="font-bold text-slate-500 dark:text-slate-400">{i18n.t('loading_user')}</p>
 		</section>
 	{:else if isPrivateProfile}
 		<section class="mt-8 rounded-[2rem] bg-white p-6 text-center shadow-sm dark:bg-slate-900">
 			<p class="text-3xl">🔒</p>
-			<p class="mt-3 font-black text-slate-950 dark:text-slate-50">This profile is private</p>
+			<p class="mt-3 font-black text-slate-950 dark:text-slate-50">{i18n.t('private_profile_title')}</p>
 			<p class="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
-				You'll be able to see it once you share an event together.
+				{i18n.t('private_profile_message')}
 			</p>
 		</section>
 	{:else if error && !targetProfile}
@@ -473,7 +478,7 @@
 							type="button"
 							onclick={copyRallyTag}
 							class="mt-1 inline-flex max-w-full items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-700 ring-1 ring-blue-100 transition hover:bg-blue-100 dark:bg-blue-950/50 dark:text-blue-200 dark:ring-blue-900/60 dark:hover:bg-blue-900/50 sm:text-sm"
-							title="Copy Rally tag"
+							title={i18n.t('copy_rally_tag')}
 						>
 							<span class="truncate">@{targetProfile.rallyTag}</span>
 							<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
@@ -490,7 +495,7 @@
 					{#if targetProfile.bio}
 						<div class="mt-2 max-w-2xl">
 							<p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
-								Bio
+								{i18n.t('bio')}
 							</p>
 							<p class="mt-1 line-clamp-3 text-sm leading-relaxed text-slate-700 dark:text-slate-300 sm:text-base">
 								{targetProfile.bio}
@@ -523,33 +528,33 @@
 							onclick={() => (showAllSports = !showAllSports)}
 							class="shrink-0 rounded-full bg-white px-3 py-2 text-xs font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 dark:bg-slate-950 dark:text-slate-200 dark:ring-slate-800 dark:hover:bg-slate-800"
 						>
-							{showAllSports ? 'Show less' : `+${targetProfile.sports.length - 3}`}
+							{showAllSports ? i18n.t('show_less') : `+${targetProfile.sports.length - 3}`}
 						</button>
 					{/if}
 				{:else}
-					<span class="rounded-full bg-slate-100 px-3 py-2 text-xs font-black text-slate-500 dark:bg-slate-800 dark:text-slate-300">No sports yet</span>
+					<span class="rounded-full bg-slate-100 px-3 py-2 text-xs font-black text-slate-500 dark:bg-slate-800 dark:text-slate-300">{i18n.t('no_sports_yet')}</span>
 				{/if}
 			</div>
 
 			<div class="mt-4 grid grid-cols-3 divide-x divide-slate-200 rounded-[1.5rem] bg-slate-50 px-2 py-3 text-center dark:divide-slate-800 dark:bg-slate-950/60 sm:mt-5 sm:max-w-xl sm:px-4 sm:py-4">
 				<div>
 					<p class="text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{allHostedEvents.length}</p>
-					<p class="text-[11px] font-bold leading-tight text-slate-500 dark:text-slate-400 sm:text-xs">Events hosted</p>
+					<p class="text-[11px] font-bold leading-tight text-slate-500 dark:text-slate-400 sm:text-xs">{i18n.t('events_hosted')}</p>
 				</div>
 				<div>
 					<p class="text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{allParticipatedEvents.length}</p>
-					<p class="text-[11px] font-bold leading-tight text-slate-500 dark:text-slate-400 sm:text-xs">Events joined</p>
+					<p class="text-[11px] font-bold leading-tight text-slate-500 dark:text-slate-400 sm:text-xs">{i18n.t('events_joined')}</p>
 				</div>
 				<div>
 					<p class="text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{targetProfile.rallyPointsTotal ?? 0}</p>
-					<p class="text-[11px] font-bold leading-tight text-slate-500 dark:text-slate-400 sm:text-xs">Rally points</p>
+					<p class="text-[11px] font-bold leading-tight text-slate-500 dark:text-slate-400 sm:text-xs">{i18n.t('points_label')}</p>
 				</div>
 			</div>
 
 			<div class="mt-4 grid grid-cols-2 gap-2 sm:mt-5 sm:flex sm:flex-wrap">
 				{#if isOrganizationViewer}
 					<span class="col-span-2 rounded-2xl bg-slate-100 px-4 py-3 text-center text-sm font-black text-slate-500 dark:bg-slate-800 dark:text-slate-400 sm:col-span-1">
-						Personal profile
+						{i18n.t('personal_profile')}
 					</span>
 
 					<button
@@ -561,7 +566,7 @@
 						<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
 							<path stroke-linecap="round" stroke-linejoin="round" d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
 						</svg>
-						{actionLoading ? 'Opening...' : 'Message'}
+						{actionLoading ? i18n.t('opening') : i18n.t('message')}
 					</button>
 				{:else if relationship === 'request_sent'}
 					<button
@@ -569,14 +574,14 @@
 						disabled
 						class="col-span-2 rounded-2xl bg-slate-100 px-5 py-3 text-sm font-black text-slate-500 dark:bg-slate-800 dark:text-slate-400 sm:col-span-1"
 					>
-						Request Pending
+						{i18n.t('request_sent')}
 					</button>
 				{:else if relationship === 'request_received'}
 					<a
 						href={resolve('/messages')}
 						class="col-span-2 inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200 sm:col-span-1"
 					>
-						Respond request
+						{i18n.t('respond_request')}
 					</a>
 				{:else if relationship === 'friends'}
 					<button
@@ -588,7 +593,7 @@
 						<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
 							<path stroke-linecap="round" stroke-linejoin="round" d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
 						</svg>
-						{actionLoading ? 'Opening...' : 'Message'}
+						{actionLoading ? i18n.t('opening') : i18n.t('message')}
 					</button>
 
 					<button
@@ -597,7 +602,7 @@
 						disabled={actionLoading}
 						class="rounded-2xl bg-slate-50 px-5 py-3 text-sm font-black text-slate-600 ring-1 ring-slate-200 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-60 dark:bg-slate-950 dark:text-slate-300 dark:ring-slate-800 dark:hover:bg-red-950/40 dark:hover:text-red-300"
 					>
-						Remove friend
+						{i18n.t('remove_friend')}
 					</button>
 				{:else}
 					<button
@@ -611,7 +616,7 @@
 							<circle cx="9" cy="7" r="4" />
 							<path stroke-linecap="round" d="M19 8v6M22 11h-6" />
 						</svg>
-						{actionLoading ? 'Sending...' : 'Add friend'}
+						{actionLoading ? i18n.t('sending') : i18n.t('add_friend')}
 					</button>
 				{/if}
 			</div>
@@ -622,7 +627,7 @@
 				{#if mutualFriends.length > 0}
 					<section class="rounded-[2rem] bg-white p-4 shadow-sm shadow-slate-200/70 ring-1 ring-slate-200/70 dark:bg-slate-900 dark:shadow-none dark:ring-slate-800 sm:p-5">
 						<div class="flex items-center justify-between gap-3">
-							<h2 class="text-lg font-black text-slate-950 dark:text-slate-50">Mutual friends</h2>
+							<h2 class="text-lg font-black text-slate-950 dark:text-slate-50">{i18n.t('mutual_friends')}</h2>
 							<span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300">
 								{mutualFriends.length}
 							</span>
@@ -631,7 +636,7 @@
 						<div class="mt-4 flex items-center gap-3">
 							<div class="flex -space-x-3">
 								{#each mutualFriends.slice(0, 4) as friend (friend.id)}
-									<a href={resolve(`/users/${friend.id}`)} class="block transition hover:-translate-y-0.5" aria-label={`View ${friend.displayName}`}>
+									<a href={resolve(`/users/${friend.id}`)} class="block transition hover:-translate-y-0.5" aria-label={i18n.t('view_profile_aria', { name: friend.displayName })}>
 										<UserAvatar
 											photoURL={friend.photoURL}
 											displayName={friend.displayName}
@@ -648,8 +653,7 @@
 							</div>
 
 							<p class="min-w-0 text-sm font-bold text-slate-500 dark:text-slate-400">
-								You and {targetProfile.displayName} have {mutualFriends.length}
-								{mutualFriends.length === 1 ? ' mutual friend' : ' mutual friends'}.
+								{i18n.t('mutual_friends_summary', { name: targetProfile.displayName, count: mutualFriends.length, friends: i18n.t(mutualFriends.length === 1 ? 'mutual_friend' : 'mutual_friends_plural') })}
 							</p>
 						</div>
 					</section>
@@ -659,8 +663,8 @@
 					<section>
 						<div class="flex items-end justify-between gap-3">
 							<div>
-								<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">Upcoming events</h2>
-								<p class="text-sm font-bold text-slate-500 dark:text-slate-400">Events this player is hosting or joining.</p>
+								<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{i18n.t('upcoming_events_profile')}</h2>
+								<p class="text-sm font-bold text-slate-500 dark:text-slate-400">{i18n.t('upcoming_events_profile_sub')}</p>
 							</div>
 							{#if allUpcomingProfileEvents.length > 3}
 								<button
@@ -668,7 +672,7 @@
 									onclick={() => (showAllUpcomingEvents = !showAllUpcomingEvents)}
 									class="shrink-0 rounded-full bg-white px-3 py-2 text-xs font-black text-blue-600 shadow-sm ring-1 ring-slate-200 transition hover:bg-blue-50 dark:bg-slate-950 dark:text-blue-300 dark:ring-slate-800 dark:hover:bg-blue-950/40"
 								>
-									{showAllUpcomingEvents ? 'Show less' : `View all (${allUpcomingProfileEvents.length})`}
+									{showAllUpcomingEvents ? i18n.t('show_less') : `${i18n.t('view_all')} (${allUpcomingProfileEvents.length})`}
 								</button>
 							{/if}
 						</div>
@@ -739,8 +743,8 @@
 					<section>
 						<div class="flex items-center justify-between gap-3">
 							<div>
-								<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">Recent activity</h2>
-								<p class="text-sm font-bold text-slate-500 dark:text-slate-400">Finished or cancelled public events.</p>
+								<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{i18n.t('recent_activity')}</h2>
+								<p class="text-sm font-bold text-slate-500 dark:text-slate-400">{i18n.t('recent_activity_sub')}</p>
 							</div>
 							{#if allRecentProfileEvents.length > 3}
 								<button
@@ -748,7 +752,7 @@
 									onclick={() => (showAllRecentEvents = !showAllRecentEvents)}
 									class="shrink-0 rounded-full bg-white px-3 py-2 text-xs font-black text-blue-600 shadow-sm ring-1 ring-slate-200 transition hover:bg-blue-50 dark:bg-slate-950 dark:text-blue-300 dark:ring-slate-800 dark:hover:bg-blue-950/40"
 								>
-									{showAllRecentEvents ? 'Show less' : `View all (${allRecentProfileEvents.length})`}
+									{showAllRecentEvents ? i18n.t('show_less') : `${i18n.t('view_all')} (${allRecentProfileEvents.length})`}
 								</button>
 							{/if}
 						</div>
@@ -785,8 +789,8 @@
 				{#if upcomingProfileEvents.length === 0 && recentProfileEvents.length === 0}
 					<section class="rounded-[2rem] bg-white p-8 text-center shadow-sm dark:bg-slate-900">
 						<p class="text-4xl">🏟️</p>
-						<p class="mt-3 font-black text-slate-950 dark:text-slate-50">No public events yet</p>
-						<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Events from this player will appear here when public.</p>
+						<p class="mt-3 font-black text-slate-950 dark:text-slate-50">{i18n.t('no_public_events')}</p>
+						<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{i18n.t('no_public_events_sub')}</p>
 					</section>
 				{/if}
 			</section>
@@ -820,10 +824,10 @@
 						</div>
 
 						<h2 id="confirm-remove-title" class="mt-4 text-xl font-black text-slate-950 dark:text-slate-50">
-							Remove friend?
+							{i18n.t('remove_friend_title')}
 						</h2>
 						<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-							Are you sure you want to remove <span class="font-bold text-slate-800 dark:text-slate-200">{targetProfile.displayName}</span> from your friends?
+							{i18n.t('remove_friend_message', { name: targetProfile.displayName })}
 						</p>
 
 						<div class="mt-6 flex w-full flex-col gap-2 sm:flex-row">
@@ -832,14 +836,14 @@
 								onclick={executeRemoveFriend}
 								class="w-full rounded-2xl bg-red-600 py-3 font-bold text-white transition hover:bg-red-700 active:scale-95"
 							>
-								Remove
+								{i18n.t('remove')}
 							</button>
 							<button
 								type="button"
 								onclick={() => (showRemoveConfirmModal = false)}
 								class="w-full rounded-2xl bg-slate-100 py-3 font-bold text-slate-700 transition hover:bg-slate-200 active:scale-95 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
 							>
-								Cancel
+								{i18n.t('cancel')}
 							</button>
 						</div>
 					</div>

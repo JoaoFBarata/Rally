@@ -24,6 +24,7 @@
 	import ChatMessageList from '$lib/components/chat/ChatMessageList.svelte';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
+	import { i18n } from '$lib/services/i18n.svelte';
 	import type {
 		ChatConversation,
 		ChatMessage,
@@ -87,43 +88,43 @@
 	);
 
 	let conversationTitle = $derived.by(() => {
-		if (!conversation) return 'Messages';
+		if (!conversation) return i18n.t('messages');
 
 		if (conversation.type === 'rally_system') return 'Rally';
 
 		if (conversation.type === 'organization_direct') {
-			return conversation.organizationName ?? conversation.title ?? 'Organization';
+			return conversation.organizationName ?? conversation.title ?? i18n.t('organization');
 		}
 
 		if (conversation.type === 'group') {
-			return conversation.title ?? 'Event group';
+			return conversation.title ?? i18n.t('event_group');
 		}
 
 		if (conversation.type === 'tournament_team') {
-			return conversation.title ?? 'Tournament team';
+			return conversation.title ?? i18n.t('tournament_team');
 		}
 
-		return otherUser?.displayName ?? 'Rally user';
+		return otherUser?.displayName ?? i18n.t('rally_user');
 	});
 
 	let conversationSubtitle = $derived.by(() => {
 		if (!conversation) return '';
 
-		if (conversation.type === 'rally_system') return 'Activity & event updates';
+		if (conversation.type === 'rally_system') return i18n.t('rally_chat_subtitle');
 
 		if (conversation.type === 'organization_direct') {
-			return 'Organization inbox';
+			return i18n.t('org_chat_subtitle');
 		}
 
 		if (conversation.type === 'group') {
-			return `Event group · ${conversation.memberIds.length} members`;
+			return i18n.t('event_group_members', { count: conversation.memberIds.length });
 		}
 
 		if (conversation.type === 'tournament_team') {
 			const capacity = teamEntry?.maxMembers
 				? `${conversation.memberIds.length}/${teamEntry.maxMembers}`
 				: `${conversation.memberIds.length}`;
-			return `Private team chat · ${capacity} players`;
+			return i18n.t('private_team_chat_players', { capacity });
 		}
 
 		return `@${otherUser?.rallyTag ?? 'rally'}`;
@@ -607,7 +608,7 @@
 			type="button"
 			onclick={() => goBack(resolve('/messages'))}
 			class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xl font-bold transition hover:bg-slate-100 dark:hover:bg-[#212121]"
-			aria-label="Back to messages"
+			aria-label={i18n.t('back_to_messages_aria')}
 		>
 			←
 		</button>
@@ -641,7 +642,7 @@
 							<span
 								class="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300"
 							>
-								Company
+								{i18n.t('organization')}
 							</span>
 						{/if}
 					</div>
@@ -689,9 +690,9 @@
 						{conversationTitle}
 					</h1>
 					{#if isOrganizationChat}
-						<span class="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300">Company</span>
+						<span class="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300">{i18n.t('organization')}</span>
 					{:else if isRallySystemChat}
-						<span class="shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-black text-white">Official</span>
+						<span class="shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-black text-white">{i18n.t('official')}</span>
 					{/if}
 				</div>
 
@@ -714,7 +715,7 @@
 			type="button"
 			onclick={() => scrollToMessage(pinnedPreviewMessage.id)}
 			class="flex items-center gap-3 border-b border-slate-100 bg-white px-4 py-2 text-left transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:hover:bg-slate-900"
-			aria-label="Pinned message"
+			aria-label={i18n.t('pinned')}
 		>
 			<svg
 				viewBox="0 0 24 24"
@@ -732,7 +733,7 @@
 				{messagePreviewText(pinnedPreviewMessage)}
 			</p>
 			<span class="text-xs font-black text-slate-400 dark:text-slate-500">
-				{pinnedMessages.length > 1 ? `${pinnedMessages.length} pinned` : 'Pinned'}
+				{pinnedMessages.length > 1 ? i18n.t('pinned_count', { count: pinnedMessages.length }) : i18n.t('pinned')}
 			</span>
 		</button>
 	{/if}
@@ -777,8 +778,8 @@
 								</h2>
 								<p class="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
 									{conversation.type === 'tournament_team'
-										? `${conversation.memberIds.length}${teamEntry?.maxMembers ? `/${teamEntry.maxMembers}` : ''} players`
-										: `${conversation.memberIds.length} members`}
+										? i18n.t('private_team_chat_players', { capacity: teamEntry?.maxMembers ? `${conversation.memberIds.length}/${teamEntry.maxMembers}` : `${conversation.memberIds.length}` })
+										: i18n.t('event_group_members', { count: conversation.memberIds.length })}
 								</p>
 							</div>
 						</div>
@@ -786,7 +787,7 @@
 							type="button"
 							onclick={() => (showGroupInfo = false)}
 							class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xl font-black text-slate-500 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-							aria-label="Close group information">×</button
+							aria-label={i18n.t('close_group_info_aria')}>×</button
 						>
 					</div>
 
@@ -795,7 +796,7 @@
 							href={resolve(`/events/${conversation.eventId}`)}
 							class="mt-5 inline-flex items-center gap-2 text-sm font-black text-blue-600 transition hover:text-blue-700 dark:text-blue-400"
 						>
-							View event details <span aria-hidden="true">→</span>
+							{i18n.t('view_event_details')} <span aria-hidden="true">→</span>
 						</a>
 					{/if}
 
@@ -804,14 +805,14 @@
 							href={conversationProfileHref}
 							class="mt-5 inline-flex items-center gap-2 text-sm font-black text-blue-600 transition hover:text-blue-700 dark:text-blue-400"
 						>
-							View profile <span aria-hidden="true">→</span>
+							{i18n.t('view_profile')} <span aria-hidden="true">→</span>
 						</a>
 					{/if}
 				</div>
 
 				<div class="max-h-[55vh] overflow-y-auto p-4 sm:p-6">
 					{#if isGroupChat}
-						<p class="px-2 text-xs font-black uppercase tracking-[0.2em] text-slate-400">Members</p>
+						<p class="px-2 text-xs font-black uppercase tracking-[0.2em] text-slate-400">{i18n.t('members')}</p>
 						<div class="mt-3 space-y-2">
 							{#each conversation.memberIds as memberId (memberId)}
 								{@const member = senderProfiles[memberId]}
@@ -827,8 +828,8 @@
 									/>
 									<div class="min-w-0 flex-1">
 										<p class="truncate text-sm font-black text-slate-900 dark:text-white">
-											{member?.displayName ?? 'Rally user'}{memberId === auth.currentUser?.uid
-												? ' (You)'
+											{member?.displayName ?? i18n.t('rally_user')}{memberId === auth.currentUser?.uid
+												? ` (${i18n.t('you_label')})`
 												: ''}
 										</p>
 										{#if member?.rallyTag}
@@ -850,7 +851,7 @@
 
 					<div class={isGroupChat ? 'mt-6 border-t border-slate-100 pt-5 dark:border-slate-800' : ''}>
 						<div class="flex items-center justify-between gap-3 px-2">
-							<p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Files</p>
+							<p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">{i18n.t('files')}</p>
 							<span class="text-xs font-bold text-slate-400">{attachmentMessages.length}</span>
 						</div>
 						{#if attachmentMessages.length}
@@ -884,7 +885,7 @@
 							</div>
 						{:else}
 							<div class="mt-3 rounded-2xl bg-slate-50 px-4 py-5 text-center text-sm font-semibold text-slate-500 dark:bg-slate-800/70 dark:text-slate-400">
-								No files shared yet.
+								{i18n.t('no_files_shared_yet')}
 							</div>
 						{/if}
 					</div>
@@ -907,7 +908,7 @@
 	>
 		{#if loading}
 			<div class="flex h-full items-center justify-center text-sm text-slate-500">
-				Loading conversation...
+				{i18n.t('loading_conversation')}
 			</div>
 		{:else if displayedMessages.length === 0}
 			<div class="flex h-full items-center justify-center text-center">
@@ -926,16 +927,15 @@
 						{/if}
 					</div>
 
-					<p class="mt-3 font-bold text-slate-700 dark:text-slate-200">No messages yet</p>
+					<p class="mt-3 font-bold text-slate-700 dark:text-slate-200">{i18n.t('no_messages_yet')}</p>
 
 					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
 						{#if isOrganizationChat}
-							Send a message to {conversationTitle}. They will receive it in their organization
-							inbox.
+							{i18n.t('org_chat_first_message_msg', { title: conversationTitle })}
 						{:else if isGroupChat}
-							Start the conversation with the group.
+							{i18n.t('group_chat_first_message_msg')}
 						{:else}
-							Send a message to {otherUser?.displayName ?? 'this friend'}.
+							{i18n.t('direct_chat_first_message_msg', { name: otherUser?.displayName ?? i18n.t('this_friend') })}
 						{/if}
 					</p>
 				</div>
@@ -970,7 +970,7 @@
 			class="border-t border-slate-100 bg-[#f6f6f6] px-4 py-3 text-center dark:border-slate-800 dark:bg-[#212121]"
 		>
 			<p class="text-xs text-black dark:text-white">
-				This is your Rally activity feed. Updates are sent automatically.
+				{i18n.t('activity_feed_note')}
 			</p>
 		</div>
 	{:else}
@@ -989,13 +989,13 @@
 				<div
 					class="mx-auto mb-2 flex max-w-3xl items-center justify-between gap-3 rounded-2xl bg-blue-50 px-4 py-2 text-sm text-blue-700 dark:bg-blue-950/50 dark:text-blue-200"
 				>
-					<span class="min-w-0 truncate font-semibold">Editing message</span>
+					<span class="min-w-0 truncate font-semibold">{i18n.t('editing_message')}</span>
 					<button
 						type="button"
 						onclick={cancelEditMessage}
 						class="shrink-0 font-black hover:text-blue-950 dark:hover:text-white"
 					>
-						Cancel
+						{i18n.t('cancel')}
 					</button>
 				</div>
 			{/if}
@@ -1038,7 +1038,7 @@
 					bind:this={messageInput}
 					bind:value={text}
 					oninput={handleTyping}
-					placeholder={editingMessage ? 'Edit message...' : 'Message...'}
+					placeholder={editingMessage ? i18n.t('edit_message_placeholder') : i18n.t('message_placeholder')}
 					class="min-w-0 flex-1 border-0 bg-transparent px-2 text-sm text-slate-950 placeholder:text-slate-400 focus:ring-0 dark:text-white"
 				/>
 
@@ -1047,7 +1047,7 @@
 					disabled={sending || !text.trim()}
 					class="rounded-full bg-blue-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-blue-700 disabled:opacity-50"
 				>
-					{sending ? '...' : editingMessage ? 'Save' : 'Send'}
+					{sending ? '...' : editingMessage ? i18n.t('save') : i18n.t('send')}
 				</button>
 			</div>
 		</form>

@@ -19,6 +19,7 @@
 	} from '$lib/services/event.service';
 	import { getInvitesForUser, respondToInvite } from '$lib/services/invite.service';
 	import { ensureUserProfile, getUserProfile } from '$lib/services/user.service';
+	import { i18n } from '$lib/services/i18n.svelte';
 	import { getFriendsForUser } from '$lib/services/social.service';
 	import {
 		getVisibleEventsForUser,
@@ -167,9 +168,9 @@
 
 	function greeting() {
 		const h = new Date().getHours();
-		if (h < 12) return 'Good morning';
-		if (h < 18) return 'Good afternoon';
-		return 'Good evening';
+		if (h < 12) return i18n.t('good_morning');
+		if (h < 18) return i18n.t('good_afternoon');
+		return i18n.t('good_evening');
 	}
 
 	function formatCompactDate(dateValue: unknown) {
@@ -520,10 +521,10 @@
 			<div class="min-w-0">
 				<p class="text-sm font-black text-blue-600 dark:text-blue-400">Rally</p>
 				<h1 class="mt-1 truncate text-2xl font-black tracking-tight text-slate-950 dark:text-slate-50 sm:text-4xl">
-					{greeting()}, {profile?.displayName ?? user?.displayName ?? 'Athlete'}
+					{greeting()}, {profile?.displayName ?? user?.displayName ?? i18n.t('athlete')}
 				</h1>
 				<p class="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
-					What are you playing today?
+					{i18n.t('playing_today_msg')}
 				</p>
 			</div>
 
@@ -659,10 +660,10 @@
 						/>
 						<div class="min-w-0 flex-1">
 							<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">
-								{invitePreviewUser?.displayName ?? 'Someone'} invited you
+								{invitePreviewUser?.displayName ?? i18n.t('someone')} {i18n.t('invited_you')}
 								{#if pendingInvites.length > 1}
 									<span class="font-semibold text-slate-400 dark:text-slate-500">
-										+{pendingInvites.length - 1} more
+										+{pendingInvites.length - 1} {i18n.t('more')}
 									</span>
 								{/if}
 							</p>
@@ -717,14 +718,14 @@
 							<circle cx="11" cy="11" r="8" />
 							<path d="m21 21-4.35-4.35" />
 						</svg>
-						Find events
+						{i18n.t('find_events')}
 					</a>
 					<a href={resolve('/events/create')} class="inline-flex shrink-0 items-center gap-2 rounded-full bg-slate-950 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-slate-950/15 transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200">
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
 							<path d="M12 5v14" />
 							<path d="M5 12h14" />
 						</svg>
-						Create event
+						{i18n.t('create_event')}
 					</a>
 					<a href={resolve('/profile')} class="inline-flex shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:border-blue-200 hover:text-blue-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-800">
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
@@ -733,15 +734,15 @@
 							<path d="M19 8v6" />
 							<path d="M22 11h-6" />
 						</svg>
-						Invite friends
+						{i18n.t('invite_friends')}
 					</a>
 			</nav>
 
 			<section class="mt-5 space-y-3">
 				<div class="flex items-end justify-between gap-4">
 					<div>
-						<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">Featured event</p>
-						<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">Your next rally</h2>
+						<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">{i18n.t('featured_event')}</p>
+						<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">{i18n.t('your_next_rally')}</h2>
 					</div>
 					{#if upcomingRallies.length > 1}
 						<button
@@ -749,10 +750,10 @@
 							onclick={() => (showUpcomingRallies = !showUpcomingRallies)}
 							class="shrink-0 text-sm font-black text-blue-600 dark:text-blue-400"
 						>
-							{showUpcomingRallies ? 'Hide' : 'View all'}
+							{showUpcomingRallies ? i18n.t('hide') : i18n.t('view_all')}
 						</button>
 					{:else}
-						<a href={resolve('/explore')} class="shrink-0 text-sm font-black text-blue-600 dark:text-blue-400">Explore</a>
+						<a href={resolve('/explore')} class="shrink-0 text-sm font-black text-blue-600 dark:text-blue-400">{i18n.t('explore')}</a>
 					{/if}
 				</div>
 
@@ -761,7 +762,7 @@
 						<EventCard
 							event={nextEvent}
 							variant="hero"
-							heroCtaLabel="Already in event"
+							heroCtaLabel={i18n.t('already_in_event')}
 							heroCtaTone="muted"
 						/>
 					</div>
@@ -774,7 +775,7 @@
 										{event}
 										variant="hero"
 										miniHero
-										heroCtaLabel="Already in event"
+										heroCtaLabel={i18n.t('already_in_event')}
 										heroCtaTone="muted"
 									/>
 								</div>
@@ -783,10 +784,10 @@
 					{/if}
 				{:else}
 					<div class="rounded-[1.5rem] border border-dashed border-blue-200 bg-white/80 p-5 dark:border-blue-900/60 dark:bg-slate-900/80">
-						<p class="font-black text-slate-950 dark:text-slate-50">No upcoming games yet</p>
-						<p class="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">Find something nearby to join.</p>
+						<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('no_upcoming_games')}</p>
+						<p class="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">{i18n.t('find_something_nearby')}</p>
 						<div class="mt-4">
-							<a href={resolve('/explore')} class="rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700">Explore</a>
+							<a href={resolve('/explore')} class="rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700">{i18n.t('explore')}</a>
 						</div>
 					</div>
 				{/if}
@@ -797,17 +798,17 @@
 					<div class="flex items-end justify-between gap-4">
 						<div>
 							<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">
-								Friends up for something
+								{i18n.t('friends_up_for_something')}
 							</h2>
 							<p class="text-sm font-semibold text-slate-500 dark:text-slate-400">
-								Invite someone to your next game.
+								{i18n.t('invite_someone_game')}
 							</p>
 						</div>
 						<a
 							href={resolve('/profile')}
 							class="shrink-0 text-sm font-black text-blue-600 dark:text-blue-400"
 						>
-							See all
+							{i18n.t('see_all')}
 						</a>
 					</div>
 
@@ -829,7 +830,7 @@
 								<p class="mt-2 truncate text-xs font-black text-slate-800 dark:text-slate-100">
 									{friend.displayName}
 								</p>
-								<p class="text-[11px] font-bold text-slate-500 dark:text-slate-400">Friend</p>
+								<p class="text-[11px] font-bold text-slate-500 dark:text-slate-400">{i18n.t('friends')}</p>
 							</a>
 						{/each}
 
@@ -843,8 +844,8 @@
 									<path d="M5 12h14" />
 								</svg>
 							</span>
-							<p class="mt-2 text-xs font-black text-slate-800 dark:text-slate-100">Invite</p>
-							<p class="text-[11px] font-bold text-slate-500 dark:text-slate-400">Friends</p>
+							<p class="mt-2 text-xs font-black text-slate-800 dark:text-slate-100">{i18n.t('invite')}</p>
+							<p class="text-[11px] font-bold text-slate-500 dark:text-slate-400">{i18n.t('friends')}</p>
 						</a>
 					</div>
 				</section>
@@ -855,17 +856,17 @@
 					<div class="flex items-end justify-between gap-4">
 						<div>
 							<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">
-								Sponsored
+								{i18n.t('sponsored')}
 							</p>
 							<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">
-								Promoted for you
+								{i18n.t('promoted_for_you')}
 							</h2>
 						</div>
 						<a
 							href={resolve('/explore')}
 							class="shrink-0 text-sm font-black text-blue-600 dark:text-blue-400"
 						>
-							View all
+							{i18n.t('view_all')}
 						</a>
 					</div>
 
@@ -874,7 +875,7 @@
 							events={dashboardPromotedEvents}
 							cardVariant="hero"
 							compactHero
-							heroCtaLabel="View event"
+							heroCtaLabel={i18n.t('view_event')}
 						/>
 					</div>
 				</section>
@@ -883,7 +884,7 @@
 			<section class="mt-6 space-y-3">
 				<div class="min-w-0 space-y-3">
 					<div class="flex flex-wrap items-end justify-between gap-3">
-						<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Discover</h2>
+						<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">{i18n.t('discover')}</h2>
 
 						<div class="flex flex-wrap items-center gap-2">
 							{#if discoverTab === 'nearby'}
@@ -893,7 +894,7 @@
 										onclick={requestDeviceLocation}
 										class="rounded-full bg-white px-3 py-2 text-xs font-black text-blue-600 shadow-sm ring-1 ring-slate-200 transition hover:bg-blue-50 dark:bg-slate-900 dark:text-blue-400 dark:ring-slate-800 dark:hover:bg-slate-800"
 									>
-										Use my location
+										{i18n.t('use_my_location')}
 									</button>
 								{/if}
 								<div class="flex items-center gap-1 rounded-full bg-white p-1 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
@@ -927,7 +928,7 @@
 										: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
 								}`}
 						>
-							Nearby
+							{i18n.t('nearby')}
 							{#if discoverTab === 'nearby'}
 								<span class="absolute bottom-0 left-0 right-5 h-0.5 rounded-full bg-slate-950 dark:bg-white"></span>
 							{/if}
@@ -942,7 +943,7 @@
 										: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
 								}`}
 						>
-							For you
+							{i18n.t('for_you')}
 							{#if discoverTab === 'recommended'}
 									<span class="absolute bottom-0 left-0 right-5 h-0.5 rounded-full bg-slate-950 dark:bg-white"></span>
 								{/if}
@@ -957,7 +958,7 @@
 										: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
 								}`}
 							>
-								Following
+								{i18n.t('following')}
 								{#if discoverTab === 'following'}
 									<span class="absolute bottom-0 left-0 right-5 h-0.5 rounded-full bg-slate-950 dark:bg-white"></span>
 								{/if}
@@ -967,15 +968,15 @@
 					{#if discoverTab === 'nearby'}
 						<p class="text-sm font-semibold text-slate-500 dark:text-slate-400">
 							{#if locationStatus === 'ready'}
-								Within {radiusKm} km of your current location.
+								{i18n.t('within_radius', { radius: radiusKm })}
 							{:else if locationStatus === 'loading'}
-								Checking your location...
+								{i18n.t('checking_location')}
 							{:else if locationStatus === 'blocked'}
-								Location is blocked. Enable it in your browser to use the radius.
+								{i18n.t('location_blocked')}
 							{:else if locationStatus === 'unsupported'}
-								Your browser does not support location for nearby events.
+								{i18n.t('location_unsupported')}
 							{:else}
-								Allow location to find events around you.
+								{i18n.t('allow_location_msg')}
 							{/if}
 						</p>
 
@@ -985,19 +986,19 @@
 									events={nearbyEvents}
 									cardVariant="hero"
 									compactHero
-									heroCtaLabel="View event"
+									heroCtaLabel={i18n.t('view_event')}
 									ariaLabel="Nearby events"
 								/>
 							</div>
 						{:else}
 							<div class="rounded-[1.5rem] border border-dashed border-slate-200 bg-white/70 p-5 text-sm dark:border-slate-800 dark:bg-slate-900/70">
 								<p class="font-black text-slate-800 dark:text-slate-100">
-									{locationStatus === 'ready' ? 'No nearby events in this radius' : 'Location needed'}
+									{locationStatus === 'ready' ? i18n.t('no_nearby_events') : i18n.t('location_needed')}
 								</p>
 								<p class="mt-1 text-slate-500 dark:text-slate-400">
 									{locationStatus === 'ready'
-										? 'Try a bigger radius or explore all public events.'
-										: 'Use your location so Rally can filter events by the selected radius.'}
+										? i18n.t('try_bigger_radius')
+										: i18n.t('use_location_filter')}
 								</p>
 							</div>
 						{/if}
@@ -1013,16 +1014,16 @@
 							{:else}
 								<div class="rounded-[1.5rem] border border-dashed border-slate-200 bg-white/70 p-5 text-sm dark:border-slate-800 dark:bg-slate-900/70">
 									<p class="font-black text-slate-800 dark:text-slate-100">
-										{hasFavoriteSports ? 'No recommendations right now' : 'Choose your favourite sports'}
+										{hasFavoriteSports ? i18n.t('no_rec_right_now') : i18n.t('choose_fav_sports_title')}
 									</p>
 									<p class="mt-1 text-slate-500 dark:text-slate-400">
 										{hasFavoriteSports
-											? 'Events matching your favourite sports will appear here.'
-											: 'Go to your profile and select sports so Rally can recommend better events.'}
+											? i18n.t('events_match_pref_msg')
+											: i18n.t('go_to_profile_recommend_msg')}
 									</p>
 									{#if !hasFavoriteSports}
 										<a href={resolve('/profile')} class="mt-3 inline-flex rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700">
-											Update profile
+											{i18n.t('update_profile')}
 										</a>
 									{/if}
 								</div>
@@ -1033,21 +1034,21 @@
 									events={followingEvents}
 									cardVariant="hero"
 									compactHero
-									heroCtaLabel="View event"
+									heroCtaLabel={i18n.t('view_event')}
 									ariaLabel="Events from followed organizations"
 								/>
 							{:else}
 								<div class="rounded-[1.5rem] border border-dashed border-slate-200 bg-white/70 p-5 text-sm dark:border-slate-800 dark:bg-slate-900/70">
 									<p class="font-black text-slate-800 dark:text-slate-100">
-										{followedOrganizationIds.length > 0 ? 'No events from followed organizations' : 'Follow organizations to see their events'}
+										{followedOrganizationIds.length > 0 ? i18n.t('no_events_followed_orgs') : i18n.t('follow_orgs_msg')}
 									</p>
 									<p class="mt-1 text-slate-500 dark:text-slate-400">
 										{followedOrganizationIds.length > 0
-											? 'When clubs you follow create public events, they will appear here.'
-											: 'Open an organization profile and follow it to keep its events close.'}
+											? i18n.t('clubs_public_events_msg')
+											: i18n.t('open_org_follow_msg')}
 									</p>
 									<a href={resolve('/explore')} class="mt-3 inline-flex rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700">
-										Explore organizations
+										{i18n.t('explore_orgs')}
 									</a>
 								</div>
 							{/if}
@@ -1059,8 +1060,8 @@
 			<section class="mt-6 space-y-4">
 				<div class="flex items-end justify-between gap-4">
 					<div>
-						<p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Upcoming events</p>
-						<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">Your activity</h2>
+						<p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">{i18n.t('upcoming_events')}</p>
+						<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">{i18n.t('your_activity')}</h2>
 					</div>
 				</div>
 
@@ -1075,7 +1076,7 @@
 									: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
 							}`}
 						>
-							Hosting
+							{i18n.t('hosting')}
 							<span class="ml-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">
 								{currentHostingEvents.length}
 							</span>
@@ -1093,7 +1094,7 @@
 									: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
 							}`}
 						>
-							Joined
+							{i18n.t('joined')}
 							<span class="ml-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">
 								{currentJoinedEvents.length}
 							</span>
@@ -1112,7 +1113,7 @@
 								: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
 						}`}
 					>
-						{showPastEvents ? 'View active events' : 'View past events'}
+						{showPastEvents ? i18n.t('view_active_events') : i18n.t('view_past_events')}
 					</button>
 				</div>
 
@@ -1121,10 +1122,10 @@
 						<div class="rounded-[1.7rem] border border-dashed border-slate-200 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
 							<p class="text-sm text-slate-500 dark:text-slate-400">
 								{showPastEvents
-									? 'No past events found.'
+									? i18n.t('no_past_events')
 									: events.length === 0
-										? 'No events created yet.'
-										: 'No upcoming events right now. Create another one when you are ready.'}
+										? i18n.t('no_created_events')
+										: i18n.t('no_upcoming_hosting_events')}
 							</p>
 						</div>
 					{:else}
@@ -1139,12 +1140,12 @@
 						<div class="rounded-[1.7rem] border border-dashed border-slate-200 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
 							<p class="text-sm text-slate-500 dark:text-slate-400">
 								{showPastEvents
-									? 'No past joined events found.'
-									: "You haven't joined any upcoming events yet."}
+									? i18n.t('no_past_joined_events')
+									: i18n.t('no_upcoming_joined_events')}
 							</p>
 							{#if !showPastEvents}
 								<a href={resolve('/explore')} class="mt-3 inline-flex rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700">
-									Find events near you
+									{i18n.t('find_events_near_you')}
 								</a>
 							{/if}
 						</div>

@@ -8,6 +8,7 @@
 	import EventCard from '$lib/components/EventCard.svelte';
 	import { isPromotionActive, getEventStartAtMillis } from '$lib/services/event.service';
 	import { getCurrencySymbol } from '$lib/utils/format.utils';
+	import { i18n } from '$lib/services/i18n.svelte';
 
 	let {
 		events,
@@ -827,7 +828,7 @@
 						id="mobile-explore-search"
 						type="search"
 						value={localSearchTerm}
-						placeholder="Search events, sports or places"
+						placeholder={i18n.t('search_events_placeholder')}
 						oninput={(event) => handleSearchInput((event.currentTarget as HTMLInputElement).value)}
 						class="min-w-0 flex-1 appearance-none border-0 bg-transparent p-0 text-sm font-black text-slate-900 outline-none ring-0 shadow-none placeholder:font-bold placeholder:text-slate-400 focus:border-0 focus:outline-none focus:ring-0 dark:text-slate-100"
 					/>
@@ -969,7 +970,7 @@
 				</div>
 
 				{#if availableSports.length === 0}
-					<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">No sports available.</p>
+					<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">{i18n.t('no_sports_available')}</p>
 				{:else}
 					<div class="mt-2.5 flex flex-wrap gap-1.5">
 						{#each availableSports as sport (sport)}
@@ -982,7 +983,7 @@
 										: 'bg-slate-50 text-slate-600 border border-slate-100 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-blue-950'
 								}`}
 							>
-								{sport}
+								{i18n.t('sport_' + sport.toLowerCase())}
 							</button>
 						{/each}
 					</div>
@@ -1047,7 +1048,7 @@
 				</button>
 
 				<span class="text-xs font-black uppercase tracking-wider text-slate-400">
-					Showing {viewMode === 'map' ? events.length : shownFeedCount} of {totalEventsCount} events
+					{i18n.t('showing_events', { count: viewMode === 'map' ? events.length : shownFeedCount, total: totalEventsCount })}
 				</span>
 			</div>
 
@@ -1082,7 +1083,7 @@
 						id="desktop-explore-search"
 						type="search"
 						value={localSearchTerm}
-						placeholder="Search events, sports, organizations or places"
+						placeholder={i18n.t('search_events_orgs_placeholder')}
 						oninput={(event) => handleSearchInput((event.currentTarget as HTMLInputElement).value)}
 						class="min-w-0 flex-1 appearance-none border-0 bg-transparent p-0 text-sm font-black text-slate-900 outline-none ring-0 shadow-none placeholder:text-sm placeholder:font-bold placeholder:text-slate-400 focus:border-0 focus:outline-none focus:ring-0 dark:text-slate-100"
 					/>
@@ -1227,14 +1228,14 @@
 
 			<div class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700">
 				<div>
-					<p class="text-sm font-black text-slate-950 dark:text-slate-50">Sport</p>
+					<p class="text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('sports')}</p>
 					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-						Choose which sports appear on the map.
+						{i18n.t('choose_map_sports_msg')}
 					</p>
 				</div>
 
 				{#if availableSports.length === 0}
-					<p class="mt-4 text-sm text-slate-500 dark:text-slate-400">No sports available.</p>
+					<p class="mt-4 text-sm text-slate-500 dark:text-slate-400">{i18n.t('no_sports_available')}</p>
 				{:else}
 					<div class="mt-4 flex flex-wrap gap-2">
 						{#each availableSports as sport (sport)}
@@ -1247,7 +1248,7 @@
 										: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-750 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950'
 								}`}
 							>
-								{sport}
+								{i18n.t('sport_' + sport.toLowerCase())}
 							</button>
 						{/each}
 					</div>
@@ -1341,10 +1342,10 @@
 				<div class="mt-2.5 flex items-center justify-between rounded-2xl bg-slate-50 px-2.5 py-1.5 dark:bg-slate-950/60 md:mt-3 md:px-3 md:py-2">
 					<div class="min-w-0">
 						<p class="text-xs font-black text-slate-700 dark:text-slate-200">
-							{selectedEventGroup.length} events in this area
+							{i18n.t('events_in_area', { count: selectedEventGroup.length })}
 						</p>
 						<p class="hidden truncate text-[11px] font-bold text-slate-400 dark:text-slate-500 sm:block">
-							Use the arrows to switch the main preview.
+							{i18n.t('use_arrows_preview_msg')}
 						</p>
 					</div>
 					<div class="ml-3 flex shrink-0 items-center gap-2">
@@ -1382,7 +1383,7 @@
 					href={getEventHref(selectedEvent)}
 					class="shrink-0 rounded-xl bg-blue-600 px-3 py-2 text-center text-xs font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 md:rounded-2xl md:px-4 md:py-2.5 md:text-sm"
 				>
-					View event
+					{i18n.t('view_event')}
 				</a>
 			</div>
 		</aside>
@@ -1453,10 +1454,10 @@
 							<div class="mb-4 flex items-end justify-between gap-3">
 								<div>
 									<h3 class="flex items-center gap-2 text-base font-black text-slate-900 dark:text-slate-100">
-										<span class="text-slate-400">★</span> Featured Games
+										<span class="text-slate-400">★</span> {i18n.t('featured_games')}
 									</h3>
 									<p class="text-xs text-slate-500 dark:text-slate-400">
-										Promoted events matched to your preferences.
+										{i18n.t('promoted_matching_pref')}
 									</p>
 								</div>
 								{#if feedFeaturedEvents.length > 2}
@@ -1503,10 +1504,10 @@
 							<div class="mb-4 flex items-end justify-between gap-3">
 								<div>
 									<h3 class="flex items-center gap-2 text-base font-black text-slate-900 dark:text-slate-100">
-										<span class="text-slate-400">◎</span> Friends Activity
+										<span class="text-slate-400">◎</span> {i18n.t('friends_activity')}
 									</h3>
 									<p class="text-xs text-slate-500 dark:text-slate-400">
-										Games created by or featuring your friends.
+										{i18n.t('friends_activity_sub')}
 									</p>
 								</div>
 								{#if feedFriendsEvents.length > 2}
@@ -1553,10 +1554,10 @@
 							<div class="mb-4 flex items-end justify-between gap-3">
 								<div>
 									<h3 class="flex items-center gap-2 text-base font-black text-slate-900 dark:text-slate-100">
-										<span class="text-slate-400">⌕</span> Explore Games
+										<span class="text-slate-400">⌕</span> {i18n.t('explore_games')}
 									</h3>
 									<p class="text-xs text-slate-500 dark:text-slate-400">
-										Find open spots, matches near you, and other games.
+										{i18n.t('explore_games_sub')}
 									</p>
 								</div>
 								{#if feedGeneralEvents.length > 2}

@@ -24,7 +24,7 @@ import type { OrganizationType } from '$lib/schema';
 import { createAppUrl } from '$lib/utils/app-url';
 
 export const authService = {
-	async register(email: string, password: string, displayName: string) {
+	async register(email: string, password: string, displayName: string, language?: string) {
 		const credential = await createUserWithEmailAndPassword(auth, email, password);
 
 		await updateProfile(credential.user, {
@@ -36,7 +36,8 @@ export const authService = {
 			email: credential.user.email ?? email,
 			displayName,
 			photoURL: credential.user.photoURL,
-			accountType: 'personal'
+			accountType: 'personal',
+			language
 		});
 
 		await sendRallySystemMessage(
@@ -59,6 +60,7 @@ export const authService = {
 		address?: string;
 		city?: string;
 		nif?: string;
+		language?: string;
 	}) {
 		const credential = await createUserWithEmailAndPassword(auth, params.email, params.password);
 
@@ -71,7 +73,8 @@ export const authService = {
 			email: credential.user.email ?? params.email,
 			displayName: params.organizationName,
 			photoURL: credential.user.photoURL,
-			accountType: 'organization'
+			accountType: 'organization',
+			language: params.language
 		});
 
 		const organization = await createOrganization({

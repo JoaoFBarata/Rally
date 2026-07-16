@@ -37,6 +37,7 @@
 	import { createAppUrl } from '$lib/utils/app-url';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { formatSport } from '$lib/utils/format.utils';
+	import { i18n } from '$lib/services/i18n.svelte';
 
 	const availableSports: Sport[] = [
 		'football',
@@ -375,18 +376,18 @@
 	<header class="mb-4 md:mb-6">
 		<div class="hidden md:block">
 			<RallyWordmark size="sm" />
-			<h1 class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">Profile</h1>
+			<h1 class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">{i18n.t('profile')}</h1>
 			<p class="mt-1 text-slate-500 dark:text-slate-400">
-				Your Rally identity, sports profile and friends.
+				{i18n.t('profile_sub')}
 			</p>
 		</div>
 
 		<div class="flex items-center justify-between gap-3 md:hidden">
-			<p class="text-base font-black text-slate-950 dark:text-slate-50">Profile</p>
+			<p class="text-base font-black text-slate-950 dark:text-slate-50">{i18n.t('profile')}</p>
 			<a
 				href={resolve('/settings')}
 				class="grid h-10 w-10 place-items-center rounded-full bg-white text-slate-600 shadow-sm ring-1 ring-slate-200 transition hover:text-blue-600 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-800 dark:hover:text-blue-400"
-				aria-label="Settings"
+				aria-label={i18n.t('settings')}
 			>
 				<NavIcon name="settings" />
 			</a>
@@ -397,7 +398,7 @@
 		<div
 			class="rounded-4xl border border-slate-200 bg-white p-8 text-slate-950 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-50"
 		>
-			Loading profile...
+			{i18n.t('loading_profile')}
 		</div>
 	{:else if profile}
 		{#if error}
@@ -480,17 +481,18 @@
 						</div>
 
 						<div>
-							<label for="mobile-bio" class="text-sm font-bold text-slate-700 dark:text-slate-300">Bio</label>
+							<label for="mobile-bio" class="text-sm font-bold text-slate-700 dark:text-slate-300">{i18n.t('bio')}</label>
 							<textarea
 								id="mobile-bio"
 								bind:value={bio}
 								rows="3"
+								placeholder={i18n.t('bio_placeholder')}
 								class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
 							></textarea>
 						</div>
 
 						<div>
-							<p class="text-sm font-bold text-slate-700 dark:text-slate-300">Sports</p>
+							<p class="text-sm font-bold text-slate-700 dark:text-slate-300">{i18n.t('sports')}</p>
 							<div class="mt-3 flex flex-wrap gap-2">
 								{#each availableSports as sport (sport)}
 									<button
@@ -569,7 +571,7 @@
 									onclick={() => (editMode = true)}
 									class="shrink-0 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200"
 						        >
-									Edit
+									{i18n.t('edit_profile')}
 						        </button>
 						    </div>
 
@@ -583,7 +585,7 @@
 										<span class="truncate">{formatProfileLocation(profile)}</span>
 									{/if}
 									{#if profile.age}
-										<span class="shrink-0">{profile.city || profile.country ? `· ${profile.age} years old` : `${profile.age} years old`}</span>
+										<span class="shrink-0">{profile.city || profile.country ? `· ${profile.age} ${i18n.t('years_old')}` : `${profile.age} ${i18n.t('years_old')}`}</span>
 									{/if}
 						        </p>
 						    {/if}
@@ -596,24 +598,24 @@
 						        <span class="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-700 ring-1 ring-blue-100 dark:bg-blue-950/50 dark:text-blue-200 dark:ring-blue-900/60">{formatSport(sport)}</span>
 						    {/each}
 						{:else}
-						    <span class="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">No sports yet</span>
+						    <span class="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">{i18n.t('no_sports_yet')}</span>
 						{/if}
 			        </div>
 
 			        <div class="mt-5 grid grid-cols-2 divide-x divide-slate-200 rounded-[1.5rem] bg-slate-50 p-4 dark:divide-slate-700 dark:bg-slate-800/70">
 						<div class="text-center">
 						    <p class="text-2xl font-black text-slate-950 dark:text-slate-50">{friends.length}</p>
-						    <p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">Friends</p>
+						    <p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">{i18n.t('friends')}</p>
 						</div>
 						<div class="text-center">
 						    <p class="text-2xl font-black text-slate-950 dark:text-slate-50">{(profile.rallyPointsTotal ?? 0).toLocaleString()}</p>
-						    <p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">Points</p>
+						    <p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">{i18n.t('points_label')}</p>
 						</div>
 			        </div>
 
 			        {#if profile.bio}
 						<div class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-800">
-							<p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Bio</p>
+							<p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">{i18n.t('bio')}</p>
 							<p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{profile.bio}</p>
 						</div>
 			        {/if}
@@ -626,7 +628,7 @@
 			    >
 			        <span>
 						<span class="block text-sm font-black">Rally QR</span>
-						<span class="block text-xs text-blue-100">Share your code to connect</span>
+						<span class="block text-xs text-blue-100">{i18n.t('add_friend_sub')}</span>
 			        </span>
 			        <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white">
 						<img src="/qr-code.png" alt="QR code" class="h-6 w-6 object-contain" />
@@ -641,7 +643,7 @@
 						    <svg viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5 text-yellow-400" aria-hidden="true">
 						        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
 						    </svg>
-						    <h2 class="text-lg font-black text-white">Rally Points</h2>
+						    <h2 class="text-lg font-black text-white">{i18n.t('rally_points_title')}</h2>
 						</div>
 
 						<button
@@ -649,7 +651,7 @@
 						    onclick={() => (showPointsBreakdown = !showPointsBreakdown)}
 						    class="rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/70"
 						>
-						    {showPointsBreakdown ? 'Hide' : 'How it works'}
+						    {showPointsBreakdown ? i18n.t('hide') : i18n.t('how_it_works')}
 						</button>
 			        </div>
 
@@ -659,19 +661,21 @@
 			        </p>
 
 			        <p class="mt-1 text-sm text-white/50">
-						{(profile.rallyPointsTotal ?? 0) === 0 ? 'Play at a Rally Verified venue to start earning.' : 'Your total Rally Points balance.'}
+						{(profile.rallyPointsTotal ?? 0) === 0 ? i18n.t('points_start_earning_msg') : i18n.t('points_balance_msg')}
 			        </p>
 			    </div>
 
 			    {#if showPointsBreakdown}
 			        <div class="border-b border-slate-100 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/60">
 						<p class="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-						    Earn per event at a Verified venue
+						    {i18n.t('earn_verified_venue')}
 						</p>
 						<div class="space-y-2 text-sm">
 						    {#each [{ label: 'Participating', pts: RALLY_POINTS_CONFIG.BASE_PARTICIPATION }, { label: 'First visit to venue', pts: RALLY_POINTS_CONFIG.FIRST_VENUE_BONUS }, { label: `Per other player (max ${RALLY_POINTS_CONFIG.PER_PARTICIPANT_CAP})`, pts: RALLY_POINTS_CONFIG.PER_PARTICIPANT }, { label: 'Organising the event', pts: RALLY_POINTS_CONFIG.ORGANIZER_BONUS }, { label: 'Event at full capacity', pts: RALLY_POINTS_CONFIG.FULL_EVENT_BONUS }] as row}
 						        <div class="flex items-center justify-between gap-3">
-									<span class="text-slate-600 dark:text-slate-400">{row.label}</span>
+									<span class="text-slate-600 dark:text-slate-400">
+										{row.label === 'Participating' ? i18n.t('points_participating') : row.label === 'First visit to venue' ? i18n.t('points_first_visit') : row.label.startsWith('Per other player') ? i18n.t('points_per_player', { max: RALLY_POINTS_CONFIG.PER_PARTICIPANT_CAP }) : row.label === 'Organising the event' ? i18n.t('points_organizing') : row.label === 'Event at full capacity' ? i18n.t('points_full_event') : row.label}
+									</span>
 									<span class="font-bold text-slate-900 dark:text-slate-50">+{row.pts} pts</span>
 						        </div>
 						    {/each}
@@ -681,7 +685,7 @@
 
 			    {#if pointTransactions.length > 0}
 			        <div class="p-4">
-						<p class="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Recent activity</p>
+						<p class="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">{i18n.t('recent_activity')}</p>
 						<div class="space-y-2">
 						    {#each pointTransactions as tx (tx.id)}
 						        <div class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800">
@@ -823,7 +827,7 @@
 										<span class="truncate">{formatProfileLocation(profile)}</span>
 									{/if}
 									{#if profile.age}
-										<span class="shrink-0">{profile.city || profile.country ? `· ${profile.age} years old` : `${profile.age} years old`}</span>
+										<span class="shrink-0">{profile.city || profile.country ? `· ${profile.age} ${i18n.t('years_old')}` : `${profile.age} ${i18n.t('years_old')}`}</span>
 									{/if}
 								</p>
 							{/if}
@@ -917,13 +921,13 @@
 								id="bio"
 								bind:value={bio}
 								rows="4"
-								placeholder="Tell people what sports you like and when you usually play."
+								placeholder={i18n.t('bio_placeholder')}
 								class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500"
 							></textarea>
 						</div>
 
 						<div>
-							<p class="text-sm font-bold text-slate-700 dark:text-slate-300">Sports</p>
+							<p class="text-sm font-bold text-slate-700 dark:text-slate-300">{i18n.t('sports')}</p>
 
 							<div class="mt-3 flex flex-wrap gap-2">
 								{#each availableSports as sport (sport)}
@@ -955,27 +959,27 @@
 						<div
 							class="min-w-0 rounded-2xl bg-slate-50 p-3 dark:bg-slate-800 sm:rounded-3xl sm:p-5"
 						>
-							<p class="text-sm font-bold text-slate-500 dark:text-slate-400">Location</p>
+							<p class="text-sm font-bold text-slate-500 dark:text-slate-400">{i18n.t('location')}</p>
 							<p
 								class="mt-2 truncate text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base"
 							>
-								{formatProfileLocation(profile) || 'Not added yet'}
+								{formatProfileLocation(profile) || i18n.t('not_added_yet')}
 							</p>
 						</div>
 
 						<div
 							class="min-w-0 rounded-2xl bg-slate-50 p-3 dark:bg-slate-800 sm:rounded-3xl sm:p-5"
 						>
-							<p class="text-sm font-bold text-slate-500 dark:text-slate-400">Age</p>
+							<p class="text-sm font-bold text-slate-500 dark:text-slate-400">{i18n.t('age')}</p>
 							<p class="mt-2 text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base">
-								{profile.age ? `${profile.age} years old` : 'Not added yet'}
+								{profile.age ? `${profile.age} ${i18n.t('years_old')}` : i18n.t('not_added_yet')}
 							</p>
 						</div>
 
 						<div
 							class="min-w-0 rounded-2xl bg-slate-50 p-3 dark:bg-slate-800 sm:rounded-3xl sm:p-5"
 						>
-							<p class="text-sm font-bold text-slate-500 dark:text-slate-400">Friends</p>
+							<p class="text-sm font-bold text-slate-500 dark:text-slate-400">{i18n.t('friends')}</p>
 							<p class="mt-2 font-black text-slate-950 dark:text-slate-50">
 								{friends.length}
 							</p>
@@ -984,7 +988,7 @@
 
 					{#if profile.bio}
 						<div class="mt-5 rounded-3xl bg-slate-50 p-5 dark:bg-slate-800">
-							<p class="text-sm font-bold text-slate-500 dark:text-slate-400">Bio</p>
+							<p class="text-sm font-bold text-slate-500 dark:text-slate-400">{i18n.t('bio')}</p>
 							<p class="mt-2 leading-7 text-slate-700 dark:text-slate-300">
 								{profile.bio}
 							</p>
@@ -992,7 +996,7 @@
 					{/if}
 
 					<div class="mt-5 rounded-3xl bg-slate-50 p-5 dark:bg-slate-800">
-						<p class="text-sm font-bold text-slate-500 dark:text-slate-400">Sports</p>
+						<p class="text-sm font-bold text-slate-500 dark:text-slate-400">{i18n.t('sports')}</p>
 
 						{#if profile.sports?.length}
 							<div class="mt-3 flex flex-wrap gap-2 py-1">
@@ -1005,7 +1009,7 @@
 								{/each}
 							</div>
 						{:else}
-							<p class="mt-2 text-slate-500 dark:text-slate-400">No sports added yet.</p>
+							<p class="mt-2 text-slate-500 dark:text-slate-400">{i18n.t('no_sports_yet')}</p>
 						{/if}
 					</div>
 				{/if}
@@ -1017,9 +1021,9 @@
 				>
 					<div class="flex items-start justify-between gap-4">
 						<div>
-							<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Add friend</h2>
+							<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">{i18n.t('add_friend')}</h2>
 							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-								Use a Rally tag or show your QR code.
+								{i18n.t('add_friend_sub')}
 							</p>
 						</div>
 
@@ -1037,7 +1041,7 @@
 					<div class="mt-5 flex gap-2">
 						<input
 							bind:value={friendTag}
-							placeholder="example: joao-8f3a1"
+							placeholder={i18n.t('add_friend_placeholder')}
 							class="min-w-0 flex-1 rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500"
 						/>
 
@@ -1046,7 +1050,7 @@
 							disabled={friendLoading || !friendTag}
 							class="rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-700 disabled:opacity-60"
 						>
-							{friendLoading ? 'Sending...' : 'Add'}
+							{friendLoading ? i18n.t('sending') : i18n.t('add')}
 						</button>
 					</div>
 				</section>
@@ -1055,7 +1059,7 @@
 					class="col-span-2 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6 lg:rounded-[2rem]"
 				>
 					<div class="flex items-center justify-between">
-						<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Friends</h2>
+						<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">{i18n.t('friends')}</h2>
 						<span
 							class="rounded-full bg-blue-50 px-3 py-1 text-sm font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
 						>
@@ -1068,9 +1072,9 @@
 							class="mt-5 rounded-3xl border border-dashed border-slate-300 p-6 text-center dark:border-slate-700"
 						>
 							<p class="text-3xl">👥</p>
-							<p class="mt-2 font-bold text-slate-700 dark:text-slate-300">No friends yet</p>
+							<p class="mt-2 font-bold text-slate-700 dark:text-slate-300">{i18n.t('no_friends_yet')}</p>
 							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-								Add people using their Rally tag.
+								{i18n.t('no_friends_sub')}
 							</p>
 						</div>
 					{:else}
@@ -1106,7 +1110,7 @@
 											onclick={() => startConversation(friend.id)}
 											class="shrink-0 rounded-full bg-white px-3 py-2 text-xs font-bold text-blue-600 shadow-sm transition hover:bg-blue-600 hover:text-white dark:bg-slate-900 dark:text-blue-400 dark:hover:bg-blue-600 dark:hover:text-white sm:text-sm"
 										>
-											Message
+											{i18n.t('message')}
 										</button>
 
 										<button
@@ -1145,7 +1149,7 @@
 										points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
 									/>
 								</svg>
-								<h2 class="text-lg font-black text-white">Rally Points</h2>
+								<h2 class="text-lg font-black text-white">{i18n.t('rally_points_title')}</h2>
 							</div>
 
 							<button
@@ -1153,7 +1157,7 @@
 								onclick={() => (showPointsBreakdown = !showPointsBreakdown)}
 								class="rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/70 transition hover:bg-white/20 hover:text-white"
 							>
-								{showPointsBreakdown ? 'Hide' : 'How it works'}
+								{showPointsBreakdown ? i18n.t('hide') : i18n.t('how_it_works')}
 							</button>
 						</div>
 
@@ -1164,10 +1168,10 @@
 
 						{#if (profile.rallyPointsTotal ?? 0) === 0}
 							<p class="mt-1 text-sm text-white/50">
-								Play at a Rally Verified venue to start earning.
+								{i18n.t('points_start_earning_msg')}
 							</p>
 						{:else}
-							<p class="mt-1 text-sm text-white/50">Your total Rally Points balance.</p>
+							<p class="mt-1 text-sm text-white/50">{i18n.t('points_balance_msg')}</p>
 						{/if}
 					</div>
 
@@ -1179,12 +1183,14 @@
 							<p
 								class="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400"
 							>
-								Earn per event at a Verified venue
+								{i18n.t('earn_verified_venue')}
 							</p>
 							<div class="space-y-2 text-sm">
 								{#each [{ label: 'Participating', pts: RALLY_POINTS_CONFIG.BASE_PARTICIPATION }, { label: 'First visit to venue', pts: RALLY_POINTS_CONFIG.FIRST_VENUE_BONUS }, { label: `Per other player (max ${RALLY_POINTS_CONFIG.PER_PARTICIPANT_CAP})`, pts: RALLY_POINTS_CONFIG.PER_PARTICIPANT }, { label: 'Organising the event', pts: RALLY_POINTS_CONFIG.ORGANIZER_BONUS }, { label: 'Event at full capacity', pts: RALLY_POINTS_CONFIG.FULL_EVENT_BONUS }] as row}
 									<div class="flex items-center justify-between">
-										<span class="text-slate-600 dark:text-slate-400">{row.label}</span>
+										<span class="text-slate-600 dark:text-slate-400">
+											{row.label === 'Participating' ? i18n.t('points_participating') : row.label === 'First visit to venue' ? i18n.t('points_first_visit') : row.label.startsWith('Per other player') ? i18n.t('points_per_player', { max: RALLY_POINTS_CONFIG.PER_PARTICIPANT_CAP }) : row.label === 'Organising the event' ? i18n.t('points_organizing') : row.label === 'Event at full capacity' ? i18n.t('points_full_event') : row.label}
+										</span>
 										<span class="font-bold text-slate-900 dark:text-slate-50">+{row.pts} pts</span>
 									</div>
 								{/each}
@@ -1198,7 +1204,7 @@
 							<p
 								class="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400"
 							>
-								Recent activity
+								{i18n.t('recent_activity')}
 							</p>
 							<div class="space-y-2">
 								{#each pointTransactions as tx (tx.id)}

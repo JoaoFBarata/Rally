@@ -1,4 +1,5 @@
 import { PUBLIC_MAPBOX_ACCESS_TOKEN } from '$env/static/public';
+import { i18n } from '../services/i18n.svelte';
 
 export function toDate(dateValue: unknown): Date | null {
 	try {
@@ -43,6 +44,11 @@ export function formatShortDate(dateValue: unknown): string {
 
 export function formatSport(sport: string | undefined | null): string {
 	if (!sport) return '';
+	const key = `sport_${sport.toLowerCase()}`;
+	const translated = i18n.t(key);
+	if (translated !== key) {
+		return translated;
+	}
 	return sport.replaceAll('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
@@ -58,22 +64,22 @@ export function getCurrencySymbol(currency?: string | null): string {
 }
 
 export function formatPrice(event: { pricePerPerson?: number; entryFeeAmount?: number; priceTotal?: number; maxParticipants?: number; currency?: string | null } | undefined | null): string {
-	if (!event) return 'Free';
+	if (!event) return i18n.t('free');
 	const symbol = getCurrencySymbol(event.currency);
 	if (event.entryFeeAmount && event.entryFeeAmount > 0) {
 		return `${symbol}${Number(event.entryFeeAmount).toFixed(2)}`;
 	}
 	if (event.pricePerPerson && event.pricePerPerson > 0) {
-		return `${symbol}${Number(event.pricePerPerson).toFixed(2)} / person`;
+		return `${symbol}${Number(event.pricePerPerson).toFixed(2)}${i18n.t('per_person')}`;
 	}
 	if (event.priceTotal && event.priceTotal > 0) {
 		const max = event.maxParticipants ?? 0;
 		if (max > 0) {
-			return `${symbol}${(event.priceTotal / max).toFixed(2)} / person`;
+			return `${symbol}${(event.priceTotal / max).toFixed(2)}${i18n.t('per_person')}`;
 		}
-		return `${symbol}${Number(event.priceTotal).toFixed(2)} total`;
+		return `${symbol}${Number(event.priceTotal).toFixed(2)}${i18n.t('total_label')}`;
 	}
-	return 'Free';
+	return i18n.t('free');
 }
 
 export function formatCapacity(event: { participantIds?: string[]; maxParticipants?: number; eventKind?: string; maxTournamentEntries?: number } | undefined | null): string {
@@ -81,10 +87,10 @@ export function formatCapacity(event: { participantIds?: string[]; maxParticipan
 	const joinedCount = event.participantIds?.length ?? 0;
 	if (event.eventKind === 'tournament') {
 		const maxEntries = event.maxTournamentEntries ?? event.maxParticipants ?? 0;
-		return `${joinedCount}/${maxEntries} entries`;
+		return i18n.t('entries_count', { count: joinedCount, max: maxEntries });
 	}
 	const maxParticipants = event.maxParticipants ?? 0;
-	return `${joinedCount}/${maxParticipants} joined`;
+	return i18n.t('spots_count', { count: joinedCount, max: maxParticipants });
 }
 
 export function getMiniMapUrl(lat: number | null | undefined, lng: number | null | undefined, width = 144, height = 104, zoom = 13): string {

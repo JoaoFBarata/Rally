@@ -8,6 +8,7 @@
 	import { goBack } from '$lib/utils/navigation';
 	import type { OrganizationType } from '$lib/schema';
 	import { themeState } from '$lib/theme.svelte';
+	import { i18n } from '$lib/services/i18n.svelte';
 
 	let organizationName = $state('');
 	let organizationType = $state<OrganizationType>('company');
@@ -24,6 +25,7 @@
 	let loading = $state(false);
 	let error = $state('');
 	let showPassword = $state(false);
+	let registerLanguage = $state(i18n.currentLang);
 
 	const organizationTypes: { value: OrganizationType; label: string }[] = [
 		{ value: 'company', label: 'Company / Brand' },
@@ -63,9 +65,11 @@
 				website,
 				address,
 				city,
-				nif
+				nif,
+				language: registerLanguage
 			});
 
+			i18n.setLanguage(registerLanguage as any);
 			await goto('/dashboard');
 		} catch (err) {
 			console.error('Organization register error:', err);
@@ -189,6 +193,24 @@
 							class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
 							placeholder="What does this organization do?"
 						></textarea>
+					</div>
+
+					<div class="grid gap-4 sm:grid-cols-2">
+						<div>
+							<label for="language" class="text-sm font-semibold text-slate-700 dark:text-slate-300">
+								{i18n.t('select_language')}
+							</label>
+							<select
+								id="language"
+								bind:value={registerLanguage}
+								class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-blue-950 font-bold"
+							>
+								<option value="en">English</option>
+								<option value="pt">Português</option>
+								<option value="es">Español</option>
+								<option value="fr">Français</option>
+							</select>
+						</div>
 					</div>
 
 					<div class="grid gap-4 sm:grid-cols-2">
