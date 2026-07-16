@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { getWeatherForEvent, type WeatherForecast } from '$lib/services/event.service';
+	import { i18n } from '$lib/services/i18n.svelte';
 
 	let { lat, lng, startAt, size = 'md' } = $props<{
 		lat: number | null | undefined;
@@ -29,29 +30,29 @@
 		const date = getEventDate();
 		if (!date) {
 			return {
-				tooltip: 'Weather forecast not available.',
-				label: 'Forecast not available'
+				tooltip: i18n.t('weather_forecast_unavailable'),
+				label: i18n.t('weather_forecast_unavailable_short')
 			};
 		}
 
 		const now = Date.now();
 		if (date.getTime() < now - 24 * 3600 * 1000) {
 			return {
-				tooltip: 'Weather data is not available for past events.',
-				label: 'Past event (no weather data)'
+				tooltip: i18n.t('weather_past_unavailable'),
+				label: i18n.t('weather_past_event')
 			};
 		}
 
 		if (date.getTime() - now > 14 * 24 * 3600 * 1000) {
 			return {
-				tooltip: 'Weather forecast is only available up to 14 days before the event.',
-				label: 'Forecast available 14 days before event'
+				tooltip: i18n.t('weather_future_unavailable'),
+				label: i18n.t('weather_future_event')
 			};
 		}
 
 		return {
-			tooltip: 'Weather forecast not available.',
-			label: 'Forecast not available'
+			tooltip: i18n.t('weather_forecast_unavailable'),
+			label: i18n.t('weather_forecast_unavailable_short')
 		};
 	}
 

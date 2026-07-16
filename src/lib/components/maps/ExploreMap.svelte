@@ -1332,7 +1332,7 @@
 							{selectedEvent.level ?? 'casual'}
 						</span>
 						<span class="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-600 dark:bg-blue-950/70 dark:text-blue-300 md:px-2.5 md:py-1 md:text-[11px]">
-							{selectedEvent.participantIds.length}/{selectedEvent.maxParticipants} players
+							{selectedEvent.participantIds.length}/{selectedEvent.maxParticipants} {i18n.t('players_lowercase')}
 						</span>
 					</div>
 				</div>

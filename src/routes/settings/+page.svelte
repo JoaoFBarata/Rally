@@ -408,10 +408,10 @@
 					<div class="flex items-start justify-between gap-4">
 						<div>
 							<p class="font-black text-slate-950 dark:text-slate-50">
-								Two-factor authentication
+								{i18n.t('two_factor_authentication')}
 							</p>
 							<p class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-								Add an email verification step after your password.
+								{i18n.t('two_factor_email_sub')}
 							</p>
 						</div>
 						<button
@@ -419,7 +419,7 @@
 							onclick={handleToggleTwoFactor}
 							disabled={twoFactorSaving}
 							class={`relative h-7 w-12 shrink-0 rounded-full transition disabled:opacity-60 ${profile?.twoFactorEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}
-							aria-label="Toggle two-factor authentication"
+							aria-label={i18n.t('toggle_two_factor_authentication')}
 						>
 							<span
 								class={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${profile?.twoFactorEnabled ? 'left-6' : 'left-1'}`}
@@ -431,8 +431,7 @@
 						<div
 							class="mt-4 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs font-bold leading-5 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300"
 						>
-							Two-factor authentication is active. Rally will ask for a second verification
-							step by email during login.
+							{i18n.t('two_factor_email_active')}
 						</div>
 					{/if}
 				</div>

@@ -236,6 +236,50 @@
 		return organizationReviews.reduce((sum, review) => sum + review.rating, 0) / organizationReviews.length;
 	});
 
+	function getPromotionPlanTranslationKey(plan: EventPromotionPlan, field: 'label' | 'description' | 'placement') {
+		const keyByPlan = {
+			local: {
+				label: 'regional_boost',
+				description: 'regional_boost_desc',
+				placement: 'regional_boost_placement'
+			},
+			sport: {
+				label: 'sport_targeting',
+				description: 'sport_targeting_desc',
+				placement: 'sport_targeting_placement'
+			},
+			featured: {
+				label: 'legacy_featured',
+				description: 'legacy_featured_desc',
+				placement: 'legacy_featured_placement'
+			}
+		} satisfies Record<EventPromotionPlan, Record<'label' | 'description' | 'placement', string>>;
+
+		return keyByPlan[plan][field];
+	}
+
+	function getSportLabel(value: string | null | undefined) {
+		if (!value) return '';
+		return i18n.t(`sport_${value}`);
+	}
+
+	function getLevelLabel(value: string | null | undefined) {
+		if (!value) return i18n.t('casual');
+		return i18n.t(value);
+	}
+
+	function getStatusLabel(value: string | null | undefined) {
+		if (!value) return '';
+		return i18n.t(`status_${value}`);
+	}
+
+	function formatReviewSummary() {
+		if (!organizationReviews.length) return i18n.t('official_organizer');
+
+		const reviewKey = organizationReviews.length === 1 ? 'review_singular' : 'review_plural';
+		return `${organizationAverageRating.toFixed(1)} ★ · ${organizationReviews.length} ${i18n.t(reviewKey)}`;
+	}
+
 	let canPromoteThisEvent = $derived.by(() => {
 		const currentUser = auth.currentUser;
 
@@ -1115,7 +1159,7 @@
 								<span class="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-black capitalize text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">{effectiveStatus}</span>
 					<span class="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-black capitalize text-amber-700 dark:bg-amber-950 dark:text-amber-300">{event.level ? event.level : i18n.t('casual')}</span>
 								{#if isPromotionActive(event)}
-									<span class="rounded-full bg-orange-50 px-3 py-1 text-[11px] font-black text-orange-600 dark:bg-orange-950 dark:text-orange-300">↗ Promoted</span>
+									<span class="rounded-full bg-orange-50 px-3 py-1 text-[11px] font-black text-orange-600 dark:bg-orange-950 dark:text-orange-300">↗ {i18n.t('event_promoted')}</span>
 								{/if}
 							</div>
 						</div>
@@ -1187,7 +1231,7 @@
 													{#if event.organizationVerificationStatus === 'verified'}<span class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-blue-600 text-[10px] font-black text-white">✓</span>{/if}
 												</div>
 												<p class="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
-													{organizationReviews.length ? `${organizationAverageRating.toFixed(1)} ★ · ${organizationReviews.length} reviews` : 'Official organizer'}
+													{formatReviewSummary()}
 												</p>
 											</div>
 										</a>
@@ -1303,19 +1347,19 @@
 													{i18n.t('get_directions')}
 												</a>
 											{/if}
-											{#if canInvite}<a href={resolve(`/events/${event.id}/invite`)} class="inline-flex min-h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-800 shadow-sm shadow-slate-200/50 transition active:scale-[0.98] dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:shadow-none">Invite</a>{/if}
+									{#if canInvite}<a href={resolve(`/events/${event.id}/invite`)} class="inline-flex min-h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-800 shadow-sm shadow-slate-200/50 transition active:scale-[0.98] dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:shadow-none">{i18n.t('invite_people')}</a>{/if}
 											{#if canJoin}
-												<button onclick={handleJoinEvent} disabled={actionLoading} class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition active:scale-[0.98] disabled:opacity-60">{actionLoading ? 'Joining...' : 'Join event'}</button>
+												<button onclick={handleJoinEvent} disabled={actionLoading} class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition active:scale-[0.98] disabled:opacity-60">{actionLoading ? i18n.t('joining') : i18n.t('join_event')}</button>
 											{:else if canRequestJoin}
-												<button onclick={handleRequestToJoin} disabled={actionLoading} class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition active:scale-[0.98] disabled:opacity-60">{actionLoading ? 'Requesting...' : 'Request to join'}</button>
+												<button onclick={handleRequestToJoin} disabled={actionLoading} class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition active:scale-[0.98] disabled:opacity-60">{actionLoading ? i18n.t('requesting') : i18n.t('request_to_join')}</button>
 											{:else if hasPendingJoinRequest}
-												<button disabled class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-slate-100 px-4 py-2.5 text-sm font-black text-slate-500 dark:bg-slate-800 dark:text-slate-400">Request pending</button>
+												<button disabled class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-slate-100 px-4 py-2.5 text-sm font-black text-slate-500 dark:bg-slate-800 dark:text-slate-400">{i18n.t('request_pending')}</button>
 											{/if}
-											{#if isParticipant && !isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}<button type="button" onclick={handleLeaveEvent} disabled={actionLoading} class="inline-flex min-h-11 items-center justify-center rounded-2xl border border-red-100 bg-red-50 px-4 py-2.5 text-sm font-black text-red-700 transition active:scale-[0.98] disabled:opacity-60 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">{actionLoading ? 'Leaving...' : 'Leave event'}</button>{/if}
+											{#if isParticipant && !isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}<button type="button" onclick={handleLeaveEvent} disabled={actionLoading} class="inline-flex min-h-11 items-center justify-center rounded-2xl border border-red-100 bg-red-50 px-4 py-2.5 text-sm font-black text-red-700 transition active:scale-[0.98] disabled:opacity-60 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">{actionLoading ? i18n.t('leaving') : i18n.t('leave_event')}</button>{/if}
 											{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
-												<a href={resolve(`/events/${event.id}/edit`)} class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-slate-950/10 transition active:scale-[0.98] dark:bg-white dark:text-slate-950">Edit</a>
-												<button type="button" onclick={handleFinishEvent} disabled={actionLoading} class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition active:scale-[0.98] disabled:opacity-60">Finish event</button>
-												<button type="button" onclick={handleCancelEvent} disabled={actionLoading} class="col-span-2 inline-flex min-h-11 items-center justify-center rounded-2xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-black text-red-700 transition active:scale-[0.98] disabled:opacity-60 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">Cancel event</button>
+												<a href={resolve(`/events/${event.id}/edit`)} class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-slate-950/10 transition active:scale-[0.98] dark:bg-white dark:text-slate-950">{i18n.t('edit_event')}</a>
+												<button type="button" onclick={handleFinishEvent} disabled={actionLoading} class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition active:scale-[0.98] disabled:opacity-60">{i18n.t('finish_event')}</button>
+												<button type="button" onclick={handleCancelEvent} disabled={actionLoading} class="col-span-2 inline-flex min-h-11 items-center justify-center rounded-2xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-black text-red-700 transition active:scale-[0.98] disabled:opacity-60 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">{i18n.t('cancel_event')}</button>
 											{/if}
 										</div>
 									</div>
@@ -1327,7 +1371,7 @@
 											<p class="text-lg font-black text-slate-950 dark:text-slate-50">{i18n.t('players')}</p>
 											<p class="text-sm font-bold text-slate-500 dark:text-slate-400">{participants.length}/{event.maxParticipants} {i18n.t('confirmed')}</p>
 										</div>
-										{#if canInvite}<a href={resolve(`/events/${event.id}/invite`)} class="rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white">Invite</a>{/if}
+										{#if canInvite}<a href={resolve(`/events/${event.id}/invite`)} class="rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white">{i18n.t('invite_people')}</a>{/if}
 									</div>
 									<div class="divide-y divide-slate-200 overflow-hidden rounded-2xl bg-white dark:divide-slate-800 dark:bg-slate-900">
 										{#each participants as participant (participant.id)}
@@ -1364,15 +1408,15 @@
 											<section class="-mx-5 -mb-6 flex min-h-[calc(100dvh-18rem)] flex-col bg-white dark:bg-slate-950">
 											<div bind:this={messagesContainer} class="min-h-[20rem] flex-1 overflow-y-auto px-4 py-5">
 												{#if groupChatLoading}
-													<div class="flex h-full items-center justify-center text-sm text-slate-500 dark:text-slate-400">Loading group chat...</div>
+													<div class="flex h-full items-center justify-center text-sm text-slate-500 dark:text-slate-400">{i18n.t('loading_group_chat')}</div>
 												{:else if groupMessages.length === 0}
 												<div class="flex h-full items-center justify-center text-center">
 													<div class="flex flex-col items-center">
 														<div class="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-2xl font-black text-blue-600 dark:bg-slate-800 dark:text-blue-300">
 															{event.title.slice(0, 1).toUpperCase()}
 														</div>
-														<p class="mt-3 font-bold text-slate-700 dark:text-slate-200">No messages yet</p>
-														<p class="mt-1 max-w-[17rem] text-sm text-slate-500 dark:text-slate-400">Send the first message to the event group.</p>
+														<p class="mt-3 font-bold text-slate-700 dark:text-slate-200">{i18n.t('no_messages_yet')}</p>
+														<p class="mt-1 max-w-[17rem] text-sm text-slate-500 dark:text-slate-400">{i18n.t('first_group_message')}</p>
 													</div>
 												</div>
 											{:else}
@@ -1381,13 +1425,13 @@
 											</div>
 											<form class="sticky bottom-0 border-t border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950" onsubmit={(submitEvent) => { submitEvent.preventDefault(); handleSendGroupMessage(); }}>
 												<div class="mx-auto flex max-w-3xl items-center gap-2 rounded-full bg-slate-100 px-3 py-2 dark:bg-slate-900">
-													<input bind:value={groupMessageText} oninput={handleGroupTyping} maxlength={TEXT_LIMITS.chatMessage} placeholder="Message the group..." class="min-w-0 flex-1 border-0 bg-transparent px-2 text-sm text-slate-950 placeholder:text-slate-400 focus:ring-0 dark:text-white" />
-													<button type="submit" disabled={groupChatSending || !groupMessageText.trim()} class="rounded-full bg-blue-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-blue-700 disabled:opacity-50">{groupChatSending ? '...' : 'Send'}</button>
+													<input bind:value={groupMessageText} oninput={handleGroupTyping} maxlength={TEXT_LIMITS.chatMessage} placeholder={i18n.t('message_group_placeholder')} class="min-w-0 flex-1 border-0 bg-transparent px-2 text-sm text-slate-950 placeholder:text-slate-400 focus:ring-0 dark:text-white" />
+													<button type="submit" disabled={groupChatSending || !groupMessageText.trim()} class="rounded-full bg-blue-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-blue-700 disabled:opacity-50">{groupChatSending ? '...' : i18n.t('send')}</button>
 												</div>
 										</form>
 									</section>
 							{:else}
-								<p class="rounded-2xl bg-white p-4 text-sm font-semibold text-slate-500 shadow-sm ring-1 ring-slate-200/70 dark:bg-slate-900 dark:text-slate-400 dark:ring-slate-800">Join the event to access the group chat.</p>
+								<p class="rounded-2xl bg-white p-4 text-sm font-semibold text-slate-500 shadow-sm ring-1 ring-slate-200/70 dark:bg-slate-900 dark:text-slate-400 dark:ring-slate-800">{i18n.t('join_to_access_chat')}</p>
 							{/if}
 						{/if}
 
@@ -1408,17 +1452,17 @@
 					<div class="absolute bottom-0 left-0 right-0 p-8">
 						<div class="flex flex-wrap items-center gap-2">
 							<span class="rounded-full bg-white/95 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-blue-600">
-								{event.sport}
+								{getSportLabel(event.sport)}
 							</span>
 							<span class="rounded-full bg-white/90 px-3 py-1 text-xs font-black capitalize text-slate-700">
-								{effectiveStatus}
+								{getStatusLabel(effectiveStatus)}
 							</span>
 							<span class="rounded-full bg-white/90 px-3 py-1 text-xs font-black capitalize text-slate-700">
-								{event.level ?? 'casual'}
+								{getLevelLabel(event.level)}
 							</span>
 							{#if isPromotionActive(event)}
 								<span class="rounded-full bg-orange-500 px-3 py-1 text-xs font-black text-white">
-									Promoted
+									{i18n.t('event_promoted')}
 								</span>
 							{/if}
 						</div>
@@ -1495,7 +1539,7 @@
 					<div class="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800">
 						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">{i18n.t('skill')}</p>
 						<p class="mt-2 font-bold capitalize text-slate-950 dark:text-slate-50">
-							{event.level ?? 'casual'}
+							{getLevelLabel(event.level)}
 						</p>
 					</div>
 
@@ -1541,11 +1585,11 @@
 								<p
 									class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400"
 								>
-									Players
+									{i18n.t('players')}
 								</p>
 
 								<h2 class="mt-2 text-2xl font-black text-slate-950 dark:text-slate-50">
-									People in this event
+									{i18n.t('people_in_this_event')}
 								</h2>
 							</div>
 
@@ -1553,7 +1597,7 @@
 								<p class="text-lg font-black text-blue-600 dark:text-blue-300">
 									{participants.length}/{event.maxParticipants}
 								</p>
-								<p class="text-xs font-medium text-slate-500 dark:text-slate-400">players</p>
+								<p class="text-xs font-medium text-slate-500 dark:text-slate-400">{i18n.t('players_lowercase')}</p>
 							</div>
 						</div>
 
@@ -1588,7 +1632,7 @@
 											<span
 												class="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-600 dark:bg-blue-950 dark:text-blue-300"
 											>
-												Host
+												{i18n.t('host')}
 											</span>
 										{:else if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
 											<button
@@ -1597,7 +1641,7 @@
 												disabled={actionLoading}
 												class="rounded-full px-4 py-2 text-sm font-black text-red-600 transition hover:bg-red-50 disabled:opacity-60 dark:text-red-400 dark:hover:bg-red-950"
 											>
-												Remove
+												{i18n.t('remove_player')}
 											</button>
 										{/if}
 									</div>
@@ -1606,7 +1650,7 @@
 						{:else}
 							<div class="mt-5 rounded-2xl bg-slate-50 p-5 text-center dark:bg-slate-800">
 								<p class="text-sm font-semibold text-slate-500 dark:text-slate-400">
-									No players yet.
+									{i18n.t('no_players')}
 								</p>
 							</div>
 						{/if}
@@ -1852,7 +1896,7 @@
 								{/if}
 							</div>
 
-							<p class="text-xs text-slate-500 dark:text-slate-400">Official organization host</p>
+							<p class="text-xs text-slate-500 dark:text-slate-400">{i18n.t('official_organization_host')}</p>
 						</div>
 					</a>
 
@@ -1872,7 +1916,7 @@
 							<div class="mt-4 rounded-2xl bg-blue-50 p-4 dark:bg-blue-950/40">
 								<div class="flex items-center justify-between gap-3">
 									<div>
-										<p class="font-black text-blue-700 dark:text-blue-300">Promotion active</p>
+										<p class="font-black text-blue-700 dark:text-blue-300">{i18n.t('promotion_active')}</p>
 
 										{#if promotionStats}
 											<p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
@@ -1898,7 +1942,7 @@
 								onclick={() => (showPromoteModal = true)}
 								class="mt-4 w-full rounded-2xl bg-blue-600 px-5 py-3 font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700"
 							>
-								Promote event
+								{i18n.t('promote_event')}
 							</button>
 						{/if}
 					{/if}
@@ -2060,15 +2104,15 @@
 							<p
 								class="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400"
 							>
-								Promote event
+								{i18n.t('promote_event')}
 							</p>
 
 							<h2 class="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50">
-								Reach more people
+								{i18n.t('reach_more_people')}
 							</h2>
 
 							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-								Choose a boost plan, budget and duration. This simulates an ads-style campaign.
+								{i18n.t('promote_modal_desc')}
 							</p>
 						</div>
 
@@ -2076,7 +2120,7 @@
 							type="button"
 							onclick={() => (showPromoteModal = false)}
 							class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-xl font-black text-slate-500 transition hover:bg-slate-200 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-							aria-label="Close promote modal"
+							aria-label={i18n.t('close_promote_modal')}
 						>
 							×
 						</button>
@@ -2094,11 +2138,11 @@
 								}`}
 							>
 								<p class="font-black text-slate-950 dark:text-slate-50">
-									{config.label}
+									{i18n.t(getPromotionPlanTranslationKey(plan, 'label'))}
 								</p>
 
 								<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-									{config.description}
+									{i18n.t(getPromotionPlanTranslationKey(plan, 'description'))}
 								</p>
 
 								<p class="mt-3 text-sm font-black text-blue-600 dark:text-blue-400">
@@ -2106,7 +2150,7 @@
 								</p>
 
 								<p class="mt-1 text-xs font-bold text-slate-400 dark:text-slate-500">
-									{config.placement}
+									{i18n.t(getPromotionPlanTranslationKey(plan, 'placement'))}
 								</p>
 							</button>
 						{/each}
@@ -2115,7 +2159,7 @@
 					<div class="mt-6 grid gap-3 md:grid-cols-3">
 						<label class="block">
 							<span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
-								Budget (€)
+								{i18n.t('budget_label')}
 							</span>
 							<input
 								bind:value={promotionBudget}
@@ -2129,22 +2173,22 @@
 
 						<label class="block">
 							<span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
-								Duration
+								{i18n.t('duration_label')}
 							</span>
 							<select
 								bind:value={promotionDurationDays}
 								class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
 							>
-								<option value="3">3 days</option>
-								<option value="7">7 days</option>
-								<option value="14">14 days</option>
-								<option value="30">30 days</option>
+								<option value="3">3 {i18n.t('days')}</option>
+								<option value="7">7 {i18n.t('days')}</option>
+								<option value="14">14 {i18n.t('days')}</option>
+								<option value="30">30 {i18n.t('days')}</option>
 							</select>
 						</label>
 
 						<label class="block">
 							<span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
-								Target country
+								{i18n.t('target_country')}
 							</span>
 							<select
 								bind:value={promotionTargetCountry}
@@ -2158,30 +2202,30 @@
 
 						<label class="block md:col-span-3">
 							<span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
-								Target city or region
+								{i18n.t('target_city_region')}
 							</span>
 							<input
 								bind:value={promotionTargetCity}
 								class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-								placeholder={`Optional, e.g. ${event.location.name}`}
+								placeholder={i18n.t('optional_example', { value: event.location.name })}
 							/>
 							<span class="mt-1 block text-xs text-slate-500 dark:text-slate-400">
-								Leave empty for the whole selected country. Sport Boost uses {event.sport} automatically.
+								{i18n.t('promote_target_help', { sport: event.sport })}
 							</span>
 						</label>
 					</div>
 
 					<div class="mt-6 rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
 						<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
-							Estimated campaign
+							{i18n.t('estimated_campaign')}
 						</p>
 
 						<p class="mt-2 font-black text-slate-950 dark:text-slate-50">
-							≈ {promotionImpressionsPreview} impressions · €{selectedPromotionPlan.cpm} CPM
+							≈ {promotionImpressionsPreview} {i18n.t('impressions')} · €{selectedPromotionPlan.cpm} CPM
 						</p>
 
 						<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-							Placement: {selectedPromotionPlan.placement}
+							{i18n.t('placement')}: {i18n.t(getPromotionPlanTranslationKey(promotionPlan, 'placement'))}
 						</p>
 					</div>
 
@@ -2191,7 +2235,7 @@
 							onclick={() => (showPromoteModal = false)}
 							class="rounded-2xl border border-slate-200 bg-white px-5 py-3 font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
 						>
-							Cancel
+							{i18n.t('cancel')}
 						</button>
 
 						<button
@@ -2200,7 +2244,7 @@
 							disabled={promoting}
 							class="rounded-2xl bg-blue-600 px-5 py-3 font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-60"
 						>
-							{promoting ? 'Starting campaign...' : 'Start promotion'}
+							{promoting ? i18n.t('starting_campaign') : i18n.t('start_promotion')}
 						</button>
 					</div>
 				</div>

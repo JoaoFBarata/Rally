@@ -31,6 +31,7 @@
 	import { goBack } from '$lib/utils/navigation';
 	import { getCurrencySymbol } from '$lib/utils/format.utils';
 	import { TEXT_LIMITS } from '$lib/constants/text-limits';
+	import { i18n } from '$lib/services/i18n.svelte';
 
 	let organization = $state<Organization | null>(null);
 
@@ -71,24 +72,19 @@
 
 	let eventKind = $state<'free' | 'training' | 'tournament' | 'paid' | 'promotion'>('free');
 
-	const sports: { value: Sport; label: string }[] = [
-		{ value: 'football', label: 'Football' },
-		{ value: 'padel', label: 'Padel' },
-		{ value: 'basketball', label: 'Basketball' },
-		{ value: 'running', label: 'Running' },
-		{ value: 'gym', label: 'Gym' },
-		{ value: 'tennis', label: 'Tennis' },
-		{ value: 'cycling', label: 'Cycling' },
-		{ value: 'volleyball', label: 'Volleyball' },
-		{ value: 'other', label: 'Other' }
+	const sportValues: Sport[] = [
+		'football',
+		'padel',
+		'basketball',
+		'running',
+		'gym',
+		'tennis',
+		'cycling',
+		'volleyball',
+		'other'
 	];
 
-	const levels: { value: SportLevel; label: string }[] = [
-		{ value: 'beginner', label: 'Beginner' },
-		{ value: 'casual', label: 'Casual' },
-		{ value: 'intermediate', label: 'Intermediate' },
-		{ value: 'advanced', label: 'Advanced' }
-	];
+	const levelValues: SportLevel[] = ['beginner', 'casual', 'intermediate', 'advanced'];
 	const currencyOptions: { value: EventCurrency; label: string }[] = [
 		{ value: 'EUR', label: 'EUR €' },
 		{ value: 'USD', label: 'USD $' },
@@ -116,11 +112,11 @@
 	});
 
 	function verificationLabel() {
-		if (!organization) return 'Not verified';
-		if (organization.verificationStatus === 'verified') return 'Verified';
-		if (organization.verificationStatus === 'pending') return 'Verification pending';
-		if (organization.verificationStatus === 'rejected') return 'Verification rejected';
-		return 'Not verified';
+		if (!organization) return i18n.t('not_verified');
+		if (organization.verificationStatus === 'verified') return i18n.t('verified');
+		if (organization.verificationStatus === 'pending') return i18n.t('verification_pending');
+		if (organization.verificationStatus === 'rejected') return i18n.t('verification_rejected');
+		return i18n.t('not_verified');
 	}
 
 	function verificationClasses() {
@@ -139,6 +135,28 @@
 		}
 
 		return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300';
+	}
+
+	function getPromotionPlanTranslationKey(
+		plan: EventPromotionPlan,
+		field: 'label' | 'description'
+	) {
+		const keyByPlan = {
+			local: {
+				label: 'regional_boost',
+				description: 'regional_boost_desc'
+			},
+			sport: {
+				label: 'sport_targeting',
+				description: 'sport_targeting_desc'
+			},
+			featured: {
+				label: 'legacy_featured',
+				description: 'legacy_featured_desc'
+			}
+		} satisfies Record<EventPromotionPlan, Record<'label' | 'description', string>>;
+
+		return keyByPlan[plan][field];
 	}
 
 	function setEventKind(nextKind: typeof eventKind) {
@@ -327,7 +345,7 @@
 		<section
 			class="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 		>
-			<p class="text-slate-500 dark:text-slate-400">Loading organization...</p>
+			<p class="text-slate-500 dark:text-slate-400">{i18n.t('loading_org')}</p>
 		</section>
 	{:else if error && !organization}
 		<section
@@ -342,21 +360,21 @@
 			class="mb-4 inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-black text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
 		>
 			<span class="leading-none">←</span>
-			<span>Back</span>
+			<span>{i18n.t('back')}</span>
 		</button>
 
 			<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 				<div class="min-w-0">
 					<p class="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
-						Official event
+						{i18n.t('official_event')}
 					</p>
 
 					<h1 class="mt-1 text-3xl font-black tracking-tight text-slate-950 dark:text-slate-50 sm:text-4xl">
-						Create event
+						{i18n.t('create_event')}
 					</h1>
 
 					<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-						Hosted by <span class="font-black">{organization.name}</span>
+						{i18n.t('hosted_by')} <span class="font-black">{organization.name}</span>
 					</p>
 				</div>
 
@@ -461,7 +479,7 @@
 				</section>
 
 				<section class={cardClass}>
-					<h2 class={sectionTitleClass}>Event details</h2>
+					<h2 class={sectionTitleClass}>{i18n.t('event_details')}</h2>
 
 					<div class="mt-4 space-y-3 sm:mt-5 sm:space-y-4">
 						<input
@@ -483,15 +501,15 @@
 							<div class="flex flex-col gap-2">
 								<label
 									for="organization-event-sport"
-									class="text-xs font-bold uppercase tracking-wide text-slate-500">Sport</label
+									class="text-xs font-bold uppercase tracking-wide text-slate-500">{i18n.t('sport')}</label
 								>
 								<select
 									id="organization-event-sport"
 									bind:value={sport}
 									class={inputClass}
 								>
-									{#each sports as option}
-										<option value={option.value}>{option.label}</option>
+									{#each sportValues as option}
+										<option value={option}>{i18n.t(`sport_${option}`)}</option>
 									{/each}
 								</select>
 
@@ -508,15 +526,15 @@
 							<div class="flex min-w-0 flex-col gap-2">
 								<label
 									for="organization-event-level"
-									class="text-xs font-bold uppercase tracking-wide text-slate-500">Level</label
+									class="text-xs font-bold uppercase tracking-wide text-slate-500">{i18n.t('level_label')}</label
 								>
 								<select
 									id="organization-event-level"
 									bind:value={level}
 									class={inputClass}
 								>
-									{#each levels as option}
-										<option value={option.value}>{option.label}</option>
+									{#each levelValues as option}
+										<option value={option}>{i18n.t(option)}</option>
 									{/each}
 								</select>
 							</div>
@@ -525,7 +543,7 @@
 								<label
 									for="organization-event-capacity"
 									class="text-xs font-bold uppercase tracking-wide text-slate-500"
-									>Maximum participants</label
+									>{i18n.t('maximum_participants')}</label
 								>
 								<input
 									id="organization-event-capacity"
@@ -543,7 +561,7 @@
 
 				<section class={cardClass}>
 					<h2 class={sectionTitleClass}>
-						Location and schedule
+						{i18n.t('location_schedule')}
 					</h2>
 
 						<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">
@@ -592,7 +610,7 @@
 									<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
 									<circle cx="12" cy="10" r="3" />
 								</svg>
-								Use organization address
+								{i18n.t('use_organization_address')}
 							</button>
 						{/if}
 
@@ -603,26 +621,26 @@
 
 				<aside class="grid min-w-0 gap-3 sm:grid-cols-2 lg:block lg:space-y-6">
 					<section class={cardClass}>
-						<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 sm:text-xl">Visibility</h2>
+						<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 sm:text-xl">{i18n.t('visibility')}</h2>
 
 						<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">
-							Official organization events are usually public.
+							{i18n.t('official_org_events_public')}
 						</p>
 
 						<select
 							bind:value={visibility}
 							class={`mt-3 sm:mt-5 ${inputClass}`}
 						>
-							<option value="public">Public</option>
-							<option value="private">Private</option>
-						<option value="friends">Followers / friends</option>
+							<option value="public">{i18n.t('public')}</option>
+							<option value="private">{i18n.t('private')}</option>
+						<option value="friends">{i18n.t('followers_friends')}</option>
 					</select>
 				</section>
 
 					<section
 						class={`sm:col-span-2 ${cardClass}`}
 					>
-						<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 sm:text-xl">Entry & payment</h2>
+						<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 sm:text-xl">{i18n.t('entry_payment')}</h2>
 
 						<div class="mt-3 grid grid-cols-2 gap-2 sm:mt-5 sm:gap-3 lg:grid-cols-1">
 							<label
@@ -633,8 +651,8 @@
 								}`}
 							>
 								<input bind:group={paymentMode} type="radio" value="none" class="sr-only" />
-								<p class="text-sm font-black leading-tight text-slate-950 dark:text-slate-50 sm:text-base">Free</p>
-								<p class="mt-1 hidden text-xs text-slate-500 dark:text-slate-400 sm:block sm:text-sm">No payment required.</p>
+								<p class="text-sm font-black leading-tight text-slate-950 dark:text-slate-50 sm:text-base">{i18n.t('free')}</p>
+								<p class="mt-1 hidden text-xs text-slate-500 dark:text-slate-400 sm:block sm:text-sm">{i18n.t('no_payment_required')}</p>
 							</label>
 
 							<label
@@ -654,18 +672,18 @@
 									class="sr-only"
 								/>
 								<div class="flex items-center justify-between gap-3">
-									<p class="text-sm font-black leading-tight text-slate-950 dark:text-slate-50 sm:text-base">Official</p>
+									<p class="text-sm font-black leading-tight text-slate-950 dark:text-slate-50 sm:text-base">{i18n.t('official')}</p>
 
 									{#if !isVerified}
 										<span
 											class="hidden rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500 dark:bg-slate-800 dark:text-slate-400 sm:inline-flex"
 										>
-											Locked
+											{i18n.t('locked')}
 										</span>
 									{/if}
 								</div>
 								<p class="mt-1 hidden text-xs text-slate-500 dark:text-slate-400 sm:block sm:text-sm">
-									Protected paid event. Requires verified organization.
+									{i18n.t('protected_paid_verified')}
 								</p>
 							</label>
 						</div>
@@ -701,10 +719,10 @@
 						class={cardClass}
 						class:col-span-2={promote}
 					>
-						<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 sm:text-xl">Promotion</h2>
+						<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 sm:text-xl">{i18n.t('promotion')}</h2>
 
 						<p class="mt-1 text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
-							Promoted events appear with more visibility in Explore.
+							{i18n.t('promotion_visible_explore')}
 						</p>
 
 						<label
@@ -715,9 +733,9 @@
 							}`}
 						>
 							<div class="min-w-0">
-								<p class="text-sm font-black leading-tight text-slate-950 dark:text-slate-50 sm:text-base">Promote event</p>
+								<p class="text-sm font-black leading-tight text-slate-950 dark:text-slate-50 sm:text-base">{i18n.t('promote_event')}</p>
 									<p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400 sm:text-sm">
-										{isVerified ? 'Boost this event in Explore.' : 'Requires verified organization.'}
+										{isVerified ? i18n.t('boost_event_explore') : i18n.t('requires_verified_organization')}
 								</p>
 							</div>
 
@@ -753,7 +771,7 @@
 							<div class="mt-4 space-y-3">
 								<div>
 									<p class="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
-										Promotion type
+										{i18n.t('promotion_type')}
 									</p>
 
 									<div class="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
@@ -770,10 +788,10 @@
 												<div class="flex items-start justify-between gap-3">
 													<div>
 														<p class="text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base">
-															{config.label}
+															{i18n.t(getPromotionPlanTranslationKey(plan, 'label'))}
 														</p>
 														<p class="mt-1 hidden text-xs text-slate-500 dark:text-slate-400 sm:block">
-															{config.description}
+															{i18n.t(getPromotionPlanTranslationKey(plan, 'description'))}
 														</p>
 													</div>
 
@@ -789,7 +807,7 @@
 								<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
 								<label class="block">
 									<span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500"
-										>Target country</span
+										>{i18n.t('target_country')}</span
 									>
 									<select
 										bind:value={promotionTargetCountry}
@@ -803,7 +821,7 @@
 
 							<label class="block">
 								<span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
-									Budget (€)
+									{i18n.t('budget_label')}
 								</span>
 									<input
 										bind:value={promotionBudget}
@@ -817,45 +835,45 @@
 
 							<label class="block">
 								<span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
-									Duration (days)
+									{i18n.t('duration_days_label')}
 								</span>
 									<select
 										bind:value={promotionDurationDays}
 										class={inputClass}
 									>
-										<option value="3">3 days</option>
-										<option value="7">7 days</option>
-									<option value="14">14 days</option>
-									<option value="30">30 days</option>
+										<option value="3">3 {i18n.t('days')}</option>
+										<option value="7">7 {i18n.t('days')}</option>
+									<option value="14">14 {i18n.t('days')}</option>
+									<option value="30">30 {i18n.t('days')}</option>
 								</select>
 							</label>
 
 							<label class="block">
 								<span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
-									Target city or region
+									{i18n.t('target_city_region')}
 								</span>
 									<input
 										bind:value={promotionTargetCity}
-										placeholder="Optional, e.g. Lisbon"
+										placeholder={i18n.t('optional_example')}
 										class={inputClass}
 									/>
 								</label>
 
 							<label class="block">
 								<span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
-									Target sport
+									{i18n.t('target_sport')}
 								</span>
 									<select
 										bind:value={promotionTargetSport}
 										class={inputClass}
 									>
-										<option value="">Same as event sport</option>
-										{#each sports as option}
-										<option value={option.value}>{option.label}</option>
-									{/each}
+										<option value="">{i18n.t('same_as_event_sport')}</option>
+										{#each sportValues as option}
+											<option value={option}>{i18n.t(`sport_${option}`)}</option>
+										{/each}
 								</select>
 									<span class="mt-1 hidden text-xs text-slate-500 dark:text-slate-400 sm:block">
-										Used mainly by Sport Boost. Empty means this event's sport.
+										{i18n.t('sport_boost_event_sport_help')}
 									</span>
 								</label>
 								</div>
@@ -866,18 +884,18 @@
 				<section
 					class="rounded-2xl border border-slate-200 bg-white p-3 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-6"
 				>
-						<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 sm:text-xl">Trust & safety</h2>
+						<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 sm:text-xl">{i18n.t('trust_safety')}</h2>
 
 						<div class="mt-2 space-y-2 text-xs font-semibold text-slate-500 dark:text-slate-400 sm:mt-4 sm:space-y-3 sm:text-sm">
-							<p>Official paid events are only available to verified organizations.</p>
+							<p>{i18n.t('official_paid_verified_only')}</p>
 
-							<p class="hidden sm:block">Promoted events are highlighted in Explore and should represent real activities.</p>
+							<p class="hidden sm:block">{i18n.t('promoted_real_activities')}</p>
 
 							{#if paymentMode === 'official'}
 								<div
 									class="rounded-2xl bg-blue-50 p-3 font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300 sm:p-4"
 								>
-									This event will be shown as protected by Rally.
+									{i18n.t('protected_by_rally')}
 								</div>
 						{/if}
 					</div>
@@ -888,7 +906,7 @@
 						disabled={creating}
 						class="w-full rounded-2xl bg-blue-600 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-60 sm:col-span-2 sm:py-4 sm:text-base"
 					>
-					{creating ? 'Creating event...' : 'Create organization event'}
+					{creating ? i18n.t('creating_event') : i18n.t('create_organization_event')}
 				</button>
 			</aside>
 		</form>

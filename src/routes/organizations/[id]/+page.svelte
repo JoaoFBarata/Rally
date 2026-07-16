@@ -1371,7 +1371,7 @@
 						/>
 						<button type="button" onclick={() => galleryInput?.click()} disabled={uploadingGallery} class="rounded-2xl bg-blue-600 px-3 py-2 text-xs font-black text-white transition hover:bg-blue-700 disabled:opacity-60 sm:px-4 sm:py-2.5 sm:text-sm">
 							<span class="sm:hidden">{uploadingGallery ? '...' : '+'}</span>
-							<span class="hidden sm:inline">{uploadingGallery ? i18n.t('uploading') : `+ ${i18n.t('add_photos')}`}</span>
+							<span class="hidden sm:inline">{uploadingGallery ? i18n.t('uploading') : i18n.t('add_photos')}</span>
 						</button>
 					{/if}
 				</div>
@@ -1547,7 +1547,7 @@
 									<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">{i18n.t('cover_photo_help')}</p>
 								</div>
 								<button type="button" onclick={() => coverInput?.click()} disabled={savingProfile} class="shrink-0 rounded-2xl bg-white px-4 py-2 text-sm font-black text-slate-800 shadow-sm transition hover:bg-slate-100 disabled:opacity-60 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700">
-									{i18n.t('change') || 'Change'}
+									{i18n.t('change_btn')}
 								</button>
 							</div>
 						</div>

@@ -392,7 +392,7 @@
 					</span>
 					<div class="min-w-0 text-right">
 						<p class="truncate whitespace-nowrap text-[10px] font-black text-blue-600 dark:text-blue-300 sm:text-xs">
-							{event.participantIds.length}/{event.maxParticipants} players
+							{event.participantIds.length}/{event.maxParticipants} {i18n.t('players_lowercase')}
 						</p>
 						{#if event.pricePerPerson}
 							<p class="truncate text-[9px] font-bold text-slate-500 dark:text-slate-400 sm:text-[10px]">
@@ -400,7 +400,7 @@
 							</p>
 						{:else}
 							<p class="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 sm:text-[10px]">
-								Free
+								{i18n.t('free')}
 							</p>
 						{/if}
 					</div>
@@ -433,7 +433,7 @@
 				<span
 					class="absolute left-2 top-2 rounded-full bg-blue-600 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow-lg shadow-blue-700/20 sm:left-3 sm:top-3 sm:px-2.5 sm:py-1 sm:text-[10px]"
 				>
-					Promoted
+					{i18n.t('event_promoted')}
 				</span>
 			{:else}
 				<span
@@ -451,7 +451,7 @@
 				<span
 					class="rounded-full bg-blue-50 px-3 py-1 text-xs font-black uppercase tracking-wide text-blue-700 dark:bg-blue-950 dark:text-blue-300"
 				>
-					Sponsored
+					{i18n.t('sponsored')}
 				</span>
 
 				<span class="truncate text-xs font-bold text-slate-500 dark:text-slate-400">
@@ -538,7 +538,7 @@
 					{event.participantIds.length}/{event.maxParticipants}
 				</p>
 
-				<p class="hidden text-xs font-medium text-slate-500 dark:text-slate-400 sm:block">players</p>
+				<p class="hidden text-xs font-medium text-slate-500 dark:text-slate-400 sm:block">{i18n.t('players_lowercase')}</p>
 			</div>
 		</div>
 
@@ -549,7 +549,7 @@
 				{event.level ?? 'casual'}
 			</span>
 
-			{#if formattedPrice !== 'Free'}
+			{#if event.pricePerPerson}
 				<span class="text-sm font-medium text-slate-600 dark:text-slate-300">
 					{formattedPrice}
 				</span>

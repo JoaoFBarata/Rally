@@ -8,6 +8,7 @@ import { getEffectiveEventStatus } from '$lib/services/event.service';
 import type { ChatConversation, EventInvite, FriendRequest, SportEvent } from '$lib/schema';
 import { toastState } from '$lib/toast.svelte';
 import { getUserProfile } from '$lib/services/user.service';
+import { i18n } from '$lib/services/i18n.svelte';
 
 export type NotificationPreview = {
 	id: string;
@@ -70,6 +71,15 @@ function mergeNotificationPreviews(type: NotificationPreview['type'], previews: 
 		.slice(0, 30);
 }
 
+function translateSystemPreview(message: string | undefined | null, conversationType?: string) {
+	if (!message) return i18n.t('new_message');
+	if (conversationType === 'rally_system') {
+		if (message === 'Event invite') return i18n.t('event_invite_label');
+		if (message === 'Sent you a friend request') return i18n.t('sent_friend_request');
+	}
+	return message;
+}
+
 export function startNotifications(userId: string) {
 	stopNotifications();
 
@@ -91,23 +101,25 @@ export function startNotifications(userId: string) {
 		const previewVersion = ++conversationPreviewVersion;
 		void Promise.all(
 			unreadConversations.map(async (conversation) => {
-				let title = conversation.title || 'New message';
+				let title = conversation.title || i18n.t('new_message');
 				let photoURL = conversation.photoURL ?? conversation.organizationLogoURL ?? null;
 
 				if (conversation.type === 'direct') {
 					const otherUserId = conversation.memberIds.find((id) => id !== userId);
 					const profile = otherUserId ? await getUserProfile(otherUserId) : null;
-					title = profile?.displayName ?? 'Rally user';
+					title = profile?.displayName ?? i18n.t('rally_user');
 					photoURL = profile?.photoURL ?? null;
 				} else if (conversation.type === 'organization_direct') {
-					title = conversation.organizationName ?? conversation.title ?? 'Organization';
+					title = conversation.organizationName ?? conversation.title ?? i18n.t('organization_fallback');
+				} else if (conversation.type === 'rally_system') {
+					title = 'Rally';
 				}
 
 				return {
 					id: `message-${conversation.id}`,
 					type: 'message' as const,
 					title,
-					body: conversation.lastMessage || 'New message',
+					body: translateSystemPreview(conversation.lastMessage, conversation.type),
 					href: `/messages/${conversation.id}`,
 					createdAtMs: getTimestampMillis(conversation.lastMessageAt),
 					photoURL
@@ -130,10 +142,10 @@ export function startNotifications(userId: string) {
 					const senderId = conversation.lastSenderId;
 					if (senderId) {
 						getUserProfile(senderId).then((profile) => {
-							const senderName = profile?.displayName || 'Alguém';
-							const textPreview = conversation.lastMessage || 'Nova mensagem';
+							const senderName = profile?.displayName || i18n.t('someone');
+							const textPreview = translateSystemPreview(conversation.lastMessage, conversation.type);
 							toastState.add(
-								`Nova mensagem de ${senderName}`,
+								i18n.t('new_message_from', { name: senderName }),
 								textPreview,
 								'message'
 							);
@@ -182,8 +194,8 @@ export function startNotifications(userId: string) {
 				filteredInvites.map(({ invite, event }) => ({
 					id: `invite-${invite.id}`,
 					type: 'invite' as const,
-					title: 'Event invite',
-					body: event.title ?? 'Tap to see your invite',
+					title: i18n.t('event_invite_label'),
+					body: event.title ?? i18n.t('tap_to_see_invite'),
 					href: `/events/${event.id}`,
 					createdAtMs: getTimestampMillis(invite.createdAt),
 					photoURL: event.groupPhotoURL ?? null
@@ -193,8 +205,8 @@ export function startNotifications(userId: string) {
 			for (const { invite, event } of filteredInvites) {
 				if (invitesInitialized && !currentInviteIds.has(invite.id)) {
 					toastState.add(
-						'Novo Convite de Evento!',
-						`Foste convidado para participar em "${event.title ?? 'um evento'}".`,
+						i18n.t('new_event_invite_title'),
+						i18n.t('new_event_invite_body', { title: event.title ?? i18n.t('event_invite_label') }),
 						'invite'
 					);
 				}
@@ -227,8 +239,8 @@ export function startNotifications(userId: string) {
 				return {
 					id: `friend-request-${request.id}`,
 					type: 'friend_request' as const,
-					title: profile?.displayName ?? 'Rally user',
-					body: 'Sent you a friend request',
+					title: profile?.displayName ?? i18n.t('rally_user'),
+					body: i18n.t('sent_friend_request'),
 					href: '/messages',
 					createdAtMs: getTimestampMillis(request.createdAt),
 					photoURL: profile?.photoURL ?? null
@@ -242,10 +254,10 @@ export function startNotifications(userId: string) {
 		for (const request of pendingRequests) {
 			if (friendRequestsInitialized && !currentRequestIds.has(request.id)) {
 				getUserProfile(request.fromUserId).then((profile) => {
-					const senderName = profile?.displayName || 'Alguém';
+					const senderName = profile?.displayName || i18n.t('someone');
 					toastState.add(
-						'Pedido de Amizade!',
-						`${senderName} enviou-te um pedido de amizade.`,
+						i18n.t('friend_request_title'),
+						i18n.t('friend_request_body', { name: senderName }),
 						'invite'
 					);
 				});
@@ -293,12 +305,12 @@ export function startNotifications(userId: string) {
 				const creatorId = eventData.creatorId;
 
 				if (creatorId && creatorId !== userId && friendIds.has(creatorId)) {
-					const eventTitle = eventData.title || 'Novo evento';
+					const eventTitle = eventData.title || i18n.t('new_event');
 					getUserProfile(creatorId).then((profile) => {
-						const creatorName = profile?.displayName || 'Um amigo';
+						const creatorName = profile?.displayName || i18n.t('someone');
 						toastState.add(
-							'Atividade de Amigos',
-							`${creatorName} criou o evento "${eventTitle}".`,
+							i18n.t('friend_activity'),
+							i18n.t('friend_created_event', { name: creatorName, title: eventTitle }),
 							'event'
 						);
 					});
