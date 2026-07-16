@@ -899,7 +899,7 @@
 
 			<!-- Audience Filter -->
 			<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
-				<p class="text-xs font-black uppercase tracking-wider text-slate-400">{i18n.t('audience_label')}</p>
+				<p class="text-xs font-black uppercase tracking-wider text-slate-400">{i18n.t('event_type_label')}</p>
 				<div class="mt-2.5 flex flex-wrap gap-1.5">
 					{#each audienceFilterOptions as option (option.value)}
 						<button
@@ -1156,9 +1156,9 @@
 				</div>
 
 				<div>
-					<p class="text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('audience_label')}</p>
+					<p class="text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('event_type_label')}</p>
 					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-						{i18n.t('audience_filter_sub')}
+						{i18n.t('type_filter_sub')}
 					</p>
 					<div class="mt-3 flex flex-wrap gap-2">
 						{#each audienceFilterOptions as option (option.value)}

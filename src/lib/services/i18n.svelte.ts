@@ -215,6 +215,10 @@ class I18nService {
 			"audience_filter_sub": "Choose which events you want to see.",
 			"price_filter_sub": "Find events within your budget.",
 			"level_filter_sub": "Choose the level that suits you.",
+			"event_type_label": "Event type",
+			"type_filter_sub": "Choose the type of events you want to see.",
+			"no_events_found_sub": "No events found.",
+			"clear_all_filters": "Clear all filters",
 
 			// Settings
 			"settings_title": "Settings",
@@ -746,9 +750,12 @@ class I18nService {
 			"friends_events": "Eventos de amigos",
 			"filters_label" : "Filtros",
 			"date_filter_sub": "Quando queres jogar?",
-			"audience_filter_sub": "Escolhe os eventos que queres ver.",
+			"event_type_label": "Tipo de Evento",
+			"type_filter_sub": "Escolhe o tipos de evento que queres ver.",
 			"price_filter_sub": "Encontra eventos dentro do teu orçamento.",
 			"level_filter_sub": "Escolhe o nível mais adequado para ti.",
+			"no_events_found_sub": "Nenhum evento encontrado.",
+			"clear_all_filters": "Limpar filtros",
 
 			// Definições
 			"settings_title": "Definições",
@@ -1282,6 +1289,10 @@ class I18nService {
 			"audience_filter_sub": "Elige los eventos que quieres ver.",
 			"price_filter_sub": "Encuentra eventos dentro de tu presupuesto.",
 			"level_filter_sub": "Elige el nivel que mejor te convenga.",
+			"event_type_label": "Tipo de Evento",
+			"type_filter_sub": "Elige el tipo de evento que quieres ver.",
+			"no_events_found_sub": "No se encontraron eventos.",
+			"clear_all_filters": "Limpiar filtros",
 
 			// Ajustes
 			"settings_title": "Ajustes",
@@ -1816,7 +1827,11 @@ class I18nService {
 			"audience_filter_sub": "Choisissez les événements que vous souhaitez voir.",
 			"price_filter_sub": "Trouvez des événements adaptés à votre budget.",
 			"level_filter_sub": "Choisissez le niveau qui vous convient.",
-			
+			"event_type_label": "Type d'événement",
+			"type_filter_sub": "Choisissez le type d'événement que vous souhaitez voir.",
+			"no_events_found_sub": "Aucun événement trouvé.",
+			"clear_all_filters": "Effacer tous les filtres",
+
 			// Paramètres
 			"settings_title": "Paramètres",
 			"language": "Langue",
