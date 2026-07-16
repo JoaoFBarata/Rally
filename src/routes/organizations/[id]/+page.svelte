@@ -25,6 +25,7 @@
 	import { getEventsCreatedByOrganization, getUpcomingEvents } from '$lib/services/event.service';
 	import { getOrCreateOrganizationConversation } from '$lib/services/chat.service';
 	import EventCard from '$lib/components/EventCard.svelte';
+	import ExpandableText from '$lib/components/ExpandableText.svelte';
 	import {
 		subscribeToEventCatalogChanges,
 		subscribeToOrganizationChanges
@@ -38,6 +39,7 @@
 		formatCapacity,
 		getMiniMapUrl as getMiniMapUrlUtil
 	} from '$lib/utils/format.utils';
+	import { TEXT_LIMITS } from '$lib/constants/text-limits';
 
 	let organization = $state<Organization | null>(null);
 	let events = $state<SportEvent[]>([]);
@@ -1005,7 +1007,7 @@
 									</button>
 								{/each}
 							</div>
-							<textarea bind:value={reviewComment} rows="2" class="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-950 outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:focus:ring-blue-950" placeholder="Leave a comment..."></textarea>
+							<textarea bind:value={reviewComment} maxlength={TEXT_LIMITS.reviewComment} rows="2" class="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-950 outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:focus:ring-blue-950" placeholder="Leave a comment..."></textarea>
 							<button type="button" onclick={submitReview} disabled={reviewSubmitting || reviewRating < 1} class="mt-3 rounded-2xl bg-blue-600 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:opacity-60">
 								{reviewSubmitting ? 'Saving...' : 'Save review'}
 							</button>
@@ -1025,7 +1027,7 @@
 											<p class="shrink-0 text-sm font-black text-yellow-500">{'★'.repeat(review.rating)}</p>
 										</div>
 										{#if review.comment}
-											<p class="mt-2 text-sm font-bold leading-relaxed text-slate-500 dark:text-slate-400">{review.comment}</p>
+											<ExpandableText text={review.comment} class="mt-2 text-sm font-bold leading-relaxed text-slate-500 dark:text-slate-400" />
 										{/if}
 										{#if review.replies?.length}
 											<div class="mt-3 space-y-2 border-l-2 border-blue-100 pl-3 dark:border-blue-950">
@@ -1037,7 +1039,7 @@
 																<span class="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-blue-700 dark:bg-blue-950 dark:text-blue-300">Org</span>
 															{/if}
 														</div>
-														<p class="mt-1 text-xs font-bold leading-relaxed text-slate-500 dark:text-slate-400">{reply.comment}</p>
+														<ExpandableText text={reply.comment} initialLines={2} stepLines={2} maxPreviewChars={120} class="mt-1 text-xs font-bold leading-relaxed text-slate-500 dark:text-slate-400" />
 													</div>
 												{/each}
 											</div>
@@ -1045,7 +1047,7 @@
 										{#if reviewCanReply()}
 											<div class="mt-3">
 												{#if replyingToReviewId === review.id}
-													<textarea bind:value={replyComment} rows="2" class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:focus:ring-blue-950" placeholder="Reply to this review..."></textarea>
+													<textarea bind:value={replyComment} maxlength={TEXT_LIMITS.reviewReply} rows="2" class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:focus:ring-blue-950" placeholder="Reply to this review..."></textarea>
 													<div class="mt-2 flex gap-2">
 														<button type="button" onclick={() => submitReviewReply(review)} disabled={replySubmitting || !replyComment.trim()} class="rounded-full bg-blue-600 px-4 py-2 text-xs font-black text-white transition hover:bg-blue-700 disabled:opacity-60">
 															{replySubmitting ? 'Sending...' : 'Reply'}
@@ -1433,6 +1435,7 @@
 					</div>
 					<textarea
 						bind:value={reviewComment}
+						maxlength={TEXT_LIMITS.reviewComment}
 						rows="3"
 						class="mt-3 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-950 outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:ring-blue-950"
 						placeholder="Leave a comment..."
@@ -1457,7 +1460,7 @@
 								<p class="shrink-0 text-sm font-black text-yellow-500">{'★'.repeat(review.rating)}</p>
 							</div>
 							{#if review.comment}
-								<p class="mt-2 text-sm font-bold leading-relaxed text-slate-500 dark:text-slate-400">{review.comment}</p>
+								<ExpandableText text={review.comment} class="mt-2 text-sm font-bold leading-relaxed text-slate-500 dark:text-slate-400" />
 							{/if}
 							{#if review.replies?.length}
 								<div class="mt-3 space-y-2 border-l-2 border-blue-100 pl-3 dark:border-blue-950">
@@ -1469,7 +1472,7 @@
 													<span class="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-blue-700 dark:bg-blue-950 dark:text-blue-300">Org</span>
 												{/if}
 											</div>
-											<p class="mt-1 text-xs font-bold leading-relaxed text-slate-500 dark:text-slate-400">{reply.comment}</p>
+											<ExpandableText text={reply.comment} initialLines={2} stepLines={2} maxPreviewChars={120} class="mt-1 text-xs font-bold leading-relaxed text-slate-500 dark:text-slate-400" />
 										</div>
 									{/each}
 								</div>
@@ -1477,7 +1480,7 @@
 							{#if reviewCanReply()}
 								<div class="mt-3">
 									{#if replyingToReviewId === review.id}
-										<textarea bind:value={replyComment} rows="2" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:ring-blue-950" placeholder="Reply to this review..."></textarea>
+										<textarea bind:value={replyComment} maxlength={TEXT_LIMITS.reviewReply} rows="2" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:ring-blue-950" placeholder="Reply to this review..."></textarea>
 										<div class="mt-2 flex gap-2">
 											<button type="button" onclick={() => submitReviewReply(review)} disabled={replySubmitting || !replyComment.trim()} class="rounded-full bg-blue-600 px-4 py-2 text-xs font-black text-white transition hover:bg-blue-700 disabled:opacity-60">
 												{replySubmitting ? 'Sending...' : 'Reply'}
@@ -1569,7 +1572,7 @@
 						<div class="mt-4 grid gap-4 md:grid-cols-2">
 							<label class="block">
 								<span class="text-sm font-black text-slate-700 dark:text-slate-300">Name</span>
-								<input bind:value={editName} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
+								<input bind:value={editName} maxlength={TEXT_LIMITS.organizationName} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
 							</label>
 
 							<label class="block">
@@ -1588,37 +1591,37 @@
 
 							<label class="block md:col-span-2">
 								<span class="text-sm font-black text-slate-700 dark:text-slate-300">Description</span>
-								<textarea bind:value={editDescription} rows="3" class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" placeholder="Tell players what your organization does."></textarea>
+								<textarea bind:value={editDescription} maxlength={TEXT_LIMITS.organizationDescription} rows="3" class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" placeholder="Tell players what your organization does."></textarea>
 							</label>
 
 							<label class="block">
 								<span class="text-sm font-black text-slate-700 dark:text-slate-300">Contact email</span>
-								<input bind:value={editContactEmail} type="email" class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
+								<input bind:value={editContactEmail} type="email" maxlength={TEXT_LIMITS.contactEmail} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
 							</label>
 
 							<label class="block">
 								<span class="text-sm font-black text-slate-700 dark:text-slate-300">Phone</span>
-								<input bind:value={editPhone} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
+								<input bind:value={editPhone} maxlength={TEXT_LIMITS.phone} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
 							</label>
 
 							<label class="block">
 								<span class="text-sm font-black text-slate-700 dark:text-slate-300">Website</span>
-								<input bind:value={editWebsite} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
+								<input bind:value={editWebsite} maxlength={TEXT_LIMITS.website} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
 							</label>
 
 							<label class="block">
 								<span class="text-sm font-black text-slate-700 dark:text-slate-300">City</span>
-								<input bind:value={editCity} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
+								<input bind:value={editCity} maxlength={TEXT_LIMITS.city} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
 							</label>
 
 							<label class="block md:col-span-2">
 								<span class="text-sm font-black text-slate-700 dark:text-slate-300">Address</span>
-								<input bind:value={editAddress} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
+								<input bind:value={editAddress} maxlength={TEXT_LIMITS.address} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
 							</label>
 
 							<label class="block md:col-span-2">
 								<span class="text-sm font-black text-slate-700 dark:text-slate-300">NIF</span>
-								<input bind:value={editNif} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
+								<input bind:value={editNif} maxlength={TEXT_LIMITS.taxId} class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-950 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-blue-950" />
 							</label>
 						</div>
 

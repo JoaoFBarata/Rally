@@ -64,6 +64,7 @@
 	import { getOrCreateOrganizationConversation } from '$lib/services/chat.service';
 	import TournamentPanel from '$lib/components/tournaments/TournamentPanel.svelte';
 	import { getOrganizationReviews } from '$lib/services/organization.service';
+	import { TEXT_LIMITS } from '$lib/constants/text-limits';
 
 	let event = $state<SportEvent | null>(null);
 	let loading = $state(true);
@@ -1380,7 +1381,7 @@
 											</div>
 											<form class="sticky bottom-0 border-t border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950" onsubmit={(submitEvent) => { submitEvent.preventDefault(); handleSendGroupMessage(); }}>
 												<div class="mx-auto flex max-w-3xl items-center gap-2 rounded-full bg-slate-100 px-3 py-2 dark:bg-slate-900">
-													<input bind:value={groupMessageText} oninput={handleGroupTyping} placeholder="Message the group..." class="min-w-0 flex-1 border-0 bg-transparent px-2 text-sm text-slate-950 placeholder:text-slate-400 focus:ring-0 dark:text-white" />
+													<input bind:value={groupMessageText} oninput={handleGroupTyping} maxlength={TEXT_LIMITS.chatMessage} placeholder="Message the group..." class="min-w-0 flex-1 border-0 bg-transparent px-2 text-sm text-slate-950 placeholder:text-slate-400 focus:ring-0 dark:text-white" />
 													<button type="submit" disabled={groupChatSending || !groupMessageText.trim()} class="rounded-full bg-blue-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-blue-700 disabled:opacity-50">{groupChatSending ? '...' : 'Send'}</button>
 												</div>
 										</form>

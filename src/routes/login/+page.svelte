@@ -9,6 +9,10 @@
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
 	import { themeState } from '$lib/theme.svelte';
+	import {
+		shouldRequireTwoFactor,
+		startEmailTwoFactorChallenge
+	} from '$lib/services/two-factor.service';
 
 	let email = $state('');
 	let password = $state('');
@@ -26,12 +30,26 @@
 		loading = true;
 
 		try {
-			await authService.login(email, password);
 			const returnTo = page.url.searchParams.get('returnTo');
-			await goto(returnTo?.startsWith('/') ? returnTo : '/dashboard');
+			const safeReturnTo = returnTo?.startsWith('/') ? returnTo : '/dashboard';
+			const result = await authService.login(email, password);
+
+			if (shouldRequireTwoFactor(result.profile)) {
+				await startEmailTwoFactorChallenge({
+					email: result.user.email ?? email,
+					returnTo: safeReturnTo
+				});
+				await goto(`/verify-2fa?sent=1&returnTo=${encodeURIComponent(safeReturnTo)}`);
+				return;
+			}
+
+			await goto(safeReturnTo);
 		} catch (err) {
 			console.error('Login error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not log in.');
+			const friendly = getFriendlyErrorMessage(err, 'Could not log in.');
+			error = friendly.includes('auth/operation-not-allowed')
+				? 'Email link verification is not enabled in Firebase Auth yet.'
+				: friendly;
 		} finally {
 			loading = false;
 		}

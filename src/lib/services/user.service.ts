@@ -15,7 +15,7 @@ import { FirebaseError } from 'firebase/app';
 import { type User, updateProfile } from 'firebase/auth';
 import { auth, db } from '$lib/firebase';
 import { authState } from '$lib/auth.svelte';
-import type { AccountType, Sport, UserProfile } from '$lib/schema';
+import type { AccountType, Sport, TwoFactorMethod, UserProfile } from '$lib/schema';
 import { i18n } from './i18n.svelte';
 
 function slugify(value: string) {
@@ -63,6 +63,9 @@ export async function createUserProfile(params: {
 		age: null,
 		sports: params.sports ?? [],
 		language: params.language ?? i18n.currentLang,
+		twoFactorEnabled: false,
+		twoFactorMethods: [],
+		twoFactorPreferredMethod: 'email',
 		createdAt: serverTimestamp(),
 		updatedAt: serverTimestamp()
 	};
@@ -112,6 +115,9 @@ export async function ensureUserProfile(user: User) {
 		data.profilePhotoPath === undefined ||
 		data.accountType === undefined ||
 		data.activeOrganizationId === undefined ||
+		data.twoFactorEnabled === undefined ||
+		data.twoFactorMethods === undefined ||
+		data.twoFactorPreferredMethod === undefined ||
 		(!data.photoURL && user.photoURL);
 
 	if (needsUpdate) {
@@ -130,6 +136,9 @@ export async function ensureUserProfile(user: User) {
 			profilePhotoPath: data.profilePhotoPath ?? null,
 			accountType: data.accountType ?? 'personal',
 			activeOrganizationId: data.activeOrganizationId ?? null,
+			twoFactorEnabled: data.twoFactorEnabled ?? false,
+			twoFactorMethods: data.twoFactorMethods ?? [],
+			twoFactorPreferredMethod: data.twoFactorPreferredMethod ?? 'email',
 			updatedAt: serverTimestamp()
 		});
 
@@ -198,6 +207,27 @@ export async function updateUserSports(userId: string, sports: Sport[]) {
 export async function updateUserPrivacy(userId: string, isPrivate: boolean) {
 	await updateDoc(doc(db, 'users', userId), {
 		isPrivate,
+		updatedAt: serverTimestamp()
+	});
+}
+
+export async function updateUserTwoFactorSettings(
+	userId: string,
+	params: {
+		enabled: boolean;
+		methods: TwoFactorMethod[];
+		preferredMethod: TwoFactorMethod;
+	}
+) {
+	const methods = params.enabled ? [...new Set(params.methods)] : [];
+	const preferredMethod = methods.includes(params.preferredMethod)
+		? params.preferredMethod
+		: methods[0] ?? 'email';
+
+	await updateDoc(doc(db, 'users', userId), {
+		twoFactorEnabled: params.enabled,
+		twoFactorMethods: methods,
+		twoFactorPreferredMethod: preferredMethod,
 		updatedAt: serverTimestamp()
 	});
 }

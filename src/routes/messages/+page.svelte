@@ -903,7 +903,7 @@
 										type="button"
 										onclick={() => openConversationMenu(conversation.id)}
 										data-conversation-menu
-										class="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-white hover:text-slate-800 dark:hover:bg-slate-900 dark:hover:text-white md:flex"
+										class="hidden h-9 w-9 shrink-0 items-center justify-center text-slate-400 transition hover:text-slate-800 dark:text-slate-500 dark:hover:text-white md:flex"
 										aria-label="Conversation options"
 									>
 										⌄
@@ -1046,7 +1046,7 @@
 											type="button"
 											onclick={() => openConversationMenu(conversation.id)}
 											data-conversation-menu
-											class="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-white hover:text-slate-800 dark:hover:bg-slate-900 dark:hover:text-white md:flex"
+											class="hidden h-9 w-9 shrink-0 items-center justify-center text-slate-400 transition hover:text-slate-800 dark:text-slate-500 dark:hover:text-white md:flex"
 											aria-label="Conversation options"
 										>
 											⌄

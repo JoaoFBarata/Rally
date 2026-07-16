@@ -8,7 +8,12 @@
 	import type { UserProfile } from '$lib/schema';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
-	import { ensureUserProfile, updateUserPrivacy, updateUserLanguage } from '$lib/services/user.service';
+	import {
+		ensureUserProfile,
+		updateUserPrivacy,
+		updateUserLanguage,
+		updateUserTwoFactorSettings
+	} from '$lib/services/user.service';
 	import { i18n } from '$lib/services/i18n.svelte';
 	import {
 		canFastSwitchDeviceAccount,
@@ -29,6 +34,7 @@
 	let resetSent = $state(false);
 
 	let privacySaving = $state(false);
+	let twoFactorSaving = $state(false);
 
 	let notificationsEnabled = $state(true);
 	let selectedLanguage = $state<string>(i18n.currentLang);
@@ -114,6 +120,34 @@
 			error = getFriendlyErrorMessage(err, 'Could not update your privacy setting.');
 		} finally {
 			privacySaving = false;
+		}
+	}
+
+	async function handleToggleTwoFactor() {
+		if (!profile) return;
+
+		const nextEnabled = !profile.twoFactorEnabled;
+		twoFactorSaving = true;
+		error = '';
+
+		try {
+			await updateUserTwoFactorSettings(profile.id, {
+				enabled: nextEnabled,
+				methods: nextEnabled ? ['email'] : [],
+				preferredMethod: 'email'
+			});
+
+			profile = {
+				...profile,
+				twoFactorEnabled: nextEnabled,
+				twoFactorMethods: nextEnabled ? ['email'] : [],
+				twoFactorPreferredMethod: 'email'
+			};
+		} catch (err) {
+			console.error('Update two-factor settings error:', err);
+			error = getFriendlyErrorMessage(err, 'Could not update two-factor authentication.');
+		} finally {
+			twoFactorSaving = false;
 		}
 	}
 
@@ -370,6 +404,39 @@
 			</p>
 
 			<div class="overflow-hidden rounded-3xl bg-slate-50 dark:bg-slate-800">
+				<div class="border-b border-slate-200 p-4 dark:border-slate-700">
+					<div class="flex items-start justify-between gap-4">
+						<div>
+							<p class="font-black text-slate-950 dark:text-slate-50">
+								Two-factor authentication
+							</p>
+							<p class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+								Add an email verification step after your password.
+							</p>
+						</div>
+						<button
+							type="button"
+							onclick={handleToggleTwoFactor}
+							disabled={twoFactorSaving}
+							class={`relative h-7 w-12 shrink-0 rounded-full transition disabled:opacity-60 ${profile?.twoFactorEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+							aria-label="Toggle two-factor authentication"
+						>
+							<span
+								class={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${profile?.twoFactorEnabled ? 'left-6' : 'left-1'}`}
+							></span>
+						</button>
+					</div>
+
+					{#if profile?.twoFactorEnabled}
+						<div
+							class="mt-4 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs font-bold leading-5 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300"
+						>
+							Two-factor authentication is active. Rally will ask for a second verification
+							step by email during login.
+						</div>
+					{/if}
+				</div>
+
 				{#if canChangePassword}
 					<div class="flex items-center justify-between gap-4 p-4">
 						<div>

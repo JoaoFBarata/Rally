@@ -142,7 +142,7 @@
 					class:duration-200={!isDragging && isSettling}
 					style={`transform: translateX(calc(-100% + ${dragOffset}px));`}
 				>
-					<div class="w-full shrink-0 pr-2 opacity-80">
+					<div class="w-full shrink-0 px-1">
 						{#if previousEvent}
 							<EventCard
 								event={previousEvent}
@@ -162,7 +162,7 @@
 							{heroCtaLabel}
 						/>
 					</div>
-					<div class="w-full shrink-0 pl-2 opacity-80">
+					<div class="w-full shrink-0 px-1">
 						{#if nextEvent}
 							<EventCard
 								event={nextEvent}
