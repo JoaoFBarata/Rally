@@ -290,7 +290,7 @@
 	<div class="min-h-screen bg-white text-black dark:bg-[#111111] dark:text-white font-montserrat">
 		<div class="flex min-h-screen min-w-0 overflow-x-clip">
 			<!-- Desktop sidebar -->
-			<aside class="hidden md:flex flex-col h-screen w-71 fixed bg-[#f6f6f6] dark:bg-[#212121]">
+			<aside class="hidden md:flex flex-col h-screen w-71 sticky top-0 shrink-0 bg-[#f6f6f6] dark:bg-[#212121]">
 				<div class="w-full pl-6.75 mt-13.25">
 					<RallyLogo size="md" href={organizationManageHref ?? '/'}/>
 					<button class="mt-10.25 w-53.25 h-14.5 bg-[#48b3ff] rounded-[10px] text-white cursor-pointer" onclick={() => goto(resolveNavHref(createEventHref))}>
