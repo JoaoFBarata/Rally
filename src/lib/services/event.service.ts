@@ -9,9 +9,9 @@ import {
 	getDocs,
 	increment,
 	query,
-	serverTimestamp,
 	setDoc,
 	Timestamp,
+	serverTimestamp,
 	updateDoc,
 	where
 } from 'firebase/firestore';
@@ -23,6 +23,7 @@ import type {
 	EventPromotionPlan,
 	EventStatus,
 	EventVisibility,
+	PaymentStatus,
 	RecurringFrequency,
 	Sport,
 	SportEvent,
@@ -91,6 +92,92 @@ export function getAvailablePromotionPlanOptions() {
 		EventPromotionPlan,
 		(typeof PROMOTION_PLANS)[EventPromotionPlan]
 	][]).filter(([plan]) => plan !== 'featured');
+}
+
+function getEventPaymentAttendeeIds(event: SportEvent) {
+	return [...new Set([event.creatorId, ...(event.participantIds ?? [])])];
+}
+
+function getEventPaymentPayerIds(event: SportEvent) {
+	return (event.participantIds ?? []).filter((participantId) => participantId !== event.creatorId);
+}
+
+function buildPendingPaymentStatuses(event: SportEvent) {
+	return Object.fromEntries(
+		getEventPaymentPayerIds(event).map((participantId) => [participantId, 'pending' as const])
+	);
+}
+
+export function getEventPaymentSplitAmount(event: SportEvent) {
+	if (event.paymentSplitAmount != null) return event.paymentSplitAmount;
+
+	const attendeeCount = getEventPaymentAttendeeIds(event).length;
+	if (attendeeCount <= 0) return null;
+
+	if (event.priceTotal != null) {
+		return Number((event.priceTotal / attendeeCount).toFixed(2));
+	}
+
+	if (event.pricePerPerson != null) return event.pricePerPerson;
+
+	return null;
+}
+
+export function getEventPaymentSummary(event: SportEvent) {
+	const payerIds = getEventPaymentPayerIds(event);
+	const statuses = event.paymentStatuses ?? {};
+	const splitAmount = getEventPaymentSplitAmount(event);
+	const paidCount = payerIds.filter((participantId) => (statuses[participantId] ?? 'pending') === 'paid').length;
+
+	return {
+		payerIds,
+		statuses,
+		splitAmount,
+		paidCount,
+		pendingCount: payerIds.length - paidCount
+	};
+}
+
+export async function updateEventParticipantPaymentStatus(params: {
+	eventId: string;
+	userId: string;
+	participantId: string;
+	status: Exclude<PaymentStatus, 'not_required' | 'refunded'>;
+}) {
+	const event = await getEventById(params.eventId);
+
+	if (!event) throw new Error('Event not found.');
+
+	await assertCanManageEvent(event, params.userId);
+
+	if (getEffectiveEventStatus(event) !== 'finished') {
+		throw new Error('Payments can only be updated after the event is finished.');
+	}
+
+	if (params.participantId === event.creatorId) {
+		throw new Error('The host does not need to pay.');
+	}
+
+	if (!event.participantIds.includes(params.participantId)) {
+		throw new Error('Participant not found.');
+	}
+
+	const splitAmount = getEventPaymentSplitAmount(event);
+
+	if (splitAmount == null) {
+		throw new Error('This event does not have a split payment amount.');
+	}
+
+	const paymentStatuses = {
+		...(event.paymentStatuses ?? buildPendingPaymentStatuses(event)),
+		[params.participantId]: params.status
+	};
+
+	await updateDoc(doc(db, 'events', params.eventId), {
+		paymentSplitAmount: splitAmount,
+		paymentStatuses,
+		updatedAt: serverTimestamp()
+	});
 }
 
 export function calculatePromotionImpressionLimit(params: { budget: number; cpm: number }) {
@@ -859,6 +946,10 @@ export async function leaveEvent(eventId: string, userId: string) {
 		throw new Error('Event not found');
 	}
 
+	if (getEffectiveEventStatus(event) === 'finished' || event.status === 'cancelled') {
+		throw new Error('Finished or cancelled events cannot be changed.');
+	}
+
 	if (event.creatorId === userId) {
 		throw new Error('The creator cannot leave the event. Cancel the event instead.');
 	}
@@ -870,11 +961,7 @@ export async function leaveEvent(eventId: string, userId: string) {
 	const newParticipantIds = event.participantIds.filter((id) => id !== userId);
 
 	const newStatus: EventStatus =
-		event.status === 'cancelled'
-			? 'cancelled'
-			: newParticipantIds.length >= event.maxParticipants
-				? 'full'
-				: 'open';
+		newParticipantIds.length >= event.maxParticipants ? 'full' : 'open';
 
 	await updateDoc(doc(db, 'events', eventId), {
 		participantIds: newParticipantIds,
@@ -928,6 +1015,13 @@ export async function finishEvent(eventId: string, userId: string) {
 
 	await updateDoc(doc(db, 'events', eventId), {
 		status: 'finished',
+		...(getEventPaymentSplitAmount(event) != null
+			? {
+					paymentSplitAmount: getEventPaymentSplitAmount(event),
+					paymentStatuses: buildPendingPaymentStatuses(event)
+				}
+			: {}),
+		paymentLockedAt: serverTimestamp(),
 		...(event.isPromoted
 			? {
 					isPromoted: false,
@@ -954,6 +1048,10 @@ export async function removeParticipantFromEvent(params: {
 		throw new Error('Event not found');
 	}
 
+	if (getEffectiveEventStatus(event) === 'finished' || event.status === 'cancelled') {
+		throw new Error('Finished or cancelled events cannot be changed.');
+	}
+
 	await assertCanManageEvent(event, params.creatorId);
 
 	if (params.participantId === event.creatorId) {
@@ -963,11 +1061,7 @@ export async function removeParticipantFromEvent(params: {
 	const newParticipantIds = event.participantIds.filter((id) => id !== params.participantId);
 
 	const newStatus: EventStatus =
-		event.status === 'cancelled'
-			? 'cancelled'
-			: newParticipantIds.length >= event.maxParticipants
-				? 'full'
-				: 'open';
+		newParticipantIds.length >= event.maxParticipants ? 'full' : 'open';
 
 	await updateDoc(doc(db, 'events', params.eventId), {
 		participantIds: newParticipantIds,

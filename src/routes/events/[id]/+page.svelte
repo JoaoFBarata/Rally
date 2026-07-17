@@ -17,6 +17,7 @@
 		getEventById,
 		getEventGroupConversationId,
 		getEffectiveEventStatus,
+		getEventPaymentSummary,
 		isEventFinished,
 		isPromotionActive,
 		joinEvent,
@@ -25,6 +26,7 @@
 		promoteEvent,
 		removeParticipantFromEvent,
 		stopEventPromotion,
+		updateEventParticipantPaymentStatus,
 		updateEventGroupPhoto
 	} from '$lib/services/event.service';
 	import {
@@ -71,6 +73,7 @@
 	let actionLoading = $state(false);
 	let error = $state('');
 	let participants = $state<UserProfile[]>([]);
+	let paymentActionLoading = $state(false);
 
 	let groupMessages = $state<ChatMessage[]>([]);
 	let groupMessageText = $state('');
@@ -231,6 +234,7 @@
 	});
 
 	let promotionStats = $derived(event ? calculatePromotionStats(event) : null);
+	let paymentSummary = $derived.by(() => (event ? getEventPaymentSummary(event) : null));
 	let organizationAverageRating = $derived.by(() => {
 		if (!organizationReviews.length) return 0;
 		return organizationReviews.reduce((sum, review) => sum + review.rating, 0) / organizationReviews.length;
@@ -836,6 +840,34 @@
 		}
 	}
 
+	async function handleToggleParticipantPayment(participantId: string, currentStatus: 'paid' | 'pending') {
+		const currentUser = auth.currentUser;
+
+		if (!currentUser || !event || !paymentSummary?.splitAmount) return;
+
+		paymentActionLoading = true;
+		error = '';
+
+		try {
+			await updateEventParticipantPaymentStatus({
+				eventId: event.id,
+				userId: currentUser.uid,
+				participantId,
+				status: currentStatus === 'paid' ? 'pending' : 'paid'
+			});
+			await reloadEvent();
+		} catch (err) {
+			console.error('Update participant payment error:', err);
+			error = getFriendlyErrorMessage(err, 'Could not update participant payment status.');
+		} finally {
+			paymentActionLoading = false;
+		}
+	}
+
+	function formatPaymentAmount(amount: number) {
+		return `${getCurrencySymbol(event?.currency)}${amount.toFixed(2)}`;
+	}
+
 	async function handleRemoveParticipant(participantId: string) {
 		const currentUser = auth.currentUser;
 
@@ -1329,6 +1361,56 @@
 										</div>
 										{#if canInvite}<a href={resolve(`/events/${event.id}/invite`)} class="rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white">Invite</a>{/if}
 									</div>
+
+									{#if effectiveStatus === 'finished' && paymentSummary?.splitAmount != null}
+										<div class="rounded-2xl bg-emerald-50 p-4 dark:bg-emerald-950/35">
+											<div class="flex items-start justify-between gap-3">
+												<div>
+													<p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Payments</p>
+													<p class="mt-1 text-sm font-black text-slate-950 dark:text-slate-50">{formatPaymentAmount(paymentSummary.splitAmount)} split</p>
+													<p class="mt-1 text-xs font-semibold text-slate-600 dark:text-slate-300">Host excluded from payment, included in the split.</p>
+												</div>
+												<div class="rounded-2xl bg-white px-3 py-2 text-right shadow-sm dark:bg-slate-900">
+													<p class="text-base font-black text-emerald-700 dark:text-emerald-300">{paymentSummary.payerIds.length}</p>
+													<p class="text-[10px] font-bold text-slate-500 dark:text-slate-400">pay</p>
+												</div>
+											</div>
+
+											<div class="mt-3 space-y-2">
+												{#each paymentSummary.payerIds as participantId}
+													{@const participant = participantById[participantId]}
+													{@const currentStatus = paymentSummary.statuses[participantId] === 'paid' ? 'paid' : 'pending'}
+													<div class="flex items-center justify-between gap-3 rounded-2xl bg-white px-3 py-2.5 shadow-sm dark:bg-slate-900">
+														<div class="flex min-w-0 items-center gap-2.5">
+															<UserAvatar
+																photoURL={participant?.photoURL}
+																displayName={participant?.displayName ?? participantId}
+																email={participant?.email}
+																size="sm"
+															/>
+															<div class="min-w-0">
+																<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">
+																	{participant?.displayName ?? participantId}
+																</p>
+																<p class="text-xs font-semibold text-slate-500 dark:text-slate-400">{formatPaymentAmount(paymentSummary.splitAmount)} due</p>
+															</div>
+														</div>
+
+														<button
+															type="button"
+															onclick={() => handleToggleParticipantPayment(participantId, currentStatus)}
+															disabled={paymentActionLoading}
+															class={`rounded-full px-3 py-1.5 text-xs font-black transition disabled:opacity-60 ${currentStatus === 'paid'
+																? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300'
+																: 'bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300'}`}
+														>
+															{currentStatus === 'paid' ? 'Paid' : 'Pending'}
+														</button>
+													</div>
+												{/each}
+											</div>
+										</div>
+									{/if}
 									<div class="divide-y divide-slate-200 overflow-hidden rounded-2xl bg-white dark:divide-slate-800 dark:bg-slate-900">
 										{#each participants as participant (participant.id)}
 											<a href={resolve(`/users/${participant.id}`)} class="flex items-center gap-3 px-3 py-3 transition hover:bg-slate-50 dark:hover:bg-slate-800">
@@ -1556,6 +1638,85 @@
 								<p class="text-xs font-medium text-slate-500 dark:text-slate-400">players</p>
 							</div>
 						</div>
+
+						{#if effectiveStatus === 'finished' && paymentSummary?.splitAmount != null}
+							<div class="mt-5 rounded-2xl bg-emerald-50 p-5 dark:bg-emerald-950/35">
+								<div class="flex items-start justify-between gap-4">
+									<div>
+										<p class="text-sm font-black uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300">
+											Payments
+										</p>
+										<h3 class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50">
+											Settled split
+										</h3>
+										<p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
+											The host is included in the split but does not owe payment.
+										</p>
+									</div>
+									<div class="rounded-2xl bg-white px-4 py-3 text-right shadow-sm dark:bg-slate-900">
+										<p class="text-2xl font-black text-emerald-700 dark:text-emerald-300">
+											{formatPaymentAmount(paymentSummary.splitAmount)}
+										</p>
+										<p class="text-xs font-semibold text-slate-500 dark:text-slate-400">
+											{paymentSummary.payerIds.length} participants pay
+										</p>
+									</div>
+								</div>
+
+								<div class="mt-4 space-y-2">
+									{#each paymentSummary.payerIds as participantId}
+										{@const participant = participantById[participantId]}
+										{@const currentStatus = paymentSummary.statuses[participantId] === 'paid' ? 'paid' : 'pending'}
+										<div class="flex items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm dark:bg-slate-900">
+											<div class="flex min-w-0 items-center gap-3">
+												<UserAvatar
+													photoURL={participant?.photoURL}
+													displayName={participant?.displayName ?? participantId}
+													email={participant?.email}
+													size="sm"
+												/>
+												<div class="min-w-0">
+													<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">
+														{participant?.displayName ?? participantId}
+													</p>
+													<p class="text-xs font-semibold text-slate-500 dark:text-slate-400">
+														{formatPaymentAmount(paymentSummary.splitAmount)} due
+													</p>
+												</div>
+											</div>
+
+											<button
+												type="button"
+												onclick={() => handleToggleParticipantPayment(participantId, currentStatus)}
+												disabled={paymentActionLoading}
+												class={`rounded-full px-3 py-1.5 text-xs font-black transition disabled:opacity-60 ${currentStatus === 'paid'
+													? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300'
+													: 'bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300'}`}
+											>
+												{currentStatus === 'paid' ? 'Paid' : 'Pending'}
+											</button>
+										</div>
+									{/each}
+								</div>
+
+								<div class="mt-4 grid gap-2 sm:grid-cols-3">
+									<div class="rounded-2xl bg-white px-3 py-2 shadow-sm dark:bg-slate-900">
+										<p class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Paid</p>
+										<p class="mt-1 text-sm font-black text-emerald-700 dark:text-emerald-300">{paymentSummary.paidCount}</p>
+									</div>
+									<div class="rounded-2xl bg-white px-3 py-2 shadow-sm dark:bg-slate-900">
+										<p class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Pending</p>
+										<p class="mt-1 text-sm font-black text-amber-700 dark:text-amber-300">{paymentSummary.pendingCount}</p>
+									</div>
+									<div class="rounded-2xl bg-white px-3 py-2 shadow-sm dark:bg-slate-900">
+										<p class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Remaining</p>
+										<p class="mt-1 text-sm font-black text-slate-950 dark:text-slate-50">
+											{formatPaymentAmount((paymentSummary.splitAmount ?? 0) * paymentSummary.pendingCount)}
+										</p>
+									</div>
+								</div>
+							</div>
+						{/if}
 
 						{#if participants.length > 0}
 							<div class="mt-5 space-y-3">

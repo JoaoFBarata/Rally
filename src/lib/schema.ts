@@ -258,6 +258,9 @@ export interface SportEvent {
 	paymentMode?: EventPaymentMode;
 	paymentProtected?: boolean;
 	payoutStatus?: PayoutStatus;
+	paymentSplitAmount?: number | null;
+	paymentStatuses?: Record<string, PaymentStatus>;
+	paymentLockedAt?: Timestamp | null;
 
 	promotionStatus?: EventPromotionStatus;
 	isPromoted?: boolean;

@@ -306,7 +306,7 @@
 						{#each navItems as item, idx (item.href)}
 							<a
 								href={resolveNavHref(item.href)}
-								class={`flex flex-row items-center gap-6 text-[1.25rem] ${idx==0 ? 'rounded-tr-[75px] ' : ''}font-medium transition pl-[2.59375rem] py-5 w-full ${
+								class={`flex flex-row items-center gap-6 text-[1.25rem] ${idx==0 ? 'rounded-tr-[75px] ' : ''}font-medium transition px-[2.59375rem] py-5 w-full ${
 												isActive(item.href)
 													? 'bg-blue-600 text-white'
 													: 'text-slate-600 hover:bg-slate-300 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
@@ -329,7 +329,7 @@
 					</div>
 					<div>
 						<a href={resolveNavHref('/settings')}
-							class={`flex flex-row items-center gap-6 text-[1.25rem] font-medium transition pl-[2.59375rem] py-5 w-full ${
+							class={`flex flex-row items-center gap-6 text-[1.25rem] font-medium transition px-[2.59375rem] py-5 w-full ${
 												isActive('/settings')
 													? 'bg-blue-600 text-white'
 													: 'text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
