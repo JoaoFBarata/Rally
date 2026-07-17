@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import MapboxWorker from 'mapbox-gl/dist/mapbox-gl-csp-worker?worker';
 	import { PUBLIC_MAPBOX_ACCESS_TOKEN } from '$env/static/public';
+	import { i18n } from '$lib/services/i18n.svelte';
 	import type { Map, Marker } from 'mapbox-gl';
 
 	let {
@@ -90,7 +91,7 @@
 		<div class={compact ? 'border-b border-slate-100 p-3 dark:border-slate-800' : 'border-b border-slate-200 p-5 dark:border-slate-800'}>
 			{#if !compact}
 				<p class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
-					Location
+					{i18n.t('location')}
 				</p>
 			{/if}
 

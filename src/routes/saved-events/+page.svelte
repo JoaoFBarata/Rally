@@ -4,6 +4,7 @@
 	import { getEventById, getEffectiveEventStatus } from '$lib/services/event.service';
 	import type { SportEvent } from '$lib/schema';
 	import { goBack } from '$lib/utils/navigation';
+	import { formatDate } from '$lib/utils/format.utils';
 
 	let loading = $state(true);
 	let savedEvents = $state<SportEvent[]>([]);
@@ -41,15 +42,7 @@
 	}
 
 	function formatShortDate(value: unknown) {
-		const date = toDate(value);
-		if (!date) return 'Date not set';
-		if (Number.isNaN(date.getTime())) return 'Date not set';
-		return new Intl.DateTimeFormat('en-GB', {
-			day: '2-digit',
-			month: 'short',
-			hour: '2-digit',
-			minute: '2-digit'
-		}).format(date);
+		return formatDate(value);
 	}
 
 	onMount(async () => {

@@ -1157,7 +1157,7 @@
 					{event.eventKind === 'tournament' ? i18n.t('status_tournament') : formatSport(event.sport)}
 								</span>
 								<span class="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-black capitalize text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">{effectiveStatus}</span>
-					<span class="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-black capitalize text-amber-700 dark:bg-amber-950 dark:text-amber-300">{event.level ? event.level : i18n.t('casual')}</span>
+					<span class="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-black text-amber-700 dark:bg-amber-950 dark:text-amber-300">{getLevelLabel(event.level)}</span>
 								{#if isPromotionActive(event)}
 									<span class="rounded-full bg-orange-50 px-3 py-1 text-[11px] font-black text-orange-600 dark:bg-orange-950 dark:text-orange-300">↗ {i18n.t('event_promoted')}</span>
 								{/if}
@@ -1280,7 +1280,7 @@
 							<div class="grid grid-cols-3 divide-x divide-slate-100 overflow-hidden rounded-[1.15rem] bg-white shadow-sm shadow-slate-200/60 ring-1 ring-slate-200/70 dark:divide-slate-800 dark:bg-slate-900 dark:shadow-none dark:ring-slate-800">
 								<div class="min-w-0 p-3 text-center">
 									<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">{i18n.t('skill')}</p>
-									<p class="mt-1 truncate text-xs font-black capitalize text-slate-950 dark:text-slate-50">{event.level ?? 'casual'}</p>
+									<p class="mt-1 truncate text-xs font-black text-slate-950 dark:text-slate-50">{getLevelLabel(event.level)}</p>
 								</div>
 								<div class="min-w-0 p-3 text-center">
 									<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">{i18n.t('weather')}</p>
@@ -1687,7 +1687,7 @@
 								<p class="text-lg font-black text-blue-600 dark:text-blue-300">
 									{pendingJoinRequests.length}
 								</p>
-								<p class="text-xs font-medium text-slate-500 dark:text-slate-400">pending</p>
+								<p class="text-xs font-medium text-slate-500 dark:text-slate-400">{i18n.t('pending')}</p>
 							</div>
 						{/if}
 					</div>
@@ -1708,14 +1708,14 @@
 									<div class="flex min-w-0 items-center gap-3">
 										<UserAvatar
 											photoURL={requester?.photoURL}
-											displayName={requester?.displayName ?? 'Rally user'}
+											displayName={requester?.displayName ?? i18n.t('rally_user')}
 											email={requester?.email}
 											size="md"
 										/>
 
 										<div class="min-w-0">
 											<p class="truncate font-bold text-slate-950 dark:text-slate-50">
-												{requester?.displayName ?? 'Rally user'}
+												{requester?.displayName ?? i18n.t('rally_user')}
 											</p>
 											{#if requester?.rallyTag}
 												<p class="truncate text-xs text-slate-500 dark:text-slate-400">
@@ -1741,7 +1741,7 @@
 											disabled={joinRequestActionLoading}
 											class="rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
 										>
-											Approve
+											{i18n.t('accept')}
 										</button>
 									</div>
 								</div>

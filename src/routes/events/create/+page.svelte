@@ -16,6 +16,7 @@
 	import { goBack } from '$lib/utils/navigation';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { TEXT_LIMITS } from '$lib/constants/text-limits';
+	import { getCurrentLocale } from '$lib/utils/format.utils';
 	import type {
 		Sport,
 		EventVisibility,
@@ -75,7 +76,7 @@
 			end.setDate(end.getDate() + offsetDays * (recurringOccurrences - 1));
 		}
 
-		return end.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+		return end.toLocaleDateString(getCurrentLocale(), { day: 'numeric', month: 'short', year: 'numeric' });
 	});
 
 	const todayStr = new Date().toLocaleDateString('en-CA');
@@ -513,7 +514,7 @@
 							{i18n.t('start_time_label')}
 						</label>
 
-						<TimeSelect id="startTime" bind:value={startTime} placeholder="Choose time" />
+						<TimeSelect id="startTime" bind:value={startTime} placeholder={i18n.t('choose_time')} />
 					</div>
 
 					<div class="min-w-0">

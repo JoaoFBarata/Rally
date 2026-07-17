@@ -42,6 +42,7 @@ import {
 } from '$lib/services/organization.service';
 import { sendRallySystemMessage } from '$lib/services/chat.service';
 import { getUserProfile } from '$lib/services/user.service';
+import { getCurrentLocale } from '$lib/utils/format.utils';
 
 export const PROMOTION_PLANS: Record<
 	EventPromotionPlan,
@@ -164,7 +165,7 @@ function formatEventDate(startAt: unknown): string {
 	try {
 		const ts = startAt as { toDate?: () => Date };
 		if (ts?.toDate) {
-			return ts.toDate().toLocaleString('en-GB', {
+			return ts.toDate().toLocaleString(getCurrentLocale(), {
 				weekday: 'short',
 				day: '2-digit',
 				month: 'short',
@@ -2287,23 +2288,23 @@ export async function getWeatherForEvent(
 		if (temp === undefined || code === undefined) return null;
 
 		let icon = '☀️';
-		let description = 'Clean sky';
+		let description = 'weather_clear_sky';
 
 		if (code >= 1 && code <= 3) {
 			icon = '🌤️';
-			description = 'Partly cloudy';
+			description = 'weather_partly_cloudy';
 		} else if (code === 45 || code === 48) {
 			icon = '🌫️';
-			description = 'Foggy';
+			description = 'weather_foggy';
 		} else if ((code >= 51 && code <= 55) || (code >= 61 && code <= 65)) {
 			icon = '🌧️';
-			description = 'Rainy';
+			description = 'weather_rainy';
 		} else if (code >= 71 && code <= 77) {
 			icon = '❄️';
-			description = 'Snowy';
+			description = 'weather_snowy';
 		} else if (code >= 95) {
 			icon = '⚡';
-			description = 'Thunderstorm';
+			description = 'weather_thunderstorm';
 		}
 
 		return { temp, icon, description };

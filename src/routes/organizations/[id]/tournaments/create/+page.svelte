@@ -16,6 +16,7 @@
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
 	import { TEXT_LIMITS } from '$lib/constants/text-limits';
+	import { i18n } from '$lib/services/i18n.svelte';
 	import type {
 		EntryFeeType,
 		Organization,
@@ -111,7 +112,7 @@
 	let isVerified = $derived(organization ? canCreateOfficialPaidEvents(organization) : false);
 
 	function getLocationName() {
-		if (!address.trim()) return 'Tournament location';
+		if (!address.trim()) return i18n.t('tournament_location');
 		return address.includes(',') ? address.split(',')[0].trim() : address.trim();
 	}
 
@@ -139,14 +140,14 @@
 	}
 
 	function validateForm() {
-		if (!title.trim()) throw new Error('Add a tournament name.');
+		if (!title.trim()) throw new Error(i18n.t('add_tournament_name_error'));
 		if (!address.trim() || lat === null || lng === null) {
 			throw new Error('Choose the tournament location on the map.');
 		}
 
 		const startAt = buildDateTime(startTime);
 
-		if (!startAt) throw new Error('Choose tournament date and start time.');
+		if (!startAt) throw new Error(i18n.t('choose_tournament_datetime_error'));
 
 		const entries = Number(maxEntries);
 
@@ -169,7 +170,7 @@
 		}
 
 		if ((entryFeeType === 'paid' || prizeType === 'cash') && !isVerified) {
-			throw new Error('Paid tournaments and cash prizes require verified organization.');
+			throw new Error(i18n.t('paid_tournament_verified_error'));
 		}
 	}
 
@@ -187,7 +188,7 @@
 			const startAt = buildDateTime(startTime);
 			const endAt = buildDateTime(endTime);
 
-			if (!startAt) throw new Error('Choose tournament date and start time.');
+			if (!startAt) throw new Error(i18n.t('choose_tournament_datetime_error'));
 
 			const createdTournament = await createTournamentEvent({
 				title: title.trim(),
@@ -224,7 +225,7 @@
 			await goto(resolve(`/events/${createdTournament.id}`));
 		} catch (err) {
 			console.error('Create tournament error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not create tournament.');
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_create_tournament'));
 		} finally {
 			creating = false;
 		}
@@ -284,7 +285,7 @@
 				</p>
 
 				<h1 class="mt-1 text-3xl font-black tracking-tight text-slate-950 dark:text-slate-50 sm:text-4xl">
-					Create tournament
+					{i18n.t('create_tournament')}
 				</h1>
 
 				<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
@@ -310,13 +311,13 @@
 		>
 			<div class="space-y-4 sm:space-y-6">
 				<section class={cardClass}>
-					<h2 class={sectionTitleClass}>Tournament details</h2>
+					<h2 class={sectionTitleClass}>{i18n.t('tournament_details')}</h2>
 
 					<div class="mt-4 space-y-3 sm:mt-5 sm:space-y-4">
 						<input
 							bind:value={title}
 							maxlength={TEXT_LIMITS.eventTitle}
-							placeholder="Tournament name"
+							placeholder={i18n.t('tournament_name_placeholder')}
 							class={inputClass}
 						/>
 
@@ -324,7 +325,7 @@
 							bind:value={description}
 							maxlength={TEXT_LIMITS.eventDescription}
 							rows="3"
-							placeholder="Describe the tournament, format, requirements..."
+							placeholder={i18n.t('tournament_description_placeholder')}
 							class={inputClass}
 						></textarea>
 
@@ -360,7 +361,7 @@
 
 								<p class={compactHelpClass}>
 									Maximum number of {registrationType === 'team' ? 'teams' : 'players'} that can register
-									for the tournament.
+									{i18n.t('for_the_tournament')}
 								</p>
 
 								<input
@@ -380,7 +381,7 @@
 
 				<section class={cardClass}>
 					<h2 class={sectionTitleClass}>
-						Location and schedule
+						{i18n.t('location_schedule')}
 					</h2>
 
 					<div class="mt-4 space-y-3 sm:mt-5 sm:space-y-5">
@@ -396,7 +397,7 @@
 
 							<label class="min-w-0">
 								<span class="text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">Start</span>
-								<TimeSelect bind:value={startTime} placeholder="Choose time" />
+								<TimeSelect bind:value={startTime} placeholder={i18n.t('choose_time')} />
 							</label>
 						</div>
 
@@ -454,7 +455,7 @@
 						bind:value={rules}
 						maxlength={TEXT_LIMITS.eventDescription}
 						rows="4"
-						placeholder="Tournament rules, tie-breaks, match duration, required equipment..."
+						placeholder={i18n.t('tournament_rules_placeholder')}
 						class={`mt-4 sm:mt-5 ${inputClass}`}
 					></textarea>
 				</section>
@@ -483,7 +484,7 @@
 							<span class="min-w-0">
 								<span class="block text-sm font-black sm:text-base">Groups</span>
 								<span class="mt-1 hidden text-xs text-slate-500 dark:text-slate-400 sm:block sm:text-sm"
-									>Best for most tournaments.</span
+									>{i18n.t('best_for_most_tournaments')}</span
 								>
 							</span>
 						</label>
@@ -543,7 +544,7 @@
 								</span>
 
 								<p class={`${compactHelpClass} min-h-[2.5rem]`}>
-									How many groups the tournament will have before the playoff stage.
+									{i18n.t('tournament_groups_help')}
 								</p>
 
 								<input
@@ -652,7 +653,7 @@
 								</span>
 
 								<p class={compactHelpClass}>
-									Minimum number of players needed for a team to be accepted in the tournament.
+									{i18n.t('minimum_team_players_help')}
 								</p>
 
 								<input
@@ -724,10 +725,10 @@
 
 					<div class="mt-4 grid gap-3 sm:mt-5 sm:grid-cols-2 lg:grid-cols-1">
 						<select bind:value={entryFeeType} class={inputClass}>
-							<option value="free">Free entry</option>
+							<option value="free">{i18n.t('free_entry')}</option>
 							<option value="split">Split cost</option>
 							<option value="paid" disabled={!isVerified}
-								>Paid entry {isVerified ? '' : '(verified only)'}</option
+								>{i18n.t('paid_entry')} {isVerified ? '' : i18n.t('verified_only_parenthetical')}</option
 							>
 						</select>
 
@@ -736,7 +737,7 @@
 							<option value="trophy">Trophy / medal</option>
 							<option value="product">Product / voucher</option>
 							<option value="cash" disabled={!isVerified}
-								>Cash prize {isVerified ? '' : '(verified only)'}</option
+								>{i18n.t('cash_prize')} {isVerified ? '' : i18n.t('verified_only_parenthetical')}</option
 							>
 							<option value="other">Other prize</option>
 						</select>
@@ -748,7 +749,7 @@
 								</span>
 
 								<p class={compactHelpClass}>
-									Amount paid per {registrationType === 'team' ? 'team' : 'player'} to enter the tournament.
+									{i18n.t('entry_fee_amount_help', { unit: registrationType === 'team' ? i18n.t('team') : i18n.t('player') })}
 								</p>
 
 								<div class="mt-2 grid grid-cols-[minmax(0,1fr)_6.5rem] gap-2">
@@ -785,7 +786,7 @@
 
 								<p class={compactHelpClass}>
 									Approximate value of the prize. This helps users understand how attractive the
-									tournament is.
+									{i18n.t('tournament_is_suffix')}
 								</p>
 
 								<input
@@ -806,7 +807,7 @@
 					disabled={creating}
 					class="w-full rounded-2xl bg-blue-600 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-60 sm:py-4 sm:text-base"
 				>
-					{creating ? 'Creating tournament...' : 'Create tournament'}
+					{creating ? i18n.t('creating_tournament') : i18n.t('create_tournament')}
 				</button>
 			</aside>
 		</form>

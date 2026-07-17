@@ -38,6 +38,7 @@
 		formatSport,
 		formatPrice,
 		formatCapacity,
+		getCurrentLocale,
 		getMiniMapUrl as getMiniMapUrlUtil
 	} from '$lib/utils/format.utils';
 	import { TEXT_LIMITS } from '$lib/constants/text-limits';
@@ -148,11 +149,11 @@
 	}
 
 	function verificationLabel() {
-		if (!organization) return 'Not verified';
-		if (organization.verificationStatus === 'verified') return 'Verified';
-		if (organization.verificationStatus === 'pending') return 'Verification pending';
-		if (organization.verificationStatus === 'rejected') return 'Verification rejected';
-		return 'Not verified';
+		if (!organization) return i18n.t('not_verified');
+		if (organization.verificationStatus === 'verified') return i18n.t('verified');
+		if (organization.verificationStatus === 'pending') return i18n.t('verification_pending');
+		if (organization.verificationStatus === 'rejected') return i18n.t('verification_rejected');
+		return i18n.t('not_verified');
 	}
 
 	function verificationClasses() {
@@ -475,7 +476,7 @@
 		return (
 			organization?.city ||
 			organization?.address ||
-			'Location not set'
+			i18n.t('location_not_set')
 		);
 	}
 
@@ -486,14 +487,14 @@
 	function formatEventDay(dateValue: unknown) {
 		try {
 			const timestamp = dateValue as { toDate?: () => Date };
-			if (!timestamp?.toDate) return 'Soon';
-			return timestamp.toDate().toLocaleDateString('en-GB', {
+			if (!timestamp?.toDate) return i18n.t('soon');
+			return timestamp.toDate().toLocaleDateString(getCurrentLocale(), {
 				weekday: 'short',
 				month: 'short',
 				day: '2-digit'
 			});
 		} catch {
-			return 'Soon';
+			return i18n.t('soon');
 		}
 	}
 

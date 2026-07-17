@@ -11,6 +11,7 @@
 	import type { UserProfile } from '$lib/schema';
 	import { createAppUrl } from '$lib/utils/app-url';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
+	import { i18n } from '$lib/services/i18n.svelte';
 
 	let sending = $state(false);
 	let autoSent = $state(false);
@@ -44,12 +45,12 @@
 				rallyTag: cleanTag
 			});
 
-			success = `Friend request sent to ${target.displayName}.`;
+			success = i18n.t('friend_request_sent_to', { name: target.displayName });
 			tag = '';
 			if (automatic) autoSent = true;
 		} catch (err) {
 			console.error('Friend request error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not send friend request.');
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_send_friend_request'));
 			if (automatic) autoSent = true;
 		} finally {
 			sending = false;
@@ -78,7 +79,7 @@
 			}
 		} catch (err) {
 			console.error('Friend add profile load error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not load your profile.');
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_load_profile'));
 		} finally {
 			loadingProfile = false;
 		}
@@ -132,7 +133,7 @@
 			type="button"
 			onclick={goBack}
 			class="absolute -right-2 -top-5 z-10 grid h-11 w-11 place-items-center rounded-full bg-white text-xl font-black text-slate-500 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 hover:text-slate-950 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-800 dark:hover:text-white sm:-right-4 sm:-top-4"
-			aria-label="Close"
+			aria-label={i18n.t('close_aria')}
 		>
 			×
 		</button>
@@ -140,9 +141,9 @@
 		<div class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-2xl shadow-slate-300/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
 			<div class="flex items-start justify-between gap-4">
 				<div>
-					<h1 class="text-2xl font-black text-slate-950 dark:text-slate-50">Add friend</h1>
+					<h1 class="text-2xl font-black text-slate-950 dark:text-slate-50">{i18n.t('add_friend')}</h1>
 					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-						Use a Rally tag or show your QR code.
+						{i18n.t('add_friend_sub')}
 					</p>
 				</div>
 
@@ -150,7 +151,7 @@
 					type="button"
 					onclick={() => (showQr = true)}
 					class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-slate-100 text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-					aria-label="Show my QR code"
+					aria-label={i18n.t('my_qr_code')}
 				>
 					<img src="/qr-code.png" alt="" class="h-6 w-6 object-contain" />
 				</button>
@@ -158,7 +159,7 @@
 
 			{#if sourceTag}
 				<div class="mt-5 rounded-2xl bg-blue-50 p-4 text-sm font-semibold text-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
-					QR detected for <span class="font-black">@{sourceTag}</span>. Sending the request automatically.
+					{i18n.t('qr_detected_sending', { tag: sourceTag })}
 				</div>
 			{/if}
 
@@ -174,7 +175,7 @@
 						<input
 							id="friend-tag"
 							bind:value={tag}
-							placeholder="example: joao-8f3a1"
+							placeholder={i18n.t('add_friend_placeholder')}
 							class="min-w-0 flex-1 border-0 bg-transparent p-0 text-slate-900 shadow-none outline-none ring-0 placeholder:text-slate-400 focus:border-0 focus:outline-none focus:ring-0 dark:text-slate-100"
 						/>
 					</div>
@@ -184,7 +185,7 @@
 						disabled={sending || !tag.trim()}
 						class="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
 					>
-						{sending ? '...' : 'Add'}
+						{sending ? '...' : i18n.t('add')}
 					</button>
 				</div>
 			</form>
@@ -216,14 +217,14 @@
 		<div class="max-h-[92dvh] w-full max-w-sm overflow-y-auto rounded-t-[2rem] bg-white p-5 text-center shadow-2xl dark:bg-slate-900 sm:rounded-[2rem]">
 			<div class="flex items-start justify-between gap-4 text-left">
 				<div>
-					<h2 id="friend-qr-title" class="text-2xl font-black text-slate-950 dark:text-slate-50">My QR code</h2>
-					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Show this to add you on Rally.</p>
+					<h2 id="friend-qr-title" class="text-2xl font-black text-slate-950 dark:text-slate-50">{i18n.t('my_qr_code')}</h2>
+					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{i18n.t('show_qr_add_you')}</p>
 				</div>
 				<button
 					type="button"
 					onclick={() => (showQr = false)}
 					class="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-xl font-black text-slate-500 transition hover:bg-slate-200 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-					aria-label="Close QR code"
+					aria-label={i18n.t('close_qr_code')}
 				>
 					×
 				</button>
@@ -232,17 +233,17 @@
 			<div class="mt-6 flex justify-center">
 				<div class="rounded-[2rem] border border-slate-200 bg-white p-3 shadow-inner">
 					{#if qrCodeDataUrl}
-						<img src={qrCodeDataUrl} alt="Rally friend QR code" class="h-56 w-56 rounded-2xl sm:h-64 sm:w-64" />
+						<img src={qrCodeDataUrl} alt={i18n.t('rally_friend_qr_code')} class="h-56 w-56 rounded-2xl sm:h-64 sm:w-64" />
 					{:else}
 						<div class="grid h-56 w-56 place-items-center rounded-2xl bg-slate-100 text-sm font-bold text-slate-500 sm:h-64 sm:w-64">
-							Generating QR...
+							{i18n.t('generating_qr')}
 						</div>
 					{/if}
 				</div>
 			</div>
 
 			<p class="mt-5 text-sm font-black text-slate-700 dark:text-slate-200">
-				@{currentProfile?.rallyTag ?? 'your-tag'}
+				@{currentProfile?.rallyTag ?? i18n.t('your_tag')}
 			</p>
 
 			{#if qrCodeLink}

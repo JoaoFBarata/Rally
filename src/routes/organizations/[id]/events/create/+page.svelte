@@ -413,7 +413,7 @@
 									: 'border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/40 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-500 dark:hover:bg-slate-800'
 							}`}
 						>
-							<p class="font-black text-slate-950 dark:text-slate-50">Free official event</p>
+							<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('free_official_event')}</p>
 							<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">
 								For open trainings, community activities or brand events.
 							</p>
@@ -581,7 +581,7 @@
 
 							<label class="min-w-0">
 								<span class="text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">Start</span>
-								<TimeSelect bind:value={startTime} placeholder="Choose time" />
+								<TimeSelect bind:value={startTime} placeholder={i18n.t('choose_time')} />
 							</label>
 						</div>
 

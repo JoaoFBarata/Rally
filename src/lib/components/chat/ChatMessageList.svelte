@@ -261,7 +261,7 @@
 									? 'left-1 bg-blue-700/90 text-white hover:bg-blue-800'
 									: 'right-1 bg-white/95 text-slate-500 ring-1 ring-slate-200 hover:text-slate-900 dark:bg-slate-800/95 dark:text-slate-300 dark:ring-slate-700 dark:hover:text-white'
 							}`}
-							aria-label="Message options"
+							aria-label={i18n.t('message_options')}
 						>
 							⌄
 						</button>
@@ -281,7 +281,7 @@
 									}}
 									class="block w-full rounded-xl px-3 py-2 text-left font-bold hover:bg-slate-100 dark:hover:bg-slate-800"
 								>
-									{isPinned ? 'Unpin message' : 'Pin message'}
+									{isPinned ? i18n.t('unpin_message') : i18n.t('pin_message')}
 								</button>
 
 								{#if isOwnMessage && message.senderId !== 'rally-system'}
@@ -293,7 +293,7 @@
 										}}
 										class="block w-full rounded-xl px-3 py-2 text-left font-bold hover:bg-slate-100 dark:hover:bg-slate-800"
 									>
-										Edit
+										{i18n.t('edit')}
 									</button>
 									<button
 										type="button"
@@ -303,7 +303,7 @@
 										}}
 										class="block w-full rounded-xl px-3 py-2 text-left font-bold text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/40"
 									>
-										Delete
+										{i18n.t('delete')}
 									</button>
 								{/if}
 							</div>
@@ -312,12 +312,12 @@
 
 					{#if showSenderName && !isOwnMessage}
 						<p class="mb-1 text-xs font-black text-blue-600 dark:text-blue-300">
-							{sender?.displayName ?? 'Rally user'}
+							{sender?.displayName ?? i18n.t('rally_user')}
 						</p>
 					{/if}
 
 					{#if isDeleted}
-						<p class="italic opacity-75">Message deleted</p>
+						<p class="italic opacity-75">{i18n.t('message_deleted')}</p>
 					{:else}
 						{#if fileURL && fileType.startsWith('image/')}
 							<a href={fileURL} target="_blank" rel="noreferrer" class="block">

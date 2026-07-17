@@ -113,6 +113,10 @@
 		return status === 'open' || status === 'full' ? i18n.t('status_upcoming') : i18n.t('status_past');
 	}
 
+	function getLevelLabel(level: string | undefined | null) {
+		return i18n.t(level || 'casual');
+	}
+
 
 
 	function formatHeroLocation() {
@@ -246,7 +250,7 @@
 						{formattedSportLabel}
 					</span>
 					<span class={`rounded-full bg-white/15 font-black capitalize backdrop-blur ${miniHero ? 'hidden px-2 py-0.5 text-[10px] sm:inline-flex sm:px-3 sm:py-1 sm:text-xs' : 'px-3 py-1 text-xs'}`}>
-						{event.level ?? 'casual'}
+						{getLevelLabel(event.level)}
 					</span>
 				</div>
 
@@ -388,7 +392,7 @@
 
 				<div class="mt-auto flex items-center justify-between gap-2 border-t border-slate-100 pt-2 dark:border-slate-800/60 sm:pt-3">
 					<span class="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-black capitalize text-slate-600 dark:bg-slate-800 dark:text-slate-300 sm:px-2.5 sm:text-[10px]">
-						{event.level ?? 'casual'}
+						{getLevelLabel(event.level)}
 					</span>
 					<div class="min-w-0 text-right">
 						<p class="truncate whitespace-nowrap text-[10px] font-black text-blue-600 dark:text-blue-300 sm:text-xs">
@@ -546,7 +550,7 @@
 			<span
 				class="rounded-full bg-slate-100 px-3 py-1 text-xs font-black capitalize text-slate-600 dark:bg-slate-800 dark:text-slate-300"
 			>
-				{event.level ?? 'casual'}
+				{getLevelLabel(event.level)}
 			</span>
 
 			{#if event.pricePerPerson}

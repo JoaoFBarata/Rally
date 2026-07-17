@@ -40,7 +40,7 @@
 		type DeviceAccount
 	} from '$lib/services/device-accounts.service';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
-	import { getCurrencySymbol } from '$lib/utils/format.utils';
+	import { formatDate, getCurrencySymbol } from '$lib/utils/format.utils';
 
 	let organization = $state<Organization | null>(null);
 	let organizationEvents = $state<SportEvent[]>([]);
@@ -241,19 +241,7 @@
 	}
 
 	function formatEventDate(dateValue: unknown) {
-		try {
-			const timestamp = dateValue as { toDate?: () => Date };
-			if (!timestamp?.toDate) return 'Date not set';
-			return timestamp.toDate().toLocaleString('en-GB', {
-				weekday: 'short',
-				day: '2-digit',
-				month: 'short',
-				hour: '2-digit',
-				minute: '2-digit'
-			});
-		} catch {
-			return 'Date not set';
-		}
+		return formatDate(dateValue, true);
 	}
 
 	function formatEventCapacity(event: SportEvent) {
@@ -275,12 +263,12 @@
 	}
 
 	function formatEventLocation(event: SportEvent) {
-		return event.location?.name || event.location?.address || 'Location not set';
+		return event.location?.name || event.location?.address || i18n.t('location_not_set');
 	}
 
 	function formatManageEventPrice(event: SportEvent) {
 		const price = event.pricePerPerson ?? event.priceTotal;
-		if (!price) return 'Free';
+		if (!price) return i18n.t('free');
 		return `${getCurrencySymbol(event.currency)}${price.toFixed(2)}`;
 	}
 

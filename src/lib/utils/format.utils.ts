@@ -1,6 +1,17 @@
 import { PUBLIC_MAPBOX_ACCESS_TOKEN } from '$env/static/public';
 import { i18n } from '../services/i18n.svelte';
 
+const dateLocales = {
+	en: 'en-GB',
+	pt: 'pt-PT',
+	es: 'es-ES',
+	fr: 'fr-FR'
+} as const;
+
+export function getCurrentLocale(): string {
+	return dateLocales[i18n.currentLang] ?? 'en-GB';
+}
+
 export function toDate(dateValue: unknown): Date | null {
 	try {
 		if (!dateValue) return null;
@@ -23,8 +34,8 @@ export function toDate(dateValue: unknown): Date | null {
 
 export function formatDate(dateValue: unknown, includeWeekday = false): string {
 	const date = toDate(dateValue);
-	if (!date) return 'Date not set';
-	return date.toLocaleString('en-GB', {
+	if (!date) return i18n.t('date_not_set');
+	return date.toLocaleString(getCurrentLocale(), {
 		...(includeWeekday && { weekday: 'short' }),
 		day: '2-digit',
 		month: 'short',
@@ -35,8 +46,8 @@ export function formatDate(dateValue: unknown, includeWeekday = false): string {
 
 export function formatShortDate(dateValue: unknown): string {
 	const date = toDate(dateValue);
-	if (!date) return 'Soon';
-	return date.toLocaleDateString('en-GB', {
+	if (!date) return i18n.t('soon');
+	return date.toLocaleDateString(getCurrentLocale(), {
 		day: '2-digit',
 		month: 'short'
 	});

@@ -7,7 +7,7 @@
 	import { themeState } from '$lib/theme.svelte';
 	import EventCard from '$lib/components/EventCard.svelte';
 	import { isPromotionActive, getEventStartAtMillis } from '$lib/services/event.service';
-	import { getCurrencySymbol } from '$lib/utils/format.utils';
+	import { formatDate, getCurrencySymbol } from '$lib/utils/format.utils';
 	import { i18n } from '$lib/services/i18n.svelte';
 
 	let {
@@ -352,21 +352,20 @@
 	}
 
 	function formatSelectedDate(event: SportEvent) {
-		const value = event.startAt;
-		const date = typeof value?.toDate === 'function' ? value.toDate() : new Date(value as unknown as string);
-		if (Number.isNaN(date.getTime())) return 'Date to confirm';
-
-		return new Intl.DateTimeFormat('en-GB', {
-			day: '2-digit',
-			month: 'short',
-			hour: '2-digit',
-			minute: '2-digit'
-		}).format(date);
+		return formatDate(event.startAt);
 	}
 
 	function formatSelectedPrice(event: SportEvent) {
 		const price = event.pricePerPerson ?? 0;
-		return price > 0 ? `${getCurrencySymbol(event.currency)}${price.toFixed(2)} / person` : 'Free';
+		return price > 0
+			? `${getCurrencySymbol(event.currency)}${price.toFixed(2)}${i18n.t('per_person')}`
+			: i18n.t('free');
+	}
+
+	function formatLevel(level: string | undefined | null) {
+		if (!level) return i18n.t('casual');
+		const translated = i18n.t(level);
+		return translated === level ? level : translated;
 	}
 
 	function getSelectedPreviewUrl(event: SportEvent) {
@@ -857,7 +856,7 @@
 											{event.title}
 										</p>
 										<p class="truncate text-xs font-bold text-slate-500 dark:text-slate-400">
-											{event.location?.address ?? event.location?.name ?? 'Location not set'}
+											{event.location?.address ?? event.location?.name ?? i18n.t('location_not_set')}
 										</p>
 									</div>
 									<span class="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500 dark:bg-slate-800 dark:text-slate-300">
@@ -1007,7 +1006,7 @@
 									: 'bg-slate-50 text-slate-600 border border-slate-100 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-blue-950'
 							}`}
 						>
-							{level}
+							{formatLevel(level)}
 						</button>
 					{/each}
 				</div>
@@ -1112,7 +1111,7 @@
 											{event.title}
 										</p>
 										<p class="truncate text-xs font-bold text-slate-500 dark:text-slate-400">
-											{event.location?.address ?? event.location?.name ?? 'Location not set'}
+											{event.location?.address ?? event.location?.name ?? i18n.t('location_not_set')}
 										</p>
 										<p class="mt-0.5 truncate text-[11px] font-bold text-slate-400 dark:text-slate-500">
 											{formatSelectedDate(event)}
@@ -1272,7 +1271,7 @@
 									: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950'
 							}`}
 						>
-							{level}
+							{formatLevel(level)}
 						</button>
 					{/each}
 				</div>
@@ -1291,7 +1290,7 @@
 					</span>
 					{#if selectedEventGroup.length > 1}
 						<span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300 md:px-3 md:py-1 md:text-xs">
-							{selectedEventIndex + 1}/{selectedEventGroup.length} nearby
+							{selectedEventIndex + 1}/{selectedEventGroup.length} {i18n.t('nearby_lowercase')}
 						</span>
 					{/if}
 				</div>
@@ -1321,7 +1320,7 @@
 						{selectedEvent.title}
 					</h2>
 					<p class="mt-0.5 truncate text-xs font-bold text-slate-500 dark:text-slate-400 md:mt-1 md:text-sm">
-						📍 {selectedEvent.location?.address ?? selectedEvent.location?.name ?? 'Location not set'}
+						📍 {selectedEvent.location?.address ?? selectedEvent.location?.name ?? i18n.t('location_not_set')}
 					</p>
 					<p class="mt-1 truncate text-xs font-semibold text-slate-400 dark:text-slate-500">
 						{formatSelectedDate(selectedEvent)}
@@ -1329,7 +1328,7 @@
 
 					<div class="mt-2 flex flex-wrap gap-1.5 md:mt-3">
 						<span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black capitalize text-slate-600 dark:bg-slate-800 dark:text-slate-300 md:px-2.5 md:py-1 md:text-[11px]">
-							{selectedEvent.level ?? 'casual'}
+							{formatLevel(selectedEvent.level ?? 'casual')}
 						</span>
 						<span class="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-600 dark:bg-blue-950/70 dark:text-blue-300 md:px-2.5 md:py-1 md:text-[11px]">
 							{selectedEvent.participantIds.length}/{selectedEvent.maxParticipants} {i18n.t('players_lowercase')}
@@ -1353,7 +1352,7 @@
 							type="button"
 							onclick={() => moveSelectedEvent(-1)}
 							class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white text-base font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-blue-950 md:h-8 md:w-8 md:text-lg"
-							aria-label="Previous nearby event"
+							aria-label={i18n.t('previous_nearby_event')}
 						>
 							‹
 						</button>
@@ -1366,7 +1365,7 @@
 							type="button"
 							onclick={() => moveSelectedEvent(1)}
 							class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white text-base font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-blue-950 md:h-8 md:w-8 md:text-lg"
-							aria-label="Next nearby event"
+							aria-label={i18n.t('next_nearby_event')}
 						>
 							›
 						</button>

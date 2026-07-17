@@ -12,6 +12,7 @@
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
 	import type { SportEvent, UserProfile } from '$lib/schema';
+	import { i18n } from '$lib/services/i18n.svelte';
 
 	let eventId = $state('');
 	let event = $state<SportEvent | null>(null);
@@ -68,7 +69,7 @@
 		const id = page.params.id;
 
 		if (!id) {
-			error = 'Event ID not found.';
+			error = i18n.t('event_id_not_found');
 			loading = false;
 			return;
 		}
@@ -79,14 +80,14 @@
 			event = await getEventById(id);
 
 			if (!event) {
-				error = 'Event not found.';
+				error = i18n.t('event_not_found');
 				return;
 			}
 
 			friends = await getFriendsForUser(currentUser.uid);
 		} catch (err) {
 			console.error('Invite page load error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not load invite page.');
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_load_invite_page'));
 		} finally {
 			loading = false;
 		}
@@ -101,17 +102,17 @@
 		}
 
 		if (!event) {
-			error = 'Event not found.';
+			error = i18n.t('event_not_found');
 			return;
 		}
 
 		if (!canInvite) {
-			error = 'You can only invite people to events you created or joined.';
+			error = i18n.t('cannot_invite_event');
 			return;
 		}
 
 		if (selectedFriendIds.length === 0) {
-			error = 'Select at least one friend to invite.';
+			error = i18n.t('select_friend_to_invite');
 			return;
 		}
 
@@ -126,11 +127,11 @@
 				toUserIds: selectedFriendIds
 			});
 
-			success = `${count} invite${count === 1 ? '' : 's'} sent successfully.`;
+			success = i18n.t(count === 1 ? 'invite_sent_success' : 'invites_sent_success', { count });
 			selectedFriendIds = [];
 		} catch (err) {
 			console.error('Invite error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not send invites.');
+			error = getFriendlyErrorMessage(err, i18n.t('send_invites_failed'));
 		} finally {
 			sending = false;
 		}
@@ -144,7 +145,7 @@
 			class="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-black text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
 		>
 			<span class="leading-none">←</span>
-			<span>Back</span>
+			<span>{i18n.t('back')}</span>
 		</button>
 
 	<div class="mt-6">
@@ -153,16 +154,16 @@
 		</p>
 
 		<h1 class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">
-			Invite people
+			{i18n.t('invite_people')}
 		</h1>
 
 		{#if event}
 			<p class="mt-2 text-slate-500 dark:text-slate-400">
-				Invite friends to join <span class="font-bold text-slate-800 dark:text-slate-200">{event.title}</span>.
+				{i18n.t('invite_friends_to_join', { title: event.title })}
 			</p>
 		{:else}
 			<p class="mt-2 text-slate-500 dark:text-slate-400">
-				Choose friends to invite to this event.
+				{i18n.t('choose_friends_to_invite')}
 			</p>
 		{/if}
 	</div>
@@ -185,7 +186,7 @@
 
 	{#if loading}
 		<div class="py-16 text-center text-sm text-slate-500 dark:text-slate-400">
-			Loading friends...
+			{i18n.t('loading_friends')}
 		</div>
 	{:else if !canInvite}
 		<div
@@ -193,10 +194,10 @@
 		>
 			<p class="text-4xl">🔒</p>
 			<h2 class="mt-3 text-xl font-black text-slate-950 dark:text-white">
-				You cannot invite people to this event
+				{i18n.t('cannot_invite_people_title')}
 			</h2>
 			<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-				Only the event creator or confirmed participants can invite others.
+				{i18n.t('cannot_invite_people_sub')}
 			</p>
 		</div>
 	{:else}
@@ -204,10 +205,10 @@
 			<div class="mb-4 flex items-center justify-between gap-4">
 				<div>
 					<h2 class="text-lg font-black text-slate-950 dark:text-white">
-						Friends
+						{i18n.t('friends')}
 					</h2>
 					<p class="text-sm text-slate-500 dark:text-slate-400">
-						Select one or more friends.
+						{i18n.t('select_one_or_more_friends')}
 					</p>
 				</div>
 
@@ -217,7 +218,7 @@
 						onclick={selectAllFriends}
 						class="rounded-full bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
 					>
-						Select all
+						{i18n.t('select_all')}
 					</button>
 
 					<button
@@ -225,7 +226,7 @@
 						onclick={clearSelection}
 						class="rounded-full px-4 py-2 text-sm font-bold text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
 					>
-						Clear
+						{i18n.t('clear')}
 					</button>
 				</div>
 			</div>
@@ -234,10 +235,10 @@
 				<div class="rounded-3xl bg-slate-50 p-8 text-center dark:bg-slate-900">
 					<p class="text-4xl">👥</p>
 					<h2 class="mt-3 text-xl font-black text-slate-950 dark:text-white">
-						No friends available
+						{i18n.t('no_friends_available')}
 					</h2>
 					<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-						Add friends from your profile first, or all your friends are already in this event.
+						{i18n.t('no_friends_available_sub')}
 					</p>
 				</div>
 			{:else}
@@ -283,7 +284,7 @@
 			>
 				<div class="flex items-center justify-between gap-3">
 					<p class="text-sm font-bold text-slate-600 dark:text-slate-300">
-						{selectedFriendIds.length} selected
+						{i18n.t('selected_count', { count: selectedFriendIds.length })}
 					</p>
 
 					<button
@@ -292,7 +293,7 @@
 						disabled={sending || selectedFriendIds.length === 0}
 						class="rounded-full bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:px-6"
 					>
-						{sending ? 'Sending...' : 'Send invites'}
+						{sending ? i18n.t('sending') : i18n.t('send_invites')}
 					</button>
 				</div>
 			</div>
@@ -300,10 +301,10 @@
 
 		<div class="mt-10 border-t border-slate-100 pt-6 dark:border-slate-800">
 			<h2 class="text-lg font-black text-slate-950 dark:text-white">
-				Groups
+				{i18n.t('groups')}
 			</h2>
 			<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-				Group invites will appear here after we add groups to the app.
+				{i18n.t('groups_invites_future')}
 			</p>
 		</div>
 	{/if}
