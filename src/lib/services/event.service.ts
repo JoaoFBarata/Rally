@@ -43,6 +43,7 @@ import {
 } from '$lib/services/organization.service';
 import { sendRallySystemMessage } from '$lib/services/chat.service';
 import { getUserProfile } from '$lib/services/user.service';
+import { getCurrentLocale } from '$lib/utils/format.utils';
 
 export const PROMOTION_PLANS: Record<
 	EventPromotionPlan,
@@ -251,7 +252,7 @@ function formatEventDate(startAt: unknown): string {
 	try {
 		const ts = startAt as { toDate?: () => Date };
 		if (ts?.toDate) {
-			return ts.toDate().toLocaleString('en-GB', {
+			return ts.toDate().toLocaleString(getCurrentLocale(), {
 				weekday: 'short',
 				day: '2-digit',
 				month: 'short',
@@ -1437,6 +1438,123 @@ export async function createTournamentEvent(params: {
 	return refreshedEvent ?? createdEvent;
 }
 
+export async function updateTournamentEvent(params: {
+	eventId: string;
+	userId: string;
+	title: string;
+	description?: string;
+	sport: Sport;
+	level?: SportLevel;
+	locationName: string;
+	address?: string;
+	lat?: number | null;
+	lng?: number | null;
+	startAt: Date;
+	endAt?: Date | null;
+	format: TournamentFormat;
+	registrationType: TournamentRegistrationType;
+	maxEntries: number;
+	groupCount?: number | null;
+	playoffSpots?: number | null;
+	teamSize?: number | null;
+	minTeamSize?: number | null;
+	maxTeamSize?: number | null;
+	allowOpenTeams?: boolean;
+	registrationDeadline?: Date | null;
+	entryFeeType: EntryFeeType;
+	entryFeeAmount?: number | null;
+	currency?: SportEvent['currency'];
+	prizeType: PrizeType;
+	prizeDescription?: string;
+	prizeValue?: number | null;
+	rules?: string;
+}) {
+	const event = await getEventById(params.eventId);
+
+	if (!event) throw new Error('Tournament not found.');
+	if (event.eventKind !== 'tournament') throw new Error('This event is not a tournament.');
+
+	await assertCanManageEvent(event, params.userId);
+
+	const status = getEffectiveEventStatus(event);
+	if (status === 'cancelled') throw new Error('Cancelled tournaments cannot be edited.');
+	if (status === 'finished') throw new Error('Finished tournaments cannot be edited.');
+
+	if (
+		(params.entryFeeType === 'paid' || params.prizeType === 'cash') &&
+		event.organizationId
+	) {
+		const organization = await getOrganizationById(event.organizationId);
+		if (!organization || !canCreateOfficialPaidEvents(organization)) {
+			throw new Error('Paid tournaments and cash prizes require a verified organization.');
+		}
+	}
+
+	const maxParticipants =
+		params.registrationType === 'team'
+			? params.maxEntries * Math.max(params.maxTeamSize ?? params.teamSize ?? 1, 1)
+			: params.maxEntries;
+
+	if (maxParticipants < event.participantIds.length) {
+		throw new Error(
+			`Max participants cannot be less than the current number of participants (${event.participantIds.length}).`
+		);
+	}
+
+	const groupCount =
+		params.format === 'groups_playoff' ? Math.max(2, params.groupCount ?? 2) : null;
+	const paymentMode = paymentModeFromEntryFee(params.entryFeeType);
+
+	await updateDoc(doc(db, 'events', params.eventId), {
+		title: params.title,
+		description: params.description ?? '',
+		sport: params.sport,
+		level: params.level ?? 'casual',
+		location: {
+			name: params.locationName,
+			address: params.address ?? '',
+			lat: params.lat ?? null,
+			lng: params.lng ?? null
+		},
+		startAt: Timestamp.fromDate(params.startAt),
+		endAt: params.endAt ? Timestamp.fromDate(params.endAt) : null,
+		maxParticipants,
+		priceTotal:
+			params.entryFeeType === 'free' ? null : (params.entryFeeAmount ?? 0) * params.maxEntries,
+		pricePerPerson: null,
+		currency: params.currency ?? event.currency ?? 'EUR',
+		paymentMode,
+		tournamentFormat: params.format,
+		tournamentRegistrationType: params.registrationType,
+		maxTournamentEntries: params.maxEntries,
+		groupCount,
+		teamsPerGroup:
+			params.format === 'groups_playoff' && groupCount
+				? Math.ceil(params.maxEntries / groupCount)
+				: null,
+		playoffSpots: params.format === 'groups_playoff' ? Math.max(2, params.playoffSpots ?? 4) : null,
+		teamSize: params.teamSize ?? null,
+		minTeamSize: params.minTeamSize ?? params.teamSize ?? null,
+		maxTeamSize: params.maxTeamSize ?? params.teamSize ?? null,
+		allowOpenTeams: params.registrationType === 'team' ? (params.allowOpenTeams ?? false) : false,
+		registrationDeadline: params.registrationDeadline
+			? Timestamp.fromDate(params.registrationDeadline)
+			: null,
+		entryFeeType: params.entryFeeType,
+		entryFeeAmount: params.entryFeeAmount ?? null,
+		prizeType: params.prizeType,
+		prizeDescription: params.prizeDescription ?? '',
+		prizeValue: params.prizeValue ?? null,
+		tournamentRules: params.rules ?? '',
+		updatedAt: serverTimestamp()
+	});
+
+	await syncEventGroupConversation({
+		...event,
+		title: params.title
+	});
+}
+
 export async function joinTournamentTeam(params: {
 	eventId: string;
 	teamId: string;
@@ -2381,23 +2499,23 @@ export async function getWeatherForEvent(
 		if (temp === undefined || code === undefined) return null;
 
 		let icon = '☀️';
-		let description = 'Clean sky';
+		let description = 'weather_clear_sky';
 
 		if (code >= 1 && code <= 3) {
 			icon = '🌤️';
-			description = 'Partly cloudy';
+			description = 'weather_partly_cloudy';
 		} else if (code === 45 || code === 48) {
 			icon = '🌫️';
-			description = 'Foggy';
+			description = 'weather_foggy';
 		} else if ((code >= 51 && code <= 55) || (code >= 61 && code <= 65)) {
 			icon = '🌧️';
-			description = 'Rainy';
+			description = 'weather_rainy';
 		} else if (code >= 71 && code <= 77) {
 			icon = '❄️';
-			description = 'Snowy';
+			description = 'weather_snowy';
 		} else if (code >= 95) {
 			icon = '⚡';
-			description = 'Thunderstorm';
+			description = 'weather_thunderstorm';
 		}
 
 		return { temp, icon, description };

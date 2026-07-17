@@ -40,7 +40,7 @@
 		type DeviceAccount
 	} from '$lib/services/device-accounts.service';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
-	import { getCurrencySymbol } from '$lib/utils/format.utils';
+	import { formatDate, getCurrencySymbol } from '$lib/utils/format.utils';
 
 	let organization = $state<Organization | null>(null);
 	let organizationEvents = $state<SportEvent[]>([]);
@@ -241,19 +241,7 @@
 	}
 
 	function formatEventDate(dateValue: unknown) {
-		try {
-			const timestamp = dateValue as { toDate?: () => Date };
-			if (!timestamp?.toDate) return 'Date not set';
-			return timestamp.toDate().toLocaleString('en-GB', {
-				weekday: 'short',
-				day: '2-digit',
-				month: 'short',
-				hour: '2-digit',
-				minute: '2-digit'
-			});
-		} catch {
-			return 'Date not set';
-		}
+		return formatDate(dateValue, true);
 	}
 
 	function formatEventCapacity(event: SportEvent) {
@@ -275,12 +263,12 @@
 	}
 
 	function formatEventLocation(event: SportEvent) {
-		return event.location?.name || event.location?.address || 'Location not set';
+		return event.location?.name || event.location?.address || i18n.t('location_not_set');
 	}
 
 	function formatManageEventPrice(event: SportEvent) {
 		const price = event.pricePerPerson ?? event.priceTotal;
-		if (!price) return 'Free';
+		if (!price) return i18n.t('free');
 		return `${getCurrencySymbol(event.currency)}${price.toFixed(2)}`;
 	}
 
@@ -1193,8 +1181,8 @@
 							<div
 								class="divide-y divide-slate-200 overflow-hidden rounded-3xl bg-slate-50 dark:divide-slate-700 dark:bg-slate-800"
 							>
-								<div class="flex items-center justify-between gap-4 p-4">
-									<div>
+								<div class="flex items-start justify-between gap-4 p-4">
+									<div class="min-w-0 flex-1">
 										<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('notifications')}</p>
 										<p class="text-xs text-slate-500 dark:text-slate-400">
 											{i18n.t('notifications_help_manage')}
@@ -1203,8 +1191,8 @@
 									<button
 										type="button"
 										onclick={() => (notificationsEnabled = !notificationsEnabled)}
-										class={`relative h-7 w-12 rounded-full transition ${notificationsEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}
-										aria-label="Toggle notifications"
+										class={`relative mt-1 h-7 w-12 shrink-0 rounded-full transition ${notificationsEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+										aria-label={i18n.t('toggle_notifications')}
 									>
 										<span
 											class={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${notificationsEnabled ? 'left-6' : 'left-1'}`}

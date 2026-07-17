@@ -6,6 +6,7 @@
 	import { authState } from '$lib/auth.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
+	import { formatDate as formatEventDate } from '$lib/utils/format.utils';
 
 	const sportIcons: Record<Sport, string> = {
 		football: '⚽',
@@ -32,21 +33,7 @@
 	let filteredCount = $state(0);
 
 	function formatDate(startAt: unknown): string {
-		try {
-			const ts = startAt as { toDate?: () => Date };
-			if (ts?.toDate) {
-				return ts.toDate().toLocaleString('en-GB', {
-					weekday: 'short',
-					day: '2-digit',
-					month: 'short',
-					hour: '2-digit',
-					minute: '2-digit'
-				});
-			}
-		} catch {
-			// fall through
-		}
-		return 'Date TBD';
+		return formatEventDate(startAt, true);
 	}
 
 	onMount(async () => {

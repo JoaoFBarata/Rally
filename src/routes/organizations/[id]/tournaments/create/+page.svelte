@@ -16,6 +16,7 @@
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
 	import { TEXT_LIMITS } from '$lib/constants/text-limits';
+	import { i18n } from '$lib/services/i18n.svelte';
 	import type {
 		EntryFeeType,
 		Organization,
@@ -111,7 +112,7 @@
 	let isVerified = $derived(organization ? canCreateOfficialPaidEvents(organization) : false);
 
 	function getLocationName() {
-		if (!address.trim()) return 'Tournament location';
+		if (!address.trim()) return i18n.t('tournament_location');
 		return address.includes(',') ? address.split(',')[0].trim() : address.trim();
 	}
 
@@ -128,7 +129,7 @@
 	function buildRegistrationDeadline() {
 		if (!registrationDeadlineDate && !registrationDeadlineTime) return null;
 		if (!registrationDeadlineDate || !registrationDeadlineTime) {
-			throw new Error('Choose both date and time for the registration deadline.');
+			throw new Error(i18n.t('choose_deadline_datetime_error'));
 		}
 
 		const parsed = new Date(`${registrationDeadlineDate}T${registrationDeadlineTime}`);
@@ -139,37 +140,37 @@
 	}
 
 	function validateForm() {
-		if (!title.trim()) throw new Error('Add a tournament name.');
+		if (!title.trim()) throw new Error(i18n.t('add_tournament_name_error'));
 		if (!address.trim() || lat === null || lng === null) {
-			throw new Error('Choose the tournament location on the map.');
+			throw new Error(i18n.t('choose_tournament_location_error'));
 		}
 
 		const startAt = buildDateTime(startTime);
 
-		if (!startAt) throw new Error('Choose tournament date and start time.');
+		if (!startAt) throw new Error(i18n.t('choose_tournament_datetime_error'));
 
 		const entries = Number(maxEntries);
 
 		if (!Number.isInteger(entries) || entries < 2 || entries > 64) {
-			throw new Error('Max entries must be between 2 and 64.');
+			throw new Error(i18n.t('max_entries_range_error'));
 		}
 
 		if (format === 'groups_playoff') {
 			const groups = Number(groupCount);
 
 			if (!Number.isInteger(groups) || groups < 2 || groups > 8) {
-				throw new Error('Groups must be between 2 and 8.');
+				throw new Error(i18n.t('groups_range_error'));
 			}
 		}
 
 		if (registrationType === 'team') {
 			if (Number(minTeamSize) < 1 || Number(maxTeamSize) < Number(minTeamSize)) {
-				throw new Error('Check team size values.');
+				throw new Error(i18n.t('check_team_sizes_error'));
 			}
 		}
 
 		if ((entryFeeType === 'paid' || prizeType === 'cash') && !isVerified) {
-			throw new Error('Paid tournaments and cash prizes require verified organization.');
+			throw new Error(i18n.t('paid_tournament_verified_error'));
 		}
 	}
 
@@ -187,7 +188,7 @@
 			const startAt = buildDateTime(startTime);
 			const endAt = buildDateTime(endTime);
 
-			if (!startAt) throw new Error('Choose tournament date and start time.');
+			if (!startAt) throw new Error(i18n.t('choose_tournament_datetime_error'));
 
 			const createdTournament = await createTournamentEvent({
 				title: title.trim(),
@@ -224,7 +225,7 @@
 			await goto(resolve(`/events/${createdTournament.id}`));
 		} catch (err) {
 			console.error('Create tournament error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not create tournament.');
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_create_tournament'));
 		} finally {
 			creating = false;
 		}
@@ -243,7 +244,7 @@
 			try {
 				const organizationId = page.params.id;
 				if (!organizationId) {
-					throw new Error('Organization ID not found.');
+					throw new Error(i18n.t('organization_id_not_found'));
 				}
 
 				organization = await assertCanManageOrganization({
@@ -274,21 +275,21 @@
 			class="mb-4 inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-black text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
 		>
 			<span class="leading-none">←</span>
-			<span>Back</span>
+			<span>{i18n.t('back')}</span>
 		</button>
 
 		<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 			<div>
 				<p class="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
-					Competitive event
+					{i18n.t('competitive_event')}
 				</p>
 
 				<h1 class="mt-1 text-3xl font-black tracking-tight text-slate-950 dark:text-slate-50 sm:text-4xl">
-					Create tournament
+					{i18n.t('create_tournament')}
 				</h1>
 
 				<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-					Hosted by <span class="font-black">{organization.name}</span>
+					{i18n.t('hosted_by')} <span class="font-black">{organization.name}</span>
 				</p>
 			</div>
 		</div>
@@ -310,13 +311,13 @@
 		>
 			<div class="space-y-4 sm:space-y-6">
 				<section class={cardClass}>
-					<h2 class={sectionTitleClass}>Tournament details</h2>
+					<h2 class={sectionTitleClass}>{i18n.t('tournament_details')}</h2>
 
 					<div class="mt-4 space-y-3 sm:mt-5 sm:space-y-4">
 						<input
 							bind:value={title}
 							maxlength={TEXT_LIMITS.eventTitle}
-							placeholder="Tournament name"
+							placeholder={i18n.t('tournament_name_placeholder')}
 							class={inputClass}
 						/>
 
@@ -324,43 +325,42 @@
 							bind:value={description}
 							maxlength={TEXT_LIMITS.eventDescription}
 							rows="3"
-							placeholder="Describe the tournament, format, requirements..."
+							placeholder={i18n.t('tournament_description_placeholder')}
 							class={inputClass}
 						></textarea>
 
 							<div class="grid grid-cols-2 items-end gap-3 md:grid-cols-3">
 								<label class="block">
-									<span class={labelClass}>Sport</span>
+									<span class={labelClass}>{i18n.t('sport')}</span>
 									<select
 										bind:value={sport}
 										class={`mt-2 ${inputClass}`}
 									>
 										{#each sports as option}
-											<option value={option.value}>{option.label}</option>
+											<option value={option.value}>{i18n.t(`sport_${option.value}`)}</option>
 										{/each}
 									</select>
 								</label>
 
 								<label class="block">
-									<span class={labelClass}>Level</span>
+									<span class={labelClass}>{i18n.t('level_label')}</span>
 									<select
 										bind:value={level}
 										class={`mt-2 ${inputClass}`}
 									>
 										{#each levels as option}
-											<option value={option.value}>{option.label}</option>
+											<option value={option.value}>{i18n.t(option.value)}</option>
 										{/each}
 									</select>
 								</label>
 
 							<label class="col-span-2 block md:col-span-1">
 								<span class={labelClass}>
-									Max entries
+									{i18n.t('max_entries')}
 								</span>
 
 								<p class={compactHelpClass}>
-									Maximum number of {registrationType === 'team' ? 'teams' : 'players'} that can register
-									for the tournament.
+									{i18n.t('max_entries_help', { unit: registrationType === 'team' ? i18n.t('teams') : i18n.t('players_lowercase') })}
 								</p>
 
 								<input
@@ -369,8 +369,8 @@
 									min="2"
 									max="64"
 									placeholder={registrationType === 'team'
-										? 'Example: 8 teams'
-										: 'Example: 16 players'}
+										? i18n.t('example_teams', { count: 8 })
+										: i18n.t('example_players', { count: 16 })}
 									class={`mt-2 ${inputClass}`}
 								/>
 							</label>
@@ -380,13 +380,13 @@
 
 				<section class={cardClass}>
 					<h2 class={sectionTitleClass}>
-						Location and schedule
+						{i18n.t('location_schedule')}
 					</h2>
 
 					<div class="mt-4 space-y-3 sm:mt-5 sm:space-y-5">
 						<div class="grid grid-cols-2 gap-3">
 							<label class="min-w-0">
-								<span class="text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">Date</span>
+								<span class="text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">{i18n.t('date_label')}</span>
 								<input
 									bind:value={date}
 									type="date"
@@ -395,15 +395,15 @@
 							</label>
 
 							<label class="min-w-0">
-								<span class="text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">Start</span>
-								<TimeSelect bind:value={startTime} placeholder="Choose time" />
+								<span class="text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">{i18n.t('start_time_label')}</span>
+								<TimeSelect bind:value={startTime} placeholder={i18n.t('choose_time')} />
 							</label>
 						</div>
 
 						<div class="grid grid-cols-2 gap-3">
 							<label class="min-w-0">
 								<span class="text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm"
-									>Deadline date</span
+									>{i18n.t('deadline_date')}</span
 								>
 								<input
 									bind:value={registrationDeadlineDate}
@@ -414,9 +414,9 @@
 
 							<label class="min-w-0">
 								<span class="text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm"
-									>Deadline time</span
+									>{i18n.t('deadline_time')}</span
 								>
-								<TimeSelect bind:value={registrationDeadlineTime} placeholder="Optional" />
+								<TimeSelect bind:value={registrationDeadlineTime} placeholder={i18n.t('optional')} />
 							</label>
 						</div>
 
@@ -439,7 +439,7 @@
 										<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
 										<circle cx="12" cy="10" r="3" />
 									</svg>
-									Use organization address
+									{i18n.t('use_organization_address')}
 								</button>
 							{/if}
 
@@ -448,13 +448,13 @@
 					</section>
 
 				<section class={cardClass}>
-					<h2 class={sectionTitleClass}>Rules</h2>
+					<h2 class={sectionTitleClass}>{i18n.t('rules')}</h2>
 
 					<textarea
 						bind:value={rules}
 						maxlength={TEXT_LIMITS.eventDescription}
 						rows="4"
-						placeholder="Tournament rules, tie-breaks, match duration, required equipment..."
+						placeholder={i18n.t('tournament_rules_placeholder')}
 						class={`mt-4 sm:mt-5 ${inputClass}`}
 					></textarea>
 				</section>
@@ -462,9 +462,9 @@
 
 			<aside class="space-y-4 sm:space-y-6">
 				<section class={cardClass}>
-					<h2 class={sideTitleClass}>Format</h2>
+					<h2 class={sideTitleClass}>{i18n.t('format')}</h2>
 
-					<div class="mt-4 grid grid-cols-3 gap-2 sm:mt-5 lg:grid-cols-1 lg:gap-3">
+					<div class="mt-4 grid grid-cols-1 gap-2 min-[520px]:grid-cols-3 sm:mt-5 lg:grid-cols-1 lg:gap-3">
 						<label
 							class={`${choiceClass} ${
 								format === 'groups_playoff'
@@ -481,9 +481,9 @@
 								{/if}
 							</span>
 							<span class="min-w-0">
-								<span class="block text-sm font-black sm:text-base">Groups</span>
+								<span class="block text-sm font-black sm:text-base">{i18n.t('groups')}</span>
 								<span class="mt-1 hidden text-xs text-slate-500 dark:text-slate-400 sm:block sm:text-sm"
-									>Best for most tournaments.</span
+									>{i18n.t('best_for_most_tournaments')}</span
 								>
 							</span>
 						</label>
@@ -504,9 +504,9 @@
 								{/if}
 							</span>
 							<span class="min-w-0">
-								<span class="block text-xs font-black sm:text-base">Knockout</span>
+								<span class="block text-xs font-black sm:text-base">{i18n.t('knockout')}</span>
 								<span class="mt-1 hidden text-xs text-slate-500 dark:text-slate-400 sm:block sm:text-sm"
-									>Direct elimination bracket.</span
+									>{i18n.t('direct_elimination_bracket')}</span
 								>
 							</span>
 						</label>
@@ -527,23 +527,23 @@
 								{/if}
 							</span>
 							<span class="min-w-0">
-								<span class="block text-sm font-black sm:text-base">League</span>
+								<span class="block text-sm font-black sm:text-base">{i18n.t('league')}</span>
 								<span class="mt-1 hidden text-xs text-slate-500 dark:text-slate-400 sm:block sm:text-sm"
-									>Everyone plays everyone.</span
+									>{i18n.t('everyone_plays_everyone')}</span
 								>
 							</span>
 						</label>
 					</div>
 
 					{#if format === 'groups_playoff'}
-						<div class="mt-4 grid grid-cols-2 items-stretch gap-3 sm:mt-5">
+						<div class="mt-4 grid grid-cols-1 items-stretch gap-3 min-[430px]:grid-cols-2 sm:mt-5">
 							<label class="flex h-full flex-col">
 								<span class={labelClass}>
-									Number of groups
+									{i18n.t('number_of_groups')}
 								</span>
 
 								<p class={`${compactHelpClass} min-h-[2.5rem]`}>
-									How many groups the tournament will have before the playoff stage.
+									{i18n.t('tournament_groups_help')}
 								</p>
 
 								<input
@@ -551,19 +551,18 @@
 									type="number"
 									min="2"
 									max="8"
-									placeholder="Example: 2"
+									placeholder={i18n.t('example_number', { count: 2 })}
 									class={`mt-auto ${inputClass}`}
 								/>
 							</label>
 
 							<label class="flex h-full flex-col">
 								<span class={labelClass}>
-									Playoff spots
+									{i18n.t('playoff_spots')}
 								</span>
 
 								<p class={`${compactHelpClass} min-h-[2.5rem]`}>
-									How many {registrationType === 'team' ? 'teams' : 'players'} qualify from the groups
-									into the knockout stage.
+									{i18n.t('playoff_spots_help', { unit: registrationType === 'team' ? i18n.t('teams') : i18n.t('players_lowercase') })}
 								</p>
 
 								<input
@@ -571,7 +570,7 @@
 									type="number"
 									min="2"
 									max="16"
-									placeholder="Example: 4"
+									placeholder={i18n.t('example_number', { count: 4 })}
 									class={`mt-auto ${inputClass}`}
 								/>
 							</label>
@@ -580,9 +579,9 @@
 				</section>
 
 				<section class={cardClass}>
-					<h2 class={sideTitleClass}>Registration</h2>
+					<h2 class={sideTitleClass}>{i18n.t('registration')}</h2>
 
-					<div class="mt-4 grid grid-cols-2 gap-2.5 sm:mt-5 sm:gap-3 lg:grid-cols-1">
+					<div class="mt-4 grid grid-cols-1 gap-2.5 min-[430px]:grid-cols-2 sm:mt-5 sm:gap-3 lg:grid-cols-1">
 						<label
 							class={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3 transition sm:p-4 ${
 								registrationType === 'team'
@@ -598,7 +597,7 @@
 									<span class="h-2.5 w-2.5 rounded-full bg-blue-600 dark:bg-blue-400"></span>
 								{/if}
 							</span>
-							<span class="text-sm font-black sm:text-base">Teams</span>
+							<span class="text-sm font-black sm:text-base">{i18n.t('teams')}</span>
 						</label>
 
 						<label
@@ -621,82 +620,80 @@
 									<span class="h-2.5 w-2.5 rounded-full bg-blue-600 dark:bg-blue-400"></span>
 								{/if}
 							</span>
-							<span class="text-sm font-black sm:text-base">Individual</span>
+							<span class="text-sm font-black sm:text-base">{i18n.t('individual')}</span>
 						</label>
 					</div>
 
 					{#if registrationType === 'team'}
-						<div class="mt-4 grid grid-cols-3 gap-2 sm:mt-5 sm:gap-3 lg:grid-cols-1">
+						<div class="mt-4 grid grid-cols-1 gap-2 min-[520px]:grid-cols-3 sm:mt-5 sm:gap-3 lg:grid-cols-1">
 							<label class="block">
 								<span class={labelClass}>
-									On field
+									{i18n.t('on_field')}
 								</span>
 
 								<p class={compactHelpClass}>
-									Number of players that actively play at the same time. Example: 5 for a 5v5
-									football tournament.
+									{i18n.t('on_field_help')}
 								</p>
 
 								<input
 									bind:value={teamSize}
 									type="number"
 									min="1"
-									placeholder="Example: 5"
+									placeholder={i18n.t('example_number', { count: 5 })}
 									class={`mt-2 ${inputClass}`}
 								/>
 							</label>
 
 							<label class="block">
 								<span class={labelClass}>
-									Min team
+									{i18n.t('min_team')}
 								</span>
 
 								<p class={compactHelpClass}>
-									Minimum number of players needed for a team to be accepted in the tournament.
+									{i18n.t('minimum_team_players_help')}
 								</p>
 
 								<input
 									bind:value={minTeamSize}
 									type="number"
 									min="1"
-									placeholder="Example: 5"
+									placeholder={i18n.t('example_number', { count: 5 })}
 									class={`mt-2 ${inputClass}`}
 								/>
 							</label>
 
 							<label class="block">
 								<span class={labelClass}>
-									Max team
+									{i18n.t('max_team')}
 								</span>
 
 								<p class={compactHelpClass}>
-									Maximum squad size, including substitutes. Example: 8 means 5 players plus up to 3
-									substitutes.
+									{i18n.t('max_team_help')}
 								</p>
 
 								<input
 									bind:value={maxTeamSize}
 									type="number"
 									min="1"
-									placeholder="Example: 8"
+									placeholder={i18n.t('example_number', { count: 8 })}
 									class={`mt-2 ${inputClass}`}
 								/>
 							</label>
 
 							<label
-								class="col-span-3 flex cursor-pointer items-center justify-between gap-4 rounded-2xl bg-slate-50 p-3 dark:bg-slate-800 sm:p-4 lg:col-span-1"
+								class="flex cursor-pointer items-start justify-between gap-4 rounded-2xl bg-slate-50 p-3 dark:bg-slate-800 min-[520px]:col-span-3 sm:p-4 lg:col-span-1"
 							>
-								<span>
+								<span class="min-w-0 flex-1">
 									<span class="block font-black text-slate-950 dark:text-slate-50"
-										>Allow open teams</span
+										>{i18n.t('allow_open_teams')}</span
 									>
 									<span class="mt-1 block text-[11px] font-bold leading-snug text-slate-500 dark:text-slate-400 sm:text-xs">
-										Players can join teams that have not yet reached the maximum team size.
+										{i18n.t('allow_open_teams_help')}
 									</span>
 								</span>
 								<input bind:checked={allowOpenTeams} type="checkbox" class="sr-only" />
 								<span
-									class={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${
+									class={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${
 										allowOpenTeams
 											? 'border-blue-600 bg-blue-600 text-white dark:border-blue-400 dark:bg-blue-400 dark:text-slate-950'
 											: 'border-slate-400 bg-white dark:border-slate-500 dark:bg-slate-900'
@@ -720,35 +717,35 @@
 				</section>
 
 				<section class={cardClass}>
-					<h2 class={sideTitleClass}>Cost and prize</h2>
+					<h2 class={sideTitleClass}>{i18n.t('cost_and_prize')}</h2>
 
 					<div class="mt-4 grid gap-3 sm:mt-5 sm:grid-cols-2 lg:grid-cols-1">
 						<select bind:value={entryFeeType} class={inputClass}>
-							<option value="free">Free entry</option>
-							<option value="split">Split cost</option>
+							<option value="free">{i18n.t('free_entry')}</option>
+							<option value="split">{i18n.t('split_cost')}</option>
 							<option value="paid" disabled={!isVerified}
-								>Paid entry {isVerified ? '' : '(verified only)'}</option
+								>{i18n.t('paid_entry')} {isVerified ? '' : i18n.t('verified_only_parenthetical')}</option
 							>
 						</select>
 
 						<select bind:value={prizeType} class={inputClass}>
-							<option value="none">No prize</option>
-							<option value="trophy">Trophy / medal</option>
-							<option value="product">Product / voucher</option>
+							<option value="none">{i18n.t('no_prize')}</option>
+							<option value="trophy">{i18n.t('trophy_medal')}</option>
+							<option value="product">{i18n.t('product_voucher')}</option>
 							<option value="cash" disabled={!isVerified}
-								>Cash prize {isVerified ? '' : '(verified only)'}</option
+								>{i18n.t('cash_prize')} {isVerified ? '' : i18n.t('verified_only_parenthetical')}</option
 							>
-							<option value="other">Other prize</option>
+							<option value="other">{i18n.t('other_prize')}</option>
 						</select>
 
 						{#if entryFeeType !== 'free'}
 							<label class="block">
 								<span class={labelClass}>
-									Entry fee
+									{i18n.t('entry_fee')}
 								</span>
 
 								<p class={compactHelpClass}>
-									Amount paid per {registrationType === 'team' ? 'team' : 'player'} to enter the tournament.
+									{i18n.t('entry_fee_amount_help', { unit: registrationType === 'team' ? i18n.t('team') : i18n.t('player') })}
 								</p>
 
 								<div class="mt-2 grid grid-cols-[minmax(0,1fr)_6.5rem] gap-2">
@@ -758,11 +755,11 @@
 										min="0"
 										step="0.01"
 										placeholder={registrationType === 'team'
-											? 'Example: 25/team'
-											: 'Example: 10/player'}
+											? i18n.t('example_fee_team')
+											: i18n.t('example_fee_player')}
 										class={inputClass}
 									/>
-									<select bind:value={currency} aria-label="Currency" class={inputClass}>
+									<select bind:value={currency} aria-label={i18n.t('currency')} class={inputClass}>
 										{#each currencyOptions as option}
 											<option value={option.value}>{option.label}</option>
 										{/each}
@@ -775,17 +772,16 @@
 							<input
 								bind:value={prizeDescription}
 								maxlength={TEXT_LIMITS.whatToBring}
-								placeholder="Prize description"
+								placeholder={i18n.t('prize_description')}
 								class={inputClass}
 							/>
 							<label class="block">
 								<span class={labelClass}>
-									Estimated prize value
+									{i18n.t('estimated_prize_value')}
 								</span>
 
 								<p class={compactHelpClass}>
-									Approximate value of the prize. This helps users understand how attractive the
-									tournament is.
+									{i18n.t('estimated_prize_help')}
 								</p>
 
 								<input
@@ -793,7 +789,7 @@
 									type="number"
 									min="0"
 									step="0.01"
-									placeholder="Example: 100 €"
+									placeholder={i18n.t('example_prize_value')}
 									class={`mt-2 ${inputClass}`}
 								/>
 							</label>
@@ -806,7 +802,7 @@
 					disabled={creating}
 					class="w-full rounded-2xl bg-blue-600 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-60 sm:py-4 sm:text-base"
 				>
-					{creating ? 'Creating tournament...' : 'Create tournament'}
+					{creating ? i18n.t('creating_tournament') : i18n.t('create_tournament')}
 				</button>
 			</aside>
 		</form>

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { getWeatherForEvent, type WeatherForecast } from '$lib/services/event.service';
+	import { i18n } from '$lib/services/i18n.svelte';
 
 	let { lat, lng, startAt, size = 'md' } = $props<{
 		lat: number | null | undefined;
@@ -29,30 +30,35 @@
 		const date = getEventDate();
 		if (!date) {
 			return {
-				tooltip: 'Weather forecast not available.',
-				label: 'Forecast not available'
+				tooltip: i18n.t('weather_forecast_unavailable'),
+				label: i18n.t('weather_forecast_unavailable_short')
 			};
 		}
 
 		const now = Date.now();
 		if (date.getTime() < now - 24 * 3600 * 1000) {
 			return {
-				tooltip: 'Weather data is not available for past events.',
-				label: 'Past event (no weather data)'
+				tooltip: i18n.t('weather_past_unavailable'),
+				label: i18n.t('weather_past_event')
 			};
 		}
 
 		if (date.getTime() - now > 14 * 24 * 3600 * 1000) {
 			return {
-				tooltip: 'Weather forecast is only available up to 14 days before the event.',
-				label: 'Forecast available 14 days before event'
+				tooltip: i18n.t('weather_future_unavailable'),
+				label: i18n.t('weather_future_event')
 			};
 		}
 
 		return {
-			tooltip: 'Weather forecast not available.',
-			label: 'Forecast not available'
+			tooltip: i18n.t('weather_forecast_unavailable'),
+			label: i18n.t('weather_forecast_unavailable_short')
 		};
+	}
+
+	function getWeatherDescription(description: string) {
+		const translated = i18n.t(description);
+		return translated === description ? description : translated;
 	}
 
 	onMount(() => {
@@ -78,7 +84,7 @@
 		{#if size === 'sm'}
 			<span
 				class="inline-flex items-center gap-1 rounded-full bg-slate-100/70 px-2 py-0.5 text-[10px] font-black text-slate-600 dark:bg-slate-850 dark:text-slate-300"
-				title={weather.description}
+				title={getWeatherDescription(weather.description)}
 			>
 				<span>{weather.icon}</span>
 				<span>{Math.round(weather.temp)}°C</span>
@@ -86,12 +92,12 @@
 		{:else}
 			<div
 				class="inline-flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-slate-100 dark:bg-slate-800/80 dark:text-slate-300 dark:ring-slate-700/60"
-				title={weather.description}
+				title={getWeatherDescription(weather.description)}
 			>
 				<span class="text-base">{weather.icon}</span>
 				<span>{Math.round(weather.temp)}°C</span>
 				<span class="hidden text-xs text-slate-400 dark:text-slate-500 sm:inline-block">•</span>
-				<span class="hidden text-xs text-slate-500 dark:text-slate-400 sm:inline-block capitalize">{weather.description}</span>
+				<span class="hidden text-xs text-slate-500 dark:text-slate-400 sm:inline-block">{getWeatherDescription(weather.description)}</span>
 			</div>
 		{/if}
 	{:else}

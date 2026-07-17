@@ -31,6 +31,7 @@
 		UserProfile
 	} from '$lib/schema';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
+	import { formatDate as formatEventDate } from '$lib/utils/format.utils';
 	import type { Unsubscribe } from 'firebase/firestore';
 	import { i18n } from '$lib/services/i18n.svelte';
 
@@ -58,6 +59,7 @@
 	let friendRequests = $state<FriendRequestWithProfile[]>([]);
 	let conversations = $state<ConversationWithProfile[]>([]);
 	let friends = $state<UserProfile[]>([]);
+	let currentProfile = $state<UserProfile | null>(null);
 	let showFinishedChats = $state(false);
 	let openConversationMenuId = $state('');
 	let pinnedConversationIds = $state<string[]>([]);
@@ -66,6 +68,7 @@
 	let activeConversations = $derived(
 		sortConversationPins(conversations.filter((c) => !c.isFinishedEvent))
 	);
+	let isOrganizationAccount = $derived(currentProfile?.accountType === 'organization');
 	let finishedEventConversations = $derived(
 		sortConversationPins(conversations.filter((c) => c.isFinishedEvent))
 	);
@@ -238,23 +241,7 @@
 	}
 
 	function formatDate(dateValue: unknown) {
-		try {
-			const timestamp = dateValue as { toDate?: () => Date };
-
-			if (timestamp?.toDate) {
-				return timestamp.toDate().toLocaleString('en-GB', {
-					weekday: 'short',
-					day: '2-digit',
-					month: 'short',
-					hour: '2-digit',
-					minute: '2-digit'
-				});
-			}
-
-			return 'Date not set';
-		} catch {
-			return 'Date not set';
-		}
+		return formatEventDate(dateValue, true);
 	}
 
 	async function updateConversationPreviews(
@@ -468,8 +455,14 @@
 				}
 			);
 
-			const rawFriends = await getFriendsForUser(currentUser.uid);
-			friends = rawFriends.sort(sortByDisplayName);
+			currentProfile = await getUserProfile(currentUser.uid);
+
+			if (currentProfile?.accountType === 'organization') {
+				friends = [];
+			} else {
+				const rawFriends = await getFriendsForUser(currentUser.uid);
+				friends = rawFriends.sort(sortByDisplayName);
+			}
 
 			stopConversationsListener();
 
@@ -539,7 +532,7 @@
 				status
 			});
 
-			if (status === 'accepted') {
+			if (status === 'accepted' && !isOrganizationAccount) {
 				const rawFriends = await getFriendsForUser(currentUser.uid);
 				friends = rawFriends.sort(sortByDisplayName);
 			}
@@ -670,7 +663,7 @@
 					<div class="mb-3 flex items-center justify-between">
 						<h2 class="text-sm font-black uppercase tracking-[0.16em] text-slate-400 sm:text-base sm:normal-case sm:tracking-normal sm:text-slate-950 sm:dark:text-white">Event invitations</h2>
 						<span class="text-sm font-bold text-blue-600 dark:text-blue-400">
-							{invites.filter((invite) => invite.status === 'pending').length} pending
+							{i18n.t('pending_count', { count: invites.filter((invite) => invite.status === 'pending').length })}
 						</span>
 					</div>
 
@@ -706,14 +699,14 @@
 													disabled={actionLoading !== ''}
 													class="rounded-full bg-blue-600 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-60"
 												>
-													Accept
+													{i18n.t('accept')}
 												</button>
 												<button
 													onclick={() => handleInviteResponse(invite, 'declined')}
 													disabled={actionLoading !== ''}
 													class="rounded-full px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-red-600 disabled:opacity-60"
 												>
-													Decline
+													{i18n.t('decline')}
 												</button>
 											</div>
 										{:else}
@@ -723,7 +716,7 @@
 										{/if}
 									</div>
 								{:else}
-									<p class="text-sm text-slate-500">Event could not be loaded.</p>
+									<p class="text-sm text-slate-500">{i18n.t('could_not_load_event')}</p>
 								{/if}
 							</article>
 						{/each}
@@ -734,9 +727,9 @@
 			{#if friendRequests.length > 0}
 				<section class="mb-6 sm:mb-8">
 					<div class="mb-3 flex items-center justify-between">
-						<h2 class="text-base font-black">Friend requests</h2>
+						<h2 class="text-base font-black">{i18n.t('friend_requests')}</h2>
 						<span class="text-sm font-bold text-blue-600 dark:text-blue-400">
-							{friendRequests.filter((request) => request.status === 'pending').length} pending
+							{i18n.t('pending_count', { count: friendRequests.filter((request) => request.status === 'pending').length })}
 						</span>
 					</div>
 
@@ -756,7 +749,7 @@
 
 									<div class="min-w-0 flex-1">
 										<p class="truncate font-black">
-											{request.fromUser?.displayName ?? 'Rally user'}
+											{request.fromUser?.displayName ?? i18n.t('rally_user')}
 										</p>
 										<p class="truncate text-sm text-slate-500 dark:text-slate-400">
 											@{request.fromUser?.rallyTag}
@@ -771,7 +764,7 @@
 											disabled={actionLoading !== ''}
 											class="rounded-full bg-blue-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
 										>
-											Accept
+											{i18n.t('accept')}
 										</button>
 
 										<button
@@ -779,7 +772,7 @@
 											disabled={actionLoading !== ''}
 											class="rounded-full px-4 py-2 text-sm font-bold text-slate-500 hover:text-red-600 disabled:opacity-60"
 										>
-											Decline
+											{i18n.t('decline')}
 										</button>
 									</div>
 								{:else}
@@ -793,7 +786,7 @@
 
 					{#if friendRequests.length > 3}
 						<p class="mt-3 text-sm font-semibold text-slate-500 dark:text-slate-400">
-							Showing latest 3 requests.
+							{i18n.t('showing_latest_requests')}
 						</p>
 					{/if}
 				</section>
@@ -904,7 +897,7 @@
 										onclick={() => openConversationMenu(conversation.id)}
 										data-conversation-menu
 										class="hidden h-9 w-9 shrink-0 items-center justify-center text-slate-400 transition hover:text-slate-800 dark:text-slate-500 dark:hover:text-white md:flex"
-										aria-label="Conversation options"
+										aria-label={i18n.t('conversation_options')}
 									>
 										⌄
 									</button>
@@ -926,8 +919,8 @@
 												class="block w-full rounded-xl px-3 py-2 text-left font-bold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
 											>
 												{pinnedConversationIds.includes(conversation.id)
-													? 'Unpin chat'
-													: 'Pin chat'}
+													? i18n.t('unpin_chat')
+													: i18n.t('pin_chat')}
 											</button>
 											<button
 												type="button"
@@ -935,8 +928,8 @@
 												class="block w-full rounded-xl px-3 py-2 text-left font-bold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
 											>
 												{mutedConversationIds.includes(conversation.id)
-													? 'Unmute chat'
-													: 'Mute chat'}
+													? i18n.t('unmute_chat')
+													: i18n.t('mute_chat')}
 											</button>
 											<button
 												type="button"
@@ -944,7 +937,7 @@
 												disabled={actionLoading === `clear-${conversation.id}`}
 												class="block w-full rounded-xl px-3 py-2 text-left font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:text-slate-200 dark:hover:bg-slate-800"
 											>
-												Clear chat
+												{i18n.t('clear_chat')}
 											</button>
 											<button
 												type="button"
@@ -952,7 +945,7 @@
 												disabled={actionLoading === `conversation-${conversation.id}`}
 												class="block w-full rounded-xl px-3 py-2 text-left font-bold text-red-600 hover:bg-red-50 disabled:opacity-50 dark:text-red-300 dark:hover:bg-red-950/40"
 											>
-												Delete chat
+												{i18n.t('delete_chat')}
 											</button>
 										</div>
 									{/if}
@@ -1047,7 +1040,7 @@
 											onclick={() => openConversationMenu(conversation.id)}
 											data-conversation-menu
 											class="hidden h-9 w-9 shrink-0 items-center justify-center text-slate-400 transition hover:text-slate-800 dark:text-slate-500 dark:hover:text-white md:flex"
-											aria-label="Conversation options"
+											aria-label={i18n.t('conversation_options')}
 										>
 											⌄
 										</button>
@@ -1069,8 +1062,8 @@
 													class="block w-full rounded-xl px-3 py-2 text-left font-bold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
 												>
 													{pinnedConversationIds.includes(conversation.id)
-														? 'Unpin chat'
-														: 'Pin chat'}
+														? i18n.t('unpin_chat')
+														: i18n.t('pin_chat')}
 												</button>
 												<button
 													type="button"
@@ -1078,8 +1071,8 @@
 													class="block w-full rounded-xl px-3 py-2 text-left font-bold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
 												>
 													{mutedConversationIds.includes(conversation.id)
-														? 'Unmute chat'
-														: 'Mute chat'}
+														? i18n.t('unmute_chat')
+														: i18n.t('mute_chat')}
 												</button>
 												<button
 													type="button"
@@ -1087,7 +1080,7 @@
 													disabled={actionLoading === `clear-${conversation.id}`}
 													class="block w-full rounded-xl px-3 py-2 text-left font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:text-slate-200 dark:hover:bg-slate-800"
 												>
-													Clear chat
+													{i18n.t('clear_chat')}
 												</button>
 												<button
 													type="button"
@@ -1095,7 +1088,7 @@
 													disabled={actionLoading === `conversation-${conversation.id}`}
 													class="block w-full rounded-xl px-3 py-2 text-left font-bold text-red-600 hover:bg-red-50 disabled:opacity-50 dark:text-red-300 dark:hover:bg-red-950/40"
 												>
-													Delete chat
+													{i18n.t('delete_chat')}
 												</button>
 											</div>
 										{/if}
@@ -1107,12 +1100,13 @@
 				{/if}
 			</section>
 
+			{#if !isOrganizationAccount}
 			<section>
-				<h2 class="mb-3 text-sm font-black uppercase tracking-[0.16em] text-slate-400 sm:text-base sm:normal-case sm:tracking-normal sm:text-slate-950 sm:dark:text-white">Rally friends</h2>
+				<h2 class="mb-3 text-sm font-black uppercase tracking-[0.16em] text-slate-400 sm:text-base sm:normal-case sm:tracking-normal sm:text-slate-950 sm:dark:text-white">{i18n.t('rally_friends')}</h2>
 
 				{#if friends.length === 0}
 					<p class="text-sm text-slate-500 dark:text-slate-400">
-						No friends yet. Add people from your profile using their Rally tag.
+						{i18n.t('no_friends_sub')}
 					</p>
 				{:else}
 					<div class="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1143,6 +1137,7 @@
 					</div>
 				{/if}
 			</section>
+			{/if}
 		{/if}
 	</div>
 </main>

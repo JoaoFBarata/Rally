@@ -36,6 +36,7 @@
 		subscribeToUserActivityChanges
 	} from '$lib/services/realtime.service';
 	import { notificationState } from '$lib/notifications.svelte';
+	import { formatDate } from '$lib/utils/format.utils';
 
 	let user = $state<User | null>(null);
 	let profile = $state<UserProfile | null>(null);
@@ -174,22 +175,7 @@
 	}
 
 	function formatCompactDate(dateValue: unknown) {
-		try {
-			const ts = dateValue as { toDate?: () => Date };
-			if (ts?.toDate) {
-				return ts.toDate().toLocaleString('en-GB', {
-					weekday: 'short',
-					day: '2-digit',
-					month: 'short',
-					hour: '2-digit',
-					minute: '2-digit'
-				});
-			}
-		} catch {
-			// fall through
-		}
-
-		return 'Date not set';
+		return formatDate(dateValue, true);
 	}
 
 	function formatBadge(value: number) {
@@ -668,7 +654,7 @@
 								{/if}
 							</p>
 							<p class="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
-								{invitePreviewEvent?.title ?? 'Event invite'}
+								{invitePreviewEvent?.title ?? i18n.t('event_invite_label')}
 								{#if invitePreviewEvent}
 									- {formatCompactDate(invitePreviewEvent.startAt)}
 								{/if}
@@ -682,7 +668,7 @@
 							onclick={() => handleInviteResponse('declined')}
 							disabled={Boolean(inviteActionLoading)}
 							class="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-500 transition hover:bg-slate-200 disabled:opacity-60 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-							aria-label="Decline invite"
+							aria-label={i18n.t('decline')}
 						>
 							{#if inviteActionLoading === 'declined'}
 								...
@@ -698,7 +684,7 @@
 							onclick={() => handleInviteResponse('accepted')}
 							disabled={Boolean(inviteActionLoading)}
 							class="grid h-9 w-9 place-items-center rounded-xl bg-emerald-500 font-black text-white shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-600 disabled:opacity-60"
-							aria-label="Accept invite"
+							aria-label={i18n.t('accept')}
 						>
 							{#if inviteActionLoading === 'accepted'}
 								...

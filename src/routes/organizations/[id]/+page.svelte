@@ -38,6 +38,7 @@
 		formatSport,
 		formatPrice,
 		formatCapacity,
+		getCurrentLocale,
 		getMiniMapUrl as getMiniMapUrlUtil
 	} from '$lib/utils/format.utils';
 	import { TEXT_LIMITS } from '$lib/constants/text-limits';
@@ -90,6 +91,7 @@
 	let replyComment = $state('');
 	let replySubmitting = $state(false);
 	let replyMessage = $state('');
+	let visibleEventCount = $state(3);
 	const reviewsPerPage = 4;
 
 	let upcomingEvents = $derived(getUpcomingEvents(events));
@@ -99,7 +101,9 @@
 	let normalUpcomingEvents = $derived(
 		upcomingEvents.filter((event) => !(event.isPromoted && event.promotionStatus === 'active'))
 	);
-	let featuredEvents = $derived([...promotedEvents, ...normalUpcomingEvents].slice(0, 3));
+	let orderedUpcomingEvents = $derived([...promotedEvents, ...normalUpcomingEvents]);
+	let visibleUpcomingEvents = $derived(orderedUpcomingEvents.slice(0, visibleEventCount));
+	let hasMoreUpcomingEvents = $derived(orderedUpcomingEvents.length > visibleEventCount);
 	let organizationSports = $derived.by(() => {
 		if (organization?.sports?.length) return organization.sports.slice(0, 3);
 		const sports = new Set<string>();
@@ -148,11 +152,11 @@
 	}
 
 	function verificationLabel() {
-		if (!organization) return 'Not verified';
-		if (organization.verificationStatus === 'verified') return 'Verified';
-		if (organization.verificationStatus === 'pending') return 'Verification pending';
-		if (organization.verificationStatus === 'rejected') return 'Verification rejected';
-		return 'Not verified';
+		if (!organization) return i18n.t('not_verified');
+		if (organization.verificationStatus === 'verified') return i18n.t('verified');
+		if (organization.verificationStatus === 'pending') return i18n.t('verification_pending');
+		if (organization.verificationStatus === 'rejected') return i18n.t('verification_rejected');
+		return i18n.t('not_verified');
 	}
 
 	function verificationClasses() {
@@ -190,11 +194,15 @@
 
 	function getStatusLabel(event: SportEvent) {
 		const status = getEffectiveStatus(event);
-		if (status === 'cancelled') return 'Cancelled';
-		if (status === 'finished') return 'Finished';
-		if (status === 'full') return 'Full';
-		if (status === 'open') return 'Open';
+		if (status === 'cancelled') return i18n.t('status_cancelled');
+		if (status === 'finished') return i18n.t('status_finished');
+		if (status === 'full') return i18n.t('status_full');
+		if (status === 'open') return i18n.t('status_open');
 		return status;
+	}
+
+	function showMoreEvents() {
+		visibleEventCount = Math.min(visibleEventCount + 6, orderedUpcomingEvents.length);
 	}
 
 
@@ -475,7 +483,7 @@
 		return (
 			organization?.city ||
 			organization?.address ||
-			'Location not set'
+			i18n.t('location_not_set')
 		);
 	}
 
@@ -486,14 +494,14 @@
 	function formatEventDay(dateValue: unknown) {
 		try {
 			const timestamp = dateValue as { toDate?: () => Date };
-			if (!timestamp?.toDate) return 'Soon';
-			return timestamp.toDate().toLocaleDateString('en-GB', {
+			if (!timestamp?.toDate) return i18n.t('soon');
+			return timestamp.toDate().toLocaleDateString(getCurrentLocale(), {
 				weekday: 'short',
 				month: 'short',
 				day: '2-digit'
 			});
 		} catch {
-			return 'Soon';
+			return i18n.t('soon');
 		}
 	}
 
@@ -899,21 +907,32 @@
 						<div class="mb-3 flex items-center justify-between gap-3">
 							<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">{i18n.t('upcoming_events')}</h2>
 							{#if upcomingEvents.length > 2}
-								<a href="#organization-events" class="text-sm font-black text-blue-600 dark:text-blue-400">{i18n.t('view_all_events')}</a>
+								<span class="shrink-0 text-xs font-black text-blue-600 dark:text-blue-400 sm:text-sm">
+									{i18n.t('showing_events', { count: visibleUpcomingEvents.length, total: upcomingEvents.length })}
+								</span>
 							{/if}
 						</div>
 
-						{#if featuredEvents.length === 0}
+						{#if visibleUpcomingEvents.length === 0}
 							<div class="rounded-[1.5rem] border border-dashed border-slate-200 p-5 text-center dark:border-slate-800">
 								<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('no_upcoming_events')}</p>
 								<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{i18n.t('no_upcoming_events_sub')}</p>
 							</div>
 						{:else}
 							<div class="grid max-w-3xl gap-4">
-								{#each featuredEvents as event (event.id)}
+								{#each visibleUpcomingEvents as event (event.id)}
 									<EventCard {event} variant="hero" miniHero heroCtaLabel={i18n.t('view_event')} />
 								{/each}
 							</div>
+							{#if hasMoreUpcomingEvents}
+								<button
+									type="button"
+									onclick={showMoreEvents}
+									class="mt-4 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-blue-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 dark:border-slate-800 dark:bg-slate-900 dark:text-blue-300 dark:hover:bg-slate-800"
+								>
+									{i18n.t('show_more')}
+								</button>
+							{/if}
 						{/if}
 					</section>
 
@@ -1229,7 +1248,9 @@
 						<p class="text-sm font-bold text-slate-500 dark:text-slate-400">{i18n.t('events_hosted_by')} {organization.name}</p>
 					</div>
 					{#if upcomingEvents.length > 2}
-						<span class="text-sm font-black text-blue-600 dark:text-blue-400">{i18n.t('see_all')}</span>
+						<span class="shrink-0 text-right text-xs font-black text-blue-600 dark:text-blue-400 md:text-sm">
+							{i18n.t('showing_events', { count: visibleUpcomingEvents.length, total: upcomingEvents.length })}
+						</span>
 					{/if}
 				</div>
 
@@ -1245,14 +1266,19 @@
 					</div>
 				{:else}
 					<div class="grid gap-4">
-						{#each promotedEvents as event (event.id)}
-							<EventCard {event} variant="hero" compactHero heroCtaLabel={i18n.t('view_event')} />
-						{/each}
-
-						{#each normalUpcomingEvents as event (event.id)}
+						{#each visibleUpcomingEvents as event (event.id)}
 							<EventCard {event} variant="hero" compactHero heroCtaLabel={i18n.t('view_event')} />
 						{/each}
 					</div>
+					{#if hasMoreUpcomingEvents}
+						<button
+							type="button"
+							onclick={showMoreEvents}
+							class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-blue-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 dark:border-slate-800 dark:bg-slate-900 dark:text-blue-300 dark:hover:bg-slate-800"
+						>
+							{i18n.t('show_more')}
+						</button>
+					{/if}
 				{/if}
 			</section>
 
@@ -1371,7 +1397,7 @@
 						/>
 						<button type="button" onclick={() => galleryInput?.click()} disabled={uploadingGallery} class="rounded-2xl bg-blue-600 px-3 py-2 text-xs font-black text-white transition hover:bg-blue-700 disabled:opacity-60 sm:px-4 sm:py-2.5 sm:text-sm">
 							<span class="sm:hidden">{uploadingGallery ? '...' : '+'}</span>
-							<span class="hidden sm:inline">{uploadingGallery ? i18n.t('uploading') : `+ ${i18n.t('add_photos')}`}</span>
+							<span class="hidden sm:inline">{uploadingGallery ? i18n.t('uploading') : i18n.t('add_photos')}</span>
 						</button>
 					{/if}
 				</div>
@@ -1547,7 +1573,7 @@
 									<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">{i18n.t('cover_photo_help')}</p>
 								</div>
 								<button type="button" onclick={() => coverInput?.click()} disabled={savingProfile} class="shrink-0 rounded-2xl bg-white px-4 py-2 text-sm font-black text-slate-800 shadow-sm transition hover:bg-slate-100 disabled:opacity-60 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700">
-									{i18n.t('change') || 'Change'}
+									{i18n.t('change_btn')}
 								</button>
 							</div>
 						</div>
@@ -1673,12 +1699,12 @@
 					</div>
 
 					<div class="mt-5 space-y-3">
-						<button type="button" onclick={toggleOrganizationNotifications} class="flex w-full items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-left dark:bg-slate-800">
-							<span>
+						<button type="button" onclick={toggleOrganizationNotifications} class="flex w-full items-start justify-between gap-4 rounded-2xl bg-slate-50 px-4 py-3 text-left dark:bg-slate-800">
+							<span class="min-w-0 flex-1">
 								<span class="block font-black text-slate-950 dark:text-slate-50">{i18n.t('notifications')}</span>
 								<span class="text-sm font-bold text-slate-500 dark:text-slate-400">{orgNotificationsEnabled ? i18n.t('enabled') : i18n.t('disabled')} {i18n.t('for_this_org')}</span>
 							</span>
-							<span class={`h-7 w-12 rounded-full p-1 transition ${orgNotificationsEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}>
+							<span class={`mt-1 h-7 w-12 shrink-0 rounded-full p-1 transition ${orgNotificationsEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}>
 								<span class={`block h-5 w-5 rounded-full bg-white transition ${orgNotificationsEnabled ? 'translate-x-5' : ''}`}></span>
 							</span>
 						</button>

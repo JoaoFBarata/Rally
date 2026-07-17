@@ -76,25 +76,25 @@
 	let promotedRotationSeed = $state(0);
 	const promotedPageSize = 4;
 
-	const dateFilterOptions = [
-		{ value: 'today' as const, label: 'Today' },
-		{ value: '7' as const, label: '7 days' },
-		{ value: '14' as const, label: '14 days' },
-		{ value: '30' as const, label: '30 days' },
-		{ value: 'all' as const, label: 'All' }
-	];
-	const priceFilterOptions = [
-		{ value: 'all' as const, label: 'All' },
-		{ value: 'free' as const, label: 'Free' },
-		{ value: 'paid' as const, label: 'Paid' }
-	];
-	const audienceFilterOptions = [
-		{ value: 'all' as const, label: 'All' },
-		{ value: 'mine' as const, label: 'My events' },
-		{ value: 'friends' as const, label: 'Friends' },
-		{ value: 'public' as const, label: 'Public' },
-		{ value: 'joined' as const, label: 'Joined' }
-	];
+	let dateFilterOptions = $derived([
+		{ value: 'today' as const, label: i18n.t('today') },
+		{ value: '7' as const, label: i18n.t('next_7_days') },
+		{ value: '14' as const, label: i18n.t('next_14_days') },
+		{ value: '30' as const, label: i18n.t('next_30_days') },
+		{ value: 'all' as const, label: i18n.t('all') }
+	]);
+	let priceFilterOptions = $derived([
+		{ value: 'all' as const, label: i18n.t('all') },
+		{ value: 'free' as const, label: i18n.t('free') },
+		{ value: 'paid' as const, label: i18n.t('paid') }
+	]);
+	let audienceFilterOptions = $derived([
+		{ value: 'all' as const, label: i18n.t('all') },
+		{ value: 'mine' as const, label: i18n.t('my_events') },
+		{ value: 'friends' as const, label: i18n.t('friends') },
+		{ value: 'public' as const, label: i18n.t('public_events') },
+		{ value: 'joined' as const, label: i18n.t('joined') }
+	]);
 
 	let allExploreEvents = $derived.by(() => {
 		const eventsById = new Map<string, SportEvent>();
@@ -472,7 +472,7 @@
 		<section
 			class="rounded-4xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-700 dark:bg-slate-800"
 		>
-			<p class="text-slate-500">Loading events...</p>
+			<p class="text-slate-500">{i18n.t('loading_events')}</p>
 		</section>
 	{:else if error}
 		<section class="rounded-4xl border border-red-200 bg-red-50 p-8 text-red-700">
@@ -550,7 +550,7 @@
 												type="button"
 												onclick={() => setPromotedPage(pageIndex)}
 												class={`h-2 rounded-full transition-all ${pageIndex === promotedPage ? 'w-6 bg-blue-600' : 'w-2 bg-blue-200 dark:bg-blue-900'}`}
-												aria-label={`Show promoted page ${pageIndex + 1}`}
+												aria-label={i18n.t('show_promoted_page', { page: pageIndex + 1 })}
 											></button>
 										{/each}
 									</div>
@@ -559,7 +559,7 @@
 								<div
 									class="rounded-[1.5rem] border border-dashed border-slate-350 bg-white/95 p-4 text-sm font-bold text-slate-500 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-950/95 dark:text-slate-400"
 								>
-									No promoted events right now.
+									{i18n.t('no_promoted_events')}
 								</div>
 							{/if}
 						</div>
@@ -573,10 +573,10 @@
 					<div class="mb-2 flex items-center justify-between gap-3">
 						<div>
 							<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">
-								Promoted
+								{i18n.t('promoted')}
 							</p>
 							<p class="mt-0.5 text-xs font-bold text-slate-500 dark:text-slate-400">
-								Events boosted near your filters.
+								{i18n.t('promoted_boost_msg')}
 							</p>
 						</div>
 					</div>
@@ -596,7 +596,7 @@
 														{event.sport}
 													</span>
 													<span class="rounded-full bg-blue-100 px-2 py-0.5 text-[9px] font-black uppercase text-blue-700 dark:bg-blue-950/80 dark:text-blue-300">
-														PROMOTED
+														{i18n.t('promoted')}
 													</span>
 												</div>
 
@@ -627,7 +627,7 @@
 										type="button"
 										onclick={() => setPromotedPage(pageIndex)}
 										class={`h-2 rounded-full transition-all ${pageIndex === promotedPage ? 'w-6 bg-blue-600' : 'w-2 bg-blue-200 dark:bg-blue-100'}`}
-										aria-label={`Show promoted page ${pageIndex + 1}`}
+										aria-label={i18n.t('show_promoted_page', { page: pageIndex + 1 })}
 									></button>
 								{/each}
 							</div>
@@ -636,7 +636,7 @@
 						<div
 							class="rounded-xl border border-dashed border-slate-350 bg-white p-2.5 text-xs font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
 						>
-							No promoted events right now.
+							{i18n.t('no_promoted_events')}
 						</div>
 					{/if}
 				</section>

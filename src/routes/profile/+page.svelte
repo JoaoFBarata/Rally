@@ -221,7 +221,7 @@
 			await loadProfile();
 		} catch (err) {
 			console.error('Profile photo error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not update profile photo.');
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_update_profile_photo'));
 		} finally {
 			photoSaving = false;
 		}
@@ -249,7 +249,7 @@
 			await loadProfile();
 		} catch (err) {
 			console.error('Select avatar error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not update profile photo.');
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_update_profile_photo'));
 		} finally {
 			photoSaving = false;
 		}
@@ -270,11 +270,11 @@
 				rallyTag: friendTag
 			});
 
-			success = `Friend request sent to ${target.displayName}.`;
+			success = i18n.t('friend_request_sent_to', { name: target.displayName });
 			friendTag = '';
 		} catch (err) {
 			console.error('Friend request error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not send friend request.');
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_send_friend_request'));
 		} finally {
 			friendLoading = false;
 		}
@@ -299,7 +299,7 @@
 				friendId: friend.id
 			});
 
-			success = `${friend.displayName} removed from friends.`;
+			success = i18n.t('friend_removed', { name: friend.displayName });
 			await loadProfile();
 		} catch (err) {
 			console.error('Remove friend error:', err);
@@ -423,21 +423,21 @@
 				<div class="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
 					<div class="flex items-center justify-between gap-3">
 						<div>
-							<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">Edit profile</h2>
-							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Keep your Rally profile fresh.</p>
+							<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">{i18n.t('edit_profile')}</h2>
+							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{i18n.t('profile_fresh_sub')}</p>
 						</div>
 						<button
 							type="button"
 							onclick={cancelEdit}
 							class="rounded-full bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
 						>
-							Cancel
+							{i18n.t('cancel')}
 						</button>
 					</div>
 
 					<div class="mt-5 grid gap-4">
 						<div>
-							<label for="mobile-name" class="text-sm font-bold text-slate-700 dark:text-slate-300">Name</label>
+							<label for="mobile-name" class="text-sm font-bold text-slate-700 dark:text-slate-300">{i18n.t('name')}</label>
 							<input
 								id="mobile-name"
 								bind:value={displayName}
@@ -448,7 +448,7 @@
 
 						<div class="grid grid-cols-2 gap-3">
 							<div>
-								<label for="mobile-city" class="text-sm font-bold text-slate-700 dark:text-slate-300">City</label>
+								<label for="mobile-city" class="text-sm font-bold text-slate-700 dark:text-slate-300">{i18n.t('city')}</label>
 								<input
 									id="mobile-city"
 									bind:value={city}
@@ -457,13 +457,13 @@
 								/>
 							</div>
 							<div>
-								<label for="mobile-country" class="text-sm font-bold text-slate-700 dark:text-slate-300">Country</label>
+								<label for="mobile-country" class="text-sm font-bold text-slate-700 dark:text-slate-300">{i18n.t('country')}</label>
 								<select
 									id="mobile-country"
 									bind:value={country}
 									class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
 								>
-									<option value="">Not set</option>
+									<option value="">{i18n.t('not_set')}</option>
 									{#each PROMOTION_COUNTRIES as option}
 										<option value={option.code}>{option.label}</option>
 									{/each}
@@ -472,7 +472,7 @@
 						</div>
 
 						<div>
-							<label for="mobile-age" class="text-sm font-bold text-slate-700 dark:text-slate-300">Age</label>
+							<label for="mobile-age" class="text-sm font-bold text-slate-700 dark:text-slate-300">{i18n.t('age')}</label>
 							<input
 								id="mobile-age"
 								type="number"
@@ -519,7 +519,7 @@
 							disabled={saving}
 							class="rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white shadow-lg shadow-blue-600/20 transition active:scale-[0.98] disabled:opacity-60"
 						>
-							{saving ? 'Saving...' : 'Save profile'}
+							{saving ? i18n.t('saving') : i18n.t('save_profile')}
 						</button>
 					</div>
 				</div>
@@ -537,7 +537,7 @@
 						        type="button"
 						        onclick={() => (showPhotoModal = true)}
 						        class="absolute -bottom-1 -right-1 flex h-9 w-9 items-center justify-center rounded-full bg-white text-blue-600 shadow-lg ring-2 ring-white transition active:scale-95 dark:bg-slate-900 dark:text-blue-400 dark:ring-slate-950"
-						        aria-label="Edit profile photo"
+						        aria-label={i18n.t('edit_profile_photo')}
 						    >
 						        {#if photoSaving}
 						            <span class="text-sm font-black">…</span>
@@ -707,12 +707,12 @@
 
 			<div class="px-2">
 			    <div class="flex items-center justify-between gap-3">
-			        <h2 class="text-lg font-black text-slate-950 dark:text-slate-50">Friends</h2>
+			        <h2 class="text-lg font-black text-slate-950 dark:text-slate-50">{i18n.t('friends')}</h2>
 			        <span class="text-xs font-black text-blue-600 dark:text-blue-400">{friends.length}</span>
 			    </div>
 
 			    {#if friends.length === 0}
-			        <p class="mt-3 text-sm text-slate-500 dark:text-slate-400">Add friends using a Rally tag.</p>
+			        <p class="mt-3 text-sm text-slate-500 dark:text-slate-400">{i18n.t('no_friends_sub')}</p>
 			    {:else}
 			        <div class="mt-4 flex gap-3 overflow-x-auto pb-4">
 						{#each friends as friend (friend.id)}
@@ -728,7 +728,7 @@
 			</div>
 
 			<div class="px-2">
-			    <h2 class="text-lg font-black text-slate-950 dark:text-slate-50">Add friend</h2>
+			    <h2 class="text-lg font-black text-slate-950 dark:text-slate-50">{i18n.t('add_friend')}</h2>
 			    <div class="mt-3 flex gap-2">
 			        <input
 						bind:value={friendTag}
@@ -763,7 +763,7 @@
 							<button
 								type="button"
 								onclick={() => (showPhotoModal = true)}
-								title="Edit profile photo"
+								title={i18n.t('edit_profile_photo')}
 								class="absolute -bottom-1 -right-1 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-white text-blue-600 shadow-lg ring-2 ring-white transition hover:scale-105 hover:bg-blue-50 dark:bg-slate-900 dark:text-blue-400 dark:ring-slate-950 dark:hover:bg-slate-800"
 							>
 								{#if photoSaving}
@@ -845,7 +845,7 @@
 								onclick={cancelEdit}
 								class="rounded-full bg-slate-100 px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 sm:px-4 sm:text-sm"
 							>
-								Cancel
+								{i18n.t('cancel')}
 							</button>
 						{:else}
 							<button
@@ -853,7 +853,7 @@
 								onclick={() => (editMode = true)}
 								class="rounded-full bg-blue-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-blue-700 sm:px-4 sm:text-sm"
 							>
-								Edit profile
+								{i18n.t('edit_profile')}
 							</button>
 						{/if}
 					</div>
@@ -863,7 +863,7 @@
 					<div class="mt-8 grid gap-5">
 						<div>
 							<label for="name" class="text-sm font-bold text-slate-700 dark:text-slate-300">
-								Name
+								{i18n.t('name')}
 							</label>
 							<input
 								id="name"
@@ -876,27 +876,27 @@
 						<div class="grid grid-cols-2 gap-3 md:gap-5">
 							<div>
 								<label for="city" class="text-sm font-bold text-slate-700 dark:text-slate-300">
-									City
+									{i18n.t('city')}
 								</label>
 								<input
 									id="city"
 									bind:value={city}
 									maxlength={TEXT_LIMITS.city}
-									placeholder="Lisbon, Portugal"
+									placeholder={i18n.t('city_country_placeholder')}
 									class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500"
 								/>
 							</div>
 
 							<div>
 								<label for="country" class="text-sm font-bold text-slate-700 dark:text-slate-300"
-									>Country</label
+									>{i18n.t('country')}</label
 								>
 								<select
 									id="country"
 									bind:value={country}
 									class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
 								>
-									<option value="">Not set</option>
+									<option value="">{i18n.t('not_set')}</option>
 									{#each PROMOTION_COUNTRIES as option}
 										<option value={option.code}>{option.label}</option>
 									{/each}
@@ -905,7 +905,7 @@
 
 							<div>
 								<label for="age" class="text-sm font-bold text-slate-700 dark:text-slate-300">
-									Age
+									{i18n.t('age')}
 								</label>
 								<input
 									id="age"
@@ -921,7 +921,7 @@
 
 						<div>
 							<label for="bio" class="text-sm font-bold text-slate-700 dark:text-slate-300">
-								Bio
+								{i18n.t('bio')}
 							</label>
 							<textarea
 								id="bio"
@@ -958,7 +958,7 @@
 							disabled={saving}
 							class="rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-60 dark:shadow-blue-950/40"
 						>
-							{saving ? 'Saving...' : 'Save profile'}
+							{saving ? i18n.t('saving') : i18n.t('save_profile')}
 						</button>
 					</div>
 				{:else}
@@ -1038,8 +1038,8 @@
 							type="button"
 							onclick={() => (showQrModal = true)}
 							class="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 transition hover:bg-slate-200 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-							aria-label="Show QR code"
-							title="Show QR code"
+							aria-label={i18n.t('my_qr_code')}
+							title={i18n.t('my_qr_code')}
 						>
 							<img src="/qr-code.png" alt="QR code" class="h-6 w-6 object-contain" />
 						</button>
@@ -1124,8 +1124,8 @@
 											type="button"
 											onclick={() => handleRemoveFriend(friend)}
 											class="flex h-8 w-8 items-center justify-center shrink-0 rounded-full bg-white text-slate-400 shadow-sm transition hover:bg-red-50 hover:text-red-600 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-red-950/40 dark:hover:text-red-400"
-											title="Remove friend"
-											aria-label="Remove friend"
+											title={i18n.t('remove_friend')}
+											aria-label={i18n.t('remove_friend')}
 										>
 											<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-4 w-4">
 												<path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
@@ -1253,10 +1253,10 @@
 				<div class="flex items-start justify-between gap-4">
 					<div class="text-left">
 						<h2 id="profile-qr-title" class="text-2xl font-black text-slate-950 dark:text-slate-50">
-							My QR code
+							{i18n.t('my_qr_code')}
 						</h2>
 						<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-							Show this QR code to add you on Rally.
+							{i18n.t('show_qr_add_you')}
 						</p>
 					</div>
 
@@ -1264,7 +1264,7 @@
 						type="button"
 						onclick={() => (showQrModal = false)}
 						class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-xl font-black text-slate-500 transition hover:bg-slate-200 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-						aria-label="Close QR code"
+						aria-label={i18n.t('close_qr_code')}
 					>
 						×
 					</button>
@@ -1275,14 +1275,14 @@
 						{#if qrCodeDataUrl}
 							<img
 								src={qrCodeDataUrl}
-								alt="Rally friend QR code"
+								alt={i18n.t('rally_friend_qr_code')}
 								class="h-56 w-56 rounded-2xl sm:h-64 sm:w-64"
 							/>
 						{:else}
 							<div
 								class="flex h-56 w-56 items-center justify-center rounded-2xl bg-slate-100 text-sm font-bold text-slate-500 sm:h-64 sm:w-64"
 							>
-								Generating QR...
+								{i18n.t('generating_qr')}
 							</div>
 						{/if}
 					</div>
@@ -1315,10 +1315,10 @@
 				<div class="flex items-start justify-between gap-4">
 					<div class="text-left">
 						<h2 id="profile-photo-title" class="text-2xl font-black text-slate-950 dark:text-slate-50">
-							{avatarSelectionMode ? 'Choose App Avatar' : 'Edit profile photo'}
+							{avatarSelectionMode ? i18n.t('choose_app_avatar') : i18n.t('edit_profile_photo')}
 						</h2>
 						<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-							{avatarSelectionMode ? 'Select one of the Rally sports avatars' : 'Select how you want to update your profile photo.'}
+							{avatarSelectionMode ? i18n.t('select_sports_avatar') : i18n.t('select_profile_photo_update')}
 						</p>
 					</div>
 
@@ -1329,7 +1329,7 @@
 							avatarSelectionMode = false;
 						}}
 						class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-xl font-black text-slate-500 transition hover:bg-slate-200 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-						aria-label="Close dialog"
+						aria-label={i18n.t('close_dialog')}
 					>
 						×
 					</button>
@@ -1352,8 +1352,8 @@
 								</svg>
 							</div>
 							<div>
-								<p class="font-bold text-slate-900 dark:text-slate-50">Upload from Camera/Gallery</p>
-								<p class="text-xs text-slate-500 dark:text-slate-400">Take a photo or choose from your files</p>
+								<p class="font-bold text-slate-900 dark:text-slate-50">{i18n.t('upload_camera_gallery')}</p>
+								<p class="text-xs text-slate-500 dark:text-slate-400">{i18n.t('take_photo_or_choose_file')}</p>
 							</div>
 						</button>
 
@@ -1368,8 +1368,8 @@
 								</svg>
 							</div>
 							<div>
-								<p class="font-bold text-slate-900 dark:text-slate-50">Choose App Avatar</p>
-								<p class="text-xs text-slate-500 dark:text-slate-400">Select one of our blue sports avatars</p>
+								<p class="font-bold text-slate-900 dark:text-slate-50">{i18n.t('choose_app_avatar')}</p>
+								<p class="text-xs text-slate-500 dark:text-slate-400">{i18n.t('select_sports_avatar')}</p>
 							</div>
 						</button>
 					</div>
@@ -1392,7 +1392,7 @@
 							onclick={() => (avatarSelectionMode = false)}
 							class="mt-6 w-full rounded-2xl bg-slate-100 py-3 font-bold text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
 						>
-							Back to options
+							{i18n.t('back_to_options')}
 						</button>
 					</div>
 				{/if}
@@ -1420,10 +1420,10 @@
 					</div>
 
 					<h2 id="confirm-remove-title" class="mt-4 text-xl font-black text-slate-950 dark:text-slate-50">
-						Remove friend?
+						{i18n.t('remove_friend_title')}
 					</h2>
 					<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-						Are you sure you want to remove <span class="font-bold text-slate-800 dark:text-slate-200">{friendToRemove.displayName}</span> from your friends?
+						{i18n.t('remove_friend_message_short', { name: friendToRemove.displayName })}
 					</p>
 
 					<div class="mt-6 flex w-full flex-col gap-2 sm:flex-row">
@@ -1436,14 +1436,14 @@
 							}}
 							class="w-full rounded-2xl bg-red-600 py-3 font-bold text-white transition hover:bg-red-700 active:scale-95"
 						>
-							Remove
+							{i18n.t('remove')}
 						</button>
 						<button
 							type="button"
 							onclick={() => (friendToRemove = null)}
 							class="w-full rounded-2xl bg-slate-100 py-3 font-bold text-slate-700 transition hover:bg-slate-200 active:scale-95 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
 						>
-							Cancel
+							{i18n.t('cancel')}
 						</button>
 					</div>
 				</div>

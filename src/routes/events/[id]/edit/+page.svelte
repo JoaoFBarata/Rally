@@ -12,6 +12,7 @@
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
 	import { TEXT_LIMITS } from '$lib/constants/text-limits';
+	import { i18n } from '$lib/services/i18n.svelte';
 	import type { Sport, EventVisibility, SportLevel, SportEvent, EventJoinPolicy, EventCurrency } from '$lib/schema';
 
 	let event = $state<SportEvent | null>(null);
@@ -296,14 +297,14 @@
 		class="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-black text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
 	>
 		<span class="leading-none">←</span>
-		<span>Back</span>
+		<span>{i18n.t('back')}</span>
 	</button>
 
 	{#if loadingEvent}
 		<div
 			class="rounded-4xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 		>
-			<p class="text-slate-500 dark:text-slate-400">Loading event...</p>
+			<p class="text-slate-500 dark:text-slate-400">{i18n.t('loading_event')}</p>
 		</div>
 	{:else if loadError}
 		<div
@@ -317,9 +318,9 @@
 					<p class="text-xs font-black uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
 						Rally event
 					</p>
-					<h2 class="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50 sm:text-3xl">Edit event</h2>
+					<h2 class="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50 sm:text-3xl">{i18n.t('edit_event')}</h2>
 					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400 sm:text-base">
-						Update the event details and keep players aligned.
+						{i18n.t('edit_event_sub')}
 					</p>
 				</div>
 
@@ -340,13 +341,13 @@
 				>
 					<div>
 						<label for="title" class={labelClass}>
-							Event title
+							{i18n.t('event_title_label')}
 						</label>
 						<input
 							id="title"
 							bind:value={title}
 							maxlength={TEXT_LIMITS.eventTitle}
-							placeholder="Saturday football match"
+							placeholder={i18n.t('event_title_placeholder')}
 							class={`mt-2 ${inputClass}`}
 						/>
 					</div>
@@ -356,7 +357,7 @@
 							{#if groupPhotoURL}
 								<img
 									src={groupPhotoURL}
-									alt={title || 'Event group'}
+								alt={title || i18n.t('event_group')}
 									class="h-12 w-12 rounded-full object-cover ring-4 ring-slate-100 dark:ring-slate-800 sm:h-16 sm:w-16"
 								/>
 							{:else}
@@ -368,7 +369,7 @@
 							{/if}
 
 							<label
-								title="Edit group photo"
+								title={i18n.t('edit_group_photo')}
 								class="absolute -bottom-1 -right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-white text-xs text-blue-600 shadow-lg ring-2 ring-slate-100 transition hover:bg-blue-50 dark:bg-white dark:text-blue-600 dark:ring-slate-800 sm:h-7 sm:w-7"
 							>
 								{#if groupPhotoUploading}
@@ -384,37 +385,37 @@
 						</div>
 
 						<div class="min-w-0">
-							<p class="text-sm font-bold text-slate-700 dark:text-slate-300">Group photo</p>
-							<p class="text-xs text-slate-500 dark:text-slate-400 sm:text-sm">Optional, shown on the event page and chat.</p>
+							<p class="text-sm font-bold text-slate-700 dark:text-slate-300">{i18n.t('group_photo')}</p>
+							<p class="text-xs text-slate-500 dark:text-slate-400 sm:text-sm">{i18n.t('optional_event_photo_sub')}</p>
 						</div>
 					</div>
 
 					<div class="grid grid-cols-2 gap-3 sm:gap-5">
 						<div class="min-w-0">
 							<label for="sport" class={labelClass}>
-								Sport
+								{i18n.t('sport')}
 							</label>
 							<select
 								id="sport"
 								bind:value={sport}
 								class={`mt-2 ${inputClass}`}
 							>
-								<option value="football">Football</option>
-								<option value="padel">Padel</option>
-								<option value="basketball">Basketball</option>
-								<option value="running">Running</option>
-								<option value="gym">Gym</option>
-								<option value="tennis">Tennis</option>
-								<option value="cycling">Cycling</option>
-								<option value="volleyball">Volleyball</option>
-								<option value="other">Other</option>
+								<option value="football">{i18n.t('sport_football')}</option>
+								<option value="padel">{i18n.t('sport_padel')}</option>
+								<option value="basketball">{i18n.t('sport_basketball')}</option>
+								<option value="running">{i18n.t('sport_running')}</option>
+								<option value="gym">{i18n.t('sport_gym')}</option>
+								<option value="tennis">{i18n.t('sport_tennis')}</option>
+								<option value="cycling">{i18n.t('sport_cycling')}</option>
+								<option value="volleyball">{i18n.t('sport_volleyball')}</option>
+								<option value="other">{i18n.t('sport_other')}</option>
 							</select>
 
 							{#if sport === 'other'}
 								<input
 									bind:value={customSport}
 									maxlength={TEXT_LIMITS.customSport}
-									placeholder="e.g. Climbing, Hockey, Surfing..."
+									placeholder={i18n.t('custom_sport_placeholder')}
 									class={`mt-3 ${inputClass}`}
 								/>
 							{/if}
@@ -422,56 +423,56 @@
 
 						<div class="min-w-0">
 							<label for="level" class={labelClass}>
-								Event level
+								{i18n.t('event_level')}
 							</label>
 							<select
 								id="level"
 								bind:value={level}
 								class={`mt-2 ${inputClass}`}
 							>
-								<option value="beginner">Beginner</option>
-								<option value="casual">Casual</option>
-								<option value="intermediate">Intermediate</option>
-								<option value="advanced">Advanced</option>
+								<option value="beginner">{i18n.t('beginner')}</option>
+								<option value="casual">{i18n.t('casual')}</option>
+								<option value="intermediate">{i18n.t('intermediate')}</option>
+								<option value="advanced">{i18n.t('advanced')}</option>
 							</select>
 						</div>
 					</div>
 
 					<div>
 						<label for="description" class={labelClass}>
-							Description
+							{i18n.t('description_label')}
 						</label>
 						<textarea
 							id="description"
 							bind:value={description}
 							maxlength={TEXT_LIMITS.eventDescription}
-							placeholder="Casual game, all levels welcome..."
+							placeholder={i18n.t('description_placeholder')}
 							class={`mt-2 min-h-24 sm:min-h-28 ${inputClass}`}
 						></textarea>
 					</div>
 
 					<div>
 						<label for="whatToBring" class={labelClass}>
-							What to bring
+							{i18n.t('what_to_bring_label')}
 						</label>
 						<textarea
 							id="whatToBring"
 							bind:value={whatToBring}
 							maxlength={TEXT_LIMITS.whatToBring}
-							placeholder="Football boots, water bottle, your own racket..."
+							placeholder={i18n.t('what_to_bring_placeholder')}
 							class={`mt-2 min-h-16 sm:min-h-20 ${inputClass}`}
 						></textarea>
 					</div>
 
 					<div>
 						<label for="location" class={labelClass}>
-							Location name
+							{i18n.t('location_name_label')}
 						</label>
 						<input
 							id="location"
 							bind:value={locationName}
 							maxlength={TEXT_LIMITS.locationName}
-							placeholder="City Sports Center"
+							placeholder={i18n.t('location_name_placeholder')}
 							class={`mt-2 ${inputClass}`}
 						/>
 					</div>
@@ -479,7 +480,7 @@
 					<div class="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5">
 						<div class="min-w-0">
 							<label for="startDate" class={labelClass}>
-								Date
+								{i18n.t('date_label')}
 							</label>
 							<input
 								id="startDate"
@@ -491,14 +492,14 @@
 
 						<div class="min-w-0">
 							<label for="startTime" class={labelClass}>
-								Start
+								{i18n.t('start_time_label')}
 							</label>
-							<TimeSelect id="startTime" bind:value={startTime} placeholder="Choose time" />
+							<TimeSelect id="startTime" bind:value={startTime} placeholder={i18n.t('choose_time')} />
 						</div>
 
 						<div class="min-w-0">
 							<label for="durationMinutes" class={labelClass}>
-								Duration
+								{i18n.t('duration_label')}
 							</label>
 								<input
 									id="durationMinutes"
@@ -516,7 +517,7 @@
 								for="maxParticipants"
 								class={labelClass}
 							>
-								Max players
+								{i18n.t('max_players_label')}
 							</label>
 							<input
 								id="maxParticipants"
@@ -527,7 +528,7 @@
 							/>
 								{#if event.participantIds.length > 0}
 									<p class="mt-1.5 text-xs text-slate-400 dark:text-slate-500">
-										Minimum {event.participantIds.length} ({event.participantIds.length} already joined)
+										{i18n.t('minimum_joined_help', { count: event.participantIds.length })}
 									</p>
 								{/if}
 						</div>
@@ -536,21 +537,21 @@
 					<div class="grid grid-cols-2 gap-3 sm:gap-5">
 						<div>
 							<label for="visibility" class={labelClass}>
-								Visibility
+								{i18n.t('visibility_label')}
 							</label>
 							<select
 								id="visibility"
 								bind:value={visibility}
 								class={`mt-2 ${inputClass}`}
 								>
-									<option value="private">Private</option>
-									<option value="friends">Friends</option>
-									<option value="public">Public</option>
+									<option value="private">{i18n.t('visibility_private')}</option>
+									<option value="friends">{i18n.t('visibility_friends')}</option>
+									<option value="public">{i18n.t('visibility_public')}</option>
 								</select>
 						</div>
 
 							<div>
-								<span class={labelClass}>Pricing</span>
+								<span class={labelClass}>{i18n.t('pricing_label')}</span>
 								<div class="mt-2 grid grid-cols-3 gap-2">
 									<button
 										type="button"
@@ -561,7 +562,7 @@
 												: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
 										}`}
 									>
-										Free
+										{i18n.t('free')}
 									</button>
 									<button
 										type="button"
@@ -572,7 +573,7 @@
 												: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
 										}`}
 									>
-										Per person
+										{i18n.t('per_person_pricing')}
 									</button>
 									<button
 										type="button"
@@ -583,7 +584,7 @@
 												: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
 										}`}
 									>
-										Total (Split)
+										{i18n.t('total_split_pricing')}
 									</button>
 								</div>
 							</div>
@@ -591,7 +592,7 @@
 							{#if priceMode !== 'free'}
 								<div class="mt-4">
 									<label for="price" class={labelClass}>
-										{priceMode === 'per_person' ? 'Price per person' : 'Total event price'}
+										{priceMode === 'per_person' ? i18n.t('price_per_person_label') : i18n.t('total_event_price_label')}
 									</label>
 
 									<div class="mt-2 grid grid-cols-[minmax(0,1fr)_6.5rem] gap-2">
@@ -605,7 +606,7 @@
 											required
 											class={inputClass}
 										/>
-										<select bind:value={currency} aria-label="Currency" class={inputClass}>
+										<select bind:value={currency} aria-label={i18n.t('currency')} class={inputClass}>
 											{#each currencyOptions as option}
 												<option value={option.value}>{option.label}</option>
 											{/each}
@@ -616,7 +617,7 @@
 					</div>
 
 					<div>
-						<p class={labelClass}>Who can join</p>
+						<p class={labelClass}>{i18n.t('who_can_join_label')}</p>
 						<div class="mt-2 grid grid-cols-2 gap-3">
 							<button
 								type="button"
@@ -627,8 +628,8 @@
 										: 'border-slate-200 bg-white hover:border-blue-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-blue-500'
 								}`}
 							>
-								<p class="text-sm font-bold text-slate-950 dark:text-slate-50 sm:text-base">Open</p>
-								<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">Anyone can join instantly.</p>
+								<p class="text-sm font-bold text-slate-950 dark:text-slate-50 sm:text-base">{i18n.t('open_join_label')}</p>
+								<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">{i18n.t('open_join_sub')}</p>
 							</button>
 
 							<button
@@ -640,8 +641,8 @@
 										: 'border-slate-200 bg-white hover:border-blue-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-blue-500'
 								}`}
 							>
-								<p class="text-sm font-bold text-slate-950 dark:text-slate-50 sm:text-base">Request</p>
-								<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">You approve each request.</p>
+								<p class="text-sm font-bold text-slate-950 dark:text-slate-50 sm:text-base">{i18n.t('request_join_label')}</p>
+								<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">{i18n.t('request_join_sub')}</p>
 							</button>
 						</div>
 					</div>
@@ -655,7 +656,7 @@
 						disabled={saving || groupPhotoUploading}
 						class="mt-3 w-full rounded-2xl bg-blue-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:shadow-blue-950/40 sm:py-4 sm:text-base"
 					>
-						{saving ? 'Saving...' : groupPhotoUploading ? 'Uploading photo...' : 'Save changes'}
+						{saving ? i18n.t('saving') : groupPhotoUploading ? i18n.t('uploading_photo_btn') : i18n.t('save_changes')}
 					</button>
 				</form>
 			</div>

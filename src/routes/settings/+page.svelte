@@ -269,8 +269,8 @@
 			<div
 				class="divide-y divide-slate-200 overflow-hidden rounded-3xl bg-slate-50 dark:divide-slate-700 dark:bg-slate-800"
 			>
-				<div class="flex items-center justify-between gap-4 p-4">
-					<div>
+				<div class="flex items-start justify-between gap-4 p-4">
+					<div class="min-w-0 flex-1">
 						<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('notifications')}</p>
 						<p class="text-xs text-slate-500 dark:text-slate-400">
 							{i18n.t('notifications_sub')}
@@ -279,8 +279,8 @@
 					<button
 						type="button"
 						onclick={() => (notificationsEnabled = !notificationsEnabled)}
-						class={`relative h-7 w-12 rounded-full transition ${notificationsEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}
-						aria-label="Toggle notifications"
+						class={`relative mt-1 h-7 w-12 shrink-0 rounded-full transition ${notificationsEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+						aria-label={i18n.t('toggle_notifications')}
 					>
 						<span
 							class={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${notificationsEnabled ? 'left-6' : 'left-1'}`}
@@ -288,23 +288,25 @@
 					</button>
 				</div>
 
-				<div class="flex items-center justify-between gap-4 p-4">
-					<div>
+				<div class="flex items-start justify-between gap-4 p-4">
+					<div class="min-w-0 flex-1">
 						<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('appearance')}</p>
 						<p class="text-xs text-slate-500 dark:text-slate-400">{i18n.t('appearance_sub')}</p>
 					</div>
-					<ThemeToggle />
+					<div class="shrink-0">
+						<ThemeToggle />
+					</div>
 				</div>
 
-					<label class="flex items-center justify-between gap-4 p-4">
-						<div>
+					<label class="flex items-start justify-between gap-4 p-4">
+						<div class="min-w-0 flex-1">
 							<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('language')}</p>
 							<p class="text-xs text-slate-500 dark:text-slate-400">{i18n.t('select_language')}</p>
 						</div>
 					<select
 						value={selectedLanguage}
 						onchange={(e) => handleLanguageChange(e.currentTarget.value)}
-						class="rounded-2xl border-slate-200 bg-white py-2 pl-3 pr-8 text-sm font-bold text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+						class="shrink-0 rounded-2xl border-slate-200 bg-white py-2 pl-3 pr-8 text-sm font-bold text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
 					>
 						<option value="en">English</option>
 						<option value="pt">Português</option>
@@ -317,13 +319,13 @@
 						href={resolve('/saved-events')}
 						class="flex items-center justify-between gap-4 p-4 transition hover:bg-slate-100 dark:hover:bg-slate-700"
 					>
-						<span>
+						<span class="min-w-0 flex-1">
 							<span class="block font-black text-slate-950 dark:text-slate-50">{i18n.t('saved_events')}</span>
 							<span class="block text-xs text-slate-500 dark:text-slate-400">
 								{i18n.t('saved_events_sub')}
 							</span>
 						</span>
-						<span class="text-slate-300">›</span>
+						<span class="shrink-0 text-slate-300">›</span>
 					</a>
 				</div>
 			</section>
@@ -408,10 +410,10 @@
 					<div class="flex items-start justify-between gap-4">
 						<div>
 							<p class="font-black text-slate-950 dark:text-slate-50">
-								Two-factor authentication
+								{i18n.t('two_factor_authentication')}
 							</p>
 							<p class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-								Add an email verification step after your password.
+								{i18n.t('two_factor_email_sub')}
 							</p>
 						</div>
 						<button
@@ -419,7 +421,7 @@
 							onclick={handleToggleTwoFactor}
 							disabled={twoFactorSaving}
 							class={`relative h-7 w-12 shrink-0 rounded-full transition disabled:opacity-60 ${profile?.twoFactorEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}
-							aria-label="Toggle two-factor authentication"
+							aria-label={i18n.t('toggle_two_factor_authentication')}
 						>
 							<span
 								class={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${profile?.twoFactorEnabled ? 'left-6' : 'left-1'}`}
@@ -431,8 +433,7 @@
 						<div
 							class="mt-4 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs font-bold leading-5 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300"
 						>
-							Two-factor authentication is active. Rally will ask for a second verification
-							step by email during login.
+							{i18n.t('two_factor_email_active')}
 						</div>
 					{/if}
 				</div>

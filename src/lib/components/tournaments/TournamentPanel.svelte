@@ -26,6 +26,8 @@
 	import TimeSelect from '$lib/components/TimeSelect.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
+	import { i18n } from '$lib/services/i18n.svelte';
+	import { formatDate } from '$lib/utils/format.utils';
 
 	let { event, currentUserId, canManage } = $props<{
 		event: SportEvent;
@@ -199,20 +201,10 @@
 
 	function formatTimestamp(value: unknown) {
 		try {
-			const timestamp = value as { toDate?: () => Date };
-
-			if (timestamp?.toDate) {
-				return timestamp.toDate().toLocaleString('en-GB', {
-					day: '2-digit',
-					month: 'short',
-					hour: '2-digit',
-					minute: '2-digit'
-				});
-			}
-
-			return 'Not scheduled';
+			const formatted = formatDate(value);
+			return formatted === i18n.t('date_not_set') ? i18n.t('not_scheduled') : formatted;
 		} catch {
-			return 'Not scheduled';
+			return i18n.t('not_scheduled');
 		}
 	}
 
@@ -998,7 +990,7 @@
 			<div class="rounded-2xl bg-slate-50 p-3 dark:bg-slate-950 sm:rounded-3xl sm:border sm:border-slate-100 sm:p-5 sm:dark:border-slate-800">
 				<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Entry cost</p>
 				<p class="mt-1 text-sm font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-lg">
-					{event.entryFeeType === 'free' ? 'Free' : `€${event.entryFeeAmount ?? 0}`}
+					{event.entryFeeType === 'free' ? i18n.t('free') : `€${event.entryFeeAmount ?? 0}`}
 				</p>
 			</div>
 
