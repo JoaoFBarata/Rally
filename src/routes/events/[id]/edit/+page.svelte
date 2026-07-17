@@ -320,7 +320,7 @@
 					</p>
 					<h2 class="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50 sm:text-3xl">{i18n.t('edit_event')}</h2>
 					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400 sm:text-base">
-						Update the event details and keep players aligned.
+						{i18n.t('edit_event_sub')}
 					</p>
 				</div>
 
@@ -341,7 +341,7 @@
 				>
 					<div>
 						<label for="title" class={labelClass}>
-							Event title
+							{i18n.t('event_title_label')}
 						</label>
 						<input
 							id="title"
@@ -357,7 +357,7 @@
 							{#if groupPhotoURL}
 								<img
 									src={groupPhotoURL}
-									alt={title || 'Event group'}
+								alt={title || i18n.t('event_group')}
 									class="h-12 w-12 rounded-full object-cover ring-4 ring-slate-100 dark:ring-slate-800 sm:h-16 sm:w-16"
 								/>
 							{:else}
@@ -369,7 +369,7 @@
 							{/if}
 
 							<label
-								title="Edit group photo"
+								title={i18n.t('edit_group_photo')}
 								class="absolute -bottom-1 -right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-white text-xs text-blue-600 shadow-lg ring-2 ring-slate-100 transition hover:bg-blue-50 dark:bg-white dark:text-blue-600 dark:ring-slate-800 sm:h-7 sm:w-7"
 							>
 								{#if groupPhotoUploading}
@@ -393,7 +393,7 @@
 					<div class="grid grid-cols-2 gap-3 sm:gap-5">
 						<div class="min-w-0">
 							<label for="sport" class={labelClass}>
-								Sport
+								{i18n.t('sport')}
 							</label>
 							<select
 								id="sport"
@@ -423,7 +423,7 @@
 
 						<div class="min-w-0">
 							<label for="level" class={labelClass}>
-								Event level
+								{i18n.t('event_level')}
 							</label>
 							<select
 								id="level"
@@ -440,7 +440,7 @@
 
 					<div>
 						<label for="description" class={labelClass}>
-							Description
+							{i18n.t('description_label')}
 						</label>
 						<textarea
 							id="description"
@@ -453,7 +453,7 @@
 
 					<div>
 						<label for="whatToBring" class={labelClass}>
-							What to bring
+							{i18n.t('what_to_bring_label')}
 						</label>
 						<textarea
 							id="whatToBring"
@@ -466,7 +466,7 @@
 
 					<div>
 						<label for="location" class={labelClass}>
-							Location name
+							{i18n.t('location_name_label')}
 						</label>
 						<input
 							id="location"
@@ -480,7 +480,7 @@
 					<div class="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5">
 						<div class="min-w-0">
 							<label for="startDate" class={labelClass}>
-								Date
+								{i18n.t('date_label')}
 							</label>
 							<input
 								id="startDate"
@@ -492,14 +492,14 @@
 
 						<div class="min-w-0">
 							<label for="startTime" class={labelClass}>
-								Start
+								{i18n.t('start_time_label')}
 							</label>
 							<TimeSelect id="startTime" bind:value={startTime} placeholder={i18n.t('choose_time')} />
 						</div>
 
 						<div class="min-w-0">
 							<label for="durationMinutes" class={labelClass}>
-								Duration
+								{i18n.t('duration_label')}
 							</label>
 								<input
 									id="durationMinutes"
@@ -517,7 +517,7 @@
 								for="maxParticipants"
 								class={labelClass}
 							>
-								Max players
+								{i18n.t('max_players_label')}
 							</label>
 							<input
 								id="maxParticipants"
@@ -528,7 +528,7 @@
 							/>
 								{#if event.participantIds.length > 0}
 									<p class="mt-1.5 text-xs text-slate-400 dark:text-slate-500">
-										Minimum {event.participantIds.length} ({event.participantIds.length} already joined)
+										{i18n.t('minimum_joined_help', { count: event.participantIds.length })}
 									</p>
 								{/if}
 						</div>
@@ -537,7 +537,7 @@
 					<div class="grid grid-cols-2 gap-3 sm:gap-5">
 						<div>
 							<label for="visibility" class={labelClass}>
-								Visibility
+								{i18n.t('visibility_label')}
 							</label>
 							<select
 								id="visibility"
@@ -606,7 +606,7 @@
 											required
 											class={inputClass}
 										/>
-										<select bind:value={currency} aria-label="Currency" class={inputClass}>
+										<select bind:value={currency} aria-label={i18n.t('currency')} class={inputClass}>
 											{#each currencyOptions as option}
 												<option value={option.value}>{option.label}</option>
 											{/each}

@@ -176,13 +176,13 @@
 
 	function buildStartDate() {
 		if (!date || !startTime) {
-			throw new Error('Choose a date and start time.');
+			throw new Error(i18n.t('choose_date_start_time_error'));
 		}
 
 		const start = new Date(`${date}T${startTime}`);
 
 		if (Number.isNaN(start.getTime())) {
-			throw new Error('Invalid event date.');
+			throw new Error(i18n.t('invalid_event_date_error'));
 		}
 
 		return start;
@@ -214,40 +214,40 @@
 
 	function validateForm() {
 		if (!title.trim()) {
-			throw new Error('Add an event title.');
+			throw new Error(i18n.t('add_event_title_error'));
 		}
 
 		if (!address.trim() || lat === null || lng === null) {
-			throw new Error('Choose the event location on the map.');
+			throw new Error(i18n.t('choose_event_location_error'));
 		}
 
 		const participants = Number(maxParticipants);
 
 		if (!Number.isInteger(participants) || participants < 2 || participants > 500) {
-			throw new Error('Max participants must be between 2 and 500.');
+			throw new Error(i18n.t('max_participants_range_error'));
 		}
 
 		if (paymentMode === 'official' && !isVerified) {
-			throw new Error('Only verified organizations can create official paid events.');
+			throw new Error(i18n.t('official_paid_verified_error'));
 		}
 
 		if (paymentMode !== 'none') {
 			const total = Number(priceTotal);
 
 			if (!total || total <= 0) {
-				throw new Error('Add a valid price for this event.');
+				throw new Error(i18n.t('valid_event_price_error'));
 			}
 		}
 
 		if (sport === 'other' && !customSport.trim()) {
-			throw new Error('Please specify the sport.');
+			throw new Error(i18n.t('specify_sport_error'));
 		}
 
 		if (promote && !isVerified) {
-			throw new Error('Only verified organizations can promote events.');
+			throw new Error(i18n.t('promote_verified_error'));
 		}
 		if (promote && !promotionTargetCountry) {
-			throw new Error('Choose the country where the campaign should appear.');
+			throw new Error(i18n.t('choose_campaign_country_error'));
 		}
 	}
 
@@ -321,7 +321,7 @@
 			try {
 				const organizationId = page.params.id;
 				if (!organizationId) {
-					throw new Error('Organization ID not found.');
+					throw new Error(i18n.t('organization_id_not_found'));
 				}
 
 				organization = await assertCanManageOrganization({
@@ -485,7 +485,7 @@
 						<input
 							bind:value={title}
 							maxlength={TEXT_LIMITS.eventTitle}
-							placeholder="Event title"
+							placeholder={i18n.t('event_title_label')}
 							class={inputClass}
 						/>
 
@@ -493,7 +493,7 @@
 							bind:value={description}
 							maxlength={TEXT_LIMITS.eventDescription}
 							rows="3"
-							placeholder="Description, rules, what people should bring..."
+							placeholder={i18n.t('organization_event_description_placeholder')}
 							class={inputClass}
 						></textarea>
 
@@ -517,7 +517,7 @@
 									<input
 										bind:value={customSport}
 										maxlength={TEXT_LIMITS.customSport}
-										placeholder="e.g. Climbing, Skateboarding, Surfing..."
+										placeholder={i18n.t('custom_sport_placeholder')}
 										class={inputClass}
 									/>
 								{/if}
@@ -565,13 +565,13 @@
 					</h2>
 
 						<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">
-						Search the place or click directly on the map to select the exact event location.
+						{i18n.t('location_picker_sub')}
 					</p>
 
 					<div class="mt-4 space-y-4 sm:mt-5 sm:space-y-5">
 						<div class="grid grid-cols-2 gap-3">
 							<label class="min-w-0">
-								<span class="text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">Date</span>
+								<span class="text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">{i18n.t('date_label')}</span>
 								<input
 									bind:value={date}
 									type="date"
@@ -580,15 +580,15 @@
 							</label>
 
 							<label class="min-w-0">
-								<span class="text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">Start</span>
+								<span class="text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">{i18n.t('start_time_label')}</span>
 								<TimeSelect bind:value={startTime} placeholder={i18n.t('choose_time')} />
 							</label>
 						</div>
 
 						<div class="grid grid-cols-2 gap-3">
 							<label class="min-w-0">
-								<span class="text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">End</span>
-								<TimeSelect bind:value={endTime} placeholder="Optional" />
+								<span class="text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">{i18n.t('end_time_label')}</span>
+								<TimeSelect bind:value={endTime} placeholder={i18n.t('optional')} />
 							</label>
 						</div>
 
@@ -696,10 +696,10 @@
 										type="number"
 										min="1"
 										step="0.01"
-										placeholder="Total price"
+										placeholder={i18n.t('total_price')}
 										class={inputClass}
 									/>
-									<select bind:value={currency} aria-label="Currency" class={inputClass}>
+									<select bind:value={currency} aria-label={i18n.t('currency')} class={inputClass}>
 										{#each currencyOptions as option}
 											<option value={option.value}>{option.label}</option>
 										{/each}

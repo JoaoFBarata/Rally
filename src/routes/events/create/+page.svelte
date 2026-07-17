@@ -489,7 +489,7 @@
 						id="location"
 						bind:value={locationName}
 						maxlength={TEXT_LIMITS.locationName}
-						placeholder="City Sports Center"
+						placeholder={i18n.t('location_name_placeholder')}
 						class={`mt-2 ${inputClass}`}
 					/>
 				</div>

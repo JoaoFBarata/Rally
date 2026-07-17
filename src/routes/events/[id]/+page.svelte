@@ -1751,6 +1751,15 @@
 				</section>
 			{/if}
 
+				{#if canManageTournament && event?.eventKind === 'tournament' && activeEventTab === 'overview' && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
+					<a
+						href={resolve(`/events/${event.id}/tournament/edit`)}
+						class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-slate-950/10 transition active:scale-[0.98] dark:bg-white dark:text-slate-950 sm:hidden"
+					>
+						{i18n.t('edit_tournament')}
+					</a>
+				{/if}
+
 				{#if event?.eventKind === 'tournament' && activeEventTab === 'overview'}
 					<TournamentPanel {event} {currentUserId} canManage={canManageTournament} />
 				{/if}
@@ -2080,6 +2089,15 @@
 						</a>
 					{/if}
 				</div>
+			{/if}
+
+			{#if canManageTournament && event?.eventKind === 'tournament' && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
+				<a
+					href={resolve(`/events/${event.id}/tournament/edit`)}
+					class="hidden rounded-2xl border border-slate-200 bg-white px-5 py-3 text-center font-bold text-slate-700 transition hover:border-blue-200 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-500 dark:hover:text-blue-400 sm:block"
+				>
+					{i18n.t('edit_tournament')}
+				</a>
 			{/if}
 
 			<EventMap

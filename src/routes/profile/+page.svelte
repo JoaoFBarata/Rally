@@ -437,7 +437,7 @@
 
 					<div class="mt-5 grid gap-4">
 						<div>
-							<label for="mobile-name" class="text-sm font-bold text-slate-700 dark:text-slate-300">Name</label>
+							<label for="mobile-name" class="text-sm font-bold text-slate-700 dark:text-slate-300">{i18n.t('name')}</label>
 							<input
 								id="mobile-name"
 								bind:value={displayName}
@@ -448,7 +448,7 @@
 
 						<div class="grid grid-cols-2 gap-3">
 							<div>
-								<label for="mobile-city" class="text-sm font-bold text-slate-700 dark:text-slate-300">City</label>
+								<label for="mobile-city" class="text-sm font-bold text-slate-700 dark:text-slate-300">{i18n.t('city')}</label>
 								<input
 									id="mobile-city"
 									bind:value={city}
@@ -457,13 +457,13 @@
 								/>
 							</div>
 							<div>
-								<label for="mobile-country" class="text-sm font-bold text-slate-700 dark:text-slate-300">Country</label>
+								<label for="mobile-country" class="text-sm font-bold text-slate-700 dark:text-slate-300">{i18n.t('country')}</label>
 								<select
 									id="mobile-country"
 									bind:value={country}
 									class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
 								>
-									<option value="">Not set</option>
+									<option value="">{i18n.t('not_set')}</option>
 									{#each PROMOTION_COUNTRIES as option}
 										<option value={option.code}>{option.label}</option>
 									{/each}
@@ -472,7 +472,7 @@
 						</div>
 
 						<div>
-							<label for="mobile-age" class="text-sm font-bold text-slate-700 dark:text-slate-300">Age</label>
+							<label for="mobile-age" class="text-sm font-bold text-slate-700 dark:text-slate-300">{i18n.t('age')}</label>
 							<input
 								id="mobile-age"
 								type="number"
@@ -519,7 +519,7 @@
 							disabled={saving}
 							class="rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white shadow-lg shadow-blue-600/20 transition active:scale-[0.98] disabled:opacity-60"
 						>
-							{saving ? 'Saving...' : 'Save profile'}
+							{saving ? i18n.t('saving') : i18n.t('save_profile')}
 						</button>
 					</div>
 				</div>
@@ -845,7 +845,7 @@
 								onclick={cancelEdit}
 								class="rounded-full bg-slate-100 px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 sm:px-4 sm:text-sm"
 							>
-								Cancel
+								{i18n.t('cancel')}
 							</button>
 						{:else}
 							<button
@@ -863,7 +863,7 @@
 					<div class="mt-8 grid gap-5">
 						<div>
 							<label for="name" class="text-sm font-bold text-slate-700 dark:text-slate-300">
-								Name
+								{i18n.t('name')}
 							</label>
 							<input
 								id="name"
@@ -876,27 +876,27 @@
 						<div class="grid grid-cols-2 gap-3 md:gap-5">
 							<div>
 								<label for="city" class="text-sm font-bold text-slate-700 dark:text-slate-300">
-									City
+									{i18n.t('city')}
 								</label>
 								<input
 									id="city"
 									bind:value={city}
 									maxlength={TEXT_LIMITS.city}
-									placeholder="Lisbon, Portugal"
+									placeholder={i18n.t('city_country_placeholder')}
 									class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500"
 								/>
 							</div>
 
 							<div>
 								<label for="country" class="text-sm font-bold text-slate-700 dark:text-slate-300"
-									>Country</label
+									>{i18n.t('country')}</label
 								>
 								<select
 									id="country"
 									bind:value={country}
 									class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
 								>
-									<option value="">Not set</option>
+									<option value="">{i18n.t('not_set')}</option>
 									{#each PROMOTION_COUNTRIES as option}
 										<option value={option.code}>{option.label}</option>
 									{/each}
@@ -905,7 +905,7 @@
 
 							<div>
 								<label for="age" class="text-sm font-bold text-slate-700 dark:text-slate-300">
-									Age
+									{i18n.t('age')}
 								</label>
 								<input
 									id="age"
@@ -921,7 +921,7 @@
 
 						<div>
 							<label for="bio" class="text-sm font-bold text-slate-700 dark:text-slate-300">
-								Bio
+								{i18n.t('bio')}
 							</label>
 							<textarea
 								id="bio"
@@ -958,7 +958,7 @@
 							disabled={saving}
 							class="rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-60 dark:shadow-blue-950/40"
 						>
-							{saving ? 'Saving...' : 'Save profile'}
+							{saving ? i18n.t('saving') : i18n.t('save_profile')}
 						</button>
 					</div>
 				{:else}
@@ -1038,8 +1038,8 @@
 							type="button"
 							onclick={() => (showQrModal = true)}
 							class="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 transition hover:bg-slate-200 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-							aria-label="Show QR code"
-							title="Show QR code"
+							aria-label={i18n.t('my_qr_code')}
+							title={i18n.t('my_qr_code')}
 						>
 							<img src="/qr-code.png" alt="QR code" class="h-6 w-6 object-contain" />
 						</button>
@@ -1352,8 +1352,8 @@
 								</svg>
 							</div>
 							<div>
-								<p class="font-bold text-slate-900 dark:text-slate-50">Upload from Camera/Gallery</p>
-								<p class="text-xs text-slate-500 dark:text-slate-400">Take a photo or choose from your files</p>
+								<p class="font-bold text-slate-900 dark:text-slate-50">{i18n.t('upload_camera_gallery')}</p>
+								<p class="text-xs text-slate-500 dark:text-slate-400">{i18n.t('take_photo_or_choose_file')}</p>
 							</div>
 						</button>
 
@@ -1392,7 +1392,7 @@
 							onclick={() => (avatarSelectionMode = false)}
 							class="mt-6 w-full rounded-2xl bg-slate-100 py-3 font-bold text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
 						>
-							Back to options
+							{i18n.t('back_to_options')}
 						</button>
 					</div>
 				{/if}
