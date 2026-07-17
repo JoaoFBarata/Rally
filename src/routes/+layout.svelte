@@ -8,8 +8,20 @@
 	import '../app.css';
 	import 'mapbox-gl/dist/mapbox-gl.css';
 	import AppShell from '$lib/components/AppShell.svelte';
+	import { App as CapacitorApp } from '@capacitor/app';
+	import { onMount } from 'svelte';
 
 	let { children } = $props();
+
+	onMount(() => {
+		CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+			if (window.history.state !== null || canGoBack) {
+				window.history.back();
+			} else {
+				CapacitorApp.exitApp();
+			}
+		});
+	});
 
 	// Proteção de rota simples no cliente
 	$effect(() => {

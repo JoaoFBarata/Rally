@@ -807,7 +807,7 @@
 									{/if}
 								</div>
 								<p class="mt-2 text-base font-black text-blue-600 dark:text-blue-400 sm:text-lg">
-									{organization.description || `${formatOrganizationType(organization.type)} on Rally.`}
+									{organization.description || `${formatOrganizationType(organization.type)} ${i18n.t('on_rally') || 'on Rally.'}`}
 								</p>
 								<p class="mt-3 flex items-center gap-2 text-sm font-bold text-slate-500 dark:text-slate-400">
 									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
@@ -955,7 +955,7 @@
 										</svg>
 									</div>
 									<div>
-										<p class="font-black text-slate-950 dark:text-slate-50">{organization.publicLocation?.name || 'Home venue'}</p>
+										<p class="font-black text-slate-950 dark:text-slate-50">{organization.publicLocation?.name || i18n.t('home_venue') || 'Home venue'}</p>
 										<p class="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
 											{organization.publicLocation?.address || organization.address || organization.city || i18n.t('no_public_venue_set')}
 										</p>
@@ -1162,7 +1162,7 @@
 						{/if}
 					</div>
 					<p class="mt-2 text-base font-black text-blue-600 dark:text-blue-400 sm:text-lg">
-						{organization.description || `${formatOrganizationType(organization.type)} on Rally.`}
+						{organization.description || `${formatOrganizationType(organization.type)} ${i18n.t('on_rally') || 'on Rally.'}`}
 					</p>
 					<div class="mt-3 flex flex-wrap gap-2 text-sm font-bold text-slate-600 dark:text-slate-300">
 						<span class="inline-flex max-w-full items-center gap-2 rounded-full bg-white px-3 py-2 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">

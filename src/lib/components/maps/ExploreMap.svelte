@@ -539,11 +539,19 @@
 		const zoom = Math.floor(currentMap.getZoom());
 		const mapBounds = currentMap.getBounds();
 		if (!mapBounds) return;
+		const west = mapBounds.getWest();
+		const south = mapBounds.getSouth();
+		const east = mapBounds.getEast();
+		const north = mapBounds.getNorth();
+
+		const lngPadding = (east - west) * 0.15;
+		const latPadding = (north - south) * 0.15;
+
 		const bbox: [number, number, number, number] = [
-			mapBounds.getWest(),
-			mapBounds.getSouth(),
-			mapBounds.getEast(),
-			mapBounds.getNorth()
+			west - lngPadding,
+			south - latPadding * 2.5, // Bottom needs much more padding due to marker height anchor and UI
+			east + lngPadding,
+			north + latPadding
 		];
 
 		const features = clusterIndex.getClusters(bbox, zoom);
@@ -716,7 +724,7 @@
 >
 	<div
 		bind:this={mapContainer}
-		class="h-[48dvh] min-h-[360px] w-full flex-none md:h-[calc(100vh-240px)] md:min-h-[620px]"
+		class="h-[60dvh] min-h-[420px] w-full flex-none md:h-[calc(100vh-240px)] md:min-h-[620px]"
 		class:hidden={viewMode !== 'map'}
 	></div>
 

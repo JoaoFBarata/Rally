@@ -2433,7 +2433,7 @@
 {#if confirmDialog}
 	<dialog
 		open
-		class="fixed inset-0 z-50 m-0 flex h-full w-full max-w-none items-end justify-center border-0 bg-black/50 px-4 pb-8 backdrop-blur-sm sm:items-center sm:pb-0"
+		class="fixed inset-0 z-[120] m-0 flex h-full w-full max-w-none items-center justify-center border-0 bg-slate-950/60 px-4 backdrop-blur-sm"
 		onclick={(event) => {
 			if (event.target === event.currentTarget) dismissConfirm(false);
 		}}

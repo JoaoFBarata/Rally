@@ -625,19 +625,6 @@
 			        {/if}
 			    </div>
 
-			    <button
-			        type="button"
-			        onclick={() => (showQrModal = true)}
-			        class="flex w-full items-center justify-between rounded-[1.6rem] bg-blue-600 p-4 text-left text-white shadow-lg shadow-blue-600/20 active:scale-[0.99]"
-			    >
-			        <span>
-						<span class="block text-sm font-black">Rally QR</span>
-						<span class="block text-xs text-blue-100">{i18n.t('add_friend_sub')}</span>
-			        </span>
-			        <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white">
-						<img src="/qr-code.png" alt="QR code" class="h-6 w-6 object-contain" />
-			        </span>
-			    </button>
 			{/if}
 
 			<section class="overflow-hidden rounded-[1.7rem] bg-white shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
@@ -727,7 +714,7 @@
 			    {/if}
 			</div>
 
-			<div class="px-2">
+			<div class="mt-8 px-2 pb-6">
 			    <h2 class="text-lg font-black text-slate-950 dark:text-slate-50">{i18n.t('add_friend')}</h2>
 			    <div class="mt-3 flex gap-2">
 			        <input
@@ -740,9 +727,22 @@
 						disabled={friendLoading || !friendTag}
 						class="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
 			        >
-						{friendLoading ? '...' : 'Add'}
+						{friendLoading ? '...' : i18n.t('add')}
 			        </button>
 			    </div>
+				<button
+					type="button"
+					onclick={() => (showQrModal = true)}
+					class="mt-4 flex w-full items-center justify-between rounded-[1.6rem] bg-blue-600 p-4 text-left text-white shadow-lg shadow-blue-600/20 active:scale-[0.99]"
+				>
+					<span>
+						<span class="block text-sm font-black">Rally QR</span>
+						<span class="block text-xs text-blue-100">{i18n.t('add_friend_sub')}</span>
+					</span>
+					<span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white">
+						<img src="/qr-code.png" alt="QR code" class="h-6 w-6 object-contain" />
+					</span>
+				</button>
 			</div>
 		</section>
 
