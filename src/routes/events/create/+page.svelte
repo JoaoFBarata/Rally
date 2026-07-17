@@ -641,11 +641,11 @@
 
 					<div>
 						<span class={labelClass}>{i18n.t('pricing_label')}</span>
-						<div class="mt-2 grid grid-cols-3 gap-2">
+						<div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
 							<button
 								type="button"
 								onclick={() => { priceMode = 'free'; priceValue = null; }}
-								class={`rounded-2xl border py-2.5 text-center text-sm font-bold transition ${
+								class={`min-h-11 rounded-2xl border px-3 py-2.5 text-center text-sm font-bold leading-tight break-words transition ${
 									priceMode === 'free'
 										? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
 										: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
@@ -656,7 +656,7 @@
 							<button
 								type="button"
 								onclick={() => { priceMode = 'per_person'; }}
-								class={`rounded-2xl border py-2.5 text-center text-sm font-bold transition ${
+								class={`min-h-11 rounded-2xl border px-3 py-2.5 text-center text-sm font-bold leading-tight break-words transition ${
 									priceMode === 'per_person'
 										? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
 										: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
@@ -667,7 +667,7 @@
 							<button
 								type="button"
 								onclick={() => { priceMode = 'total_split'; }}
-								class={`rounded-2xl border py-2.5 text-center text-sm font-bold transition ${
+								class={`min-h-11 rounded-2xl border px-3 py-2.5 text-center text-sm font-bold leading-tight break-words transition ${
 									priceMode === 'total_split'
 										? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
 										: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
@@ -684,7 +684,7 @@
 								{priceMode === 'per_person' ? i18n.t('price_per_person_label') : i18n.t('total_event_price_label')}
 							</label>
 
-							<div class="mt-2 grid grid-cols-[minmax(0,1fr)_6.5rem] gap-2">
+							<div class="mt-2 grid grid-cols-[minmax(0,1fr)_5.75rem] gap-2 sm:grid-cols-[minmax(0,1fr)_6.5rem]">
 								<input
 									id="price"
 									type="number"
@@ -695,7 +695,7 @@
 									required
 									class={inputClass}
 								/>
-								<select bind:value={currency} aria-label="Currency" class={inputClass}>
+								<select bind:value={currency} aria-label={i18n.t('currency')} class={inputClass}>
 									{#each currencyOptions as option}
 										<option value={option.value}>{option.label}</option>
 									{/each}

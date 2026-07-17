@@ -1181,8 +1181,8 @@
 							<div
 								class="divide-y divide-slate-200 overflow-hidden rounded-3xl bg-slate-50 dark:divide-slate-700 dark:bg-slate-800"
 							>
-								<div class="flex items-center justify-between gap-4 p-4">
-									<div>
+								<div class="flex items-start justify-between gap-4 p-4">
+									<div class="min-w-0 flex-1">
 										<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('notifications')}</p>
 										<p class="text-xs text-slate-500 dark:text-slate-400">
 											{i18n.t('notifications_help_manage')}
@@ -1191,8 +1191,8 @@
 									<button
 										type="button"
 										onclick={() => (notificationsEnabled = !notificationsEnabled)}
-										class={`relative h-7 w-12 rounded-full transition ${notificationsEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}
-										aria-label="Toggle notifications"
+										class={`relative mt-1 h-7 w-12 shrink-0 rounded-full transition ${notificationsEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+										aria-label={i18n.t('toggle_notifications')}
 									>
 										<span
 											class={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${notificationsEnabled ? 'left-6' : 'left-1'}`}

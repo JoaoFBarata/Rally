@@ -464,7 +464,7 @@
 				<section class={cardClass}>
 					<h2 class={sideTitleClass}>{i18n.t('format')}</h2>
 
-					<div class="mt-4 grid grid-cols-3 gap-2 sm:mt-5 lg:grid-cols-1 lg:gap-3">
+					<div class="mt-4 grid grid-cols-1 gap-2 min-[520px]:grid-cols-3 sm:mt-5 lg:grid-cols-1 lg:gap-3">
 						<label
 							class={`${choiceClass} ${
 								format === 'groups_playoff'
@@ -536,7 +536,7 @@
 					</div>
 
 					{#if format === 'groups_playoff'}
-						<div class="mt-4 grid grid-cols-2 items-stretch gap-3 sm:mt-5">
+						<div class="mt-4 grid grid-cols-1 items-stretch gap-3 min-[430px]:grid-cols-2 sm:mt-5">
 							<label class="flex h-full flex-col">
 								<span class={labelClass}>
 									{i18n.t('number_of_groups')}
@@ -581,7 +581,7 @@
 				<section class={cardClass}>
 					<h2 class={sideTitleClass}>{i18n.t('registration')}</h2>
 
-					<div class="mt-4 grid grid-cols-2 gap-2.5 sm:mt-5 sm:gap-3 lg:grid-cols-1">
+					<div class="mt-4 grid grid-cols-1 gap-2.5 min-[430px]:grid-cols-2 sm:mt-5 sm:gap-3 lg:grid-cols-1">
 						<label
 							class={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3 transition sm:p-4 ${
 								registrationType === 'team'
@@ -625,7 +625,7 @@
 					</div>
 
 					{#if registrationType === 'team'}
-						<div class="mt-4 grid grid-cols-3 gap-2 sm:mt-5 sm:gap-3 lg:grid-cols-1">
+						<div class="mt-4 grid grid-cols-1 gap-2 min-[520px]:grid-cols-3 sm:mt-5 sm:gap-3 lg:grid-cols-1">
 							<label class="block">
 								<span class={labelClass}>
 									{i18n.t('on_field')}
@@ -681,9 +681,9 @@
 							</label>
 
 							<label
-								class="col-span-3 flex cursor-pointer items-center justify-between gap-4 rounded-2xl bg-slate-50 p-3 dark:bg-slate-800 sm:p-4 lg:col-span-1"
+								class="flex cursor-pointer items-start justify-between gap-4 rounded-2xl bg-slate-50 p-3 dark:bg-slate-800 min-[520px]:col-span-3 sm:p-4 lg:col-span-1"
 							>
-								<span>
+								<span class="min-w-0 flex-1">
 									<span class="block font-black text-slate-950 dark:text-slate-50"
 										>{i18n.t('allow_open_teams')}</span
 									>
@@ -693,7 +693,7 @@
 								</span>
 								<input bind:checked={allowOpenTeams} type="checkbox" class="sr-only" />
 								<span
-									class={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${
+									class={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${
 										allowOpenTeams
 											? 'border-blue-600 bg-blue-600 text-white dark:border-blue-400 dark:bg-blue-400 dark:text-slate-950'
 											: 'border-slate-400 bg-white dark:border-slate-500 dark:bg-slate-900'

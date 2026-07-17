@@ -313,7 +313,7 @@
 							<option value="league">{i18n.t('league')}</option>
 						</select>
 						{#if format === 'groups_playoff'}
-							<div class="mt-3 grid grid-cols-2 gap-2">
+							<div class="mt-3 grid grid-cols-1 gap-2 min-[430px]:grid-cols-2">
 								<label>
 									<span class={labelClass}>{i18n.t('number_of_groups')}</span>
 									<input bind:value={groupCount} type="number" min="2" max="8" class={`mt-2 ${inputClass}`} />
@@ -333,7 +333,7 @@
 							<option value="individual">{i18n.t('individual')}</option>
 						</select>
 						{#if registrationType === 'team'}
-							<div class="mt-3 grid grid-cols-3 gap-2">
+							<div class="mt-3 grid grid-cols-1 gap-2 min-[430px]:grid-cols-3">
 								<input bind:value={teamSize} type="number" min="1" aria-label={i18n.t('on_field')} class={inputClass} />
 								<input bind:value={minTeamSize} type="number" min="1" aria-label={i18n.t('min_team')} class={inputClass} />
 								<input bind:value={maxTeamSize} type="number" min="1" aria-label={i18n.t('max_team')} class={inputClass} />
@@ -353,7 +353,7 @@
 							<option value="paid">{i18n.t('paid_entry')}</option>
 						</select>
 						{#if entryFeeType !== 'free'}
-							<div class="mt-3 grid grid-cols-[1fr_6rem] gap-2">
+							<div class="mt-3 grid grid-cols-[minmax(0,1fr)_5.75rem] gap-2 sm:grid-cols-[minmax(0,1fr)_6rem]">
 								<input bind:value={entryFeeAmount} type="number" min="0" step="0.01" placeholder="0.00" class={inputClass} />
 								<select bind:value={currency} aria-label={i18n.t('currency')} class={inputClass}>
 									{#each currencyOptions as option}

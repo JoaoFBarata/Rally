@@ -91,6 +91,7 @@
 	let replyComment = $state('');
 	let replySubmitting = $state(false);
 	let replyMessage = $state('');
+	let visibleEventCount = $state(3);
 	const reviewsPerPage = 4;
 
 	let upcomingEvents = $derived(getUpcomingEvents(events));
@@ -100,7 +101,9 @@
 	let normalUpcomingEvents = $derived(
 		upcomingEvents.filter((event) => !(event.isPromoted && event.promotionStatus === 'active'))
 	);
-	let featuredEvents = $derived([...promotedEvents, ...normalUpcomingEvents].slice(0, 3));
+	let orderedUpcomingEvents = $derived([...promotedEvents, ...normalUpcomingEvents]);
+	let visibleUpcomingEvents = $derived(orderedUpcomingEvents.slice(0, visibleEventCount));
+	let hasMoreUpcomingEvents = $derived(orderedUpcomingEvents.length > visibleEventCount);
 	let organizationSports = $derived.by(() => {
 		if (organization?.sports?.length) return organization.sports.slice(0, 3);
 		const sports = new Set<string>();
@@ -191,11 +194,15 @@
 
 	function getStatusLabel(event: SportEvent) {
 		const status = getEffectiveStatus(event);
-		if (status === 'cancelled') return 'Cancelled';
-		if (status === 'finished') return 'Finished';
-		if (status === 'full') return 'Full';
-		if (status === 'open') return 'Open';
+		if (status === 'cancelled') return i18n.t('status_cancelled');
+		if (status === 'finished') return i18n.t('status_finished');
+		if (status === 'full') return i18n.t('status_full');
+		if (status === 'open') return i18n.t('status_open');
 		return status;
+	}
+
+	function showMoreEvents() {
+		visibleEventCount = Math.min(visibleEventCount + 6, orderedUpcomingEvents.length);
 	}
 
 
@@ -900,21 +907,32 @@
 						<div class="mb-3 flex items-center justify-between gap-3">
 							<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">{i18n.t('upcoming_events')}</h2>
 							{#if upcomingEvents.length > 2}
-								<a href="#organization-events" class="text-sm font-black text-blue-600 dark:text-blue-400">{i18n.t('view_all_events')}</a>
+								<span class="shrink-0 text-xs font-black text-blue-600 dark:text-blue-400 sm:text-sm">
+									{i18n.t('showing_events', { count: visibleUpcomingEvents.length, total: upcomingEvents.length })}
+								</span>
 							{/if}
 						</div>
 
-						{#if featuredEvents.length === 0}
+						{#if visibleUpcomingEvents.length === 0}
 							<div class="rounded-[1.5rem] border border-dashed border-slate-200 p-5 text-center dark:border-slate-800">
 								<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('no_upcoming_events')}</p>
 								<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{i18n.t('no_upcoming_events_sub')}</p>
 							</div>
 						{:else}
 							<div class="grid max-w-3xl gap-4">
-								{#each featuredEvents as event (event.id)}
+								{#each visibleUpcomingEvents as event (event.id)}
 									<EventCard {event} variant="hero" miniHero heroCtaLabel={i18n.t('view_event')} />
 								{/each}
 							</div>
+							{#if hasMoreUpcomingEvents}
+								<button
+									type="button"
+									onclick={showMoreEvents}
+									class="mt-4 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-blue-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 dark:border-slate-800 dark:bg-slate-900 dark:text-blue-300 dark:hover:bg-slate-800"
+								>
+									{i18n.t('show_more')}
+								</button>
+							{/if}
 						{/if}
 					</section>
 
@@ -1230,7 +1248,9 @@
 						<p class="text-sm font-bold text-slate-500 dark:text-slate-400">{i18n.t('events_hosted_by')} {organization.name}</p>
 					</div>
 					{#if upcomingEvents.length > 2}
-						<span class="text-sm font-black text-blue-600 dark:text-blue-400">{i18n.t('see_all')}</span>
+						<span class="shrink-0 text-right text-xs font-black text-blue-600 dark:text-blue-400 md:text-sm">
+							{i18n.t('showing_events', { count: visibleUpcomingEvents.length, total: upcomingEvents.length })}
+						</span>
 					{/if}
 				</div>
 
@@ -1246,14 +1266,19 @@
 					</div>
 				{:else}
 					<div class="grid gap-4">
-						{#each promotedEvents as event (event.id)}
-							<EventCard {event} variant="hero" compactHero heroCtaLabel={i18n.t('view_event')} />
-						{/each}
-
-						{#each normalUpcomingEvents as event (event.id)}
+						{#each visibleUpcomingEvents as event (event.id)}
 							<EventCard {event} variant="hero" compactHero heroCtaLabel={i18n.t('view_event')} />
 						{/each}
 					</div>
+					{#if hasMoreUpcomingEvents}
+						<button
+							type="button"
+							onclick={showMoreEvents}
+							class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-blue-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 dark:border-slate-800 dark:bg-slate-900 dark:text-blue-300 dark:hover:bg-slate-800"
+						>
+							{i18n.t('show_more')}
+						</button>
+					{/if}
 				{/if}
 			</section>
 
@@ -1674,12 +1699,12 @@
 					</div>
 
 					<div class="mt-5 space-y-3">
-						<button type="button" onclick={toggleOrganizationNotifications} class="flex w-full items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-left dark:bg-slate-800">
-							<span>
+						<button type="button" onclick={toggleOrganizationNotifications} class="flex w-full items-start justify-between gap-4 rounded-2xl bg-slate-50 px-4 py-3 text-left dark:bg-slate-800">
+							<span class="min-w-0 flex-1">
 								<span class="block font-black text-slate-950 dark:text-slate-50">{i18n.t('notifications')}</span>
 								<span class="text-sm font-bold text-slate-500 dark:text-slate-400">{orgNotificationsEnabled ? i18n.t('enabled') : i18n.t('disabled')} {i18n.t('for_this_org')}</span>
 							</span>
-							<span class={`h-7 w-12 rounded-full p-1 transition ${orgNotificationsEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}>
+							<span class={`mt-1 h-7 w-12 shrink-0 rounded-full p-1 transition ${orgNotificationsEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}>
 								<span class={`block h-5 w-5 rounded-full bg-white transition ${orgNotificationsEnabled ? 'translate-x-5' : ''}`}></span>
 							</span>
 						</button>

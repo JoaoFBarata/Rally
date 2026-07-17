@@ -1316,7 +1316,7 @@
 									<div class="mt-3 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
 										<div class="h-full rounded-full bg-blue-600" style={`width: ${Math.min(100, (participants.length / event.maxParticipants) * 100)}%`}></div>
 									</div>
-										<div class="mt-4 grid grid-cols-2 gap-2">
+										<div class="mt-4 grid grid-cols-1 gap-2 min-[380px]:grid-cols-2">
 											{#if canAddToGoogleCalendar}
 												<a
 													href={googleCalendarUrl}
@@ -1347,7 +1347,7 @@
 													{i18n.t('get_directions')}
 												</a>
 											{/if}
-									{#if canInvite}<a href={resolve(`/events/${event.id}/invite`)} class="inline-flex min-h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-800 shadow-sm shadow-slate-200/50 transition active:scale-[0.98] dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:shadow-none">{i18n.t('invite_people')}</a>{/if}
+									{#if canInvite}<a href={resolve(`/events/${event.id}/invite`)} class="inline-flex min-h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-center text-sm font-black leading-tight text-slate-800 shadow-sm shadow-slate-200/50 transition active:scale-[0.98] dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:shadow-none">{i18n.t('invite_people')}</a>{/if}
 											{#if canJoin}
 												<button onclick={handleJoinEvent} disabled={actionLoading} class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition active:scale-[0.98] disabled:opacity-60">{actionLoading ? i18n.t('joining') : i18n.t('join_event')}</button>
 											{:else if canRequestJoin}
@@ -1357,9 +1357,9 @@
 											{/if}
 											{#if isParticipant && !isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}<button type="button" onclick={handleLeaveEvent} disabled={actionLoading} class="inline-flex min-h-11 items-center justify-center rounded-2xl border border-red-100 bg-red-50 px-4 py-2.5 text-sm font-black text-red-700 transition active:scale-[0.98] disabled:opacity-60 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">{actionLoading ? i18n.t('leaving') : i18n.t('leave_event')}</button>{/if}
 											{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
-												<a href={resolve(`/events/${event.id}/edit`)} class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-slate-950/10 transition active:scale-[0.98] dark:bg-white dark:text-slate-950">{i18n.t('edit_event')}</a>
-												<button type="button" onclick={handleFinishEvent} disabled={actionLoading} class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition active:scale-[0.98] disabled:opacity-60">{i18n.t('finish_event')}</button>
-												<button type="button" onclick={handleCancelEvent} disabled={actionLoading} class="col-span-2 inline-flex min-h-11 items-center justify-center rounded-2xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-black text-red-700 transition active:scale-[0.98] disabled:opacity-60 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">{i18n.t('cancel_event')}</button>
+												<a href={resolve(`/events/${event.id}/edit`)} class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-slate-950 px-3 py-2.5 text-center text-sm font-black leading-tight text-white shadow-lg shadow-slate-950/10 transition active:scale-[0.98] dark:bg-white dark:text-slate-950">{i18n.t('edit_event')}</a>
+												<button type="button" onclick={handleFinishEvent} disabled={actionLoading} class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-blue-600 px-3 py-2.5 text-center text-sm font-black leading-tight text-white shadow-lg shadow-blue-600/20 transition active:scale-[0.98] disabled:opacity-60">{i18n.t('finish_event')}</button>
+												<button type="button" onclick={handleCancelEvent} disabled={actionLoading} class="inline-flex min-h-11 items-center justify-center rounded-2xl border border-red-200 bg-red-50 px-3 py-2.5 text-center text-sm font-black leading-tight text-red-700 transition active:scale-[0.98] disabled:opacity-60 min-[380px]:col-span-2 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">{i18n.t('cancel_event')}</button>
 											{/if}
 										</div>
 									</div>
@@ -1703,34 +1703,32 @@
 							{#each pendingJoinRequests as request (request.id)}
 								{@const requester = pendingRequesters.find((p) => p.id === request.userId)}
 								<div
-									class="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800"
+									class="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800 sm:p-4"
 								>
-									<div class="flex min-w-0 items-center gap-3">
-										<UserAvatar
-											photoURL={requester?.photoURL}
-											displayName={requester?.displayName ?? i18n.t('rally_user')}
-											email={requester?.email}
-											size="md"
-										/>
+									<UserAvatar
+										photoURL={requester?.photoURL}
+										displayName={requester?.displayName ?? i18n.t('rally_user')}
+										email={requester?.email}
+										size="md"
+									/>
 
-										<div class="min-w-0">
-											<p class="truncate font-bold text-slate-950 dark:text-slate-50">
-												{requester?.displayName ?? i18n.t('rally_user')}
+									<div class="min-w-0">
+										<p class="truncate text-sm font-bold text-slate-950 dark:text-slate-50 sm:text-base">
+											{requester?.displayName ?? i18n.t('rally_user')}
+										</p>
+										{#if requester?.rallyTag}
+											<p class="truncate text-xs text-slate-500 dark:text-slate-400">
+												@{requester.rallyTag}
 											</p>
-											{#if requester?.rallyTag}
-												<p class="truncate text-xs text-slate-500 dark:text-slate-400">
-													@{requester.rallyTag}
-												</p>
-											{/if}
-										</div>
+										{/if}
 									</div>
 
-									<div class="flex shrink-0 items-center gap-2">
+									<div class="flex shrink-0 flex-col items-stretch gap-1.5 sm:flex-row sm:items-center sm:gap-2">
 										<button
 											type="button"
 											onclick={() => handleRespondToJoinRequest(request.id, 'declined')}
 											disabled={joinRequestActionLoading}
-											class="rounded-full px-3 py-2 text-sm font-black text-red-600 transition hover:bg-red-50 disabled:opacity-60 dark:text-red-400 dark:hover:bg-red-950"
+											class="rounded-full px-2.5 py-1.5 text-xs font-black text-red-600 transition hover:bg-red-50 disabled:opacity-60 sm:px-3 sm:py-2 sm:text-sm dark:text-red-400 dark:hover:bg-red-950"
 										>
 											{i18n.t('decline')}
 										</button>
@@ -1739,7 +1737,7 @@
 											type="button"
 											onclick={() => handleRespondToJoinRequest(request.id, 'accepted')}
 											disabled={joinRequestActionLoading}
-											class="rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
+											class="rounded-full bg-blue-600 px-3 py-1.5 text-xs font-black text-white transition hover:bg-blue-700 disabled:opacity-60 sm:px-4 sm:py-2 sm:text-sm"
 										>
 											{i18n.t('accept')}
 										</button>

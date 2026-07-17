@@ -642,9 +642,9 @@
 					>
 						<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 sm:text-xl">{i18n.t('entry_payment')}</h2>
 
-						<div class="mt-3 grid grid-cols-2 gap-2 sm:mt-5 sm:gap-3 lg:grid-cols-1">
+						<div class="mt-3 grid grid-cols-1 gap-2 min-[430px]:grid-cols-2 sm:mt-5 sm:gap-3 lg:grid-cols-1">
 							<label
-								class={`block cursor-pointer rounded-2xl border p-2.5 transition sm:p-4 ${
+								class={`block min-w-0 cursor-pointer rounded-2xl border p-2.5 transition sm:p-4 ${
 									paymentMode === 'none'
 										? 'border-blue-500 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/40'
 										: 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900'
@@ -656,7 +656,7 @@
 							</label>
 
 							<label
-								class={`block rounded-2xl border p-2.5 transition sm:p-4 ${
+								class={`block min-w-0 rounded-2xl border p-2.5 transition sm:p-4 ${
 									!isVerified ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
 								} ${
 									paymentMode === 'official'
@@ -671,12 +671,12 @@
 								disabled={!isVerified}
 									class="sr-only"
 								/>
-								<div class="flex items-center justify-between gap-3">
-									<p class="text-sm font-black leading-tight text-slate-950 dark:text-slate-50 sm:text-base">{i18n.t('official')}</p>
+								<div class="flex min-w-0 items-start justify-between gap-3">
+									<p class="min-w-0 flex-1 text-sm font-black leading-tight text-slate-950 dark:text-slate-50 sm:text-base">{i18n.t('official')}</p>
 
 									{#if !isVerified}
 										<span
-											class="hidden rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500 dark:bg-slate-800 dark:text-slate-400 sm:inline-flex"
+											class="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500 dark:bg-slate-800 dark:text-slate-400"
 										>
 											{i18n.t('locked')}
 										</span>
@@ -690,7 +690,7 @@
 
 						{#if paymentMode !== 'none'}
 							<div class="mt-3 sm:mt-5">
-								<div class="grid grid-cols-[minmax(0,1fr)_6.5rem] gap-2">
+								<div class="grid grid-cols-[minmax(0,1fr)_5.75rem] gap-2 sm:grid-cols-[minmax(0,1fr)_6.5rem]">
 									<input
 										bind:value={priceTotal}
 										type="number"
@@ -708,7 +708,7 @@
 
 								{#if pricePerPerson}
 									<p class="mt-2 text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">
-										≈ {currencySymbol}{pricePerPerson.toFixed(2)} / participant
+										≈ {currencySymbol}{pricePerPerson.toFixed(2)} / {i18n.t('participant')}
 									</p>
 								{/if}
 						</div>
