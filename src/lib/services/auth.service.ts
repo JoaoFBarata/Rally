@@ -23,6 +23,23 @@ import { sendRallySystemMessage } from '$lib/services/chat.service';
 import type { OrganizationType } from '$lib/schema';
 import { createAppUrl } from '$lib/utils/app-url';
 
+async function removeCurrentFcmToken() {
+	const user = auth.currentUser;
+	if (!user) return;
+
+	const token = localStorage.getItem('rally_fcm_token');
+	if (!token) return;
+
+	try {
+		await removeUserFcmToken(user.uid, token);
+	} catch (err) {
+		console.error('Error removing FCM token during account change:', err);
+	} finally {
+		localStorage.removeItem('rally_fcm_token');
+		localStorage.removeItem('rally_fcm_token_user_id');
+	}
+}
+
 export const authService = {
 	async register(email: string, password: string, displayName: string, language?: string) {
 		const credential = await createUserWithEmailAndPassword(auth, email, password);
@@ -127,6 +144,8 @@ export const authService = {
 	},
 
 	async signInWithGoogle() {
+		await removeCurrentFcmToken();
+
 		if (Capacitor.isNativePlatform()) {
 			const clientId = env.PUBLIC_GOOGLE_CLIENT_ID;
 			if (!clientId) {
@@ -169,18 +188,7 @@ export const authService = {
 	},
 
 	async logout() {
-		const user = auth.currentUser;
-		if (user) {
-			const token = localStorage.getItem('rally_fcm_token');
-			if (token) {
-				try {
-					await removeUserFcmToken(user.uid, token);
-				} catch (err) {
-					console.error('Error removing FCM token during logout:', err);
-				}
-				localStorage.removeItem('rally_fcm_token');
-			}
-		}
+		await removeCurrentFcmToken();
 		await signOut(auth);
 	}
 };

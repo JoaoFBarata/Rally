@@ -13,6 +13,49 @@ const messaging = getMessaging();
 const openaiApiKey = defineSecret("OPENAI_API_KEY");
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
 
+const PUSH_TEXT = {
+    en: {
+        someone: "Someone",
+        friend: "A friend",
+        eventFallback: "an event",
+        attachment: "Sent an attachment.",
+        newMessageFrom: (name) => `New message from ${name}`,
+        eventInviteTitle: "Event invite",
+        eventInviteBody: (name, title) => `${name} invited you to "${title}".`
+    },
+    pt: {
+        someone: "Alguém",
+        friend: "Um amigo",
+        eventFallback: "um evento",
+        attachment: "Enviou um anexo.",
+        newMessageFrom: (name) => `Nova mensagem de ${name}`,
+        eventInviteTitle: "Convite de evento",
+        eventInviteBody: (name, title) => `${name} convidou-te para "${title}".`
+    },
+    es: {
+        someone: "Alguien",
+        friend: "Un amigo",
+        eventFallback: "un evento",
+        attachment: "Envió un archivo adjunto.",
+        newMessageFrom: (name) => `Nuevo mensaje de ${name}`,
+        eventInviteTitle: "Invitación de evento",
+        eventInviteBody: (name, title) => `${name} te invitó a "${title}".`
+    },
+    fr: {
+        someone: "Quelqu’un",
+        friend: "Un ami",
+        eventFallback: "un événement",
+        attachment: "A envoyé une pièce jointe.",
+        newMessageFrom: (name) => `Nouveau message de ${name}`,
+        eventInviteTitle: "Invitation à un événement",
+        eventInviteBody: (name, title) => `${name} vous a invité à « ${title} ».`
+    }
+};
+
+function pushTextFor(language) {
+    return PUSH_TEXT[language] || PUSH_TEXT.en;
+}
+
 const VOICE_EVENT_SPORTS = [
     "football", "padel", "basketball", "running", "gym", "tennis", "cycling", "volleyball", "other"
 ];
@@ -124,7 +167,8 @@ exports.onMessageCreated = onDocumentCreated("conversations/{conversationId}/mes
     try {
         const convRef = db.collection("conversations").doc(conversationId);
         let memberIds = [];
-        const cleanText = (message.text || "").trim() || "Enviou um anexo.";
+        const rawText = (message.text || "").trim();
+        const cleanText = rawText || PUSH_TEXT.pt.attachment;
 
         // Execute a server-side transaction to update conversation metadata safely
         await db.runTransaction(async (transaction) => {
@@ -173,7 +217,7 @@ exports.onMessageCreated = onDocumentCreated("conversations/{conversationId}/mes
 
         // Find the sender's display name
         const senderDoc = await db.collection("users").doc(senderId).get();
-        const senderName = senderDoc.exists ? (senderDoc.data().displayName || "Alguém") : "Alguém";
+        const senderName = senderDoc.exists ? (senderDoc.data().displayName || PUSH_TEXT.pt.someone) : PUSH_TEXT.pt.someone;
 
         const recipients = memberIds.filter(id => id !== senderId);
 
@@ -182,6 +226,8 @@ exports.onMessageCreated = onDocumentCreated("conversations/{conversationId}/mes
             if (!userDoc.exists) continue;
 
             const userData = userDoc.data();
+            const text = pushTextFor(userData.language);
+            const notificationBody = rawText || text.attachment;
             
             let tokens = Array.isArray(userData.fcmTokens) ? userData.fcmTokens : [];
             tokens = tokens.filter(t => typeof t === "string" && t.trim() !== "");
@@ -190,8 +236,8 @@ exports.onMessageCreated = onDocumentCreated("conversations/{conversationId}/mes
 
             const payload = {
                 notification: {
-                    title: `Nova mensagem de ${senderName}`,
-                    body: cleanText
+                    title: text.newMessageFrom(senderName),
+                    body: notificationBody
                 },
                 data: {
                     path: `/messages/${conversationId}`
@@ -239,17 +285,18 @@ exports.onInviteCreated = onDocumentCreated("eventInvites/{inviteId}", async (ev
     try {
         // Get sender profile details
         const senderDoc = await db.collection("users").doc(fromUserId).get();
-        const senderName = senderDoc.exists ? (senderDoc.data().displayName || "Um amigo") : "Um amigo";
+        const senderName = senderDoc.exists ? (senderDoc.data().displayName || PUSH_TEXT.pt.friend) : PUSH_TEXT.pt.friend;
 
         // Get event details
         const eventDoc = await db.collection("events").doc(eventId).get();
-        const eventTitle = eventDoc.exists ? (eventDoc.data().title || "um evento") : "um evento";
+        const eventTitle = eventDoc.exists ? (eventDoc.data().title || PUSH_TEXT.pt.eventFallback) : PUSH_TEXT.pt.eventFallback;
 
         // Get recipient profile details
         const recipientDoc = await db.collection("users").doc(toUserId).get();
         if (!recipientDoc.exists) return;
 
         const recipientData = recipientDoc.data();
+        const text = pushTextFor(recipientData.language);
         
         let tokens = Array.isArray(recipientData.fcmTokens) ? recipientData.fcmTokens : [];
         tokens = tokens.filter(t => typeof t === "string" && t.trim() !== "");
@@ -257,8 +304,8 @@ exports.onInviteCreated = onDocumentCreated("eventInvites/{inviteId}", async (ev
 
         const payload = {
             notification: {
-                title: `Convite de Evento`,
-                body: `${senderName} convidou-te para o evento "${eventTitle}"!`
+                title: text.eventInviteTitle,
+                body: text.eventInviteBody(senderName, eventTitle)
             },
             data: {
                 path: `/events/${eventId}`

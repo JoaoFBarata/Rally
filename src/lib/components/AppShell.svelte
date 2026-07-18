@@ -9,7 +9,7 @@
 	import NavIcon from '$lib/components/NavIcon.svelte';
 	import { initTheme } from '$lib/theme.svelte';
 	import type { UserProfile } from '$lib/schema';
-	import { ensureUserProfile, saveUserFcmToken } from '$lib/services/user.service';
+	import { ensureUserProfile, removeUserFcmToken, saveUserFcmToken } from '$lib/services/user.service';
 	import { i18n } from '$lib/services/i18n.svelte';
 	import { isPlatformAdminEmail } from '$lib/admin';
 	import {
@@ -26,6 +26,7 @@
 	let profile = $state<UserProfile | null>(null);
 	let loadingProfile = $state(true);
 	let isPlatformAdmin = $state(false);
+	let currentPushUserId = '';
 
 	let pathname = $derived(page.url.pathname);
 
@@ -108,17 +109,17 @@
 
 	// Keep the mobile bar compact, but do not hide Profile for platform admins.
 	let mobileNavItems = $derived.by(() => {
-		let filtered = navItems;
-		if (navItems.length > 5 && !isPlatformAdmin) {
+		let filtered = navItems.filter((item) => item.href !== '/admin');
+		if (filtered.length > 5) {
 			const replaceableHref = organizationId ? organizationManageHref : '/profile';
-			filtered = navItems.filter((item) => item.href !== replaceableHref);
+			filtered = filtered.filter((item) => item.href !== replaceableHref);
 		}
 
-		return filtered.slice(0, isPlatformAdmin ? 6 : 5);
+		return filtered.slice(0, 5);
 	});
 
 	let mobileNavGridClass = $derived(
-		mobileNavItems.length > 5 ? 'max-w-lg grid-cols-6 gap-0.5' : 'max-w-md grid-cols-5 gap-1'
+		mobileNavItems.length > 4 ? 'max-w-lg grid-cols-6 gap-0.5' : 'max-w-md grid-cols-5 gap-1'
 	);
 
 	function mobileLabel(label: string) {
@@ -215,6 +216,8 @@
 			await PushNotifications.addListener('registration', async (token) => {
 				console.log('Push registration success, token:', token.value);
 				localStorage.setItem('rally_fcm_token', token.value);
+				localStorage.setItem('rally_fcm_token_user_id', userId);
+				currentPushUserId = userId;
 				try {
 					await saveUserFcmToken(userId, token.value);
 				} catch (err) {
@@ -244,10 +247,32 @@
 		}
 	}
 
+	async function removeStoredPushTokenForUser(userId: string) {
+		if (!userId) return;
+
+		const token = localStorage.getItem('rally_fcm_token');
+		if (!token) return;
+
+		try {
+			await removeUserFcmToken(userId, token);
+		} catch (err) {
+			console.error('Error removing FCM token from previous account:', err);
+		}
+	}
+
 	onMount(() => {
 		initTheme();
+		currentPushUserId = localStorage.getItem('rally_fcm_token_user_id') ?? '';
 
 		const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+			const nextUserId = user?.uid ?? '';
+			if (currentPushUserId && currentPushUserId !== nextUserId) {
+				await removeStoredPushTokenForUser(currentPushUserId);
+				localStorage.removeItem('rally_fcm_token');
+				localStorage.removeItem('rally_fcm_token_user_id');
+				currentPushUserId = '';
+			}
+
 			profile = null;
 			isPlatformAdmin = isPlatformAdminEmail(user?.email);
 			loadingProfile = true;
@@ -272,6 +297,7 @@
 				if (Capacitor.isNativePlatform()) {
 					PushNotifications.removeAllListeners();
 				}
+				localStorage.removeItem('rally_fcm_token_user_id');
 				loadingProfile = false;
 			}
 		});

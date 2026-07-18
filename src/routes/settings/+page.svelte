@@ -24,6 +24,7 @@
 	} from '$lib/services/device-accounts.service';
 	import { goBack } from '$lib/utils/navigation';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
+	import { isPlatformAdminEmail } from '$lib/admin';
 
 	let profile = $state<UserProfile | null>(null);
 	let loading = $state(true);
@@ -38,6 +39,7 @@
 
 	let notificationsEnabled = $state(true);
 	let selectedLanguage = $state<string>(i18n.currentLang);
+	let isPlatformAdmin = $derived(isPlatformAdminEmail(auth.currentUser?.email));
 
 	$effect(() => {
 		if (profile?.language) {
@@ -367,6 +369,31 @@
 							</span>
 						</span>
 						<span class="text-slate-300">›</span>
+					</a>
+				</div>
+			</section>
+		{/if}
+
+		{#if isPlatformAdmin}
+			<section>
+				<p class="mb-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+					{i18n.t('admin')}
+				</p>
+
+				<div class="overflow-hidden rounded-3xl bg-slate-50 dark:bg-slate-800">
+					<a
+						href={resolve('/admin')}
+						class="flex items-center justify-between gap-4 p-4 transition hover:bg-slate-100 dark:hover:bg-slate-700"
+					>
+						<span class="min-w-0 flex-1">
+							<span class="block font-black text-slate-950 dark:text-slate-50">
+								{i18n.t('admin_panel')}
+							</span>
+							<span class="block text-xs text-slate-500 dark:text-slate-400">
+								{i18n.t('admin_panel_sub')}
+							</span>
+						</span>
+						<span class="shrink-0 text-slate-300">›</span>
 					</a>
 				</div>
 			</section>

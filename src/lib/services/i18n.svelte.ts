@@ -274,6 +274,8 @@ const missingUiTranslations: Record<Language, Record<string, string>> = {
 		no_saved_events: 'No saved events yet',
 		save_events_hint: 'Use the bookmark button in an event page to keep it here.',
 		participant: 'participant',
+		admin_panel: 'Admin panel',
+		admin_panel_sub: 'Review verification requests and platform activity.',
 		location: 'Location',
 		location_not_set: 'Location not set'
 	},
@@ -458,6 +460,8 @@ const missingUiTranslations: Record<Language, Record<string, string>> = {
 		no_saved_events: 'Ainda não há eventos guardados',
 		save_events_hint: 'Usa o botão de marcador numa página de evento para o guardar aqui.',
 		participant: 'participante',
+		admin_panel: 'Painel de administração',
+		admin_panel_sub: 'Revê pedidos de verificação e atividade da plataforma.',
 		location: 'Localização',
 		location_not_set: 'Localização não definida'
 	},
@@ -642,6 +646,8 @@ const missingUiTranslations: Record<Language, Record<string, string>> = {
 		no_saved_events: 'Aún no hay eventos guardados',
 		save_events_hint: 'Usa el botón de marcador en una página de evento para guardarlo aquí.',
 		participant: 'participante',
+		admin_panel: 'Panel de administración',
+		admin_panel_sub: 'Revisa solicitudes de verificación y actividad de la plataforma.',
 		location: 'Ubicación',
 		location_not_set: 'Ubicación no definida'
 	},
@@ -826,6 +832,8 @@ const missingUiTranslations: Record<Language, Record<string, string>> = {
 		no_saved_events: 'Aucun événement enregistré pour le moment',
 		save_events_hint: 'Utilisez le bouton marque-page sur une page d’événement pour le garder ici.',
 		participant: 'participant',
+		admin_panel: 'Panneau d’administration',
+		admin_panel_sub: 'Consultez les demandes de vérification et l’activité de la plateforme.',
 		location: 'Lieu',
 		location_not_set: 'Lieu non défini'
 	}

@@ -502,6 +502,23 @@
 		return '#dc2626'; // Red - Public events
 	}
 
+	function getMarkerQueryBbox(currentMap: mapboxgl.Map): [number, number, number, number] | null {
+		const canvas = currentMap.getCanvas();
+		if (!canvas.clientWidth || !canvas.clientHeight) return null;
+
+		const isMobile = window.matchMedia('(max-width: 767px)').matches;
+		const sidePadding = isMobile ? 160 : 110;
+		const topPadding = isMobile ? 150 : 95;
+		const bottomPadding = isMobile ? 220 : 140;
+		const northWest = currentMap.unproject([-sidePadding, -topPadding]);
+		const southEast = currentMap.unproject([
+			canvas.clientWidth + sidePadding,
+			canvas.clientHeight + bottomPadding
+		]);
+
+		return [northWest.lng, southEast.lat, southEast.lng, northWest.lat];
+	}
+
 	function renderMarkers() {
 		if (!map || !mapReady || !clusterIndex) return;
 		const currentMap = map;
@@ -537,22 +554,8 @@
 		clearMarkers();
 
 		const zoom = Math.floor(currentMap.getZoom());
-		const mapBounds = currentMap.getBounds();
-		if (!mapBounds) return;
-		const west = mapBounds.getWest();
-		const south = mapBounds.getSouth();
-		const east = mapBounds.getEast();
-		const north = mapBounds.getNorth();
-
-		const lngPadding = (east - west) * 0.15;
-		const latPadding = (north - south) * 0.15;
-
-		const bbox: [number, number, number, number] = [
-			west - lngPadding,
-			south - latPadding * 2.5, // Bottom needs much more padding due to marker height anchor and UI
-			east + lngPadding,
-			north + latPadding
-		];
+		const bbox = getMarkerQueryBbox(currentMap);
+		if (!bbox) return;
 
 		const features = clusterIndex.getClusters(bbox, zoom);
 
