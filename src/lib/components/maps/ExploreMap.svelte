@@ -733,6 +733,40 @@
 	>
 
 	{#if viewMode === 'map'}
+		<div class="absolute inset-x-3 top-3 z-20 flex items-center justify-between gap-2 md:hidden fullscreen-force-show">
+			<button
+				type="button"
+				onclick={() => (showFilters = !showFilters)}
+				class="flex min-w-0 items-center gap-2 rounded-full border border-slate-200/60 bg-white/95 px-3 py-2 text-sm font-black text-slate-700 shadow-md backdrop-blur transition active:scale-95 dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-200"
+			>
+				<svg
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					class="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400"
+				>
+					<path d="M3 5h18" />
+					<path d="M7 12h10" />
+					<path d="M10 19h4" />
+				</svg>
+
+				<span class="truncate">{i18n.t('filters_label')}</span>
+
+				{#if activeFilterCount > 0}
+					<span class="shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white">
+						{activeFilterCount}
+					</span>
+				{/if}
+			</button>
+
+			<span class="shrink-0 rounded-full border border-blue-100 bg-white/95 px-3 py-2 text-[11px] font-black uppercase tracking-wide text-blue-700 shadow-md backdrop-blur dark:border-blue-900/70 dark:bg-slate-900/95 dark:text-blue-300">
+				{i18n.t('showing_events', { count: events.length, total: totalEventsCount })}
+			</span>
+		</div>
+
 		<div
 			class="absolute right-2 bottom-2 z-10 flex flex-row flex-wrap items-center gap-3 rounded-xl bg-white/95 p-2 shadow-md backdrop-blur dark:bg-slate-900/95 text-xs md:right-4 md:bottom-4 md:flex-col md:items-start md:gap-2 md:rounded-2xl md:p-4 md:shadow-lg md:text-sm"
 		>
@@ -754,41 +788,6 @@
 					<span>{i18n.t('friends_events')}</span>
 				</div>
 			{/if}
-		</div>
-
-		<!-- Floating Filters Button (Mobile Only) -->
-		<div class="absolute left-4 bottom-4 z-[9999] md:hidden flex items-center gap-2 fullscreen-force-show">
-			<button
-				type="button"
-				onclick={() => (showFilters = !showFilters)}
-				class="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-black text-slate-700 shadow-md backdrop-blur border border-slate-200/60 dark:bg-slate-900/90 dark:text-slate-200 dark:border-slate-800 transition-all active:scale-95 hover:bg-white dark:hover:bg-slate-900"
-			>
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					class="h-4 w-4 text-blue-600 dark:text-blue-400"
-				>
-					<path d="M3 5h18" />
-					<path d="M7 12h10" />
-					<path d="M10 19h4" />
-				</svg>
-
-				<span>Filters</span>
-
-				{#if activeFilterCount > 0}
-					<span class="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white">
-						{activeFilterCount}
-					</span>
-				{/if}
-			</button>
-
-			<span class="rounded-full bg-white/95 px-3 py-2 text-xs font-black text-slate-700 shadow-md backdrop-blur border border-slate-200/60 dark:bg-slate-900/95 dark:text-slate-200 dark:border-slate-800">
-				Showing {events.length} of {totalEventsCount}
-			</span>
 		</div>
 	{/if}
 
@@ -1425,7 +1424,7 @@
 						<path d="M7 12h10" />
 						<path d="M10 19h4" />
 					</svg>
-					<span>Filters</span>
+					<span>{i18n.t('filters_label')}</span>
 					{#if activeFilterCount > 0}
 						<span class="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white">
 							{activeFilterCount}
@@ -1617,7 +1616,7 @@
 </section>
 
 <style>
-	/* Force display mobile filters button and card inside native fullscreen container */
+	/* Force display mobile filters controls inside native fullscreen container */
 	:global(:fullscreen) .fullscreen-force-show {
 		display: flex !important;
 	}
