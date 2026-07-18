@@ -17,7 +17,8 @@
 		formatSport,
 		formatPrice,
 		formatCapacity,
-		getMiniMapUrl
+		getMiniMapUrl,
+		getSportBackgroundImage
 	} from '$lib/utils/format.utils';
 
 	let {
@@ -141,7 +142,7 @@
 	}
 
 	function getDefaultSportImage() {
-		return `/event-backgrounds/${event.sport || 'other'}.png`;
+		return getSportBackgroundImage(event.sport);
 	}
 
 	function formatHeroCapacity() {

@@ -62,7 +62,7 @@
 	import { getTypingLabel } from '$lib/utils/chat-typing.utils';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
-	import { formatSport, getCurrencySymbol } from '$lib/utils/format.utils';
+	import { formatSport, getCurrencySymbol, getSportBackgroundImage } from '$lib/utils/format.utils';
 	import { getOrCreateOrganizationConversation } from '$lib/services/chat.service';
 	import TournamentPanel from '$lib/components/tournaments/TournamentPanel.svelte';
 	import { getOrganizationReviews } from '$lib/services/organization.service';
@@ -453,20 +453,7 @@
 
 	function getEventHeroImage(currentEvent: SportEvent) {
 		if (currentEvent.groupPhotoURL) return currentEvent.groupPhotoURL;
-
-		const sport = (currentEvent.sport || 'other').toLowerCase();
-		const backgrounds: Record<string, string> = {
-			basketball: '/event-backgrounds/basketball.png',
-			football: '/event-backgrounds/football.png',
-			gym: '/event-backgrounds/gym.png',
-			padel: '/event-backgrounds/padel.png',
-			running: '/event-backgrounds/running.png',
-			tennis: '/event-backgrounds/tennis.png',
-			volleyball: '/event-backgrounds/volleyball.png',
-			other: '/event-backgrounds/other.png'
-		};
-
-		return backgrounds[sport] ?? backgrounds.other;
+		return getSportBackgroundImage(currentEvent.sport);
 	}
 
 	function syncSavedEventState(eventId: string) {

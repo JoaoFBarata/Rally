@@ -63,6 +63,33 @@ export function formatSport(sport: string | undefined | null): string {
 	return sport.replaceAll('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+export function getSportBackgroundImage(sport: string | undefined | null): string {
+	const normalizedSport = (sport || 'other').toLowerCase();
+	const sportImageFiles: Record<string, string> = {
+		football: 'football.png',
+		padel: 'padel.png',
+		basketball: 'basketball.png',
+		running: 'running.png',
+		gym: 'gym.png',
+		tennis: 'tennis.png',
+		cycling: 'cycling.png',
+		volleyball: 'volleyball.png',
+		bowling: 'bowling.png',
+		snooker: 'snooker.png',
+		golf: 'golf.png',
+		swimming: 'swimming.png',
+		hiking: 'hiking.png',
+		yoga: 'yoga.png',
+		surf: 'surf.png',
+		pingpong: 'pingpong.png',
+		rugby: 'rugby.png',
+		americanfootball: 'americanFootball.png',
+		other: 'other.png'
+	};
+
+	return `/event-backgrounds/${sportImageFiles[normalizedSport] ?? sportImageFiles.other}`;
+}
+
 export function getCurrencySymbol(currency?: string | null): string {
 	const symbols: Record<string, string> = {
 		EUR: '€',

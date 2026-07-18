@@ -31,7 +31,12 @@
 		subscribeToUserActivityChanges,
 		subscribeToUserChanges
 	} from '$lib/services/realtime.service';
-	import { formatCapacity, formatPrice, formatSport } from '$lib/utils/format.utils';
+	import {
+		formatCapacity,
+		formatPrice,
+		formatSport,
+		getSportBackgroundImage
+	} from '$lib/utils/format.utils';
 	import { i18n } from '$lib/services/i18n.svelte';
 
 	let targetProfile = $state<UserProfile | null>(null);
@@ -129,7 +134,7 @@
 	}
 
 	function getEventImage(event: SportEvent) {
-		return event.groupPhotoURL || `/event-backgrounds/${event.sport || 'other'}.png`;
+		return event.groupPhotoURL || getSportBackgroundImage(event.sport);
 	}
 
 	function getEventLocation(event: SportEvent) {

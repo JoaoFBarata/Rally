@@ -40,7 +40,7 @@
 		type DeviceAccount
 	} from '$lib/services/device-accounts.service';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
-	import { formatDate, getCurrencySymbol } from '$lib/utils/format.utils';
+	import { formatDate, formatSport, getCurrencySymbol, getSportBackgroundImage } from '$lib/utils/format.utils';
 
 	let organization = $state<Organization | null>(null);
 	let organizationEvents = $state<SportEvent[]>([]);
@@ -255,11 +255,11 @@
 	}
 
 	function formatSportLabel(sport: string) {
-		return sport.charAt(0).toUpperCase() + sport.slice(1);
+		return formatSport(sport);
 	}
 
 	function getManageEventImage(event: SportEvent) {
-		return event.groupPhotoURL || `/event-backgrounds/${event.sport || 'other'}.png`;
+		return event.groupPhotoURL || getSportBackgroundImage(event.sport);
 	}
 
 	function formatEventLocation(event: SportEvent) {
