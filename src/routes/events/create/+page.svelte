@@ -423,6 +423,16 @@
 							<option value="tennis">{i18n.t('sport_tennis')}</option>
 							<option value="cycling">{i18n.t('sport_cycling')}</option>
 							<option value="volleyball">{i18n.t('sport_volleyball')}</option>
+							<option value="bowling">{i18n.t('sport_bowling')}</option>
+							<option value="snooker">{i18n.t('sport_snooker')}</option>
+							<option value="golf">{i18n.t('sport_golf')}</option>
+							<option value="swimming">{i18n.t('sport_swimming')}</option>
+							<option value="hiking">{i18n.t('sport_hiking')}</option>
+							<option value="yoga">{i18n.t('sport_yoga')}</option>
+							<option value="surf">{i18n.t('sport_surf')}</option>
+							<option value="pingpong">{i18n.t('sport_pingpong')}</option>
+							<option value="rugby">{i18n.t('sport_rugby')}</option>
+							<option value="americanfootball">{i18n.t('sport_americanfootball')}</option>
 							<option value="other">{i18n.t('sport_other')}</option>
 						</select>
 

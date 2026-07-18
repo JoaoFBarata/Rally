@@ -56,7 +56,27 @@
 	let prizeValue = $state<number | null>(null);
 	let rules = $state('');
 
-	const sports: Sport[] = ['football', 'padel', 'basketball', 'running', 'gym', 'tennis', 'cycling', 'volleyball', 'other'];
+	const sports: Sport[] = [
+		'football',
+		'padel',
+		'basketball',
+		'running',
+		'gym',
+		'tennis',
+		'cycling',
+		'volleyball',
+		'bowling',
+		'snooker',
+		'golf',
+		'swimming',
+		'hiking',
+		'yoga',
+		'surf',
+		'pingpong',
+		'rugby',
+		'americanfootball',
+		'other'
+	];
 	const levels: SportLevel[] = ['beginner', 'casual', 'intermediate', 'advanced'];
 	const currencyOptions: { value: EventCurrency; label: string }[] = [
 		{ value: 'EUR', label: 'EUR €' },

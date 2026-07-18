@@ -99,6 +99,16 @@
 		{ value: 'tennis', label: 'Tennis' },
 		{ value: 'cycling', label: 'Cycling' },
 		{ value: 'volleyball', label: 'Volleyball' },
+		{ value: 'bowling', label: 'Bowling' },
+		{ value: 'snooker', label: 'Snooker' },
+		{ value: 'golf', label: 'Golf' },
+		{ value: 'swimming', label: 'Swimming' },
+		{ value: 'hiking', label: 'Hiking' },
+		{ value: 'yoga', label: 'Yoga' },
+		{ value: 'surf', label: 'Surf' },
+		{ value: 'pingpong', label: 'Table Tennis' },
+		{ value: 'rugby', label: 'Rugby' },
+		{ value: 'americanfootball', label: 'American Football' },
 		{ value: 'other', label: 'Other' }
 	];
 

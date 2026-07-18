@@ -9,6 +9,16 @@ export type Sport =
 	| 'tennis'
 	| 'cycling'
 	| 'volleyball'
+	| 'bowling'
+	| 'snooker'
+	| 'golf'
+	| 'swimming'
+	| 'hiking'
+	| 'yoga'
+	| 'surf'
+	| 'pingpong'
+	| 'rugby'
+	| 'americanfootball'
 	| 'other';
 
 export type AccountType = 'personal' | 'organization';

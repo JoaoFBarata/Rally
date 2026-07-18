@@ -1296,8 +1296,9 @@
 		>
 			<div class="flex items-center justify-between gap-3">
 				<div class="flex min-w-0 flex-wrap items-center gap-2">
-					<span class="rounded-full bg-blue-50 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-blue-600 dark:bg-blue-950/70 dark:text-blue-300 md:px-3 md:py-1 md:text-xs">
+					<span class="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-blue-600 dark:bg-blue-950/70 dark:text-blue-300 md:px-3 md:py-1 md:text-xs">
 						{selectedEvent.sport}
+						<img src="/{selectedEvent.sport}_icon.png" alt="" class="h-3.5 w-3.5" />
 					</span>
 					{#if selectedEventGroup.length > 1}
 						<span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300 md:px-3 md:py-1 md:text-xs">

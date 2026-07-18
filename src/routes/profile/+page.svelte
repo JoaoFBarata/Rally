@@ -49,6 +49,16 @@
 		'tennis',
 		'cycling',
 		'volleyball',
+		'bowling',
+		'snooker',
+		'golf',
+		'swimming',
+		'hiking',
+		'yoga',
+		'surf',
+		'pingpong',
+		'rugby',
+		'americanfootball',
 		'other'
 	];
 

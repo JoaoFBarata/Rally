@@ -748,7 +748,7 @@
 						<EventCard
 							event={nextEvent}
 							variant="hero"
-							heroCtaLabel={i18n.t('already_in_event')}
+							heroCtaLabel=""
 							heroCtaTone="muted"
 						/>
 					</div>
@@ -761,7 +761,7 @@
 										{event}
 										variant="hero"
 										miniHero
-										heroCtaLabel={i18n.t('already_in_event')}
+										heroCtaLabel=""
 										heroCtaTone="muted"
 									/>
 								</div>
