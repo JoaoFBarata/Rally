@@ -32,6 +32,7 @@
 	} from '$lib/schema';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { formatDate as formatEventDate } from '$lib/utils/format.utils';
+	import { translateRallySystemMessage } from '$lib/utils/system-message.utils';
 	import type { Unsubscribe } from 'firebase/firestore';
 	import { i18n } from '$lib/services/i18n.svelte';
 
@@ -223,21 +224,7 @@
 	function translateSystemPreview(text: string | undefined | null, type: string): string {
 		if (!text) return '';
 		if (type !== 'rally_system') return text;
-		const lang = i18n.currentLang;
-		if (lang === 'en') return text;
-		if (text === 'Welcome to Rally! You will receive event updates and more through this chat.') return i18n.t('welcome_personal');
-		if (text === 'Welcome to Rally! You will receive organization updates and event activity through this chat.') return i18n.t('welcome_org');
-		let m = text.match(/^You joined "(.+)" on (.+) at (.+)\.$/);
-		if (m) { if (lang === 'pt') return `Juntaste-te a "${m[1]}" em ${m[2]} no local ${m[3]}.`; if (lang === 'es') return `Te uniste a "${m[1]}" el ${m[2]} en ${m[3]}.`; if (lang === 'fr') return `Vous avez rejoint "${m[1]}" le ${m[2]} à ${m[3]}.`; }
-		m = text.match(/^You left "(.+)"\.$/);
-		if (m) { if (lang === 'pt') return `Saíste de "${m[1]}".`; if (lang === 'es') return `Saliste de "${m[1]}".`; if (lang === 'fr') return `Vous avez quitté "${m[1]}".`; }
-		m = text.match(/^You were removed from "(.+)" by the host\.$/);
-		if (m) { if (lang === 'pt') return `Foste removido de "${m[1]}" pelo organizador.`; if (lang === 'es') return `Fuiste eliminado de "${m[1]}" por el organizador.`; if (lang === 'fr') return `Vous avez été retiré de "${m[1]}" par l'organisateur.`; }
-		m = text.match(/^Your request to join "(.+)" was approved/);
-		if (m) { if (lang === 'pt') return `O teu pedido para "${m[1]}" foi aprovado!`; if (lang === 'es') return `Tu solicitud para "${m[1]}" fue aprobada!`; if (lang === 'fr') return `Votre demande pour "${m[1]}" a été approuvée !`; }
-		m = text.match(/^Your request to join "(.+)" was declined\.$/);
-		if (m) { if (lang === 'pt') return `O teu pedido para "${m[1]}" foi recusado.`; if (lang === 'es') return `Tu solicitud para "${m[1]}" fue rechazada.`; if (lang === 'fr') return `Votre demande pour "${m[1]}" a été refusée.`; }
-		return text;
+		return translateRallySystemMessage(text);
 	}
 
 	function formatDate(dateValue: unknown) {

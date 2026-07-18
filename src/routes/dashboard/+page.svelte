@@ -790,12 +790,6 @@
 								{i18n.t('invite_someone_game')}
 							</p>
 						</div>
-						<a
-							href={resolve('/profile')}
-							class="shrink-0 text-sm font-black text-blue-600 dark:text-blue-400"
-						>
-							{i18n.t('see_all')}
-						</a>
 					</div>
 
 					<div class="-mx-4 flex gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">

@@ -1292,7 +1292,7 @@
 
 	{#if viewMode === 'map' && selectedEvent}
 		<aside
-			class="relative z-20 mx-3 mb-3 mt-3 max-h-none overflow-visible rounded-2xl border border-slate-200 bg-white p-2.5 shadow-xl shadow-slate-300/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none md:absolute md:inset-x-auto md:bottom-auto md:left-5 md:top-5 md:m-0 md:max-h-[70dvh] md:w-[24rem] md:overflow-y-auto md:rounded-[1.75rem] md:p-4 md:shadow-2xl md:shadow-slate-300/70"
+			class="absolute inset-x-3 bottom-3 z-20 max-h-[42dvh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2.5 shadow-xl shadow-slate-300/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none md:inset-x-auto md:bottom-auto md:left-5 md:top-5 md:m-0 md:max-h-[70dvh] md:w-[24rem] md:rounded-[1.75rem] md:p-4 md:shadow-2xl md:shadow-slate-300/70"
 		>
 			<div class="flex items-center justify-between gap-3">
 				<div class="flex min-w-0 flex-wrap items-center gap-2">
@@ -1316,11 +1316,11 @@
 			</div>
 
 			<div class="mt-2.5 flex gap-2.5 md:mt-3 md:gap-3">
-				<div class="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800 md:h-28 md:w-28">
+				<div class="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800 sm:h-20 sm:w-20 md:h-28 md:w-28">
 					{#if getSelectedPreviewUrl(selectedEvent)}
 						<img src={getSelectedPreviewUrl(selectedEvent)} alt={selectedEvent.title} class="h-full w-full object-cover" />
 					{:else}
-						<div class="grid h-full w-full place-items-center text-3xl font-black text-blue-600 dark:text-blue-300">
+						<div class="grid h-full w-full place-items-center text-2xl font-black text-blue-600 dark:text-blue-300 md:text-3xl">
 							{selectedEvent.title.charAt(0).toUpperCase()}
 						</div>
 					{/if}

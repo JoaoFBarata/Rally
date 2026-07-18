@@ -9,6 +9,7 @@ import type { ChatConversation, EventInvite, FriendRequest, SportEvent } from '$
 import { toastState } from '$lib/toast.svelte';
 import { getUserProfile } from '$lib/services/user.service';
 import { i18n } from '$lib/services/i18n.svelte';
+import { translateRallySystemMessage } from '$lib/utils/system-message.utils';
 
 export type NotificationPreview = {
 	id: string;
@@ -73,10 +74,7 @@ function mergeNotificationPreviews(type: NotificationPreview['type'], previews: 
 
 function translateSystemPreview(message: string | undefined | null, conversationType?: string) {
 	if (!message) return i18n.t('new_message');
-	if (conversationType === 'rally_system') {
-		if (message === 'Event invite') return i18n.t('event_invite_label');
-		if (message === 'Sent you a friend request') return i18n.t('sent_friend_request');
-	}
+	if (conversationType === 'rally_system') return translateRallySystemMessage(message);
 	return message;
 }
 
