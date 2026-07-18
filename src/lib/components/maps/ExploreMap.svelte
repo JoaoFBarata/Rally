@@ -700,6 +700,7 @@
 		});
 
 		map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+		map.addControl(new mapboxgl.FullscreenControl(), 'top-right');
 
 		map.on('load', () => {
 			mapReady = true;
@@ -727,9 +728,9 @@
 >
 	<div
 		bind:this={mapContainer}
-		class="h-[60dvh] min-h-[420px] w-full flex-none md:h-[calc(100vh-240px)] md:min-h-[620px]"
+		class="relative h-[60dvh] min-h-[420px] w-full flex-none md:h-[calc(100vh-240px)] md:min-h-[620px]"
 		class:hidden={viewMode !== 'map'}
-	></div>
+	>
 
 	{#if viewMode === 'map'}
 		<div
@@ -756,7 +757,7 @@
 		</div>
 
 		<!-- Floating Filters Button (Mobile Only) -->
-		<div class="absolute left-4 top-4 z-10 md:hidden flex items-center gap-2">
+		<div class="absolute left-4 bottom-4 z-[9999] md:hidden flex items-center gap-2 fullscreen-force-show">
 			<button
 				type="button"
 				onclick={() => (showFilters = !showFilters)}
@@ -794,7 +795,7 @@
 	<!-- Floating Filters Modal Card (Mobile Only) -->
 	{#if showFilters}
 		<div
-			class="absolute inset-x-4 top-16 z-30 max-h-[70%] overflow-y-auto rounded-3xl border border-slate-200 bg-white/95 p-5 shadow-2xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 md:hidden"
+			class="absolute inset-x-4 bottom-16 z-[9999] max-h-[65%] overflow-y-auto rounded-3xl border border-slate-200/50 bg-white/75 p-5 shadow-2xl backdrop-blur-md dark:border-slate-800/50 dark:bg-slate-900/75 md:hidden fullscreen-force-block"
 		>
 			<div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
 				<h3 class="text-base font-black text-slate-950 dark:text-slate-50">{i18n.t('filters_label')}</h3>
@@ -1024,6 +1025,7 @@
 			</div>
 		</div>
 	{/if}
+	</div>
 
 	<!-- Desktop Filters Bar (Web Only) -->
 	<div class="hidden md:block border-t border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900 shrink-0">
@@ -1613,3 +1615,21 @@
 		</div>
 	{/if}
 </section>
+
+<style>
+	/* Force display mobile filters button and card inside native fullscreen container */
+	:global(:fullscreen) .fullscreen-force-show {
+		display: flex !important;
+	}
+	:global(:fullscreen) .fullscreen-force-block {
+		display: block !important;
+	}
+	
+	/* Also cover vendor prefixes for fullscreen */
+	:global(:-webkit-full-screen) .fullscreen-force-show {
+		display: flex !important;
+	}
+	:global(:-webkit-full-screen) .fullscreen-force-block {
+		display: block !important;
+	}
+</style>
