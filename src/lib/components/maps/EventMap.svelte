@@ -10,6 +10,7 @@
 		lng,
 		name = 'Event location',
 		address = '',
+		route = [],
 		compact = false,
 		showHeader = true
 	}: {
@@ -17,6 +18,7 @@
 		lng: number | null;
 		name?: string;
 		address?: string;
+		route?: { lat: number; lng: number }[];
 		compact?: boolean;
 		showHeader?: boolean;
 	} = $props();
@@ -24,6 +26,7 @@
 	let mapContainer = $state<HTMLDivElement>();
 	let map: Map | null = null;
 	let marker: Marker | null = null;
+	let routeEndpointMarkers: Marker[] = [];
 
 	const hasLocation = $derived(
 		typeof lat === 'number' && typeof lng === 'number' && !Number.isNaN(lat) && !Number.isNaN(lng)
@@ -64,6 +67,23 @@
 				.addTo(map);
 
 			map.on('load', () => {
+				if (route.length > 1 && map) {
+					const sourceId = 'event-route';
+					map.addSource(sourceId, { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: route.map((point) => [point.lng, point.lat]) } } });
+					map.addLayer({ id: `${sourceId}-outline`, type: 'line', source: sourceId, paint: { 'line-color': '#ffffff', 'line-width': 8, 'line-opacity': 0.85 } });
+					map.addLayer({ id: `${sourceId}-line`, type: 'line', source: sourceId, paint: { 'line-color': '#0095ff', 'line-width': 5, 'line-opacity': 0.98 } });
+					const startElement = document.createElement('div');
+					startElement.className = 'route-start-marker';
+					const finishElement = document.createElement('div');
+					finishElement.className = 'route-finish-marker';
+					routeEndpointMarkers = [
+						new mapboxgl.default.Marker({ element: startElement, anchor: 'center' }).setLngLat([route[0].lng, route[0].lat]).addTo(map),
+						new mapboxgl.default.Marker({ element: finishElement, anchor: 'center' }).setLngLat([route.at(-1)!.lng, route.at(-1)!.lat]).addTo(map)
+					];
+					const bounds = new mapboxgl.default.LngLatBounds();
+					route.forEach((point) => bounds.extend([point.lng, point.lat]));
+					map.fitBounds(bounds, { padding: compact ? 36 : 56, maxZoom: 15, duration: 0 });
+				}
 				map?.resize();
 			});
 		}
@@ -73,6 +93,7 @@
 		return () => {
 			cancelled = true;
 			marker?.remove();
+			routeEndpointMarkers.forEach((routeMarker) => routeMarker.remove());
 			map?.remove();
 		};
 	});
@@ -127,3 +148,8 @@
 		</div>
 	{/if}
 </div>
+
+<style>
+	:global(.route-start-marker) { height: 18px; width: 18px; border-radius: 999px; background: #22c55e; border: 3px solid white; box-shadow: 0 1px 5px rgb(0 0 0 / 0.4); }
+	:global(.route-finish-marker) { height: 20px; width: 20px; border-radius: 4px; border: 2px solid white; background-color: white; background-image: conic-gradient(#111 25%, white 0 50%, #111 0 75%, white 0); background-size: 10px 10px; box-shadow: 0 1px 5px rgb(0 0 0 / 0.45); }
+</style>

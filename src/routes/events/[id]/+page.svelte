@@ -1319,12 +1319,12 @@
 							</div>
 
 							<div class="rounded-[1.25rem] bg-white p-3.5 shadow-sm shadow-slate-200/60 ring-1 ring-slate-200/70 dark:bg-slate-900 dark:shadow-none dark:ring-slate-800">
-								<div class="flex items-center justify-between gap-3">
-									<div>
+								<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+									<div class="min-w-0">
 										<p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{i18n.t('price')}</p>
-										<p class="mt-1 text-sm font-black text-slate-950 dark:text-slate-50">{formatPriceLabel(event)}</p>
+										<p class="mt-1 text-sm font-black text-slate-950 dark:text-slate-50 break-words">{formatPriceLabel(event)}</p>
 									</div>
-									<span class="rounded-full bg-green-50 px-3 py-1.5 text-xs font-black text-green-700 dark:bg-green-950 dark:text-green-300">
+									<span class="inline-block self-start rounded-full bg-green-50 px-3 py-1.5 text-xs font-black text-green-700 dark:bg-green-950 dark:text-green-300 sm:self-auto shrink-0">
 										{effectiveStatus === 'full' ? i18n.t('event_full_msg') : i18n.t('spots_available')}
 									</span>
 								</div>
@@ -1350,6 +1350,12 @@
 									<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">{i18n.t('duration')}</p>
 									<p class="mt-1 truncate text-xs font-black text-slate-950 dark:text-slate-50">{formatEventDuration(event)}</p>
 								</div>
+								{#if event.routeDistanceKm !== null && event.routeDistanceKm !== undefined}
+									<div class="min-w-0 p-3 text-center">
+										<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Percurso</p>
+										<p class="mt-1 truncate text-xs font-black text-slate-950 dark:text-slate-50">{event.routeDistanceKm.toFixed(2)} km</p>
+									</div>
+								{/if}
 							</div>
 
 							{#if event.whatToBring}
@@ -1510,7 +1516,7 @@
 											{/if}
 										</div>
 										<div class="overflow-hidden rounded-[1.35rem] bg-white shadow-sm shadow-slate-200/60 ring-1 ring-slate-200/70 dark:bg-slate-900 dark:shadow-none dark:ring-slate-800">
-											<EventMap lat={event.location.lat ?? null} lng={event.location.lng ?? null} name={event.location.name} address={event.location.address ?? ''} compact={true} showHeader={false} />
+											<EventMap lat={event.location.lat ?? null} lng={event.location.lng ?? null} name={event.location.name} address={event.location.address ?? ''} route={event.route ?? []} compact={true} showHeader={false} />
 										</div>
 									</div>
 								{:else if activeEventTab === 'chat'}
@@ -1659,6 +1665,13 @@
 							{formatEventDuration(event)}
 						</p>
 					</div>
+
+					{#if event.routeDistanceKm !== null && event.routeDistanceKm !== undefined}
+						<div class="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800">
+							<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Percurso</p>
+							<p class="mt-2 font-bold text-slate-950 dark:text-slate-50">{event.routeDistanceKm.toFixed(2)} km</p>
+						</div>
+					{/if}
 
 					<div class="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800">
 						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">{i18n.t('price')}</p>
@@ -2303,6 +2316,7 @@
 				lng={event.location.lng ?? null}
 				name={event.location.name}
 				address={event.location.address ?? ''}
+				route={event.route ?? []}
 			/>
 		</aside>
 

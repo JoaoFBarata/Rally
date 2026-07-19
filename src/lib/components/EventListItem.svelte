@@ -8,7 +8,7 @@
 		formatShortDate,
 		formatSport,
 		formatPrice,
-		getMiniMapUrl
+		getSportBackgroundImage
 	} from '$lib/utils/format.utils';
 
 	let { event, label = '' } = $props<{
@@ -18,8 +18,13 @@
 
 	const formattedPrice = $derived(formatPrice(event));
 	const formattedSport = $derived(formatSport(event.customSport ?? event.sport));
-	const miniMapUrl = $derived(getMiniMapUrl(event.location.lat, event.location.lng, 168, 128));
 	const formattedDate = $derived(formatDateUtil(event.startAt, true));
+	const defaultSportImage = $derived(getSportBackgroundImage(event.sport));
+	const routeDistanceLabel = $derived(
+		event.routeDistanceKm !== null && event.routeDistanceKm !== undefined
+			? `${event.routeDistanceKm.toFixed(2)} km`
+			: ''
+	);
 
 	function getEventStartAtMillis() {
 		try {
@@ -76,14 +81,10 @@
 	<div
 		class="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800 sm:h-24 sm:w-28"
 	>
-		{#if miniMapUrl}
-			<img src={miniMapUrl} alt={event.location.name} class="h-full w-full object-cover" />
-		{:else if event.groupPhotoURL}
+		{#if event.groupPhotoURL}
 			<img src={event.groupPhotoURL} alt={event.title} class="h-full w-full object-cover" />
 		{:else}
-			<div class="grid h-full w-full place-items-center bg-blue-50 text-2xl font-black text-blue-600 dark:bg-blue-950 dark:text-blue-300">
-				{event.title.charAt(0).toUpperCase()}
-			</div>
+			<img src={defaultSportImage} alt={event.title} class="h-full w-full object-cover" />
 		{/if}
 
 		<span
@@ -126,7 +127,7 @@
 				<span class="truncate">{formattedDate}</span>
 				<EventWeather lat={event.location.lat} lng={event.location.lng} startAt={event.startAt} size="sm" />
 			</div>
-			<span class="shrink-0">{formattedPrice}</span>
+			<span class="shrink-0">{routeDistanceLabel || formattedPrice}</span>
 		</div>
 
 		<div class="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">

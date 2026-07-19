@@ -26,12 +26,15 @@
 		promoteEvent
 	} from '$lib/services/event.service';
 	import LocationPickerMap from '$lib/components/maps/LocationPickerMap.svelte';
+	import RouteEditorMap from '$lib/components/maps/RouteEditorMap.svelte';
 	import TimeSelect from '$lib/components/TimeSelect.svelte';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
 	import { getCurrencySymbol } from '$lib/utils/format.utils';
 	import { TEXT_LIMITS } from '$lib/constants/text-limits';
 	import { i18n } from '$lib/services/i18n.svelte';
+	import VoiceRecordButton from '$lib/components/VoiceRecordButton.svelte';
+	import type { VoiceExtractedFields } from '$lib/services/voice-event.service';
 
 	let organization = $state<Organization | null>(null);
 
@@ -49,6 +52,7 @@
 	let address = $state('');
 	let lat = $state<number | null>(null);
 	let lng = $state<number | null>(null);
+	let route = $state<{ lat: number; lng: number }[]>([]);
 	let autofillAddress = $state('');
 
 	let date = $state('');
@@ -184,6 +188,25 @@
 		}
 	}
 
+	function handleVoiceExtracted(fields: VoiceExtractedFields) {
+		if (fields.title) title = fields.title;
+		if (fields.sport) sport = fields.sport;
+		if (fields.customSport) customSport = fields.customSport;
+		if (fields.level) level = fields.level;
+		if (fields.description) description = fields.description;
+		if (fields.location) {
+			locationName = fields.location;
+			autofillAddress = fields.location;
+		}
+		if (fields.date) date = fields.date;
+		if (fields.time) startTime = fields.time;
+		if (fields.maxParticipants) maxParticipants = fields.maxParticipants.toString();
+		if (fields.priceTotal !== null && fields.priceTotal !== undefined) {
+			priceTotal = fields.priceTotal.toString();
+			setEventKind('paid');
+		}
+	}
+
 	function buildStartDate() {
 		if (!date || !startTime) {
 			throw new Error(i18n.t('choose_date_start_time_error'));
@@ -286,6 +309,7 @@
 				organizationId: organization.id,
 				locationName: getCleanLocationName(),
 				address: address.trim(),
+				route: sport === 'running' || sport === 'cycling' || sport === 'hiking' ? route : null,
 				lat: lat ?? undefined,
 				lng: lng ?? undefined,
 				startAt,
@@ -387,7 +411,9 @@
 						{i18n.t('hosted_by')} <span class="font-black">{organization.name}</span>
 					</p>
 				</div>
-
+				<div class="flex items-center gap-2 rounded-2xl bg-blue-50/70 p-3 ring-1 ring-blue-100/80 dark:bg-blue-950/30 dark:ring-blue-900/40">
+					<VoiceRecordButton onExtracted={handleVoiceExtracted} />
+				</div>
 			</div>
 
 		{#if error}
@@ -625,6 +651,9 @@
 						{/if}
 
 						<LocationPickerMap bind:lat bind:lng bind:address {autofillAddress} />
+						{#if (sport === 'running' || sport === 'cycling' || sport === 'hiking') && lat !== null && lng !== null}
+							<div class="mt-4"><RouteEditorMap bind:points={route} center={lat !== null && lng !== null ? { lat, lng } : null} /></div>
+						{/if}
 					</div>
 				</section>
 			</div>

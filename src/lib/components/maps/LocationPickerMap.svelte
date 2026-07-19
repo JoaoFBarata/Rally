@@ -494,6 +494,7 @@
 		map.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
 		map.on('load', () => {
+			map?.setConfig('basemap', { lightPreset: $themeState ? 'night' : 'day' });
 			map?.resize();
 
 			if (lat !== null && lng !== null) {

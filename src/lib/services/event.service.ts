@@ -35,6 +35,7 @@ import type {
 	TournamentMatch,
 	TournamentRegistrationType
 } from '$lib/schema';
+import { calculateRouteDistanceKm } from '$lib/utils/route.utils';
 import {
 	canCreateOfficialPaidEvents,
 	getOrganizationById,
@@ -460,6 +461,7 @@ export async function createSportEvent(params: {
 	paymentMode?: EventPaymentMode;
 	groupPhotoURL?: string | null;
 	groupPhotoPath?: string | null;
+	route?: SportEvent['route'];
 	whatToBring?: string;
 	joinPolicy?: EventJoinPolicy;
 	recurringGroupId?: string | null;
@@ -532,6 +534,8 @@ export async function createSportEvent(params: {
 		...organizationSnapshot,
 		groupPhotoURL: params.groupPhotoURL ?? null,
 		groupPhotoPath: params.groupPhotoPath ?? null,
+		route: params.route ?? null,
+		routeDistanceKm: calculateRouteDistanceKm(params.route),
 
 		whatToBring: params.whatToBring ?? '',
 		joinPolicy: params.joinPolicy ?? 'open',
@@ -673,6 +677,7 @@ export async function updateSportEvent(params: {
 	currency?: SportEvent['currency'];
 	groupPhotoURL?: string | null;
 	groupPhotoPath?: string | null;
+	route?: SportEvent['route'];
 	whatToBring?: string;
 	joinPolicy?: EventJoinPolicy;
 }): Promise<void> {
@@ -696,7 +701,8 @@ export async function updateSportEvent(params: {
 			? params.pricePerPerson
 			: (params.priceTotal && params.maxParticipants > 0
 				? params.priceTotal / params.maxParticipants
-				: null);
+			: null);
+	const route = params.route ?? event.route ?? null;
 
 	await updateDoc(doc(db, 'events', params.eventId), {
 		title: params.title,
@@ -720,6 +726,8 @@ export async function updateSportEvent(params: {
 		paymentMode: (params.priceTotal || pricePerPerson) ? 'split' : ('none' satisfies EventPaymentMode),
 		groupPhotoURL: params.groupPhotoURL ?? event.groupPhotoURL ?? null,
 		groupPhotoPath: params.groupPhotoPath ?? event.groupPhotoPath ?? null,
+		route,
+		routeDistanceKm: calculateRouteDistanceKm(route),
 		whatToBring: params.whatToBring ?? '',
 		joinPolicy: params.joinPolicy ?? event.joinPolicy ?? 'open',
 		updatedAt: serverTimestamp()

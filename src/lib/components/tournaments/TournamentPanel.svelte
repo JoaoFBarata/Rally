@@ -720,7 +720,7 @@
 			<p
 				class={`${compact ? 'text-[9px]' : 'text-[10px]'} font-black uppercase tracking-[0.2em] text-slate-400`}
 			>
-				{match.groupName ? `Group ${match.groupName}` : roundTitle}
+				{match.groupName ? `${i18n.t('group_label') || 'Group'} ${match.groupName}` : roundTitle}
 			</p>
 			<p
 				class={`${compact ? 'text-[9px]' : 'text-[10px]'} font-bold text-slate-500 dark:text-slate-400`}
@@ -997,7 +997,7 @@
 			<div class="col-span-2 flex flex-col justify-start gap-1 h-auto min-h-fit rounded-2xl bg-slate-50 p-3 dark:bg-slate-950 sm:col-span-1 sm:rounded-3xl sm:border sm:border-slate-100 sm:p-5 sm:dark:border-slate-800">
 				<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">{i18n.t('prize')}</p>
 				<p class="mt-1 line-clamp-2 text-sm font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-lg">
-					{event.prizeType === 'none' ? i18n.t('no_prize') : event.prizeDescription || event.prizeType}
+					{event.prizeType === 'none' ? i18n.t('no_prize') : event.prizeDescription || i18n.t('prize_type_' + event.prizeType) || event.prizeType}
 				</p>
 			</div>
 		</div>

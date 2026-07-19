@@ -17,7 +17,6 @@
 		formatSport,
 		formatPrice,
 		formatCapacity,
-		getMiniMapUrl,
 		getSportBackgroundImage
 	} from '$lib/utils/format.utils';
 	import { getOrganizationLogo } from '$lib/services/organization.service';
@@ -45,8 +44,11 @@
 	const formattedCapacity = $derived(formatCapacity(event));
 	const formattedPrice = $derived(formatPrice(event));
 	const formattedSportLabel = $derived(formatSport(event.sport));
-	const miniMapUrl = $derived(getMiniMapUrl(event.location?.lat, event.location?.lng, 176, 128));
-
+	const routeDistanceLabel = $derived(
+		event.routeDistanceKm !== null && event.routeDistanceKm !== undefined
+			? `${event.routeDistanceKm.toFixed(2)} km`
+			: ''
+	);
 	let creatorPhotoURL = $state<string | null>(null);
 	let creatorName = $state('');
 
@@ -265,7 +267,7 @@
 
 				<div class={`${miniHero ? 'mt-2 sm:mt-4' : 'mt-3 sm:mt-4'} flex items-center justify-between gap-3`}>
 					<span class={`${miniHero ? 'text-xs sm:text-sm' : 'text-sm'} truncate font-bold text-white/75`}>
-						{formattedPrice}
+						{routeDistanceLabel ? `${routeDistanceLabel} · ${formattedPrice}` : formattedPrice}
 					</span>
 					{#if heroCtaLabel}
 						<span
@@ -292,14 +294,10 @@
 			<div
 				class="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800 sm:h-24 sm:w-32"
 			>
-				{#if miniMapUrl}
-					<img src={miniMapUrl} alt={event.location.name} class="h-full w-full object-cover" />
-				{:else if event.groupPhotoURL}
+				{#if event.groupPhotoURL}
 					<img src={event.groupPhotoURL} alt={event.title} class="h-full w-full object-cover" />
 				{:else}
-					<div class="grid h-full w-full place-items-center text-2xl font-black text-blue-600 dark:text-blue-300">
-						{event.title.charAt(0).toUpperCase()}
-					</div>
+					<img src={getDefaultSportImage()} alt={event.title} class="h-full w-full object-cover" />
 				{/if}
 
 				<span
@@ -326,7 +324,7 @@
 				{formattedSportLabel} - {event.location.name}
 			</p>
 			<p class="mt-2 truncate text-xs font-black text-slate-400 dark:text-slate-500">
-				{formatDate(event.startAt)} - {formattedCapacity} - {formattedPrice}
+				{formatDate(event.startAt)} - {formattedCapacity} - {formattedPrice}{routeDistanceLabel ? ` - ${routeDistanceLabel}` : ''}
 			</p>
 		</div>
 	</a>
@@ -429,12 +427,8 @@
 		>
 			{#if event.groupPhotoURL}
 				<img src={event.groupPhotoURL} alt={event.title} class="h-full w-full object-cover" />
-			{:else if miniMapUrl}
-				<img src={miniMapUrl} alt={event.location.name} class="h-full w-full object-cover" />
 			{:else}
-				<div class="grid h-full w-full place-items-center text-3xl font-black text-blue-500/70">
-					{event.title.charAt(0).toUpperCase()}
-				</div>
+				<img src={getDefaultSportImage()} alt={event.title} class="h-full w-full object-cover" />
 			{/if}
 
 			{#if showPromotion}

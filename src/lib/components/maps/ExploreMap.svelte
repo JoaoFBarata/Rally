@@ -25,6 +25,7 @@
 		highestPrice = 50,
 		audienceFilter = 'all',
 		searchTerm = '',
+		onlyTournaments = false,
 		activeFilterCount = 0,
 		dateFilterOptions = [],
 		priceFilterOptions = [],
@@ -35,6 +36,7 @@
 		onPriceFilterChange,
 		onMaxPriceChange,
 		onAudienceFilterChange,
+		onOnlyTournamentsChange,
 		onSearchChange,
 		onClearFilters,
 		onFilteredCountChange,
@@ -57,6 +59,7 @@
 		highestPrice?: number;
 		audienceFilter?: 'all' | 'mine' | 'friends' | 'public' | 'joined';
 		searchTerm?: string;
+		onlyTournaments?: boolean;
 		activeFilterCount?: number;
 		dateFilterOptions?: { value: 'today' | '7' | '14' | '30' | 'all'; label: string }[];
 		priceFilterOptions?: { value: 'all' | 'free' | 'paid'; label: string }[];
@@ -70,6 +73,7 @@
 		onPriceFilterChange?: (value: 'all' | 'free' | 'paid') => void;
 		onMaxPriceChange?: (value: number) => void;
 		onAudienceFilterChange?: (value: 'all' | 'mine' | 'friends' | 'public' | 'joined') => void;
+		onOnlyTournamentsChange?: (value: boolean) => void;
 		onSearchChange?: (value: string) => void;
 		onClearFilters?: () => void;
 		onFilteredCountChange?: (count: number) => void;
@@ -82,6 +86,7 @@
 	let mapContainer: HTMLDivElement;
 	let map = $state<mapboxgl.Map | null>(null);
 	let mapReady = $state(false);
+	let satelliteMode = $state(false);
 	import { getUserProfile } from '$lib/services/user.service';
 	import Marker from './Marker.svelte';
 	import Supercluster from 'supercluster';
@@ -91,8 +96,10 @@
 	let selectedEventIndex = $state(0);
 	let localSearchTerm = $state('');
 	let markers: mapboxgl.Marker[] = [];
+	let routeEndpointMarkers: mapboxgl.Marker[] = [];
 	let svelteMarkers: any[] = [];
 	let showFilters = $state(false);
+	const routeSourceId = 'selected-event-route';
 
 	// Feed rails & scoring
 	let featuredFeedRail = $state<HTMLDivElement | null>(null);
@@ -453,11 +460,18 @@
 		selectedEventGroup = sortedGroup;
 		selectedEventIndex = eventIndex;
 		selectedEvent = sortedGroup[eventIndex] ?? event;
+		renderSelectedRoute();
 		onSelectedEventChange?.(selectedEvent.id);
 		queueMicrotask(() => renderMarkers());
 
 		const coords = getCoords(selectedEvent);
 		if (!shouldFly || !map || !coords) return;
+		if ((selectedEvent.route?.length ?? 0) > 1) {
+			const bounds = new mapboxgl.LngLatBounds();
+			selectedEvent.route!.forEach((point) => bounds.extend([point.lng, point.lat]));
+			map.fitBounds(bounds, { padding: 72, maxZoom: 15, duration: 650 });
+			return;
+		}
 
 		map.flyTo({
 			center: [coords.lng, coords.lat],
@@ -474,14 +488,65 @@
 		const nextEvent = selectedEventGroup[nextIndex];
 		selectedEventIndex = nextIndex;
 		selectedEvent = nextEvent;
+		renderSelectedRoute();
 		onSelectedEventChange?.(nextEvent.id);
 		queueMicrotask(() => renderMarkers());
 
 		const coords = getCoords(nextEvent);
 		if (!map || !coords) return;
+		if ((nextEvent.route?.length ?? 0) > 1) {
+			const bounds = new mapboxgl.LngLatBounds();
+			nextEvent.route!.forEach((point) => bounds.extend([point.lng, point.lat]));
+			map.fitBounds(bounds, { padding: 72, maxZoom: 15, duration: 450 });
+			return;
+		}
 		map.easeTo({
 			center: [coords.lng, coords.lat],
 			duration: 450
+		});
+	}
+
+	function renderSelectedRoute() {
+		if (!map || !mapReady) return;
+		const route = selectedEvent?.route ?? [];
+		const source = map.getSource(routeSourceId) as mapboxgl.GeoJSONSource | undefined;
+		routeEndpointMarkers.forEach((marker) => marker.remove());
+		routeEndpointMarkers = [];
+
+		if (route.length < 2) {
+			if (map.getLayer(`${routeSourceId}-outline`)) map.removeLayer(`${routeSourceId}-outline`);
+			if (map.getLayer(`${routeSourceId}-line`)) map.removeLayer(`${routeSourceId}-line`);
+			if (source) map.removeSource(routeSourceId);
+			return;
+		}
+
+		const data = { type: 'Feature' as const, properties: {}, geometry: { type: 'LineString' as const, coordinates: route.map((point) => [point.lng, point.lat]) } };
+		if (source) {
+			source.setData(data);
+		} else {
+			map.addSource(routeSourceId, { type: 'geojson', data });
+			map.addLayer({ id: `${routeSourceId}-outline`, type: 'line', source: routeSourceId, paint: { 'line-color': '#ffffff', 'line-width': 8, 'line-opacity': 0.85 } });
+			map.addLayer({ id: `${routeSourceId}-line`, type: 'line', source: routeSourceId, paint: { 'line-color': '#0095ff', 'line-width': 5, 'line-opacity': 0.98 } });
+		}
+
+		const startElement = document.createElement('div');
+		startElement.className = 'route-start-marker';
+		const finishElement = document.createElement('div');
+		finishElement.className = 'route-finish-marker';
+		routeEndpointMarkers = [
+			new mapboxgl.Marker({ element: startElement, anchor: 'center' }).setLngLat([route[0].lng, route[0].lat]).addTo(map),
+			new mapboxgl.Marker({ element: finishElement, anchor: 'center' }).setLngLat([route.at(-1)!.lng, route.at(-1)!.lat]).addTo(map)
+		];
+	}
+
+	function setSatelliteMode(nextSatelliteMode: boolean) {
+		if (!map || satelliteMode === nextSatelliteMode) return;
+		satelliteMode = nextSatelliteMode;
+		map.setStyle(nextSatelliteMode ? 'mapbox://styles/mapbox/standard-satellite' : 'mapbox://styles/mapbox/standard');
+		map.once('style.load', () => {
+			map?.setConfig('basemap', { lightPreset: $themeState ? 'night' : 'day' });
+			renderSelectedRoute();
+			renderMarkers();
 		});
 	}
 
@@ -701,16 +766,34 @@
 
 		map.addControl(new mapboxgl.NavigationControl(), 'top-right');
 		map.addControl(new mapboxgl.FullscreenControl(), 'top-right');
+		const satelliteControl = {
+			onAdd() {
+				const container = document.createElement('div');
+				container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
+				const button = document.createElement('button');
+				button.type = 'button';
+				button.title = 'Alternar mapa de satélite';
+				button.setAttribute('aria-label', 'Alternar mapa de satélite');
+				button.innerHTML = '<span aria-hidden="true" style="font-size:15px">◉</span>';
+				button.onclick = () => { setSatelliteMode(!satelliteMode); button.classList.toggle('mapboxgl-ctrl-satellite-active', satelliteMode); };
+				container.append(button);
+				return container;
+			},
+			onRemove() {}
+		};
+		map.addControl(satelliteControl as mapboxgl.IControl, 'top-right');
 
 		map.on('load', () => {
 			mapReady = true;
 			map?.resize();
 			renderMarkers();
+			renderSelectedRoute();
 		});
 
 		return () => {
 			unsubscribeThemeState();
 			clearMarkers();
+			routeEndpointMarkers.forEach((marker) => marker.remove());
 			map?.remove();
 		};
 	});
@@ -927,6 +1010,27 @@
 							{option.label}
 						</button>
 					{/each}
+				</div>
+			</div>
+
+			<!-- Tournaments Filter -->
+			<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
+				<p class="text-xs font-black uppercase tracking-wider text-slate-400">{i18n.t('category_label') || 'Category'}</p>
+				<div class="mt-2.5 flex flex-wrap gap-1.5">
+					<button
+						type="button"
+						onclick={() => {
+							onOnlyTournamentsChange?.(!onlyTournaments);
+							clearSelectedEvent();
+						}}
+						class={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+							onlyTournaments
+								? 'bg-blue-600 text-white shadow-sm'
+								: 'bg-slate-50 text-slate-600 border border-slate-100 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-blue-950'
+						}`}
+					>
+						🏆 {i18n.t('only_tournaments') || 'Only tournaments'}
+					</button>
 				</div>
 			</div>
 
@@ -1192,6 +1296,29 @@
 				</div>
 
 				<div>
+					<p class="text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('category_label') || 'Category'}</p>
+					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+						{i18n.t('category_filter_sub') || 'Filter events by category.'}
+					</p>
+					<div class="mt-3 flex flex-wrap gap-2">
+						<button
+							type="button"
+							onclick={() => {
+								onOnlyTournamentsChange?.(!onlyTournaments);
+								clearSelectedEvent();
+							}}
+							class={`rounded-full px-4 py-2 text-sm font-bold transition ${
+								onlyTournaments
+									? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
+									: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950'
+							}`}
+						>
+							🏆 {i18n.t('only_tournaments') || 'Only tournaments'}
+						</button>
+					</div>
+				</div>
+
+				<div>
 					<p class="text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('price')}</p>
 					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
 						{i18n.t('price_filter_sub')}
@@ -1346,6 +1473,9 @@
 						<span class="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-600 dark:bg-blue-950/70 dark:text-blue-300 md:px-2.5 md:py-1 md:text-[11px]">
 							{selectedEvent.participantIds.length}/{selectedEvent.maxParticipants} {i18n.t('players_lowercase')}
 						</span>
+						{#if selectedEvent.routeDistanceKm !== null && selectedEvent.routeDistanceKm !== undefined}
+							<span class="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300 md:px-2.5 md:py-1 md:text-[11px]">{selectedEvent.routeDistanceKm.toFixed(2)} km</span>
+						{/if}
 					</div>
 				</div>
 			</div>
@@ -1631,4 +1761,6 @@
 	:global(:-webkit-full-screen) .fullscreen-force-block {
 		display: block !important;
 	}
+	:global(.route-start-marker) { height: 18px; width: 18px; border-radius: 999px; background: #22c55e; border: 3px solid white; box-shadow: 0 1px 5px rgb(0 0 0 / 0.4); }
+	:global(.route-finish-marker) { height: 20px; width: 20px; border-radius: 4px; border: 2px solid white; background-color: white; background-image: conic-gradient(#111 25%, white 0 50%, #111 0 75%, white 0); background-size: 10px 10px; box-shadow: 0 1px 5px rgb(0 0 0 / 0.45); }
 </style>

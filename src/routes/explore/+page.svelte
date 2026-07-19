@@ -71,6 +71,7 @@
 	let audienceFilter = $state<AudienceFilter>(
 		getValidParam('audience', validAudienceFilters, defaultAudienceFilter)
 	);
+	let onlyTournaments = $state(page.url.searchParams.get('tournaments') === 'true');
 	let searchTerm = $state(page.url.searchParams.get('search')?.trim() ?? '');
 	let promotedPage = $state(0);
 	let promotedRotationSeed = $state(0);
@@ -122,6 +123,7 @@
 			(dateFilter === defaultDateFilter ? 0 : 1) +
 			(priceFilter === defaultPriceFilter ? 0 : 1) +
 			(audienceFilter === defaultAudienceFilter ? 0 : 1) +
+			(onlyTournaments ? 1 : 0) +
 			(searchTerm.trim() ? 1 : 0)
 		);
 	});
@@ -210,11 +212,13 @@
 			const matchesSport = selectedSports.length === 0 || selectedSports.includes(event.sport);
 			const eventLevel = event.level ?? 'casual';
 			const matchesLevel = selectedLevels.length === 0 || selectedLevels.includes(eventLevel);
+			const matchesTournament = !onlyTournaments || event.eventKind === 'tournament';
 
 			return (
 				matchesSearch &&
 				matchesSport &&
 				matchesLevel &&
+				matchesTournament &&
 				matchesDateFilter(event) &&
 				matchesPriceFilter(event) &&
 				matchesAudienceFilter(event)
@@ -320,6 +324,9 @@
 		if (audienceFilter !== defaultAudienceFilter) params.set('audience', audienceFilter);
 		else params.delete('audience');
 
+		if (onlyTournaments) params.set('tournaments', 'true');
+		else params.delete('tournaments');
+
 		if (viewMode !== 'map') params.set('view', viewMode);
 		else params.delete('view');
 
@@ -374,6 +381,12 @@
 		syncExploreQuery();
 	}
 
+	function setOnlyTournaments(value: boolean) {
+		onlyTournaments = value;
+		clearSelectedEvent();
+		syncExploreQuery();
+	}
+
 	function setSearchTerm(value: string) {
 		searchTerm = value;
 		clearSelectedEvent();
@@ -387,6 +400,7 @@
 		dateFilterManuallyChanged = false;
 		priceFilter = defaultPriceFilter;
 		audienceFilter = defaultAudienceFilter;
+		onlyTournaments = false;
 		maxPrice = highestPrice;
 		searchTerm = '';
 		clearSelectedEvent();
@@ -497,6 +511,7 @@
 					{highestPrice}
 					{audienceFilter}
 					{searchTerm}
+					{onlyTournaments}
 					{activeFilterCount}
 					{dateFilterOptions}
 					{priceFilterOptions}
@@ -509,6 +524,7 @@
 					onPriceFilterChange={setPriceFilter}
 					onMaxPriceChange={setMaxPrice}
 					onAudienceFilterChange={setAudienceFilter}
+					onOnlyTournamentsChange={setOnlyTournaments}
 					onSearchChange={setSearchTerm}
 					onClearFilters={clearAllFilters}
 					onFilteredCountChange={(count) => (filteredEventCount = count)}

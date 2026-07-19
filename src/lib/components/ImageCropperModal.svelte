@@ -179,8 +179,11 @@
 		}
 	});
 
+	let isHiding = $state(false);
+
 	function handleConfirm() {
 		if (!imgEl) return;
+		isHiding = true;
 
 		const canvas = document.createElement('canvas');
 		canvas.width = cropWidth * 2; // high resolution crop
@@ -232,7 +235,7 @@
 </script>
 
 <div
-	class="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm"
+	class="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm {isHiding ? 'hidden' : ''}"
 >
 	<div
 		class="w-full max-w-lg overflow-hidden rounded-3xl bg-white p-5 shadow-2xl dark:bg-slate-950 sm:p-6"

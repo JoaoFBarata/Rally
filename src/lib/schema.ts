@@ -236,6 +236,9 @@ export interface SportEvent {
 
 	groupPhotoURL?: string | null;
 	groupPhotoPath?: string | null;
+	/** Ordered route coordinates, used by running and cycling events. */
+	route?: { lat: number; lng: number }[] | null;
+	routeDistanceKm?: number | null;
 
 	whatToBring?: string;
 

@@ -780,7 +780,7 @@
 								error = i18n.t('requires_verified_organization_promotion');
 							}
 						}} 
-						class={`rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition sm:rounded-[1.4rem] sm:p-4 ${
+						class={`rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.4rem] sm:p-4 ${
 							organization?.verificationStatus === 'verified'
 								? 'hover:-translate-y-0.5 hover:ring-orange-200 cursor-pointer' 
 								: 'opacity-50 grayscale cursor-not-allowed'

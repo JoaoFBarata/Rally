@@ -5,6 +5,7 @@
 	import { i18n } from '$lib/services/i18n.svelte';
 	import { auth } from '$lib/firebase';
 	import LocationPickerMap from '$lib/components/maps/LocationPickerMap.svelte';
+	import RouteEditorMap from '$lib/components/maps/RouteEditorMap.svelte';
 	import VoiceRecordButton from '$lib/components/VoiceRecordButton.svelte';
 	import { createRecurringSportEvents, createSportEvent } from '$lib/services/event.service';
 	import { getFriendsForUser } from '$lib/services/social.service';
@@ -37,6 +38,7 @@
 	let lat = $state<number | null>(null);
 	let lng = $state<number | null>(null);
 	let address = $state('');
+	let route = $state<{ lat: number; lng: number }[]>([]);
 	let startDate = $state('');
 	let startTime = $state('');
 	let durationMinutes = $state(90);
@@ -167,6 +169,7 @@
 				lat,
 				lng,
 				address,
+				route: sport === 'running' || sport === 'cycling' || sport === 'hiking' ? route : null,
 				startAt,
 				endAt,
 				maxParticipants,
@@ -749,6 +752,11 @@
 				<div class="mt-4 sm:mt-8">
 					<LocationPickerMap bind:lat bind:lng bind:address autofillAddress={voiceLocationHint} />
 				</div>
+				{#if (sport === 'running' || sport === 'cycling' || sport === 'hiking') && lat !== null && lng !== null}
+					<div class="mt-4">
+						<RouteEditorMap bind:points={route} center={lat !== null && lng !== null ? { lat, lng } : null} />
+					</div>
+				{/if}
 				<button
 					type="submit"
 					disabled={loading || groupPhotoUploading}
