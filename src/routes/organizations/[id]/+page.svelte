@@ -25,9 +25,9 @@
 	import { getFriendsForUser } from '$lib/services/social.service';
 	import { uploadOrganizationLogo } from '$lib/services/storage.service';
 	import ImageCropperModal from '$lib/components/ImageCropperModal.svelte';
-	import { getEventsCreatedByOrganization, getUpcomingEvents } from '$lib/services/event.service';
+	import { getEventsCreatedByOrganization } from '$lib/services/event.service';
 	import { getOrCreateOrganizationConversation } from '$lib/services/chat.service';
-	import EventCard from '$lib/components/EventCard.svelte';
+	import PublicProfileEventCard from '$lib/components/PublicProfileEventCard.svelte';
 	import ExpandableText from '$lib/components/ExpandableText.svelte';
 	import {
 		subscribeToEventCatalogChanges,
@@ -35,11 +35,7 @@
 	} from '$lib/services/realtime.service';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import {
-		formatDate,
-		formatShortDate,
 		formatSport,
-		formatPrice,
-		formatCapacity,
 		getCurrentLocale,
 		getMiniMapUrl as getMiniMapUrlUtil
 	} from '$lib/utils/format.utils';
@@ -98,18 +94,22 @@
 	let replySubmitting = $state(false);
 	let replyMessage = $state('');
 	let visibleEventCount = $state(3);
+	let visiblePastEventCount = $state(3);
 	const reviewsPerPage = 4;
 
-	let upcomingEvents = $derived(getUpcomingEvents(events));
-	let promotedEvents = $derived(
-		upcomingEvents.filter((event) => event.isPromoted && event.promotionStatus === 'active')
+	let upcomingEvents = $derived.by(() =>
+		sortUpcomingEvents(events.filter((event) => !isPastOrganizationEvent(event)))
 	);
-	let normalUpcomingEvents = $derived(
-		upcomingEvents.filter((event) => !(event.isPromoted && event.promotionStatus === 'active'))
+	let pastEvents = $derived.by(() =>
+		[...events]
+			.filter((event) => isPastOrganizationEvent(event))
+			.sort((a, b) => getEventTimestampMillis(b.startAt) - getEventTimestampMillis(a.startAt))
 	);
-	let orderedUpcomingEvents = $derived([...promotedEvents, ...normalUpcomingEvents]);
+	let orderedUpcomingEvents = $derived(upcomingEvents);
 	let visibleUpcomingEvents = $derived(orderedUpcomingEvents.slice(0, visibleEventCount));
 	let hasMoreUpcomingEvents = $derived(orderedUpcomingEvents.length > visibleEventCount);
+	let visiblePastEvents = $derived(pastEvents.slice(0, visiblePastEventCount));
+	let hasMorePastEvents = $derived(pastEvents.length > visiblePastEventCount);
 	let organizationSports = $derived.by(() => {
 		if (organization?.sports?.length) return organization.sports.slice(0, 3);
 		const sports = new Set<string>();
@@ -208,6 +208,15 @@
 		return event.status;
 	}
 
+	function isPastOrganizationEvent(event: SportEvent) {
+		const status = getEffectiveStatus(event);
+		return status === 'finished' || status === 'cancelled';
+	}
+
+	function sortUpcomingEvents(items: SportEvent[]) {
+		return [...items].sort((a, b) => getEventTimestampMillis(a.startAt) - getEventTimestampMillis(b.startAt));
+	}
+
 	function getStatusLabel(event: SportEvent) {
 		const status = getEffectiveStatus(event);
 		if (status === 'cancelled') return i18n.t('status_cancelled');
@@ -219,6 +228,10 @@
 
 	function showMoreEvents() {
 		visibleEventCount = Math.min(visibleEventCount + 6, orderedUpcomingEvents.length);
+	}
+
+	function showMorePastEvents() {
+		visiblePastEventCount = Math.min(visiblePastEventCount + 6, pastEvents.length);
 	}
 
 
@@ -941,9 +954,9 @@
 								<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{i18n.t('no_upcoming_events_sub')}</p>
 							</div>
 						{:else}
-							<div class="grid max-w-3xl gap-4">
+							<div class="-mx-1 max-w-3xl space-y-3 px-1">
 								{#each visibleUpcomingEvents as event (event.id)}
-									<EventCard {event} variant="hero" miniHero heroCtaLabel={i18n.t('view_event')} />
+									<PublicProfileEventCard {event} />
 								{/each}
 							</div>
 							{#if hasMoreUpcomingEvents}
@@ -957,6 +970,42 @@
 							{/if}
 						{/if}
 					</section>
+
+					{#if pastEvents.length > 0}
+						<section class="mx-auto max-w-5xl border-t border-slate-200 px-6 py-5 dark:border-slate-800">
+							<div class="mb-3 flex items-center justify-between gap-3">
+								<div>
+									<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">{i18n.t('past_events')}</h2>
+									<p class="text-sm font-bold text-slate-500 dark:text-slate-400">{i18n.t('recent_activity_sub')}</p>
+								</div>
+								{#if pastEvents.length > 3}
+									<span class="shrink-0 text-xs font-black text-blue-600 dark:text-blue-400 sm:text-sm">
+										{i18n.t('showing_events', { count: visiblePastEvents.length, total: pastEvents.length })}
+									</span>
+								{/if}
+							</div>
+
+							<div class="-mx-1 max-w-3xl space-y-3 px-1">
+								{#each visiblePastEvents as event (event.id)}
+									<PublicProfileEventCard
+										{event}
+										variant="compact"
+										contextLabel={`${organization.name} · ${i18n.t('status_past')}`}
+									/>
+								{/each}
+							</div>
+
+							{#if hasMorePastEvents}
+								<button
+									type="button"
+									onclick={showMorePastEvents}
+									class="mt-4 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-blue-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 dark:border-slate-800 dark:bg-slate-900 dark:text-blue-300 dark:hover:bg-slate-800"
+								>
+									{i18n.t('show_more')}
+								</button>
+							{/if}
+						</section>
+					{/if}
 
 					<section class="mx-auto max-w-5xl border-t border-slate-200 px-6 py-5 dark:border-slate-800">
 						<div class="flex items-center justify-between gap-3">
@@ -1283,9 +1332,9 @@
 						<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{i18n.t('no_upcoming_events_sub')}</p>
 					</div>
 				{:else}
-					<div class="grid gap-4">
+					<div class="-mx-1 space-y-3 px-1">
 						{#each visibleUpcomingEvents as event (event.id)}
-							<EventCard {event} variant="hero" compactHero heroCtaLabel={i18n.t('view_event')} />
+							<PublicProfileEventCard {event} />
 						{/each}
 					</div>
 					{#if hasMoreUpcomingEvents}
@@ -1297,6 +1346,42 @@
 							{i18n.t('show_more')}
 						</button>
 					{/if}
+				{/if}
+
+				{#if pastEvents.length > 0}
+					<section class="border-t border-slate-200 pt-5 dark:border-slate-800">
+						<div class="flex items-center justify-between gap-3">
+							<div>
+								<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">{i18n.t('past_events')}</h2>
+								<p class="text-sm font-bold text-slate-500 dark:text-slate-400">{i18n.t('recent_activity_sub')}</p>
+							</div>
+							{#if pastEvents.length > 3}
+								<span class="shrink-0 text-right text-xs font-black text-blue-600 dark:text-blue-400 md:text-sm">
+									{i18n.t('showing_events', { count: visiblePastEvents.length, total: pastEvents.length })}
+								</span>
+							{/if}
+						</div>
+
+						<div class="-mx-1 mt-3 space-y-3 px-1">
+							{#each visiblePastEvents as event (event.id)}
+								<PublicProfileEventCard
+									{event}
+									variant="compact"
+									contextLabel={`${organization.name} · ${i18n.t('status_past')}`}
+								/>
+							{/each}
+						</div>
+
+						{#if hasMorePastEvents}
+							<button
+								type="button"
+								onclick={showMorePastEvents}
+								class="mt-4 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-blue-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 dark:border-slate-800 dark:bg-slate-900 dark:text-blue-300 dark:hover:bg-slate-800"
+							>
+								{i18n.t('show_more')}
+							</button>
+						{/if}
+					</section>
 				{/if}
 			</section>
 
