@@ -5,6 +5,7 @@
 	import { auth } from '$lib/firebase';
 	import type { EventStatus, SportEvent } from '$lib/schema';
 	import {
+		getEffectiveEventStatus,
 		isPromotionActive,
 		trackEventPromotionClick,
 		trackEventPromotionView
@@ -19,6 +20,7 @@
 		formatCapacity,
 		getSportBackgroundImage
 	} from '$lib/utils/format.utils';
+	import { getEventTemporalState } from '$lib/utils/event-lifecycle.utils';
 	import { getOrganizationLogo } from '$lib/services/organization.service';
 
 	let {
@@ -71,31 +73,8 @@
 		}
 	});
 
-	function getTimestampMillis(value: unknown) {
-		try {
-			const timestamp = value as {
-				toDate?: () => Date;
-				toMillis?: () => number;
-			};
-
-			if (timestamp?.toMillis) return timestamp.toMillis();
-			if (timestamp?.toDate) return timestamp.toDate().getTime();
-
-			return 0;
-		} catch {
-			return 0;
-		}
-	}
-
 	function getEffectiveStatus(): EventStatus {
-		if (event.status === 'cancelled') return 'cancelled';
-		if (event.status === 'finished') return 'finished';
-
-		const finishAtMs = getTimestampMillis(event.endAt) || getTimestampMillis(event.startAt);
-
-		if (finishAtMs && finishAtMs < Date.now()) return 'finished';
-
-		return event.status;
+		return getEffectiveEventStatus(event);
 	}
 
 	function getStatusLabel() {
@@ -115,6 +94,24 @@
 		if (status === 'finished') return i18n.t('status_finished');
 		if (event.eventKind === 'tournament') return i18n.t('status_tournament');
 		return status === 'open' || status === 'full' ? i18n.t('status_upcoming') : i18n.t('status_past');
+	}
+
+	function getTemporalBadgeLabel() {
+		const temporalState = getEventTemporalState(event);
+		if (temporalState === 'live') return i18n.t('happening_now');
+		if (temporalState === 'starting_soon') return i18n.t('starting_soon');
+		if (temporalState === 'finished') return i18n.t('status_finished');
+		if (temporalState === 'cancelled') return i18n.t('status_cancelled');
+		return i18n.t('status_upcoming');
+	}
+
+	function getTemporalBadgeClasses() {
+		const temporalState = getEventTemporalState(event);
+		if (temporalState === 'live') return 'bg-emerald-400 text-slate-950 shadow-emerald-950/20';
+		if (temporalState === 'starting_soon') return 'bg-amber-300 text-slate-950 shadow-amber-950/20';
+		if (temporalState === 'finished') return 'bg-white/25 text-white shadow-slate-950/15';
+		if (temporalState === 'cancelled') return 'bg-red-500 text-white shadow-red-950/20';
+		return 'bg-white/90 text-slate-950 shadow-slate-950/15';
 	}
 
 	function getLevelLabel(level: string | undefined | null) {
@@ -240,9 +237,14 @@
 
 		<div class={`relative flex h-full min-h-[inherit] flex-col justify-between ${miniHero ? 'p-3 sm:p-4' : `p-4 ${compactHero ? 'sm:p-4' : 'sm:p-5'}`}`}>
 			<div class="mb-2 flex items-start justify-between gap-3 sm:mb-0">
-				<span class={`rounded-full bg-emerald-500/90 font-black text-white shadow-lg shadow-emerald-950/20 ${miniHero ? 'px-2.5 py-0.5 text-[10px] sm:px-3 sm:py-1 sm:text-xs' : 'px-3 py-1 text-xs'}`}>
-					{formatDate(event.startAt)}
-				</span>
+				<div class="flex min-w-0 flex-wrap gap-2">
+					<span class={`rounded-full bg-emerald-500/90 font-black text-white shadow-lg shadow-emerald-950/20 ${miniHero ? 'px-2.5 py-0.5 text-[10px] sm:px-3 sm:py-1 sm:text-xs' : 'px-3 py-1 text-xs'}`}>
+						{formatDate(event.startAt)}
+					</span>
+					<span class={`rounded-full font-black shadow-lg ${getTemporalBadgeClasses()} ${miniHero ? 'px-2.5 py-0.5 text-[10px] sm:px-3 sm:py-1 sm:text-xs' : 'px-3 py-1 text-xs'}`}>
+						{getTemporalBadgeLabel()}
+					</span>
+				</div>
 				<span class={`rounded-full bg-white/90 font-black text-slate-950 ${miniHero ? 'px-2.5 py-0.5 text-[10px] sm:px-3 sm:py-1 sm:text-xs' : 'px-3 py-1 text-xs'}`}>
 					{formatHeroCapacity()}
 				</span>

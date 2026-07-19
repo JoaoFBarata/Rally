@@ -15,7 +15,8 @@
 		getEffectiveEventStatus,
 		isPromotionActive,
 		getEventById,
-		notifyEventFinished
+		notifyEventFinished,
+		getTournamentMatches
 	} from '$lib/services/event.service';
 	import { getInvitesForUser, respondToInvite } from '$lib/services/invite.service';
 	import { ensureUserProfile, getUserProfile } from '$lib/services/user.service';
@@ -26,7 +27,7 @@
 		subscribeToPromotedEventsForUser
 	} from '$lib/services/explore.service';
 	import { getOrganizationsFollowedByUser } from '$lib/services/organization.service';
-	import type { EventInvite, SportEvent, UserProfile } from '$lib/schema';
+	import type { EventInvite, SportEvent, TournamentMatch, UserProfile } from '$lib/schema';
 	import EventCard from '$lib/components/EventCard.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import PromotedEventCarousel from '$lib/components/PromotedEventCarousel.svelte';
@@ -37,6 +38,10 @@
 	} from '$lib/services/realtime.service';
 	import { notificationState } from '$lib/notifications.svelte';
 	import { formatDate } from '$lib/utils/format.utils';
+	import {
+		getEventTemporalState,
+		timestampToMillis
+	} from '$lib/utils/event-lifecycle.utils';
 
 	let user = $state<User | null>(null);
 	let profile = $state<UserProfile | null>(null);
@@ -48,6 +53,7 @@
 	let inviteEventsById = $state<Record<string, SportEvent>>({});
 	let promotedEvents = $state<SportEvent[]>([]);
 	let publicEvents = $state<SportEvent[]>([]);
+	let tournamentMatchesByEventId = $state<Record<string, TournamentMatch[]>>({});
 	let followedOrganizationIds = $state<string[]>([]);
 	let friends = $state<UserProfile[]>([]);
 	let invitePreviewEvent = $state<SportEvent | null>(null);
@@ -64,6 +70,7 @@
 	let userDeviceLocation = $state<{ lat: number; lng: number } | null>(null);
 	let locationStatus = $state<'idle' | 'loading' | 'ready' | 'blocked' | 'unsupported'>('idle');
 	let scrollContainer = $state<HTMLDivElement>();
+	let nowMs = $state(Date.now());
 
 	let hostingEvents = $derived(
 		events.filter((event) => !isEventFinished(event) && event.status !== 'cancelled')
@@ -104,7 +111,27 @@
 		invites.filter((invite) => invite.status === 'pending' && isInviteEventActive(inviteEventsById[invite.eventId]))
 	);
 	let notificationCount = $derived(notificationState.total);
-	let upcomingRallies = $derived(getUpcomingEvents(allUserEvents));
+	let spotlightRallies = $derived.by(() =>
+		getUpcomingEvents(allUserEvents)
+			.filter((event) => {
+				const state = getEventTemporalState(event, nowMs);
+				return state === 'live';
+			})
+			.sort((a, b) => {
+				const stateA = getEventTemporalState(a, nowMs);
+				const stateB = getEventTemporalState(b, nowMs);
+				if (stateA !== stateB) return stateA === 'live' ? -1 : 1;
+				return timestampToMillis(a.startAt) - timestampToMillis(b.startAt);
+			})
+	);
+	let upcomingRallies = $derived(
+		getUpcomingEvents(allUserEvents).filter(
+			(event) => {
+				const state = getEventTemporalState(event, nowMs);
+				return state === 'upcoming' || state === 'starting_soon';
+			}
+		)
+	);
 	let nextEvent = $derived(upcomingRallies[0] ?? null);
 	let userEventIds = $derived(new Set(allUserEvents.map((event) => event.id)));
 	let userLocationAnchor = $derived(userDeviceLocation);
@@ -178,8 +205,85 @@
 		return formatDate(dateValue, true);
 	}
 
+	function formatMatchDate(dateValue: unknown) {
+		const dateMs = timestampToMillis(dateValue);
+		if (!dateMs) return i18n.t('date_not_set');
+		return new Date(dateMs).toLocaleDateString(
+			{ en: 'en-GB', pt: 'pt-PT', es: 'es-ES', fr: 'fr-FR' }[i18n.currentLang],
+			{
+				weekday: 'short',
+				day: '2-digit',
+				month: 'short',
+				hour: '2-digit',
+				minute: '2-digit'
+			}
+		);
+	}
+
 	function formatBadge(value: number) {
 		return value > 9 ? '9+' : String(value);
+	}
+
+	function getTemporalLabel(event: SportEvent) {
+		const state = getEventTemporalState(event, nowMs);
+		if (state === 'live') return i18n.t('happening_now');
+		if (state === 'starting_soon') return i18n.t('starting_soon');
+		return i18n.t('your_next_rally');
+	}
+
+	function getTemporalDescription(event: SportEvent) {
+		const state = getEventTemporalState(event, nowMs);
+		const startMs = timestampToMillis(event.startAt);
+
+		if (state === 'live') {
+			return event.eventKind === 'tournament'
+				? i18n.t('tournament_in_progress')
+				: i18n.t('event_in_progress');
+		}
+
+		if (state === 'starting_soon' && startMs) {
+			const minutes = Math.max(1, Math.ceil((startMs - nowMs) / 60000));
+			return i18n.t('starts_in_minutes', { count: minutes });
+		}
+
+		return formatCompactDate(event.startAt);
+	}
+
+	function getMatchSortMs(match: TournamentMatch) {
+		return timestampToMillis(match.scheduledAt) || timestampToMillis(match.createdAt);
+	}
+
+	function getTournamentTimeline(event: SportEvent) {
+		if (event.eventKind !== 'tournament') return null;
+		const matches = tournamentMatchesByEventId[event.id] ?? [];
+		if (matches.length === 0) return null;
+
+		const previousMatch = [...matches]
+			.filter((match) => match.status === 'finished')
+			.sort((a, b) => getMatchSortMs(b) - getMatchSortMs(a))[0];
+
+		const nextMatch =
+			[...matches]
+				.filter((match) => match.status !== 'finished')
+				.filter((match) => !timestampToMillis(match.scheduledAt) || timestampToMillis(match.scheduledAt) >= nowMs)
+				.sort((a, b) => getMatchSortMs(a) - getMatchSortMs(b))[0] ??
+			[...matches]
+				.filter((match) => match.status !== 'finished')
+				.sort((a, b) => getMatchSortMs(a) - getMatchSortMs(b))[0];
+
+		if (!previousMatch && !nextMatch) return null;
+
+		return { previousMatch, nextMatch };
+	}
+
+	function formatMatchScore(match: TournamentMatch) {
+		if (match.homeScore == null || match.awayScore == null) return '';
+		return `${match.homeScore}-${match.awayScore}`;
+	}
+
+	function formatMatchLine(match: TournamentMatch) {
+		const score = formatMatchScore(match);
+		return `${match.homeName} ${score || i18n.t('vs')} ${match.awayName}`;
 	}
 
 	function getDistanceKm(anchor: { lat: number; lng: number } | null, event: SportEvent) {
@@ -335,6 +439,23 @@
 		for (const event of participantEvents) eventsById.set(event.id, event);
 		allUserEvents = sortEventsByStartDate(Array.from(eventsById.values()));
 
+		const tournamentEvents = allUserEvents.filter((event) => event.eventKind === 'tournament');
+		if (tournamentEvents.length > 0) {
+			const matchEntries = await Promise.all(
+				tournamentEvents.map(async (event) => {
+					try {
+						return [event.id, await getTournamentMatches(event.id)] as const;
+					} catch (err) {
+						console.error('Tournament matches load error:', err);
+						return [event.id, []] as const;
+					}
+				})
+			);
+			tournamentMatchesByEventId = Object.fromEntries(matchEntries);
+		} else {
+			tournamentMatchesByEventId = {};
+		}
+
 		// Auto-detect and notify/mark finished events
 		for (const event of allUserEvents) {
 			if (isEventFinished(event) && event.status !== 'finished' && event.status !== 'cancelled') {
@@ -359,6 +480,9 @@
 		let unsubscribePromotions = () => {};
 		let unsubscribeEvents = () => {};
 		let unsubscribeActivity = () => {};
+		const nowInterval = window.setInterval(() => {
+			nowMs = Date.now();
+		}, 60_000);
 		requestDeviceLocation();
 		const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
 			unsubscribePromotions();
@@ -397,6 +521,7 @@
 		});
 
 		return () => {
+			window.clearInterval(nowInterval);
 			unsubscribe();
 			unsubscribePromotions();
 			unsubscribeEvents();
@@ -724,6 +849,82 @@
 					</a>
 			</nav>
 
+			{#if spotlightRallies.length > 0}
+				<section class="mt-5 space-y-3">
+					<div>
+						<p class="text-xs font-black uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400">
+							{i18n.t('live_and_soon')}
+						</p>
+						<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">
+							{i18n.t('happening_around_you')}
+						</h2>
+					</div>
+
+					<div class="grid max-w-2xl gap-3">
+						{#each spotlightRallies.slice(0, 3) as event (event.id)}
+							{@const tournamentTimeline = getTournamentTimeline(event)}
+							<div class="overflow-hidden rounded-[1.9rem] border border-emerald-100 bg-white p-2 shadow-sm shadow-emerald-100/70 dark:border-emerald-900/60 dark:bg-slate-900 dark:shadow-none">
+								<div class="mb-2 flex flex-wrap items-center justify-between gap-2 px-2 pt-1">
+									<div class="min-w-0">
+										<p class="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
+											{getTemporalLabel(event)}
+										</p>
+										<p class="truncate text-xs font-bold text-slate-500 dark:text-slate-400">
+											{getTemporalDescription(event)}
+										</p>
+									</div>
+									{#if event.eventKind === 'tournament'}
+										<span class="shrink-0 rounded-full bg-purple-50 px-3 py-1 text-xs font-black text-purple-700 dark:bg-purple-950 dark:text-purple-300">
+											{i18n.t('status_tournament')}
+										</span>
+									{/if}
+								</div>
+
+								<EventCard
+									{event}
+									variant="hero"
+									compactHero
+									heroCtaLabel=""
+									heroCtaTone="muted"
+								/>
+
+								{#if tournamentTimeline}
+									<div class="mt-2 grid gap-2 px-1 pb-1 sm:grid-cols-2">
+										{#if tournamentTimeline.previousMatch}
+											<div class="rounded-2xl bg-slate-50 px-3 py-2 dark:bg-slate-950/60">
+												<p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+													{i18n.t('previous_match')}
+												</p>
+												<p class="mt-1 truncate text-sm font-black text-slate-950 dark:text-slate-50">
+													{formatMatchLine(tournamentTimeline.previousMatch)}
+												</p>
+												<p class="mt-0.5 truncate text-xs font-bold text-slate-500 dark:text-slate-400">
+													{formatMatchDate(tournamentTimeline.previousMatch.scheduledAt)}
+												</p>
+											</div>
+										{/if}
+
+										{#if tournamentTimeline.nextMatch}
+											<div class="rounded-2xl bg-blue-50 px-3 py-2 dark:bg-blue-950/40">
+												<p class="text-[10px] font-black uppercase tracking-[0.16em] text-blue-500 dark:text-blue-300">
+													{i18n.t('next_match')}
+												</p>
+												<p class="mt-1 truncate text-sm font-black text-slate-950 dark:text-slate-50">
+													{formatMatchLine(tournamentTimeline.nextMatch)}
+												</p>
+												<p class="mt-0.5 truncate text-xs font-bold text-slate-500 dark:text-slate-400">
+													{formatMatchDate(tournamentTimeline.nextMatch.scheduledAt)}
+												</p>
+											</div>
+										{/if}
+									</div>
+								{/if}
+							</div>
+						{/each}
+					</div>
+				</section>
+			{/if}
+
 			<section class="mt-5 space-y-3">
 				<div class="flex items-end justify-between gap-4">
 					<div>
@@ -745,6 +946,11 @@
 
 				{#if nextEvent}
 					<div class="max-w-2xl">
+						{#if getEventTemporalState(nextEvent, nowMs) === 'starting_soon'}
+							<p class="mb-2 inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700 ring-1 ring-amber-100 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-900/60">
+								{getTemporalDescription(nextEvent)}
+							</p>
+						{/if}
 						<EventCard
 							event={nextEvent}
 							variant="hero"

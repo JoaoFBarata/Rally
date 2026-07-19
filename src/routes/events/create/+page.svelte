@@ -134,7 +134,7 @@
 			return;
 		}
 
-		if (!duration || duration < 15) {
+		if (!duration || duration < 10) {
 			error = i18n.t('valid_duration_error');
 			return;
 		}
@@ -536,8 +536,8 @@
 						<input
 							id="durationMinutes"
 							type="number"
-							min="15"
-							step="15"
+							min="10"
+							step="5"
 							bind:value={durationMinutes}
 							placeholder="90"
 							class={`mt-2 min-w-0 ${inputClass}`}

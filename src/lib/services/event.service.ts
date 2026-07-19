@@ -45,6 +45,10 @@ import {
 import { sendRallySystemMessage } from '$lib/services/chat.service';
 import { getUserProfile } from '$lib/services/user.service';
 import { getCurrentLocale } from '$lib/utils/format.utils';
+import {
+	getEventStartMs,
+	getEventTemporalState
+} from '$lib/utils/event-lifecycle.utils';
 
 export const PROMOTION_PLANS: Record<
 	EventPromotionPlan,
@@ -241,12 +245,7 @@ export function getTournamentTeamConversationId(teamId: string) {
 }
 
 export function getEventStartAtMillis(event: SportEvent) {
-	const startAt = event.startAt as unknown as { toMillis?: () => number; toDate?: () => Date };
-
-	if (startAt?.toMillis) return startAt.toMillis();
-	if (startAt?.toDate) return startAt.toDate().getTime();
-
-	return 0;
+	return getEventStartMs(event);
 }
 
 function formatEventDate(startAt: unknown): string {
@@ -268,23 +267,7 @@ function formatEventDate(startAt: unknown): string {
 }
 
 export function isEventFinished(event: SportEvent) {
-	if (event.status === 'finished') return true;
-	if (event.status === 'cancelled') return false;
-
-	const endAt = event.endAt as unknown as { toMillis?: () => number; toDate?: () => Date } | null;
-	const endAtMs = endAt?.toMillis?.() ?? endAt?.toDate?.()?.getTime?.() ?? 0;
-
-	if (event.eventKind === 'tournament' || event.tournamentStatus) {
-		if (event.tournamentStatus === 'finished') return true;
-		if (endAtMs) return endAtMs < Date.now();
-		return false;
-	}
-
-	const finishAtMs = endAtMs || getEventStartAtMillis(event);
-
-	if (!finishAtMs) return false;
-
-	return finishAtMs < Date.now();
+	return getEventTemporalState(event) === 'finished';
 }
 
 export function getEffectiveEventStatus(event: SportEvent): EventStatus {

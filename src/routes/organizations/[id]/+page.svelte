@@ -40,6 +40,7 @@
 		getMiniMapUrl as getMiniMapUrlUtil
 	} from '$lib/utils/format.utils';
 	import { TEXT_LIMITS } from '$lib/constants/text-limits';
+	import { getEventTemporalState } from '$lib/utils/event-lifecycle.utils';
 
 	let organization = $state<Organization | null>(null);
 	let events = $state<SportEvent[]>([]);
@@ -202,9 +203,7 @@
 
 	function getEffectiveStatus(event: SportEvent): EventStatus {
 		if (event.status === 'cancelled') return 'cancelled';
-		if (event.status === 'finished') return 'finished';
-		const finishAtMs = getEventTimestampMillis(event.endAt) || getEventTimestampMillis(event.startAt);
-		if (finishAtMs && finishAtMs < Date.now()) return 'finished';
+		if (getEventTemporalState(event) === 'finished') return 'finished';
 		return event.status;
 	}
 

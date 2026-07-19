@@ -1,8 +1,9 @@
 const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/firestore");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineSecret } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
-const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
 const { getMessaging } = require("firebase-admin/messaging");
 const { GoogleGenAI, Type } = require("@google/genai");
 
@@ -21,7 +22,9 @@ const PUSH_TEXT = {
         attachment: "Sent an attachment.",
         newMessageFrom: (name) => `New message from ${name}`,
         eventInviteTitle: "Event invite",
-        eventInviteBody: (name, title) => `${name} invited you to "${title}".`
+        eventInviteBody: (name, title) => `${name} invited you to "${title}".`,
+        eventStartingSoonTitle: "Event starting soon",
+        eventStartingSoonBody: (title) => `"${title}" starts in about 1 hour.`
     },
     pt: {
         someone: "Alguém",
@@ -30,7 +33,9 @@ const PUSH_TEXT = {
         attachment: "Enviou um anexo.",
         newMessageFrom: (name) => `Nova mensagem de ${name}`,
         eventInviteTitle: "Convite de evento",
-        eventInviteBody: (name, title) => `${name} convidou-te para "${title}".`
+        eventInviteBody: (name, title) => `${name} convidou-te para "${title}".`,
+        eventStartingSoonTitle: "Evento quase a começar",
+        eventStartingSoonBody: (title) => `"${title}" começa dentro de cerca de 1 hora.`
     },
     es: {
         someone: "Alguien",
@@ -39,7 +44,9 @@ const PUSH_TEXT = {
         attachment: "Envió un archivo adjunto.",
         newMessageFrom: (name) => `Nuevo mensaje de ${name}`,
         eventInviteTitle: "Invitación de evento",
-        eventInviteBody: (name, title) => `${name} te invitó a "${title}".`
+        eventInviteBody: (name, title) => `${name} te invitó a "${title}".`,
+        eventStartingSoonTitle: "Evento a punto de empezar",
+        eventStartingSoonBody: (title) => `"${title}" empieza en aproximadamente 1 hora.`
     },
     fr: {
         someone: "Quelqu’un",
@@ -48,12 +55,44 @@ const PUSH_TEXT = {
         attachment: "A envoyé une pièce jointe.",
         newMessageFrom: (name) => `Nouveau message de ${name}`,
         eventInviteTitle: "Invitation à un événement",
-        eventInviteBody: (name, title) => `${name} vous a invité à « ${title} ».`
+        eventInviteBody: (name, title) => `${name} vous a invité à « ${title} ».`,
+        eventStartingSoonTitle: "Événement bientôt",
+        eventStartingSoonBody: (title) => `« ${title} » commence dans environ 1 heure.`
     }
 };
 
 function pushTextFor(language) {
     return PUSH_TEXT[language] || PUSH_TEXT.en;
+}
+
+async function sendPushToUser(userId, payload) {
+    const userDoc = await db.collection("users").doc(userId).get();
+    if (!userDoc.exists) return;
+
+    const userData = userDoc.data();
+    let tokens = Array.isArray(userData.fcmTokens) ? userData.fcmTokens : [];
+    tokens = tokens.filter(t => typeof t === "string" && t.trim() !== "");
+
+    if (tokens.length === 0) return;
+
+    for (const token of tokens) {
+        try {
+            await messaging.send({
+                token,
+                ...payload
+            });
+        } catch (sendError) {
+            console.error(`Error sending push to token ${token} for user ${userId}:`, sendError);
+            if (
+                sendError.code === "messaging/invalid-registration-token" ||
+                sendError.code === "messaging/registration-token-not-registered"
+            ) {
+                await db.collection("users").doc(userId).update({
+                    fcmTokens: FieldValue.arrayRemove(token)
+                });
+            }
+        }
+    }
 }
 
 const VOICE_EVENT_SPORTS = [
@@ -336,6 +375,63 @@ exports.onInviteCreated = onDocumentCreated("eventInvites/{inviteId}", async (ev
         }
     } catch (error) {
         console.error("Error in onInviteCreated Cloud Function:", error);
+    }
+});
+
+// Scheduled: Remind participants about events that are starting soon.
+exports.sendEventStartingSoonReminders = onSchedule("every 5 minutes", async () => {
+    const now = Date.now();
+    const windowStart = new Date(now + 55 * 60 * 1000);
+    const windowEnd = new Date(now + 65 * 60 * 1000);
+
+    try {
+        const snap = await db.collection("events")
+            .where("startAt", ">=", Timestamp.fromDate(windowStart))
+            .where("startAt", "<", Timestamp.fromDate(windowEnd))
+            .get();
+
+        for (const eventDoc of snap.docs) {
+            const eventData = eventDoc.data();
+
+            if (eventData.startingSoonReminderSentAt) continue;
+            if (eventData.status === "cancelled" || eventData.status === "finished") continue;
+
+            const recipientIds = [
+                ...new Set([
+                    eventData.creatorId,
+                    ...(Array.isArray(eventData.participantIds) ? eventData.participantIds : [])
+                ].filter(Boolean))
+            ];
+
+            await Promise.allSettled(
+                recipientIds.map(async (userId) => {
+                    const userDoc = await db.collection("users").doc(userId).get();
+                    if (!userDoc.exists) return;
+
+                    const text = pushTextFor(userDoc.data().language);
+                    await sendPushToUser(userId, {
+                        notification: {
+                            title: text.eventStartingSoonTitle,
+                            body: text.eventStartingSoonBody(eventData.title || text.eventFallback)
+                        },
+                        data: {
+                            path: `/events/${eventDoc.id}`
+                        },
+                        android: {
+                            notification: {
+                                channelId: "rally_default_channel"
+                            }
+                        }
+                    });
+                })
+            );
+
+            await eventDoc.ref.update({
+                startingSoonReminderSentAt: FieldValue.serverTimestamp()
+            });
+        }
+    } catch (error) {
+        console.error("Error in sendEventStartingSoonReminders Cloud Function:", error);
     }
 });
 

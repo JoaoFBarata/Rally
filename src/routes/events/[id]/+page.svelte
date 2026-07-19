@@ -16,6 +16,7 @@
 		getAvailablePromotionPlanOptions,
 		getEventById,
 		getEventGroupConversationId,
+		getEventsForUser,
 		getEffectiveEventStatus,
 		getEventPaymentSummary,
 		isEventFinished,
@@ -64,6 +65,7 @@
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
 	import { formatSport, getCurrencySymbol, getSportBackgroundImage } from '$lib/utils/format.utils';
+	import { getEventEndMs, getEventStartMs, getEventTemporalState } from '$lib/utils/event-lifecycle.utils';
 	import { getOrCreateOrganizationConversation } from '$lib/services/chat.service';
 	import TournamentPanel from '$lib/components/tournaments/TournamentPanel.svelte';
 	import { getOrganizationReviews } from '$lib/services/organization.service';
@@ -731,10 +733,47 @@
 		);
 	}
 
+	function eventsOverlap(a: SportEvent, b: SportEvent) {
+		const aStart = getEventStartMs(a);
+		const bStart = getEventStartMs(b);
+		if (!aStart || !bStart) return false;
+
+		const aEnd = getEventEndMs(a) || aStart;
+		const bEnd = getEventEndMs(b) || bStart;
+
+		return aStart < bEnd && bStart < aEnd;
+	}
+
+	async function confirmScheduleConflict(userId: string, targetEvent: SportEvent) {
+		try {
+			const userEvents = await getEventsForUser(userId);
+			const conflictingEvent = userEvents.find((candidate) => {
+				if (candidate.id === targetEvent.id) return false;
+				if (candidate.status === 'cancelled') return false;
+				if (getEventTemporalState(candidate) === 'finished') return false;
+				return eventsOverlap(candidate, targetEvent);
+			});
+
+			if (!conflictingEvent) return true;
+
+			return showConfirm({
+				title: i18n.t('schedule_conflict_title'),
+				message: i18n.t('schedule_conflict_message', { title: conflictingEvent.title }),
+				confirmLabel: i18n.t('join_anyway')
+			});
+		} catch (err) {
+			console.error('Schedule conflict check error:', err);
+			return true;
+		}
+	}
+
 	async function handleJoinEvent() {
 		const currentUser = auth.currentUser;
 
 		if (!currentUser || !event) return;
+
+		const canContinue = await confirmScheduleConflict(currentUser.uid, event);
+		if (!canContinue) return;
 
 		actionLoading = true;
 		error = '';
@@ -754,6 +793,9 @@
 		const currentUser = auth.currentUser;
 
 		if (!currentUser || !event) return;
+
+		const canContinue = await confirmScheduleConflict(currentUser.uid, event);
+		if (!canContinue) return;
 
 		actionLoading = true;
 		error = '';

@@ -3,6 +3,7 @@
 	import { i18n } from '$lib/services/i18n.svelte';
 	import type { EventStatus, SportEvent } from '$lib/schema';
 	import EventWeather from '$lib/components/EventWeather.svelte';
+	import { getEffectiveEventStatus } from '$lib/services/event.service';
 	import {
 		formatDate as formatDateUtil,
 		formatShortDate,
@@ -26,26 +27,8 @@
 			: ''
 	);
 
-	function getEventStartAtMillis() {
-		try {
-			const timestamp = event.startAt as unknown as {
-				toDate?: () => Date;
-				toMillis?: () => number;
-			};
-
-			if (timestamp?.toMillis) return timestamp.toMillis();
-			if (timestamp?.toDate) return timestamp.toDate().getTime();
-			return 0;
-		} catch {
-			return 0;
-		}
-	}
-
 	function getEffectiveStatus(): EventStatus {
-		if (event.status === 'cancelled') return 'cancelled';
-		if (event.status === 'finished') return 'finished';
-		if (getEventStartAtMillis() && getEventStartAtMillis() < Date.now()) return 'finished';
-		return event.status;
+		return getEffectiveEventStatus(event);
 	}
 
 	function getStatusLabel() {

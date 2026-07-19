@@ -43,6 +43,7 @@
 	} from '$lib/services/device-accounts.service';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { formatDate, formatSport, getCurrencySymbol, getSportBackgroundImage } from '$lib/utils/format.utils';
+	import { getEventTemporalState } from '$lib/utils/event-lifecycle.utils';
 
 	let organization = $state<Organization | null>(null);
 	let organizationEvents = $state<SportEvent[]>([]);
@@ -225,8 +226,7 @@
 	function getEffectiveStatus(event: SportEvent): EventStatus {
 		if (event.status === 'cancelled') return 'cancelled';
 		if (event.status === 'finished') return 'finished';
-		const finishAtMs = getTimestampMillis(event.endAt) || getTimestampMillis(event.startAt);
-		if (finishAtMs && finishAtMs < Date.now()) return 'finished';
+		if (getEventTemporalState(event) === 'finished') return 'finished';
 		return event.status;
 	}
 
