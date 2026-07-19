@@ -348,7 +348,9 @@ const missingUiTranslations: Record<Language, Record<string, string>> = {
 		advanced_by_bye: 'Advanced by BYE',
 		duration_not_set: 'Not set',
 		minutes: '{count} min',
-		requires_verified_organization_promotion: 'Only verified organizations can promote events.'
+		requires_verified_organization_promotion: 'Only verified organizations can promote events.',
+		adjust_image: 'Adjust image',
+		crop: 'Crop'
 	},
 	pt: {
 		close_aria: 'Fechar',
@@ -605,7 +607,9 @@ const missingUiTranslations: Record<Language, Record<string, string>> = {
 		advanced_by_bye: 'Qualificado por BYE',
 		duration_not_set: 'Não definido',
 		minutes: '{count} min',
-		requires_verified_organization_promotion: 'Apenas organizações verificadas podem promover eventos.'
+		requires_verified_organization_promotion: 'Apenas organizações verificadas podem promover eventos.',
+		adjust_image: 'Ajustar imagem',
+		crop: 'Cortar'
 	},
 	es: {
 		close_aria: 'Cerrar',

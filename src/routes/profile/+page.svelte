@@ -1451,7 +1451,7 @@
 			imageSrc={cropperImageSrc}
 			shape="circle"
 			aspectRatio={1}
-			onConfirm={async (croppedFile) => {
+			onConfirm={(croppedFile) => {
 				showCropper = false;
 				const currentUser = auth.currentUser;
 				if (!currentUser) return;
@@ -1460,27 +1460,29 @@
 				error = '';
 				success = '';
 
-				try {
-					const uploadedPhoto = await uploadUserProfilePhoto({
-						userId: currentUser.uid,
-						file: croppedFile
-					});
+				setTimeout(async () => {
+					try {
+						const uploadedPhoto = await uploadUserProfilePhoto({
+							userId: currentUser.uid,
+							file: croppedFile
+						});
 
-					await updateUserProfilePhoto({
-						userId: currentUser.uid,
-						photoURL: uploadedPhoto.url,
-						profilePhotoPath: uploadedPhoto.path
-					});
+						await updateUserProfilePhoto({
+							userId: currentUser.uid,
+							photoURL: uploadedPhoto.url,
+							profilePhotoPath: uploadedPhoto.path
+						});
 
-					if (cropperInputRef) cropperInputRef.value = '';
-					success = 'Profile photo updated.';
-					await loadProfile();
-				} catch (err) {
-					console.error('Profile photo error:', err);
-					error = getFriendlyErrorMessage(err, i18n.t('could_not_update_profile_photo'));
-				} finally {
-					photoSaving = false;
-				}
+						if (cropperInputRef) cropperInputRef.value = '';
+						success = 'Profile photo updated.';
+						await loadProfile();
+					} catch (err) {
+						console.error('Profile photo error:', err);
+						error = getFriendlyErrorMessage(err, i18n.t('could_not_update_profile_photo'));
+					} finally {
+						photoSaving = false;
+					}
+				}, 50);
 			}}
 			onCancel={() => {
 				showCropper = false;

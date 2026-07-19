@@ -78,35 +78,75 @@
 		translateY = 0;
 	}
 
+	let activePointers: PointerEvent[] = [];
+	let initialPinchDistance = 0;
+	let initialPinchScale = 1;
+
 	function handlePointerDown(e: PointerEvent) {
-		if (e.button !== 0) return; // Only left click
-		isDragging = true;
-		startX = e.clientX;
-		startY = e.clientY;
-		initialTranslateX = translateX;
-		initialTranslateY = translateY;
-		if (containerEl) {
-			containerEl.setPointerCapture(e.pointerId);
+		activePointers.push(e);
+
+		if (activePointers.length === 1) {
+			isDragging = true;
+			startX = e.clientX;
+			startY = e.clientY;
+			initialTranslateX = translateX;
+			initialTranslateY = translateY;
+			if (containerEl) {
+				containerEl.setPointerCapture(e.pointerId);
+			}
+		} else if (activePointers.length === 2) {
+			isDragging = false;
+			initialPinchDistance = Math.hypot(
+				activePointers[0].clientX - activePointers[1].clientX,
+				activePointers[0].clientY - activePointers[1].clientY
+			);
+			initialPinchScale = scale;
 		}
 	}
 
 	function handlePointerMove(e: PointerEvent) {
-		if (!isDragging || !imgEl) return;
-		const dx = e.clientX - startX;
-		const dy = e.clientY - startY;
+		const idx = activePointers.findIndex((p) => p.pointerId === e.pointerId);
+		if (idx !== -1) {
+			activePointers[idx] = e;
+		}
 
-		translateX = initialTranslateX + dx;
-		translateY = initialTranslateY + dy;
+		if (activePointers.length === 2) {
+			const dist = Math.hypot(
+				activePointers[0].clientX - activePointers[1].clientX,
+				activePointers[0].clientY - activePointers[1].clientY
+			);
+			if (initialPinchDistance > 0) {
+				const factor = dist / initialPinchDistance;
+				scale = Math.max(minScale, Math.min(maxScale, initialPinchScale * factor));
+			}
+		} else if (activePointers.length === 1 && isDragging && imgEl) {
+			const dx = e.clientX - startX;
+			const dy = e.clientY - startY;
 
-		keepInBounds();
+			translateX = initialTranslateX + dx;
+			translateY = initialTranslateY + dy;
+
+			keepInBounds();
+		}
 	}
 
 	function handlePointerUp(e: PointerEvent) {
-		isDragging = false;
-		if (containerEl) {
-			try {
-				containerEl.releasePointerCapture(e.pointerId);
-			} catch {}
+		activePointers = activePointers.filter((p) => p.pointerId !== e.pointerId);
+
+		if (activePointers.length === 0) {
+			isDragging = false;
+			if (containerEl) {
+				try {
+					containerEl.releasePointerCapture(e.pointerId);
+				} catch {}
+			}
+		} else if (activePointers.length === 1) {
+			const rem = activePointers[0];
+			startX = rem.clientX;
+			startY = rem.clientY;
+			initialTranslateX = translateX;
+			initialTranslateY = translateY;
+			isDragging = true;
 		}
 	}
 

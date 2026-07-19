@@ -1366,10 +1366,11 @@
 			imageSrc={cropperImageSrc}
 			shape={cropperTarget === 'logo' ? 'circle' : 'rect'}
 			aspectRatio={cropperTarget === 'logo' ? 1 : 16 / 9}
-			onConfirm={async (croppedFile) => {
+			onConfirm={(croppedFile) => {
 				showCropper = false;
 				const user = auth.currentUser;
-				if (!user || !organization) return;
+				const activeOrg = organization;
+				if (!user || !activeOrg) return;
 
 				if (cropperTarget === 'logo') {
 					uploadingLogo = true;
@@ -1379,60 +1380,62 @@
 				error = '';
 				success = '';
 
-				try {
-					const uploaded = await uploadOrganizationLogo({
-						organizationId: organization.id,
-						userId: user.uid,
-						file: croppedFile
-					});
+				setTimeout(async () => {
+					try {
+						const uploaded = await uploadOrganizationLogo({
+							organizationId: activeOrg.id,
+							userId: user.uid,
+							file: croppedFile
+						});
 
-					if (cropperTarget === 'logo') {
-						await updateOrganizationProfile({
-							organizationId: organization.id,
-							userId: user.uid,
-							name,
-							type,
-							description,
-							contactEmail,
-							phone,
-							website,
-							address,
-							city,
-							nif,
-							logoURL: uploaded.url,
-							logoPath: uploaded.path
-						});
-						success = 'Organization logo updated.';
-					} else {
-						await updateOrganizationProfile({
-							organizationId: organization.id,
-							userId: user.uid,
-							name,
-							type,
-							description,
-							contactEmail,
-							phone,
-							website,
-							address,
-							city,
-							nif,
-							logoURL: organization.logoURL ?? null,
-							logoPath: organization.logoPath ?? null,
-							coverPhotoURL: uploaded.url,
-							coverPhotoPath: uploaded.path
-						});
-						success = 'Organization cover updated.';
+						if (cropperTarget === 'logo') {
+							await updateOrganizationProfile({
+								organizationId: activeOrg.id,
+								userId: user.uid,
+								name,
+								type,
+								description,
+								contactEmail,
+								phone,
+								website,
+								address,
+								city,
+								nif,
+								logoURL: uploaded.url,
+								logoPath: uploaded.path
+							});
+							success = 'Organization logo updated.';
+						} else {
+							await updateOrganizationProfile({
+								organizationId: activeOrg.id,
+								userId: user.uid,
+								name,
+								type,
+								description,
+								contactEmail,
+								phone,
+								website,
+								address,
+								city,
+								nif,
+								logoURL: activeOrg.logoURL ?? null,
+								logoPath: activeOrg.logoPath ?? null,
+								coverPhotoURL: uploaded.url,
+								coverPhotoPath: uploaded.path
+							});
+							success = 'Organization cover updated.';
+						}
+
+						await loadManagePage(user.uid);
+					} catch (err) {
+						console.error('Upload organization image error:', err);
+						error = getFriendlyErrorMessage(err, `Could not upload organization ${cropperTarget}.`);
+					} finally {
+						uploadingLogo = false;
+						uploadingCover = false;
+						if (cropperInputRef) cropperInputRef.value = '';
 					}
-
-					await loadManagePage(user.uid);
-				} catch (err) {
-					console.error('Upload organization image error:', err);
-					error = getFriendlyErrorMessage(err, `Could not upload organization ${cropperTarget}.`);
-				} finally {
-					uploadingLogo = false;
-					uploadingCover = false;
-					if (cropperInputRef) cropperInputRef.value = '';
-				}
+				}, 50);
 			}}
 			onCancel={() => {
 				showCropper = false;

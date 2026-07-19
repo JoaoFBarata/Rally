@@ -667,30 +667,33 @@
 			imageSrc={cropperImageSrc}
 			shape="rect"
 			aspectRatio={16 / 9}
-			onConfirm={async (croppedFile) => {
+			onConfirm={(croppedFile) => {
 				showCropper = false;
 				const currentUser = auth.currentUser;
-				if (!currentUser || !event) return;
+				const activeEvent = event;
+				if (!currentUser || !activeEvent) return;
 
 				groupPhotoUploading = true;
 				error = '';
 
-				try {
-					const uploaded = await uploadEventGroupPhoto({
-						eventId: event.id,
-						userId: currentUser.uid,
-						file: croppedFile
-					});
+				setTimeout(async () => {
+					try {
+						const uploaded = await uploadEventGroupPhoto({
+							eventId: activeEvent.id,
+							userId: currentUser.uid,
+							file: croppedFile
+						});
 
-					groupPhotoURL = uploaded.url;
-					groupPhotoPath = uploaded.path;
-				} catch (err) {
-					console.error('Group photo upload error:', err);
-					error = getFriendlyErrorMessage(err, 'Could not upload group photo.');
-				} finally {
-					groupPhotoUploading = false;
-					if (cropperInputRef) cropperInputRef.value = '';
-				}
+						groupPhotoURL = uploaded.url;
+						groupPhotoPath = uploaded.path;
+					} catch (err) {
+						console.error('Group photo upload error:', err);
+						error = getFriendlyErrorMessage(err, 'Could not upload group photo.');
+					} finally {
+						groupPhotoUploading = false;
+						if (cropperInputRef) cropperInputRef.value = '';
+					}
+				}, 50);
 			}}
 			onCancel={() => {
 				showCropper = false;

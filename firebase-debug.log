@@ -1,0 +1,123 @@
+[debug] [2026-07-19T11:39:11.902Z] ----------------------------------------------------------------------
+[debug] [2026-07-19T11:39:11.905Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\henri\AppData\Local\pnpm\global\5\.pnpm\firebase-tools@15.22.1_@types+node@26.0.0\node_modules\firebase-tools\lib\bin\firebase.js deploy
+[debug] [2026-07-19T11:39:11.906Z] CLI Version:   15.22.1
+[debug] [2026-07-19T11:39:11.906Z] Platform:      win32
+[debug] [2026-07-19T11:39:11.906Z] Node Version:  v24.13.0
+[debug] [2026-07-19T11:39:11.906Z] Detected Agent: unknown
+[debug] [2026-07-19T11:39:11.906Z] Time:          Sun Jul 19 2026 12:39:11 GMT+0100 (Hora de verão da Europa Ocidental)
+[debug] [2026-07-19T11:39:11.906Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-07-19T11:39:11.910Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[debug] [2026-07-19T11:39:18.313Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-07-19T11:39:18.313Z] > authorizing via signed-in user (henriquemaceiro@gmail.com)
+[debug] [2026-07-19T11:39:18.313Z] [iam] checking project rally-5ddd6 for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get","firebasehosting.sites.update","firebaserules.releases.create","firebaserules.releases.update","firebaserules.rulesets.create"]
+[debug] [2026-07-19T11:39:18.314Z] Checked if tokens are valid: false, expires at: 1784412643478
+[debug] [2026-07-19T11:39:18.315Z] Checked if tokens are valid: false, expires at: 1784412643478
+[debug] [2026-07-19T11:39:18.315Z] > refreshing access token with scopes: []
+[debug] [2026-07-19T11:39:18.316Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-07-19T11:39:18.316Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-07-19T11:39:18.475Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-07-19T11:39:18.475Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-07-19T11:39:18.487Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/rally-5ddd6:testIamPermissions [none]
+[debug] [2026-07-19T11:39:18.487Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/rally-5ddd6:testIamPermissions  x-goog-user-project=rally-5ddd6
+[debug] [2026-07-19T11:39:18.488Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/rally-5ddd6:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get","firebasehosting.sites.update","firebaserules.releases.create","firebaserules.releases.update","firebaserules.rulesets.create"]}
+[debug] [2026-07-19T11:39:18.588Z] <<< [apiv2][status] GET https://firebase-public.firebaseio.com/cli.json 200
+[debug] [2026-07-19T11:39:18.588Z] <<< [apiv2][body] GET https://firebase-public.firebaseio.com/cli.json {"cloudBuildErrorAfter":1594252800000,"cloudBuildWarnAfter":1590019200000,"defaultNode10After":1594252800000,"minVersion":"3.0.5","node8DeploysDisabledAfter":1613390400000,"node8RuntimeDisabledAfter":1615809600000,"node8WarnAfter":1600128000000}
+[debug] [2026-07-19T11:39:19.204Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/rally-5ddd6:testIamPermissions 200
+[debug] [2026-07-19T11:39:19.204Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/rally-5ddd6:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get","firebasehosting.sites.update","firebaserules.releases.create","firebaserules.releases.update","firebaserules.rulesets.create"]}
+[debug] [2026-07-19T11:39:19.204Z] Checked if tokens are valid: true, expires at: 1784464757475
+[debug] [2026-07-19T11:39:19.204Z] Checked if tokens are valid: true, expires at: 1784464757475
+[debug] [2026-07-19T11:39:19.204Z] >>> [apiv2][query] POST https://iam.googleapis.com/v1/projects/rally-5ddd6/serviceAccounts/rally-5ddd6@appspot.gserviceaccount.com:testIamPermissions [none]
+[debug] [2026-07-19T11:39:19.204Z] >>> [apiv2][body] POST https://iam.googleapis.com/v1/projects/rally-5ddd6/serviceAccounts/rally-5ddd6@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[debug] [2026-07-19T11:39:19.924Z] <<< [apiv2][status] POST https://iam.googleapis.com/v1/projects/rally-5ddd6/serviceAccounts/rally-5ddd6@appspot.gserviceaccount.com:testIamPermissions 200
+[debug] [2026-07-19T11:39:19.924Z] <<< [apiv2][body] POST https://iam.googleapis.com/v1/projects/rally-5ddd6/serviceAccounts/rally-5ddd6@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[debug] [2026-07-19T11:39:19.925Z] Checked if tokens are valid: true, expires at: 1784464757475
+[debug] [2026-07-19T11:39:19.925Z] Checked if tokens are valid: true, expires at: 1784464757475
+[debug] [2026-07-19T11:39:19.925Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/rally-5ddd6 [none]
+[debug] [2026-07-19T11:39:20.321Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/rally-5ddd6 200
+[debug] [2026-07-19T11:39:20.321Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/rally-5ddd6 {"projectId":"rally-5ddd6","projectNumber":"906417673342","displayName":"Rally","name":"projects/rally-5ddd6","resources":{"hostingSite":"rally-5ddd6"},"state":"ACTIVE","labels":{"firebase":"enabled","firebase/storage-default-bucket":"created"},"etag":"1_7e436048-8ff4-47d3-9c36-657142d0e988"}
+[info] 
+[info] === Deploying to 'rally-5ddd6'...
+[info] 
+[info] i  deploying storage, firestore, functions, hosting 
+[info] i  storage: ensuring required API firebasestorage.googleapis.com is enabled... 
+[debug] [2026-07-19T11:39:20.326Z] Checked if tokens are valid: true, expires at: 1784464757475
+[debug] [2026-07-19T11:39:20.326Z] Checked if tokens are valid: true, expires at: 1784464757475
+[debug] [2026-07-19T11:39:20.326Z] >>> [apiv2][query] GET https://firebasestorage.googleapis.com/v1alpha/projects/rally-5ddd6/defaultBucket [none]
+[debug] [2026-07-19T11:39:21.001Z] <<< [apiv2][status] GET https://firebasestorage.googleapis.com/v1alpha/projects/rally-5ddd6/defaultBucket 200
+[debug] [2026-07-19T11:39:21.001Z] <<< [apiv2][body] GET https://firebasestorage.googleapis.com/v1alpha/projects/rally-5ddd6/defaultBucket {"name":"projects/rally-5ddd6/defaultBucket","location":"US-WEST1","bucket":{"name":"projects/rally-5ddd6/buckets/rally-5ddd6.firebasestorage.app"},"storageClass":"REGIONAL"}
+[info] i  firebase.storage: checking storage.rules for compilation errors... 
+[debug] [2026-07-19T11:39:21.002Z] Checked if tokens are valid: true, expires at: 1784464757475
+[debug] [2026-07-19T11:39:21.003Z] Checked if tokens are valid: true, expires at: 1784464757475
+[debug] [2026-07-19T11:39:21.003Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/rally-5ddd6:test [none]
+[debug] [2026-07-19T11:39:21.003Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/rally-5ddd6:test [omitted]
+[debug] [2026-07-19T11:39:21.825Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/rally-5ddd6:test 200
+[debug] [2026-07-19T11:39:21.825Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/rally-5ddd6:test {}
+[info] +  firebase.storage: rules file storage.rules compiled successfully 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2026-07-19T11:39:21.828Z] Checked if tokens are valid: true, expires at: 1784464757475
+[debug] [2026-07-19T11:39:21.828Z] Checked if tokens are valid: true, expires at: 1784464757475
+[debug] [2026-07-19T11:39:21.828Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/rally-5ddd6/databases/(default) [none]
+[debug] [2026-07-19T11:39:22.014Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/rally-5ddd6/databases/(default) 200
+[debug] [2026-07-19T11:39:22.014Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/rally-5ddd6/databases/(default) {"name":"projects/rally-5ddd6/databases/(default)","uid":"8998248c-51fd-4605-af73-c7b559683314","createTime":"2026-05-29T19:25:18.331431Z","updateTime":"2026-05-29T19:25:18.331431Z","locationId":"europe-southwest1","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2026-07-19T10:39:16.158208Z","appEngineIntegrationMode":"DISABLED","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"IIaR0OrT3pUDMKLLiped35QD"}
+[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
+[debug] [2026-07-19T11:39:22.015Z] Checked if tokens are valid: true, expires at: 1784464757475
+[debug] [2026-07-19T11:39:22.015Z] Checked if tokens are valid: true, expires at: 1784464757475
+[debug] [2026-07-19T11:39:22.015Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/rally-5ddd6:test [none]
+[debug] [2026-07-19T11:39:22.015Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/rally-5ddd6:test [omitted]
+[debug] [2026-07-19T11:39:22.261Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/rally-5ddd6:test 200
+[debug] [2026-07-19T11:39:22.261Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/rally-5ddd6:test {}
+[info] +  cloud.firestore: rules file firestore.rules compiled successfully 
+[debug] [2026-07-19T11:39:22.264Z] Checked if tokens are valid: true, expires at: 1784464757475
+[debug] [2026-07-19T11:39:22.264Z] Checked if tokens are valid: true, expires at: 1784464757475
+[debug] [2026-07-19T11:39:22.264Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/projects/rally-5ddd6 [none]
+[debug] [2026-07-19T11:39:22.457Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/projects/rally-5ddd6 200
+[debug] [2026-07-19T11:39:22.457Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/projects/rally-5ddd6 {"projectNumber":"906417673342","projectId":"rally-5ddd6","lifecycleState":"ACTIVE","name":"Rally","labels":{"firebase":"enabled","firebase-core":"disabled"},"createTime":"2026-05-29T17:32:15.547Z"}
+[info] i  functions: preparing codebase default for deployment 
+[info] i  functions: ensuring required API cloudfunctions.googleapis.com is enabled... 
+[info] i  functions: ensuring required API cloudbuild.googleapis.com is enabled... 
+[info] i  artifactregistry: ensuring required API artifactregistry.googleapis.com is enabled... 
+[debug] [2026-07-19T11:39:22.461Z] Checked if tokens are valid: true, expires at: 1784464757475
+[debug] [2026-07-19T11:39:22.461Z] Checked if tokens are valid: true, expires at: 1784464757475
+[debug] [2026-07-19T11:39:22.461Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/rally-5ddd6/adminSdkConfig [none]
+[debug] [2026-07-19T11:39:22.945Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/rally-5ddd6/adminSdkConfig 200
+[debug] [2026-07-19T11:39:22.945Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/rally-5ddd6/adminSdkConfig {"projectId":"rally-5ddd6","storageBucket":"rally-5ddd6.firebasestorage.app"}
+[debug] [2026-07-19T11:39:22.946Z] Checked if tokens are valid: true, expires at: 1784464757475
+[debug] [2026-07-19T11:39:22.946Z] Checked if tokens are valid: true, expires at: 1784464757475
+[debug] [2026-07-19T11:39:22.946Z] >>> [apiv2][query] GET https://runtimeconfig.googleapis.com/v1beta1/projects/rally-5ddd6/configs [none]
+[debug] [2026-07-19T11:39:23.294Z] <<< [apiv2][status] GET https://runtimeconfig.googleapis.com/v1beta1/projects/rally-5ddd6/configs 200
+[debug] [2026-07-19T11:39:23.294Z] <<< [apiv2][body] GET https://runtimeconfig.googleapis.com/v1beta1/projects/rally-5ddd6/configs {}
+[debug] [2026-07-19T11:39:23.295Z] Validating nodejs source
+[warn] !  functions: package.json indicates an outdated version of firebase-functions. Please upgrade using npm install --save firebase-functions@latest in your functions directory. 
+[warn] !  functions: Please note that there will be breaking changes when you upgrade. 
+[debug] [2026-07-19T11:39:25.241Z] > [functions] package.json contents: {
+  "name": "functions",
+  "description": "Cloud Functions for Rally",
+  "scripts": {
+    "serve": "firebase emulators:start --only functions",
+    "shell": "firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "main": "index.js",
+  "dependencies": {
+    "@google/genai": "^2.10.0",
+    "firebase-admin": "^12.0.0",
+    "firebase-functions": "^5.0.0"
+  },
+  "devDependencies": {
+    "firebase-functions-test": "^3.1.0"
+  },
+  "private": true
+}
+[debug] [2026-07-19T11:39:25.241Z] Building nodejs source
+[info] i  functions: Loading and analyzing source code for codebase default to determine what to deploy 
+[debug] [2026-07-19T11:39:25.243Z] Could not find functions.yaml. Must use http discovery
+[debug] [2026-07-19T11:39:25.251Z] Found firebase-functions binary at 'C:\Users\henri\Fct3Ano\ADC\Rally\functions\node_modules\.bin\firebase-functions'
+[info] Serving at port 8833
+
+[debug] [2026-07-19T11:39:26.540Z] Got response from /__/functions.yaml {"endpoints":{"transcribeVoiceEvent":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","secretEnvironmentVariables":[{"key":"OPENAI_API_KEY"},{"key":"GEMINI_API_KEY"}],"labels":{},"callableTrigger":{},"entryPoint":"transcribeVoiceEvent"},"onMessageCreated":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"eventTrigger":{"eventType":"google.cloud.firestore.document.v1.created","eventFilters":{"database":"(default)","namespace":"(default)"},"eventFilterPathPatterns":{"document":"conversations/{conversationId}/messages/{messageId}"},"retry":false},"entryPoint":"onMessageCreated"},"onInviteCreated":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"eventTrigger":{"eventType":"google.cloud.firestore.document.v1.created","eventFilters":{"database":"(default)","namespace":"(default)"},"eventFilterPathPatterns":{"document":"eventInvites/{inviteId}"},"retry":false},"entryPoint":"onInviteCreated"},"onEventUpdated":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"eventTrigger":{"eventType":"google.cloud.firestore.document.v1.updated","eventFilters":{"database":"(default)","namespace":"(default)"},"eventFilterPathPatterns":{"document":"events/{eventId}"},"retry":false},"entryPoint":"onEventUpdated"}},"specVersion":"v1alpha1","requiredAPIs":[],"extensions":{},"params":[{"type":"secret","name":"OPENAI_API_KEY"},{"type":"secret","name":"GEMINI_API_KEY"}]}

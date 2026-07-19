@@ -2516,36 +2516,39 @@
 		imageSrc={cropperImageSrc}
 		shape="rect"
 		aspectRatio={16 / 9}
-		onConfirm={async (croppedFile) => {
+		onConfirm={(croppedFile) => {
 			showCropper = false;
 			const currentUser = auth.currentUser;
-			if (!currentUser || !event) return;
+			const activeEvent = event;
+			if (!currentUser || !activeEvent) return;
 
 			groupPhotoSaving = true;
 			error = '';
 
-			try {
-				const uploadedPhoto = await uploadEventGroupPhoto({
-					eventId: event.id,
-					userId: currentUser.uid,
-					file: croppedFile
-				});
+			setTimeout(async () => {
+				try {
+					const uploadedPhoto = await uploadEventGroupPhoto({
+						eventId: activeEvent.id,
+						userId: currentUser.uid,
+						file: croppedFile
+					});
 
-				await updateEventGroupPhoto({
-					eventId: event.id,
-					userId: currentUser.uid,
-					groupPhotoURL: uploadedPhoto.url,
-					groupPhotoPath: uploadedPhoto.path
-				});
+					await updateEventGroupPhoto({
+						eventId: activeEvent.id,
+						userId: currentUser.uid,
+						groupPhotoURL: uploadedPhoto.url,
+						groupPhotoPath: uploadedPhoto.path
+					});
 
-				if (cropperInputRef) cropperInputRef.value = '';
-				await reloadEvent();
-			} catch (err) {
-				console.error('Update group photo error:', err);
-				error = getFriendlyErrorMessage(err, 'Could not update group photo.');
-			} finally {
-				groupPhotoSaving = false;
-			}
+					if (cropperInputRef) cropperInputRef.value = '';
+					await reloadEvent();
+				} catch (err) {
+					console.error('Update group photo error:', err);
+					error = getFriendlyErrorMessage(err, 'Could not update group photo.');
+				} finally {
+					groupPhotoSaving = false;
+				}
+			}, 50);
 		}}
 		onCancel={() => {
 			showCropper = false;
