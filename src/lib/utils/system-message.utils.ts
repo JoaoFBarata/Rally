@@ -4,7 +4,6 @@ export function translateRallySystemMessage(text: string | undefined | null): st
 	if (!text) return '';
 
 	const lang = i18n.currentLang;
-	if (lang === 'en') return text;
 
 	if (text === 'Welcome to Rally! You will receive event updates and more through this chat.') {
 		return i18n.t('welcome_personal');
@@ -107,6 +106,25 @@ export function translateRallySystemMessage(text: string | undefined | null): st
 		if (lang === 'pt') return `O teu pedido para te juntares a "${eventTitle}" foi recusado.`;
 		if (lang === 'es') return `Tu solicitud para unirte a "${eventTitle}" fue rechazada.`;
 		if (lang === 'fr') return `Votre demande pour rejoindre "${eventTitle}" a été refusée.`;
+	}
+
+	// Messages emitted by the server-side event-status trigger are stored in Portuguese.
+	match = text.match(/^O evento "(.+)" foi cancelado\.$/);
+	if (match) {
+		const [, eventTitle] = match;
+		if (lang === 'en') return `The event "${eventTitle}" was cancelled.`;
+		if (lang === 'pt') return text;
+		if (lang === 'es') return `El evento "${eventTitle}" fue cancelado.`;
+		if (lang === 'fr') return `L’événement « ${eventTitle} » a été annulé.`;
+	}
+
+	match = text.match(/^O teu evento "(.+)" terminou\. Esperamos que tenha sido um bom jogo!$/);
+	if (match) {
+		const [, eventTitle] = match;
+		if (lang === 'en') return `Your event "${eventTitle}" has finished. We hope you had a great game!`;
+		if (lang === 'pt') return text;
+		if (lang === 'es') return `Tu evento "${eventTitle}" ha terminado. ¡Esperamos que hayas disfrutado del partido!`;
+		if (lang === 'fr') return `Votre événement « ${eventTitle} » est terminé. Nous espérons que vous avez passé un bon moment !`;
 	}
 
 	return text;

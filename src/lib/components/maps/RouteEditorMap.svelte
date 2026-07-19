@@ -5,6 +5,7 @@
 	import { PUBLIC_MAPBOX_ACCESS_TOKEN } from '$env/static/public';
 	import { themeState } from '$lib/theme.svelte';
 	import { calculateRouteDistanceKm } from '$lib/utils/route.utils';
+	import { i18n } from '$lib/services/i18n.svelte';
 
 	type RoutePoint = { lat: number; lng: number };
 	let { points = $bindable<RoutePoint[]>([]), center = null } = $props<{
@@ -85,11 +86,11 @@
 
 <section class="overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
 	<div class="flex items-center justify-between gap-3 p-3 sm:p-4">
-		<div><h3 class="text-sm font-black text-slate-950 dark:text-slate-50">Percurso</h3><p class="text-xs font-semibold text-slate-500 dark:text-slate-400">Toca no mapa para adicionar os pontos do percurso.</p></div>
-		<div class="flex shrink-0 gap-2"><button type="button" onclick={undo} disabled={points.length === 0} class="rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-700 disabled:opacity-40 dark:bg-slate-800 dark:text-slate-200">Desfazer</button><button type="button" onclick={clear} disabled={points.length === 0} class="rounded-xl bg-red-50 px-3 py-2 text-xs font-black text-red-700 disabled:opacity-40 dark:bg-red-950/40 dark:text-red-300">Limpar</button></div>
+		<div><h3 class="text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('route')}</h3><p class="text-xs font-semibold text-slate-500 dark:text-slate-400">{i18n.t('route_editor_sub')}</p></div>
+		<div class="flex shrink-0 gap-2"><button type="button" onclick={undo} disabled={points.length === 0} class="rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-700 disabled:opacity-40 dark:bg-slate-800 dark:text-slate-200">{i18n.t('undo')}</button><button type="button" onclick={clear} disabled={points.length === 0} class="rounded-xl bg-red-50 px-3 py-2 text-xs font-black text-red-700 disabled:opacity-40 dark:bg-red-950/40 dark:text-red-300">{i18n.t('clear')}</button></div>
 	</div>
 	<div bind:this={mapContainer} class="route-editor-map h-72 w-full sm:h-96"></div>
-	<p class="px-3 py-2 text-xs font-bold text-blue-600 dark:text-blue-300">{points.length} {points.length === 1 ? 'ponto' : 'pontos'} definidos{#if distanceKm !== null} · Distância: {distanceKm.toFixed(2)} km{/if}</p>
+	<p class="px-3 py-2 text-xs font-bold text-blue-600 dark:text-blue-300">{i18n.t('route_points_defined', { count: points.length, unit: points.length === 1 ? i18n.t('route_point') : i18n.t('route_points') })}{#if distanceKm !== null} · {i18n.t('route_distance', { distance: distanceKm.toFixed(2) })}{/if}</p>
 </section>
 
 <style>

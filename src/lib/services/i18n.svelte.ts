@@ -1003,6 +1003,49 @@ const missingUiTranslations: Record<Language, Record<string, string>> = {
 	}
 };
 
+const routeAndTournamentTranslations: Record<Language, Record<string, string>> = {
+	en: {
+		category_label: 'Category', category_filter_sub: 'Filter events by category.', only_tournaments: 'Only tournaments',
+		route: 'Route', route_editor_sub: 'Tap the map to add route points.', undo: 'Undo', clear: 'Clear',
+		route_points_defined: '{count} {unit} defined', route_point: 'point', route_points: 'points', route_distance: 'Distance: {distance} km',
+		approximate_event_location: 'Approximate event location.', no_location_selected: 'No location selected', no_location_selected_sub: 'This event does not have map coordinates yet.',
+		search_events: 'Search events', view_event: 'View event', tournament_final: 'Final', tournament_semi_finals: 'Semi-finals', tournament_round: 'Round {count}',
+		registration_closed: 'Registration closed.', tournament_matches_generated: 'Tournament matches generated.', could_not_close_registration: 'Could not close registration.', could_not_generate_matches: 'Could not generate matches.',
+		match_updated: 'Match updated.', could_not_update_match: 'Could not update match.', add_valid_scores: 'Add valid scores for both sides.', choose_friend_to_invite: 'Choose at least one friend to invite.', team_invites_sent: 'Team invites sent.', could_not_send_team_invites: 'Could not send team invites.', left_tournament: 'You left the tournament.', could_not_leave_tournament: 'Could not leave tournament.', tournament_cancelled: 'Tournament cancelled.'
+		, invite_by_link: 'Invite with a link', invite_by_link_sub: 'Share this link with anyone so they can open the event in Rally.', copy_invite_link: 'Copy link', share_invite_link: 'Share link', invite_link_share_text: 'Join me at "{title}" on Rally.'
+	},
+	pt: {
+		category_label: 'Categoria', category_filter_sub: 'Filtra eventos por categoria.', only_tournaments: 'Apenas torneios',
+		route: 'Percurso', route_editor_sub: 'Toca no mapa para adicionar pontos ao percurso.', undo: 'Desfazer', clear: 'Limpar',
+		route_points_defined: '{count} {unit} definidos', route_point: 'ponto', route_points: 'pontos', route_distance: 'Distância: {distance} km',
+		approximate_event_location: 'Localização aproximada do evento.', no_location_selected: 'Nenhuma localização selecionada', no_location_selected_sub: 'Este evento ainda não tem coordenadas no mapa.',
+		search_events: 'Pesquisar eventos', view_event: 'Ver evento', tournament_final: 'Final', tournament_semi_finals: 'Meias-finais', tournament_round: 'Ronda {count}',
+		registration_closed: 'Inscrições encerradas.', tournament_matches_generated: 'Jogos do torneio gerados.', could_not_close_registration: 'Não foi possível encerrar as inscrições.', could_not_generate_matches: 'Não foi possível gerar os jogos.',
+		match_updated: 'Resultado atualizado.', could_not_update_match: 'Não foi possível atualizar o resultado.', add_valid_scores: 'Adiciona resultados válidos para ambas as equipas.', choose_friend_to_invite: 'Escolhe pelo menos um amigo para convidar.', team_invites_sent: 'Convites da equipa enviados.', could_not_send_team_invites: 'Não foi possível enviar os convites da equipa.', left_tournament: 'Saíste do torneio.', could_not_leave_tournament: 'Não foi possível sair do torneio.', tournament_cancelled: 'Torneio cancelado.'
+		, invite_by_link: 'Convidar por link', invite_by_link_sub: 'Partilha este link com qualquer pessoa para abrir o evento no Rally.', copy_invite_link: 'Copiar link', share_invite_link: 'Partilhar link', invite_link_share_text: 'Junta-te a mim em "{title}" no Rally.'
+	},
+	es: {
+		category_label: 'Categoría', category_filter_sub: 'Filtra eventos por categoría.', only_tournaments: 'Solo torneos',
+		route: 'Ruta', route_editor_sub: 'Toca el mapa para añadir puntos a la ruta.', undo: 'Deshacer', clear: 'Limpiar',
+		route_points_defined: '{count} {unit} definidos', route_point: 'punto', route_points: 'puntos', route_distance: 'Distancia: {distance} km',
+		approximate_event_location: 'Ubicación aproximada del evento.', no_location_selected: 'No se ha seleccionado una ubicación', no_location_selected_sub: 'Este evento aún no tiene coordenadas en el mapa.',
+		search_events: 'Buscar eventos', view_event: 'Ver evento', tournament_final: 'Final', tournament_semi_finals: 'Semifinales', tournament_round: 'Ronda {count}',
+		registration_closed: 'Inscripciones cerradas.', tournament_matches_generated: 'Partidos del torneo generados.', could_not_close_registration: 'No se pudieron cerrar las inscripciones.', could_not_generate_matches: 'No se pudieron generar los partidos.',
+		match_updated: 'Resultado actualizado.', could_not_update_match: 'No se pudo actualizar el resultado.', add_valid_scores: 'Añade resultados válidos para ambos lados.', choose_friend_to_invite: 'Elige al menos un amigo para invitar.', team_invites_sent: 'Invitaciones del equipo enviadas.', could_not_send_team_invites: 'No se pudieron enviar las invitaciones del equipo.', left_tournament: 'Has salido del torneo.', could_not_leave_tournament: 'No se pudo salir del torneo.', tournament_cancelled: 'Torneo cancelado.'
+		, invite_by_link: 'Invitar con enlace', invite_by_link_sub: 'Comparte este enlace con cualquier persona para que abra el evento en Rally.', copy_invite_link: 'Copiar enlace', share_invite_link: 'Compartir enlace', invite_link_share_text: 'Únete a mí en "{title}" en Rally.'
+	},
+	fr: {
+		category_label: 'Catégorie', category_filter_sub: 'Filtrer les événements par catégorie.', only_tournaments: 'Tournois uniquement',
+		route: 'Parcours', route_editor_sub: 'Touchez la carte pour ajouter des points au parcours.', undo: 'Annuler', clear: 'Effacer',
+		route_points_defined: '{count} {unit} définis', route_point: 'point', route_points: 'points', route_distance: 'Distance : {distance} km',
+		approximate_event_location: 'Localisation approximative de l’événement.', no_location_selected: 'Aucun lieu sélectionné', no_location_selected_sub: 'Cet événement n’a pas encore de coordonnées sur la carte.',
+		search_events: 'Rechercher des événements', view_event: 'Voir l’événement', tournament_final: 'Finale', tournament_semi_finals: 'Demi-finales', tournament_round: 'Tour {count}',
+		registration_closed: 'Inscriptions closes.', tournament_matches_generated: 'Matchs du tournoi générés.', could_not_close_registration: 'Impossible de fermer les inscriptions.', could_not_generate_matches: 'Impossible de générer les matchs.',
+		match_updated: 'Résultat mis à jour.', could_not_update_match: 'Impossible de mettre à jour le résultat.', add_valid_scores: 'Ajoutez des scores valides pour les deux équipes.', choose_friend_to_invite: 'Choisissez au moins un ami à inviter.', team_invites_sent: 'Invitations d’équipe envoyées.', could_not_send_team_invites: 'Impossible d’envoyer les invitations d’équipe.', left_tournament: 'Vous avez quitté le tournoi.', could_not_leave_tournament: 'Impossible de quitter le tournoi.', tournament_cancelled: 'Tournoi annulé.'
+		, invite_by_link: 'Inviter avec un lien', invite_by_link_sub: 'Partagez ce lien avec n’importe qui pour ouvrir l’événement dans Rally.', copy_invite_link: 'Copier le lien', share_invite_link: 'Partager le lien', invite_link_share_text: 'Rejoignez-moi à « {title} » sur Rally.'
+	},
+};
+
 class I18nService {
 	currentLang = $state<Language>('en');
 
@@ -3864,9 +3907,11 @@ class I18nService {
 			detailPageTranslations[this.currentLang]?.[key] ||
 			detailPageSupplement[this.currentLang]?.[key] ||
 			missingUiTranslations[this.currentLang]?.[key] ||
+			routeAndTournamentTranslations[this.currentLang]?.[key] ||
 			this.translations['en']?.[key] ||
 			detailPageTranslations.en[key] ||
 			missingUiTranslations.en[key] ||
+			routeAndTournamentTranslations.en[key] ||
 			key;
 		if (replacements) {
 			Object.entries(replacements).forEach(([k, v]) => {

@@ -7,6 +7,7 @@
 	import { auth } from '$lib/firebase';
 	import { getEventById, updateSportEvent } from '$lib/services/event.service';
 	import LocationPickerMap from '$lib/components/maps/LocationPickerMap.svelte';
+	import RouteEditorMap from '$lib/components/maps/RouteEditorMap.svelte';
 	import TimeSelect from '$lib/components/TimeSelect.svelte';
 	import { uploadEventGroupPhoto } from '$lib/services/storage.service';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
@@ -31,6 +32,7 @@
 	let lat = $state<number | null>(null);
 	let lng = $state<number | null>(null);
 	let address = $state('');
+	let route = $state<{ lat: number; lng: number }[]>([]);
 	let startDate = $state('');
 	let startTime = $state('');
 	let durationMinutes = $state(90);
@@ -138,6 +140,7 @@
 		joinPolicy = e.joinPolicy ?? 'open';
 		groupPhotoURL = e.groupPhotoURL ?? null;
 		groupPhotoPath = e.groupPhotoPath ?? null;
+		route = e.route ?? [];
 	}
 
 	async function handleGroupPhotoFileChange(e: Event) {
@@ -219,6 +222,7 @@
 					address,
 					lat,
 					lng,
+					route: sport === 'running' || sport === 'cycling' || sport === 'hiking' ? route : [],
 					startAt: parsedStartAt,
 					endAt,
 					maxParticipants,
@@ -650,6 +654,12 @@
 					<div class="mt-4 sm:mt-8">
 						<LocationPickerMap bind:lat bind:lng bind:address />
 					</div>
+
+					{#if (sport === 'running' || sport === 'cycling' || sport === 'hiking') && lat !== null && lng !== null}
+						<div class="mt-4">
+							<RouteEditorMap bind:points={route} center={{ lat, lng }} />
+						</div>
+					{/if}
 
 					<button
 						type="submit"

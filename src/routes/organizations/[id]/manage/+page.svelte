@@ -1180,6 +1180,8 @@
 									>
 										<option value="en">English</option>
 										<option value="pt">Português</option>
+										<option value="es">Español</option>
+										<option value="fr">Français</option>
 									</select>
 								</label>
 							</div>

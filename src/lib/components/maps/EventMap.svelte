@@ -125,7 +125,7 @@
 					{address}
 				</p>
 			{:else}
-				<p class={compact ? 'mt-0.5 text-xs text-slate-500 dark:text-slate-400' : 'mt-1 text-sm text-slate-500 dark:text-slate-400'}>Approximate event location.</p>
+				<p class={compact ? 'mt-0.5 text-xs text-slate-500 dark:text-slate-400' : 'mt-1 text-sm text-slate-500 dark:text-slate-400'}>{i18n.t('approximate_event_location')}</p>
 			{/if}
 		</div>
 	{/if}
@@ -139,10 +139,10 @@
 			<div>
 				<p class="text-5xl">📍</p>
 
-				<p class="mt-3 font-bold text-slate-950 dark:text-slate-50">No location selected</p>
+				<p class="mt-3 font-bold text-slate-950 dark:text-slate-50">{i18n.t('no_location_selected')}</p>
 
 				<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-					This event does not have map coordinates yet.
+					{i18n.t('no_location_selected_sub')}
 				</p>
 			</div>
 		</div>

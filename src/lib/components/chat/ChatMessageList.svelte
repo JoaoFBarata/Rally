@@ -3,6 +3,7 @@
 	import type { ChatMessage, UserProfile } from '$lib/schema';
 	import { formatMessageTime, shouldShowMessageTime } from '$lib/utils/chat-time.utils';
 	import { i18n } from '$lib/services/i18n.svelte';
+	import { translateRallySystemMessage } from '$lib/utils/system-message.utils';
 
 	let {
 		messages,
@@ -80,6 +81,9 @@
 	}
 
 	function translateSystemMessage(text: string): string {
+		const translated = translateRallySystemMessage(text);
+		if (translated !== text) return translated;
+
 		const lang = i18n.currentLang;
 		if (lang === 'en') return text;
 

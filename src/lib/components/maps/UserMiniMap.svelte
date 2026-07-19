@@ -8,6 +8,7 @@
 	import mapboxgl from 'mapbox-gl';
 	import MapboxWorker from 'mapbox-gl/dist/mapbox-gl-csp-worker?worker';
 	import { getUserProfile } from '$lib/services/user.service';
+	import { i18n } from '$lib/services/i18n.svelte';
 	import Marker from './Marker.svelte';
 	import Supercluster from 'supercluster';
 
@@ -296,7 +297,7 @@
 							<p class="text-xs font-bold uppercase tracking-wider text-blue-600">${event.sport}</p>
 							<p class="font-bold text-sm leading-tight mt-0.5">${event.title}</p>
 							<p class="text-xs text-slate-500 mt-1">${event.location?.name || ''}</p>
-							<a href="/events/${event.id}" class="mt-2.5 block text-center text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-xl transition">View Event</a>
+							<a href="/events/${event.id}" class="mt-2.5 block text-center text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-xl transition">${i18n.t('view_event')}</a>
 						</div>
 					`);
 

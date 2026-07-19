@@ -1352,7 +1352,7 @@
 								</div>
 								{#if event.routeDistanceKm !== null && event.routeDistanceKm !== undefined}
 									<div class="min-w-0 p-3 text-center">
-										<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Percurso</p>
+										<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">{i18n.t('route')}</p>
 										<p class="mt-1 truncate text-xs font-black text-slate-950 dark:text-slate-50">{event.routeDistanceKm.toFixed(2)} km</p>
 									</div>
 								{/if}
@@ -1668,7 +1668,7 @@
 
 					{#if event.routeDistanceKm !== null && event.routeDistanceKm !== undefined}
 						<div class="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800">
-							<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Percurso</p>
+							<p class="text-sm font-medium text-slate-500 dark:text-slate-400">{i18n.t('route')}</p>
 							<p class="mt-2 font-bold text-slate-950 dark:text-slate-50">{event.routeDistanceKm.toFixed(2)} km</p>
 						</div>
 					{/if}

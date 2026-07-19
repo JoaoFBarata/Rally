@@ -11,6 +11,7 @@
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
+	import { createAppUrl } from '$lib/utils/app-url';
 	import type { SportEvent, UserProfile } from '$lib/schema';
 	import { i18n } from '$lib/services/i18n.svelte';
 
@@ -23,6 +24,7 @@
 	let sending = $state(false);
 	let success = $state('');
 	let error = $state('');
+	let linkCopied = $state(false);
 
 	let canInvite = $derived.by(() => {
 		const currentUser = auth.currentUser;
@@ -56,6 +58,39 @@
 
 	function clearSelection() {
 		selectedFriendIds = [];
+	}
+
+	function getInviteLink() {
+		return createAppUrl(resolve(`/events/${eventId}`));
+	}
+
+	async function copyInviteLink() {
+		try {
+			await navigator.clipboard.writeText(getInviteLink());
+			linkCopied = true;
+			setTimeout(() => (linkCopied = false), 2500);
+		} catch (err) {
+			console.error('Could not copy invite link:', err);
+			error = i18n.t('could_not_share_event');
+		}
+	}
+
+	async function shareInviteLink() {
+		const url = getInviteLink();
+		if (!navigator.share) {
+			await copyInviteLink();
+			return;
+		}
+
+		try {
+			await navigator.share({
+				title: event?.title ?? 'Rally',
+				text: i18n.t('invite_link_share_text', { title: event?.title ?? '' }),
+				url
+			});
+		} catch (err) {
+			if ((err as DOMException)?.name !== 'AbortError') console.error('Could not share invite link:', err);
+		}
 	}
 
 	onMount(async () => {
@@ -201,6 +236,23 @@
 			</p>
 		</div>
 	{:else}
+		<section class="mt-8 rounded-[1.75rem] border border-blue-100 bg-blue-50/70 p-4 dark:border-blue-900/60 dark:bg-blue-950/25 sm:p-5">
+			<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+				<div>
+					<h2 class="text-lg font-black text-slate-950 dark:text-white">{i18n.t('invite_by_link')}</h2>
+					<p class="mt-1 text-sm text-slate-600 dark:text-slate-300">{i18n.t('invite_by_link_sub')}</p>
+				</div>
+				<div class="flex shrink-0 gap-2">
+					<button type="button" onclick={copyInviteLink} class="rounded-xl bg-white px-4 py-2.5 text-sm font-black text-blue-700 shadow-sm ring-1 ring-blue-100 transition hover:bg-blue-100 dark:bg-slate-900 dark:text-blue-300 dark:ring-blue-900">
+						{linkCopied ? i18n.t('event_link_copied') : i18n.t('copy_invite_link')}
+					</button>
+					<button type="button" onclick={shareInviteLink} class="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700">
+						{i18n.t('share_invite_link')}
+					</button>
+				</div>
+			</div>
+		</section>
+
 		<div class="mt-8 overflow-hidden rounded-[1.75rem] bg-white/70 p-4 shadow-sm shadow-slate-200/50 ring-1 ring-slate-200/70 dark:bg-slate-900/60 dark:shadow-none dark:ring-slate-800">
 			<div class="mb-4 flex items-center justify-between gap-4">
 				<div>

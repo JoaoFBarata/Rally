@@ -1008,7 +1008,7 @@
 
 			<!-- Tournaments Filter -->
 			<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
-				<p class="text-xs font-black uppercase tracking-wider text-slate-400">{i18n.t('category_label') || 'Category'}</p>
+				<p class="text-xs font-black uppercase tracking-wider text-slate-400">{i18n.t('category_label')}</p>
 				<div class="mt-2.5 flex flex-wrap gap-1.5">
 					<button
 						type="button"
@@ -1022,7 +1022,7 @@
 								: 'bg-slate-50 text-slate-600 border border-slate-100 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-blue-950'
 						}`}
 					>
-						🏆 {i18n.t('only_tournaments') || 'Only tournaments'}
+						🏆 {i18n.t('only_tournaments')}
 					</button>
 				</div>
 			</div>
@@ -1289,7 +1289,7 @@
 				</div>
 
 				<div>
-					<p class="text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('category_label') || 'Category'}</p>
+					<p class="text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('category_label')}</p>
 					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
 						{i18n.t('category_filter_sub') || 'Filter events by category.'}
 					</p>
@@ -1306,7 +1306,7 @@
 									: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950'
 							}`}
 						>
-							🏆 {i18n.t('only_tournaments') || 'Only tournaments'}
+							🏆 {i18n.t('only_tournaments')}
 						</button>
 					</div>
 				</div>

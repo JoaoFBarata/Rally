@@ -115,10 +115,10 @@
 				roundNumber,
 				title:
 					stage === 'final'
-						? 'Final'
+						? i18n.t('tournament_final')
 						: stage === 'semi_final'
-							? 'Semi-finals'
-							: `Round ${roundNumber}`,
+							? i18n.t('tournament_semi_finals')
+							: i18n.t('tournament_round', { count: roundNumber }),
 				matches: roundMatches
 			};
 		});
@@ -542,11 +542,11 @@
 				userId: currentUserId
 			});
 
-			success = 'Registration closed.';
+			success = i18n.t('registration_closed');
 			await loadTournamentData();
 		} catch (err) {
 			console.error('Close registration error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not close registration.');
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_close_registration'));
 		} finally {
 			actionLoading = '';
 		}
@@ -565,12 +565,12 @@
 				userId: currentUserId
 			});
 
-			success = 'Tournament matches generated.';
+			success = i18n.t('tournament_matches_generated');
 			activeTab = 'bracket';
 			await loadTournamentData();
 		} catch (err) {
 			console.error('Generate matches error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not generate matches.');
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_generate_matches'));
 		} finally {
 			actionLoading = '';
 		}
@@ -592,7 +592,7 @@
 			const awayScore = Number(input.awayScore);
 
 			if (!Number.isFinite(homeScore) || !Number.isFinite(awayScore)) {
-				throw new Error('Add valid scores for both sides.');
+				throw new Error(i18n.t('add_valid_scores'));
 			}
 
 			await updateTournamentMatchResult({
@@ -606,11 +606,11 @@
 						: null
 			});
 
-			success = 'Match updated.';
+			success = i18n.t('match_updated');
 			await loadTournamentData();
 		} catch (err) {
 			console.error('Update match result error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not update match.');
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_update_match'));
 		} finally {
 			actionLoading = '';
 		}
@@ -638,7 +638,7 @@
 
 		try {
 			if (selectedFriendIds.length === 0) {
-				throw new Error('Choose at least one friend to invite.');
+				throw new Error(i18n.t('choose_friend_to_invite'));
 			}
 
 			await inviteUsersToTournamentTeam({
@@ -649,12 +649,12 @@
 				toUserIds: selectedFriendIds
 			});
 
-			success = 'Team invites sent.';
+			success = i18n.t('team_invites_sent');
 			inviteTeamId = null;
 			selectedFriendIds = [];
 		} catch (err) {
 			console.error('Invite team friends error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not send team invites.');
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_send_team_invites'));
 		} finally {
 			actionLoading = '';
 		}
@@ -673,11 +673,11 @@
 				userId: currentUserId
 			});
 
-			success = 'You left the tournament.';
+			success = i18n.t('left_tournament');
 			await loadTournamentData();
 		} catch (err) {
 			console.error('Leave tournament error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not leave tournament.');
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_leave_tournament'));
 		} finally {
 			actionLoading = '';
 		}
@@ -693,7 +693,7 @@
 		try {
 			await cancelEvent(event.id, currentUserId);
 
-			success = 'Tournament cancelled.';
+			success = i18n.t('tournament_cancelled');
 		} catch (err) {
 			console.error('Cancel tournament error:', err);
 			error = getFriendlyErrorMessage(err, 'Could not cancel tournament.');
