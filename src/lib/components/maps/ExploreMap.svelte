@@ -220,6 +220,13 @@
 		{}
 	);
 
+	function formatShowingEvents(count: number) {
+		const replacements = { count, total: totalEventsCount };
+		if (dateFilter === 'today') return i18n.t('showing_events_today', replacements);
+		if (dateFilter === 'all') return i18n.t('showing_events_all_upcoming', replacements);
+		return i18n.t('showing_events_next_days', { ...replacements, days: dateFilter });
+	}
+
 	async function loadCreatorProfiles(eventsList: SportEvent[]) {
 		const uniqueCreatorIds = [...new Set(eventsList.map((e) => e.creatorId))];
 		const idsToLoad = uniqueCreatorIds.filter((id) => !creatorProfiles[id]);
@@ -839,7 +846,7 @@
 			</button>
 
 			<span class="shrink-0 rounded-full border border-blue-100 bg-white/95 px-3 py-2 text-[11px] font-black uppercase tracking-wide text-blue-700 shadow-md backdrop-blur dark:border-blue-900/70 dark:bg-slate-900/95 dark:text-blue-300">
-				{i18n.t('showing_events', { count: events.length, total: totalEventsCount })}
+				{formatShowingEvents(events.length)}
 			</span>
 		</div>
 
@@ -1003,13 +1010,6 @@
 							{option.label}
 						</button>
 					{/each}
-				</div>
-			</div>
-
-			<!-- Tournaments Filter -->
-			<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
-				<p class="text-xs font-black uppercase tracking-wider text-slate-400">{i18n.t('category_label')}</p>
-				<div class="mt-2.5 flex flex-wrap gap-1.5">
 					<button
 						type="button"
 						onclick={() => {
@@ -1156,7 +1156,7 @@
 				</button>
 
 				<span class="text-xs font-black uppercase tracking-wider text-slate-400">
-					{i18n.t('showing_events', { count: viewMode === 'map' ? events.length : shownFeedCount, total: totalEventsCount })}
+					{formatShowingEvents(viewMode === 'map' ? events.length : shownFeedCount)}
 				</span>
 			</div>
 
@@ -1285,15 +1285,6 @@
 								{option.label}
 							</button>
 						{/each}
-					</div>
-				</div>
-
-				<div>
-					<p class="text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('category_label')}</p>
-					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-						{i18n.t('category_filter_sub') || 'Filter events by category.'}
-					</p>
-					<div class="mt-3 flex flex-wrap gap-2">
 						<button
 							type="button"
 							onclick={() => {
@@ -1578,7 +1569,7 @@
 			{:else}
 				<div class="mb-6">
 					<p class="text-xs font-black uppercase tracking-wider text-slate-400">
-						{i18n.t('showing_events', { count: shownFeedCount, total: totalEventsCount })}
+						{formatShowingEvents(shownFeedCount)}
 					</p>
 				</div>
 

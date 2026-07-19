@@ -167,6 +167,10 @@
 		return true;
 	}
 
+	let eventsInSelectedDateRangeCount = $derived.by(() =>
+		allExploreEvents.filter((event) => matchesDateFilter(event)).length
+	);
+
 	function matchesAudienceFilter(event: SportEvent) {
 		if (audienceFilter === 'mine') return event.creatorId === currentUserId;
 		if (audienceFilter === 'friends') {
@@ -498,7 +502,7 @@
 			<div class="relative flex flex-col md:min-h-0 md:flex-1">
 				<ExploreMap
 					events={filteredEvents}
-					totalEventsCount={allExploreEvents.length}
+					totalEventsCount={eventsInSelectedDateRangeCount}
 					{currentUserId}
 					{friendIds}
 					{availableSports}
