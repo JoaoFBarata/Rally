@@ -7,7 +7,7 @@
 	import { themeState } from '$lib/theme.svelte';
 	import EventCard from '$lib/components/EventCard.svelte';
 	import { isPromotionActive, getEventStartAtMillis } from '$lib/services/event.service';
-	import { formatDate, getCurrencySymbol } from '$lib/utils/format.utils';
+	import { formatDate, getCurrencySymbol, getSportBackgroundImage } from '$lib/utils/format.utils';
 	import { i18n } from '$lib/services/i18n.svelte';
 
 	let {
@@ -376,14 +376,7 @@
 	}
 
 	function getSelectedPreviewUrl(event: SportEvent) {
-		if (event.groupPhotoURL) return event.groupPhotoURL;
-
-		const coords = getCoords(event);
-		if (!coords || !PUBLIC_MAPBOX_ACCESS_TOKEN) return '';
-
-		const { lat, lng } = coords;
-		const marker = `pin-s+00B4D8(${lng},${lat})`;
-		return `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${marker}/${lng},${lat},13,0/180x140@2x?access_token=${PUBLIC_MAPBOX_ACCESS_TOKEN}`;
+		return event.groupPhotoURL || getSportBackgroundImage(event.sport);
 	}
 
 	function clearMarkers() {
