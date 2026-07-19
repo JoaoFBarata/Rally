@@ -19,10 +19,12 @@
 		replyToOrganizationReview,
 		submitOrganizationReview,
 		unfollowOrganization,
-		updateOrganizationProfile
+		updateOrganizationProfile,
+		getOrganizationLogo
 	} from '$lib/services/organization.service';
 	import { getFriendsForUser } from '$lib/services/social.service';
 	import { uploadOrganizationLogo } from '$lib/services/storage.service';
+	import ImageCropperModal from '$lib/components/ImageCropperModal.svelte';
 	import { getEventsCreatedByOrganization, getUpcomingEvents } from '$lib/services/event.service';
 	import { getOrCreateOrganizationConversation } from '$lib/services/chat.service';
 	import EventCard from '$lib/components/EventCard.svelte';
@@ -60,6 +62,10 @@
 	let reviewComment = $state('');
 	let reviewSubmitting = $state(false);
 	let reviewMessage = $state('');
+	let showCropper = $state(false);
+	let cropperImageSrc = $state('');
+	let cropperTarget = $state<'logo' | 'cover' | null>(null);
+	let cropperInputRef = $state<HTMLInputElement | null>(null);
 	let logoInput = $state<HTMLInputElement | null>(null);
 	let coverInput = $state<HTMLInputElement | null>(null);
 	let galleryInput = $state<HTMLInputElement | null>(null);
@@ -308,10 +314,15 @@
 		const file = input.files?.[0];
 		if (!file) return;
 
-		if (draftLogoPreview) URL.revokeObjectURL(draftLogoPreview);
-		draftLogoFile = file;
-		draftLogoPreview = URL.createObjectURL(file);
-		input.value = '';
+		cropperInputRef = input;
+		cropperTarget = 'logo';
+
+		const reader = new FileReader();
+		reader.onload = () => {
+			cropperImageSrc = reader.result as string;
+			showCropper = true;
+		};
+		reader.readAsDataURL(file);
 	}
 
 	function handleDraftCoverUpload(event: Event) {
@@ -319,10 +330,15 @@
 		const file = input.files?.[0];
 		if (!file) return;
 
-		if (draftCoverPreview) URL.revokeObjectURL(draftCoverPreview);
-		draftCoverFile = file;
-		draftCoverPreview = URL.createObjectURL(file);
-		input.value = '';
+		cropperInputRef = input;
+		cropperTarget = 'cover';
+
+		const reader = new FileReader();
+		reader.onload = () => {
+			cropperImageSrc = reader.result as string;
+			showCropper = true;
+		};
+		reader.readAsDataURL(file);
 	}
 
 	function resetEditProfileForm() {
@@ -799,11 +815,7 @@
 						<div class="mx-auto max-w-5xl px-6 pb-5">
 							<div class="-mt-12 flex items-end gap-4 sm:-mt-16">
 								<div class="relative z-10 ml-4 grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-full border-4 border-white bg-slate-100 text-4xl font-black text-blue-600 shadow-xl dark:border-slate-950 dark:bg-slate-800 dark:text-blue-300 sm:ml-8 sm:h-32 sm:w-32">
-									{#if organization.logoURL}
-										<img src={organization.logoURL} alt={organization.name} class="h-full w-full object-cover" />
-									{:else}
-										{organization.name.charAt(0).toUpperCase()}
-									{/if}
+									<img src={getOrganizationLogo(organization.logoURL)} alt={organization.name} class="h-full w-full object-cover" />
 								</div>
 							</div>
 
@@ -1146,11 +1158,7 @@
 			<div class="mx-auto max-w-5xl px-6 pb-5">
 				<div class="-mt-12 flex items-end justify-between gap-4 sm:-mt-16">
 					<div class="relative z-10 ml-4 grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-full border-4 border-white bg-slate-100 text-4xl font-black text-blue-600 shadow-xl dark:border-slate-950 dark:bg-slate-800 dark:text-blue-300 sm:ml-8 sm:h-32 sm:w-32">
-						{#if organization.logoURL}
-							<img src={organization.logoURL} alt={organization.name} class="h-full w-full object-cover" />
-						{:else}
-							{organization.name.charAt(0).toUpperCase()}
-						{/if}
+						<img src={getOrganizationLogo(organization.logoURL)} alt={organization.name} class="h-full w-full object-cover" />
 					</div>
 					<div class="relative z-10 hidden gap-2 self-end md:flex">
 						<button type="button" onclick={openEditProfile} class="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-slate-950/15 transition hover:-translate-y-0.5 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200" aria-label={i18n.t('edit_org_profile_title')}>
@@ -1782,5 +1790,30 @@
 				</div>
 			</div>
 		{/if}
+	{/if}
+
+	{#if showCropper && organization}
+		<ImageCropperModal
+			imageSrc={cropperImageSrc}
+			shape={cropperTarget === 'logo' ? 'circle' : 'rect'}
+			aspectRatio={cropperTarget === 'logo' ? 1 : 16 / 9}
+			onConfirm={(croppedFile) => {
+				showCropper = false;
+				if (cropperTarget === 'logo') {
+					if (draftLogoPreview) URL.revokeObjectURL(draftLogoPreview);
+					draftLogoFile = croppedFile;
+					draftLogoPreview = URL.createObjectURL(croppedFile);
+				} else {
+					if (draftCoverPreview) URL.revokeObjectURL(draftCoverPreview);
+					draftCoverFile = croppedFile;
+					draftCoverPreview = URL.createObjectURL(croppedFile);
+				}
+				if (cropperInputRef) cropperInputRef.value = '';
+			}}
+			onCancel={() => {
+				showCropper = false;
+				if (cropperInputRef) cropperInputRef.value = '';
+			}}
+		/>
 	{/if}
 </main>

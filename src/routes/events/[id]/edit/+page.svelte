@@ -11,6 +11,7 @@
 	import { uploadEventGroupPhoto } from '$lib/services/storage.service';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
+	import ImageCropperModal from '$lib/components/ImageCropperModal.svelte';
 	import { TEXT_LIMITS } from '$lib/constants/text-limits';
 	import { i18n } from '$lib/services/i18n.svelte';
 	import type { Sport, EventVisibility, SportLevel, SportEvent, EventJoinPolicy, EventCurrency } from '$lib/schema';
@@ -18,6 +19,9 @@
 	let event = $state<SportEvent | null>(null);
 	let loadError = $state('');
 	let loadingEvent = $state(true);
+	let showCropper = $state(false);
+	let cropperImageSrc = $state('');
+	let cropperInputRef = $state<HTMLInputElement | null>(null);
 
 	let title = $state('');
 	let description = $state('');
@@ -141,28 +145,14 @@
 		const file = input.files?.[0];
 		if (!file || !event) return;
 
-		const currentUser = auth.currentUser;
-		if (!currentUser) return;
+		cropperInputRef = input;
 
-		groupPhotoUploading = true;
-		error = '';
-
-		try {
-			const uploaded = await uploadEventGroupPhoto({
-				eventId: event.id,
-				userId: currentUser.uid,
-				file
-			});
-
-			groupPhotoURL = uploaded.url;
-			groupPhotoPath = uploaded.path;
-		} catch (err) {
-			console.error('Group photo upload error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not upload group photo.');
-		} finally {
-			groupPhotoUploading = false;
-			input.value = '';
-		}
+		const reader = new FileReader();
+		reader.onload = () => {
+			cropperImageSrc = reader.result as string;
+			showCropper = true;
+		};
+		reader.readAsDataURL(file);
 	}
 
 	async function handleSave() {
@@ -670,5 +660,42 @@
 					</button>
 				</form>
 			</div>
+	{/if}
+
+	{#if showCropper && event}
+		<ImageCropperModal
+			imageSrc={cropperImageSrc}
+			shape="rect"
+			aspectRatio={16 / 9}
+			onConfirm={async (croppedFile) => {
+				showCropper = false;
+				const currentUser = auth.currentUser;
+				if (!currentUser || !event) return;
+
+				groupPhotoUploading = true;
+				error = '';
+
+				try {
+					const uploaded = await uploadEventGroupPhoto({
+						eventId: event.id,
+						userId: currentUser.uid,
+						file: croppedFile
+					});
+
+					groupPhotoURL = uploaded.url;
+					groupPhotoPath = uploaded.path;
+				} catch (err) {
+					console.error('Group photo upload error:', err);
+					error = getFriendlyErrorMessage(err, 'Could not upload group photo.');
+				} finally {
+					groupPhotoUploading = false;
+					if (cropperInputRef) cropperInputRef.value = '';
+				}
+			}}
+			onCancel={() => {
+				showCropper = false;
+				if (cropperInputRef) cropperInputRef.value = '';
+			}}
+		/>
 	{/if}
 </div>

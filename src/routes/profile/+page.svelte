@@ -8,6 +8,7 @@
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import RallyWordmark from '$lib/components/RallyWordmark.svelte';
 	import NavIcon from '$lib/components/NavIcon.svelte';
+	import ImageCropperModal from '$lib/components/ImageCropperModal.svelte';
 	import {
 		ensureUserProfile,
 		updateUserProfileDetails,
@@ -63,6 +64,9 @@
 	];
 
 	let profile = $state<UserProfile | null>(null);
+	let showCropper = $state(false);
+	let cropperImageSrc = $state('');
+	let cropperInputRef = $state<HTMLInputElement | null>(null);
 	let friends = $state<UserProfile[]>([]);
 
 	let displayName = $state('');
@@ -202,39 +206,20 @@
 
 	async function handleProfilePhotoFileChange(fileEvent: Event) {
 		const currentUser = auth.currentUser;
-
 		if (!currentUser) return;
 
 		const input = fileEvent.target as HTMLInputElement;
 		const file = input.files?.[0];
-
 		if (!file) return;
 
-		photoSaving = true;
-		error = '';
-		success = '';
+		cropperInputRef = input;
 
-		try {
-			const uploadedPhoto = await uploadUserProfilePhoto({
-				userId: currentUser.uid,
-				file
-			});
-
-			await updateUserProfilePhoto({
-				userId: currentUser.uid,
-				photoURL: uploadedPhoto.url,
-				profilePhotoPath: uploadedPhoto.path
-			});
-
-			input.value = '';
-			success = 'Profile photo updated.';
-			await loadProfile();
-		} catch (err) {
-			console.error('Profile photo error:', err);
-			error = getFriendlyErrorMessage(err, i18n.t('could_not_update_profile_photo'));
-		} finally {
-			photoSaving = false;
-		}
+		const reader = new FileReader();
+		reader.onload = () => {
+			cropperImageSrc = reader.result as string;
+			showCropper = true;
+		};
+		reader.readAsDataURL(file);
 	}
 
 	async function selectAppAvatar(avatarPath: string) {
@@ -1459,5 +1444,48 @@
 				</div>
 			</div>
 		</dialog>
+	{/if}
+
+	{#if showCropper}
+		<ImageCropperModal
+			imageSrc={cropperImageSrc}
+			shape="circle"
+			aspectRatio={1}
+			onConfirm={async (croppedFile) => {
+				showCropper = false;
+				const currentUser = auth.currentUser;
+				if (!currentUser) return;
+
+				photoSaving = true;
+				error = '';
+				success = '';
+
+				try {
+					const uploadedPhoto = await uploadUserProfilePhoto({
+						userId: currentUser.uid,
+						file: croppedFile
+					});
+
+					await updateUserProfilePhoto({
+						userId: currentUser.uid,
+						photoURL: uploadedPhoto.url,
+						profilePhotoPath: uploadedPhoto.path
+					});
+
+					if (cropperInputRef) cropperInputRef.value = '';
+					success = 'Profile photo updated.';
+					await loadProfile();
+				} catch (err) {
+					console.error('Profile photo error:', err);
+					error = getFriendlyErrorMessage(err, i18n.t('could_not_update_profile_photo'));
+				} finally {
+					photoSaving = false;
+				}
+			}}
+			onCancel={() => {
+				showCropper = false;
+				if (cropperInputRef) cropperInputRef.value = '';
+			}}
+		/>
 	{/if}
 </main>

@@ -17,7 +17,8 @@
 		assertCanManageOrganization,
 		getOrganizationFollowerIds,
 		requestOrganizationVerification,
-		updateOrganizationProfile
+		updateOrganizationProfile,
+		getOrganizationLogo
 	} from '$lib/services/organization.service';
 	import { ensureUserProfile } from '$lib/services/user.service';
 	import {
@@ -28,6 +29,7 @@
 		stopEventPromotion
 	} from '$lib/services/event.service';
 	import { uploadOrganizationLogo } from '$lib/services/storage.service';
+	import ImageCropperModal from '$lib/components/ImageCropperModal.svelte';
 	import {
 		subscribeToEventCatalogChanges,
 		subscribeToOrganizationChanges
@@ -64,6 +66,11 @@
 
 	let error = $state('');
 	let success = $state('');
+	let isPromotingSelectFlow = $state(false);
+	let showCropper = $state(false);
+	let cropperImageSrc = $state('');
+	let cropperTarget = $state<'logo' | 'cover' | null>(null);
+	let cropperInputRef = $state<HTMLInputElement | null>(null);
 
 	let logoInput = $state<HTMLInputElement | null>(null);
 	let coverInput = $state<HTMLInputElement | null>(null);
@@ -342,98 +349,35 @@
 	}
 
 	async function handleLogoUpload(event: Event) {
-		const user = auth.currentUser;
-		if (!user || !organization) return;
-
 		const input = event.currentTarget as HTMLInputElement;
 		const file = input.files?.[0];
-
 		if (!file) return;
 
-		uploadingLogo = true;
-		error = '';
-		success = '';
+		cropperInputRef = input;
+		cropperTarget = 'logo';
 
-		try {
-			const uploaded = await uploadOrganizationLogo({
-				organizationId: organization.id,
-				userId: user.uid,
-				file
-			});
-
-			await updateOrganizationProfile({
-				organizationId: organization.id,
-				userId: user.uid,
-				name,
-				type,
-				description,
-				contactEmail,
-				phone,
-				website,
-				address,
-				city,
-				nif,
-				logoURL: uploaded.url,
-				logoPath: uploaded.path
-			});
-
-			success = 'Organization logo updated.';
-			await loadManagePage(user.uid);
-		} catch (err) {
-			console.error('Upload organization logo error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not upload logo.');
-		} finally {
-			uploadingLogo = false;
-			input.value = '';
-		}
+		const reader = new FileReader();
+		reader.onload = () => {
+			cropperImageSrc = reader.result as string;
+			showCropper = true;
+		};
+		reader.readAsDataURL(file);
 	}
 
 	async function handleCoverUpload(event: Event) {
-		const user = auth.currentUser;
-		if (!user || !organization) return;
-
 		const input = event.currentTarget as HTMLInputElement;
 		const file = input.files?.[0];
 		if (!file) return;
 
-		uploadingCover = true;
-		error = '';
-		success = '';
+		cropperInputRef = input;
+		cropperTarget = 'cover';
 
-		try {
-			const uploaded = await uploadOrganizationLogo({
-				organizationId: organization.id,
-				userId: user.uid,
-				file
-			});
-
-			await updateOrganizationProfile({
-				organizationId: organization.id,
-				userId: user.uid,
-				name,
-				type,
-				description,
-				contactEmail,
-				phone,
-				website,
-				address,
-				city,
-				nif,
-				logoURL: organization.logoURL ?? null,
-				logoPath: organization.logoPath ?? null,
-				coverPhotoURL: uploaded.url,
-				coverPhotoPath: uploaded.path
-			});
-
-			success = 'Organization cover updated.';
-			await loadManagePage(user.uid);
-		} catch (err) {
-			console.error('Upload organization cover error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not upload cover image.');
-		} finally {
-			uploadingCover = false;
-			input.value = '';
-		}
+		const reader = new FileReader();
+		reader.onload = () => {
+			cropperImageSrc = reader.result as string;
+			showCropper = true;
+		};
+		reader.readAsDataURL(file);
 	}
 
 	async function handleGalleryUpload(event: Event) {
@@ -705,15 +649,11 @@
 				<div
 					class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[1.35rem] bg-slate-100 text-xl font-black text-blue-600 shadow-sm dark:bg-slate-800 dark:text-blue-300 sm:h-20 sm:w-20 sm:rounded-[1.8rem] sm:text-3xl"
 				>
-					{#if organization.logoURL}
-						<img
-							src={organization.logoURL}
-							alt={organization.name}
-							class="h-full w-full object-cover"
-						/>
-					{:else}
-						{organization.name.charAt(0).toUpperCase()}
-					{/if}
+					<img
+						src={getOrganizationLogo(organization.logoURL)}
+						alt={organization.name}
+						class="h-full w-full object-cover"
+					/>
 				</div>
 
 				<div class="min-w-0">
@@ -765,7 +705,10 @@
 				{#each ['overview', 'events', 'insights'] as tab}
 					<button
 						type="button"
-						onclick={() => (activeManageTab = tab as 'overview' | 'events' | 'insights')}
+						onclick={() => {
+							activeManageTab = tab as 'overview' | 'events' | 'insights';
+							isPromotingSelectFlow = false;
+						}}
 						class={`rounded-[1.2rem] px-3 py-3 text-sm font-black capitalize transition ${
 							activeManageTab === tab
 								? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
@@ -827,7 +770,22 @@
 						<span class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-slate-50 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700 sm:h-10 sm:w-10 sm:rounded-2xl"><svg class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a8 8 0 0 1-8 8H7l-4 3v-6a8 8 0 1 1 18-5Z" /></svg></span>
 						<span class="mt-2 block truncate text-[0.65rem] font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-xs">{i18n.t('inbox_btn')}</span>
 					</a>
-					<button type="button" onclick={() => (activeManageTab = 'events')} class="rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-orange-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.4rem] sm:p-4">
+					<button 
+						type="button" 
+						onclick={() => {
+							if (organization?.verificationStatus === 'verified') {
+								isPromotingSelectFlow = true;
+								activeManageTab = 'events';
+							} else {
+								error = i18n.t('requires_verified_organization_promotion');
+							}
+						}} 
+						class={`rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition sm:rounded-[1.4rem] sm:p-4 ${
+							organization?.verificationStatus === 'verified'
+								? 'hover:-translate-y-0.5 hover:ring-orange-200 cursor-pointer' 
+								: 'opacity-50 grayscale cursor-not-allowed'
+						}`}
+					>
 						<span class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-slate-50 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700 sm:h-10 sm:w-10 sm:rounded-2xl"><svg class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 13h3l9 4V7l-9 4H4v2Zm3 0 1 6h3" /></svg></span>
 						<span class="mt-2 block truncate text-[0.65rem] font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-xs">{i18n.t('promote_btn')}</span>
 					</button>
@@ -966,7 +924,7 @@
 					<div class="grid gap-3">
 						{#each filteredManageEvents as event (event.id)}
 							<a
-								href={resolve(`/events/${event.id}`)}
+								href={resolve(`/events/${event.id}${isPromotingSelectFlow ? '?promote=true' : ''}`)}
 							class="group flex gap-2.5 overflow-hidden rounded-[1.15rem] bg-white p-2 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800 sm:gap-4 sm:rounded-[1.45rem] sm:p-3.5"
 							>
 								<img src={getManageEventImage(event)} alt="" class="h-20 w-20 shrink-0 rounded-[0.95rem] object-cover sm:h-24 sm:w-36 sm:rounded-2xl lg:w-44" />
@@ -1106,6 +1064,7 @@
 							<p class="mt-1 text-slate-500 dark:text-slate-400">{i18n.t('required_identity_details_help')}</p>
 						</div>
 						<input bind:value={legalName} class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50" placeholder={i18n.t('legal_name')} />
+						<input bind:value={nif} class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50" placeholder={i18n.t('nif') || 'NIF / VAT number'} />
 						<label class="flex cursor-pointer items-start gap-3 rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
 							<input type="checkbox" bind:checked={hasPublicVenue} class="mt-1 h-4 w-4" />
 							<span>
@@ -1400,5 +1359,85 @@
 				</div>
 			</dialog>
 		{/if}
+	{/if}
+
+	{#if showCropper && organization}
+		<ImageCropperModal
+			imageSrc={cropperImageSrc}
+			shape={cropperTarget === 'logo' ? 'circle' : 'rect'}
+			aspectRatio={cropperTarget === 'logo' ? 1 : 16 / 9}
+			onConfirm={async (croppedFile) => {
+				showCropper = false;
+				const user = auth.currentUser;
+				if (!user || !organization) return;
+
+				if (cropperTarget === 'logo') {
+					uploadingLogo = true;
+				} else {
+					uploadingCover = true;
+				}
+				error = '';
+				success = '';
+
+				try {
+					const uploaded = await uploadOrganizationLogo({
+						organizationId: organization.id,
+						userId: user.uid,
+						file: croppedFile
+					});
+
+					if (cropperTarget === 'logo') {
+						await updateOrganizationProfile({
+							organizationId: organization.id,
+							userId: user.uid,
+							name,
+							type,
+							description,
+							contactEmail,
+							phone,
+							website,
+							address,
+							city,
+							nif,
+							logoURL: uploaded.url,
+							logoPath: uploaded.path
+						});
+						success = 'Organization logo updated.';
+					} else {
+						await updateOrganizationProfile({
+							organizationId: organization.id,
+							userId: user.uid,
+							name,
+							type,
+							description,
+							contactEmail,
+							phone,
+							website,
+							address,
+							city,
+							nif,
+							logoURL: organization.logoURL ?? null,
+							logoPath: organization.logoPath ?? null,
+							coverPhotoURL: uploaded.url,
+							coverPhotoPath: uploaded.path
+						});
+						success = 'Organization cover updated.';
+					}
+
+					await loadManagePage(user.uid);
+				} catch (err) {
+					console.error('Upload organization image error:', err);
+					error = getFriendlyErrorMessage(err, `Could not upload organization ${cropperTarget}.`);
+				} finally {
+					uploadingLogo = false;
+					uploadingCover = false;
+					if (cropperInputRef) cropperInputRef.value = '';
+				}
+			}}
+			onCancel={() => {
+				showCropper = false;
+				if (cropperInputRef) cropperInputRef.value = '';
+			}}
+		/>
 	{/if}
 </main>

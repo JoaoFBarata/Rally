@@ -180,23 +180,23 @@
 	}
 
 	function formatStage(stage: TournamentMatch['stage']) {
-		if (stage === 'group') return 'Group stage';
-		if (stage === 'league') return 'League matches';
-		if (stage === 'knockout') return 'Knockout';
-		if (stage === 'semi_final') return 'Semi-finals';
-		if (stage === 'final') return 'Final';
+		if (stage === 'group') return i18n.t('stage_group');
+		if (stage === 'league') return i18n.t('stage_league');
+		if (stage === 'knockout') return i18n.t('stage_knockout');
+		if (stage === 'semi_final') return i18n.t('stage_semi_final');
+		if (stage === 'final') return i18n.t('stage_final');
 		return stage;
 	}
 
 	function formatTournamentFormat() {
-		if (event.tournamentFormat === 'groups_playoff') return 'Groups + Playoffs';
-		if (event.tournamentFormat === 'knockout') return 'Knockout / Playoffs';
-		if (event.tournamentFormat === 'league') return 'League / Championship';
-		return 'Tournament';
+		if (event.tournamentFormat === 'groups_playoff') return i18n.t('format_groups_playoff');
+		if (event.tournamentFormat === 'knockout') return i18n.t('format_knockout');
+		if (event.tournamentFormat === 'league') return i18n.t('format_league');
+		return i18n.t('tournament');
 	}
 
 	function formatRegistrationType() {
-		return event.tournamentRegistrationType === 'team' ? 'Teams' : 'Individual players';
+		return event.tournamentRegistrationType === 'team' ? i18n.t('teams') : i18n.t('individual_players');
 	}
 
 	function formatTimestamp(value: unknown) {
@@ -221,13 +221,13 @@
 	function formatTournamentDuration() {
 		const start = timestampToDate(event.startAt);
 		const end = timestampToDate(event.endAt);
-		if (!start || !end || end <= start) return 'Not set';
+		if (!start || !end || end <= start) return i18n.t('duration_not_set');
 
 		const totalMinutes = Math.round((end.getTime() - start.getTime()) / 60000);
 		const hours = Math.floor(totalMinutes / 60);
 		const minutes = totalMinutes % 60;
 
-		if (!hours) return `${minutes} min`;
+		if (!hours) return i18n.t('minutes', { count: minutes });
 		if (!minutes) return `${hours}h`;
 		return `${hours}h ${minutes}min`;
 	}
@@ -805,7 +805,7 @@
 
 		{#if match.winnerName}
 			<p class="mt-3 text-xs font-black text-purple-700 dark:text-purple-300">
-				Advanced: {match.winnerName}
+				{i18n.t('advanced')}: {match.winnerName}
 			</p>
 		{/if}
 
@@ -813,15 +813,15 @@
 			<div
 				class="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-center text-xs font-black text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
 			>
-				Advanced by BYE
+				{i18n.t('advanced_by_bye')}
 			</div>
 		{:else if canManage}
 			<details class="group mt-3 border-t border-slate-200 pt-3 dark:border-slate-700">
 				<summary
 					class="cursor-pointer list-none rounded-xl bg-slate-100 px-3 py-2 text-center text-xs font-black text-slate-600 transition hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-700"
 				>
-					<span class="group-open:hidden">Edit result</span>
-					<span class="hidden group-open:inline">Close editor</span>
+					<span class="group-open:hidden">{i18n.t('edit_result')}</span>
+					<span class="hidden group-open:inline">{i18n.t('close_editor')}</span>
 				</summary>
 				<div class="mt-2 grid gap-2">
 					<div class="grid grid-cols-2 gap-2">
@@ -829,11 +829,11 @@
 							bind:value={matchInputs[match.id].scheduledDate}
 							type="date"
 							aria-label={`Schedule date for ${match.homeName} versus ${match.awayName}`}
-							class="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:border-slate-500 dark:focus:ring-slate-700"
+							class="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:border-slate-500 dark:focus:ring-slate-700"
 						/>
 						<TimeSelect
 							bind:value={matchInputs[match.id].scheduledTime}
-							placeholder="Time"
+							placeholder={i18n.t('time')}
 							flush
 						/>
 					</div>
@@ -844,7 +844,7 @@
 							min="0"
 							placeholder={match.homeName}
 							aria-label={`${match.homeName} score`}
-							class="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
+							class="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
 						/>
 						<input
 							bind:value={matchInputs[match.id].awayScore}
@@ -852,7 +852,7 @@
 							min="0"
 							placeholder={match.awayName}
 							aria-label={`${match.awayName} score`}
-							class="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
+							class="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
 						/>
 					</div>
 					<button
@@ -864,10 +864,10 @@
 						class="rounded-xl bg-purple-600 px-4 py-2 text-sm font-black text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						{!match.homeEntryId || !match.awayEntryId
-							? 'Awaiting participants'
+							? i18n.t('awaiting_participants')
 							: actionLoading === `match-${match.id}`
-								? 'Saving...'
-								: 'Save result'}
+								? i18n.t('saving')
+								: i18n.t('save_result')}
 					</button>
 				</div>
 			</details>
@@ -884,13 +884,13 @@
 				<span
 					class="rounded-full bg-purple-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-purple-700 dark:bg-purple-950 dark:text-purple-300"
 				>
-					Tournament
+					{i18n.t('tournament')}
 				</span>
 
 				<span
 					class="rounded-full bg-slate-100 px-3 py-1 text-xs font-black capitalize text-slate-600 dark:bg-slate-800 dark:text-slate-300"
 				>
-					{event.tournamentStatus?.replaceAll('_', ' ') ?? 'registration open'}
+					{i18n.t('status_' + (event.tournamentStatus ?? 'registration_open'))}
 				</span>
 			</div>
 
@@ -901,7 +901,7 @@
 			</h2>
 
 			<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400 sm:mt-2">
-				{formatRegistrationType()} · {entries.length}/{maxEntries} registered
+				{formatRegistrationType()} · {entries.length}/{maxEntries} {i18n.t('registered')}
 			</p>
 		</div>
 
@@ -917,7 +917,7 @@
 						: 'text-slate-500 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
 				}`}
 			>
-				Overview
+				{i18n.t('overview')}
 			</button>
 
 			<button
@@ -929,7 +929,7 @@
 						: 'text-slate-500 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
 				}`}
 			>
-				Entries
+				{i18n.t('entry')}
 			</button>
 
 			<button
@@ -941,14 +941,14 @@
 						: 'text-slate-500 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
 				}`}
 			>
-				Bracket
+				{i18n.t('championship_bracket')}
 			</button>
 		</div>
 	</div>
 
 	{#if error}
 		<div
-			class="mt-5 rounded-2xl bg-red-50 p-4 text-sm font-bold text-red-700 dark:bg-red-950 dark:text-red-300"
+			class="mt-5 rounded-2xl bg-red-50 p-4 text-sm font-bold text-red-700 dark:bg-red-950/40 dark:text-red-300"
 		>
 			{error}
 		</div>
@@ -956,55 +956,55 @@
 
 	{#if success}
 		<div
-			class="mt-5 rounded-2xl bg-green-50 p-4 text-sm font-bold text-green-700 dark:bg-green-950 dark:text-green-300"
+			class="mt-5 rounded-2xl bg-green-50 p-4 text-sm font-bold text-green-700 dark:bg-green-950/40 dark:text-green-300"
 		>
 			{success}
 		</div>
 	{/if}
 
 	{#if loading}
-		<p class="mt-6 text-sm font-bold text-slate-500 dark:text-slate-400">Loading tournament...</p>
+		<p class="mt-6 text-sm font-bold text-slate-500 dark:text-slate-400">{i18n.t('loading_tournament')}</p>
 	{:else if activeTab === 'overview'}
 		<div class="mt-5 grid grid-cols-2 gap-3 sm:mt-7 sm:grid-cols-2 sm:gap-4 xl:grid-cols-5">
-			<div class="rounded-2xl bg-slate-50 p-3 dark:bg-slate-950 sm:rounded-3xl sm:border sm:border-slate-100 sm:p-5 sm:dark:border-slate-800">
-				<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Format</p>
+			<div class="flex flex-col justify-start gap-1 h-auto min-h-fit rounded-2xl bg-slate-50 p-3 dark:bg-slate-950 sm:rounded-3xl sm:border sm:border-slate-100 sm:p-5 sm:dark:border-slate-800">
+				<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">{i18n.t('format')}</p>
 				<p class="mt-1 text-sm font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-lg">
 					{formatTournamentFormat()}
 				</p>
 			</div>
 
-			<div class="rounded-2xl bg-slate-50 p-3 dark:bg-slate-950 sm:rounded-3xl sm:border sm:border-slate-100 sm:p-5 sm:dark:border-slate-800">
-				<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Registration</p>
+			<div class="flex flex-col justify-start gap-1 h-auto min-h-fit rounded-2xl bg-slate-50 p-3 dark:bg-slate-950 sm:rounded-3xl sm:border sm:border-slate-100 sm:p-5 sm:dark:border-slate-800">
+				<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">{i18n.t('registration')}</p>
 				<p class="mt-1 text-sm font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-lg">
 					{entries.length}/{maxEntries}
 				</p>
 			</div>
 
-			<div class="rounded-2xl bg-slate-50 p-3 dark:bg-slate-950 sm:rounded-3xl sm:border sm:border-slate-100 sm:p-5 sm:dark:border-slate-800">
-				<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Duration</p>
+			<div class="flex flex-col justify-start gap-1 h-auto min-h-fit rounded-2xl bg-slate-50 p-3 dark:bg-slate-950 sm:rounded-3xl sm:border sm:border-slate-100 sm:p-5 sm:dark:border-slate-800">
+				<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">{i18n.t('duration')}</p>
 				<p class="mt-1 text-sm font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-lg">
 					{formatTournamentDuration()}
 				</p>
 			</div>
 
-			<div class="rounded-2xl bg-slate-50 p-3 dark:bg-slate-950 sm:rounded-3xl sm:border sm:border-slate-100 sm:p-5 sm:dark:border-slate-800">
-				<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Entry cost</p>
+			<div class="flex flex-col justify-start gap-1 h-auto min-h-fit rounded-2xl bg-slate-50 p-3 dark:bg-slate-950 sm:rounded-3xl sm:border sm:border-slate-100 sm:p-5 sm:dark:border-slate-800">
+				<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">{i18n.t('entry_cost')}</p>
 				<p class="mt-1 text-sm font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-lg">
 					{event.entryFeeType === 'free' ? i18n.t('free') : `€${event.entryFeeAmount ?? 0}`}
 				</p>
 			</div>
 
-			<div class="col-span-2 rounded-2xl bg-slate-50 p-3 dark:bg-slate-950 sm:col-span-1 sm:rounded-3xl sm:border sm:border-slate-100 sm:p-5 sm:dark:border-slate-800">
-				<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">Prize</p>
+			<div class="col-span-2 flex flex-col justify-start gap-1 h-auto min-h-fit rounded-2xl bg-slate-50 p-3 dark:bg-slate-950 sm:col-span-1 sm:rounded-3xl sm:border sm:border-slate-100 sm:p-5 sm:dark:border-slate-800">
+				<p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">{i18n.t('prize')}</p>
 				<p class="mt-1 line-clamp-2 text-sm font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-lg">
-					{event.prizeType === 'none' ? 'No prize' : event.prizeDescription || event.prizeType}
+					{event.prizeType === 'none' ? i18n.t('no_prize') : event.prizeDescription || event.prizeType}
 				</p>
 			</div>
 		</div>
 
 		{#if event.tournamentRules}
 			<div class="mt-5 rounded-2xl bg-slate-50 p-4 dark:bg-slate-950 sm:bg-white sm:p-5 sm:dark:bg-slate-900">
-				<h3 class="text-sm font-black text-slate-950 dark:text-slate-50">Rules</h3>
+				<h3 class="text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('rules')}</h3>
 				<p class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600 dark:text-slate-300">
 					{event.tournamentRules}
 				</p>
@@ -1020,7 +1020,7 @@
 							disabled={actionLoading === 'close-registration'}
 							class="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-black text-slate-800 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:hover:bg-slate-800 sm:px-5 sm:py-3 sm:text-base"
 						>
-							{actionLoading === 'close-registration' ? 'Closing...' : 'Close signups'}
+							{actionLoading === 'close-registration' ? i18n.t('closing') : i18n.t('close_signups')}
 						</button>
 					{/if}
 
@@ -1031,7 +1031,7 @@
 							disabled={actionLoading === 'generate-matches'}
 							class="rounded-2xl bg-purple-600 px-3 py-2.5 text-xs font-black text-white shadow-lg shadow-purple-600/20 transition hover:bg-purple-700 disabled:opacity-60 sm:px-5 sm:py-3 sm:text-base"
 						>
-							{actionLoading === 'generate-matches' ? 'Generating...' : 'Generate matches'}
+							{actionLoading === 'generate-matches' ? i18n.t('generating') : i18n.t('generate_matches')}
 						</button>
 					{/if}
 
@@ -1041,7 +1041,7 @@
 						disabled={actionLoading === 'cancel-tournament'}
 						class="col-span-2 rounded-2xl border border-red-100 bg-red-50 px-3 py-2.5 text-xs font-black text-red-700 transition hover:bg-red-100 disabled:opacity-60 dark:border-red-900 dark:bg-red-950 dark:text-red-300 sm:col-auto sm:px-5 sm:py-3 sm:text-base"
 					>
-						{actionLoading === 'cancel-tournament' ? 'Cancelling...' : 'Cancel tournament'}
+						{actionLoading === 'cancel-tournament' ? i18n.t('cancelling') : i18n.t('cancel_tournament')}
 					</button>
 				</div>
 		{/if}
@@ -1052,7 +1052,7 @@
 					<div
 						class="rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-sm font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
 					>
-						No entries yet.
+						{i18n.t('no_entries_yet')}
 					</div>
 				{:else}
 					{#each entries as entry (entry.id)}
@@ -1062,10 +1062,10 @@
 									<p class="font-black text-slate-950 dark:text-slate-50">{entry.name}</p>
 									<p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
 										{entry.type === 'team'
-											? `${entry.memberIds.length}/${entry.maxMembers ?? event.maxTeamSize ?? '?'} players`
-											: 'Individual player'}
+											? `${entry.memberIds.length}/${entry.maxMembers ?? event.maxTeamSize ?? '?'} ${i18n.t('players_lowercase')}`
+											: i18n.t('individual_player')}
 										{#if entry.groupName}
-											· Group {entry.groupName}{/if}
+											· {i18n.t('group_name', { name: entry.groupName })}{/if}
 									</p>
 								</div>
 
@@ -1076,7 +1076,7 @@
 										disabled={actionLoading === `join-team-${entry.id}`}
 										class="rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
 									>
-										{actionLoading === `join-team-${entry.id}` ? 'Joining...' : 'Join team'}
+										{actionLoading === `join-team-${entry.id}` ? i18n.t('joining') : i18n.t('join_team')}
 									</button>
 								{/if}
 							</div>
@@ -1089,7 +1089,7 @@
 										>
 											<span
 												>{getMemberName(memberId)}{entry.captainId === memberId
-													? ' · Captain'
+													? ` · ${i18n.t('captain')}`
 													: ''}</span
 											>
 											{#if canManage && event.tournamentStatus !== 'in_progress' && event.tournamentStatus !== 'finished'}
@@ -1097,7 +1097,7 @@
 													type="button"
 													onclick={() => (pendingRemovalKey = `player-${entry.id}-${memberId}`)}
 													class="flex h-6 w-6 items-center justify-center rounded-full text-slate-400 transition hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-950"
-													aria-label={`Remove ${getMemberName(memberId)}`}
+													aria-label={`${i18n.t('remove_player')} ${getMemberName(memberId)}`}
 												>
 													×
 												</button>
@@ -1114,37 +1114,37 @@
 									{#if pendingRemovalKey.startsWith(`player-${entry.id}-`)}
 										{@const playerId = pendingRemovalKey.slice(`player-${entry.id}-`.length)}
 										<span class="text-xs font-bold text-red-600"
-											>Remove {getMemberName(playerId)}?</span
+											>{i18n.t('remove_player')} {getMemberName(playerId)}?</span
 										>
 										<button
 											type="button"
 											onclick={() => handleRemovePlayer(entry, playerId)}
 											disabled={actionLoading === `remove-player-${playerId}`}
 											class="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-black text-white disabled:opacity-60"
-											>Confirm</button
+											>{i18n.t('confirm')}</button
 										>
 										<button
 											type="button"
 											onclick={() => (pendingRemovalKey = '')}
 											class="rounded-lg px-3 py-1.5 text-xs font-black text-slate-500"
-											>Cancel</button
+											>{i18n.t('cancel')}</button
 										>
 									{:else if pendingRemovalKey === `entry-${entry.id}`}
 										<span class="text-xs font-bold text-red-600"
-											>Remove {entry.type === 'team' ? 'this entire team' : entry.name}?</span
+											>{entry.type === 'team' ? i18n.t('remove_team') + '?' : i18n.t('remove_player') + '?'}</span
 										>
 										<button
 											type="button"
 											onclick={() => handleRemoveEntry(entry)}
 											disabled={actionLoading === `remove-entry-${entry.id}`}
 											class="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-black text-white disabled:opacity-60"
-											>Confirm</button
+											>{i18n.t('confirm')}</button
 										>
 										<button
 											type="button"
 											onclick={() => (pendingRemovalKey = '')}
 											class="rounded-lg px-3 py-1.5 text-xs font-black text-slate-500"
-											>Cancel</button
+											>{i18n.t('cancel')}</button
 										>
 									{:else}
 										<button
@@ -1152,7 +1152,7 @@
 											onclick={() => (pendingRemovalKey = `entry-${entry.id}`)}
 											class="text-xs font-black text-red-600 transition hover:text-red-700"
 										>
-											{entry.type === 'team' ? 'Remove team' : 'Remove player'}
+											{entry.type === 'team' ? i18n.t('remove_team') : i18n.t('remove_player')}
 										</button>
 									{/if}
 								</div>
@@ -1164,14 +1164,14 @@
 										onclick={() => openInviteFriends(entry.id)}
 										class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
 									>
-										Invite friends to team
+										{i18n.t('invite_friends_to_team')}
 									</button>
 
 									{#if inviteTeamId === entry.id}
 										<div class="mt-3 rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
 											{#if getInvitableFriends(entry).length === 0}
 												<p class="text-sm font-bold text-slate-500 dark:text-slate-400">
-													You do not have available friends to invite.
+													{i18n.t('no_friends_available_team')}
 												</p>
 											{:else}
 												<div class="max-h-48 space-y-2 overflow-y-auto">
@@ -1209,8 +1209,8 @@
 														class="flex-1 rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
 													>
 														{actionLoading === `invite-team-${entry.id}`
-															? 'Sending...'
-															: 'Send invites'}
+															? i18n.t('sending')
+															: i18n.t('send_invites')}
 													</button>
 
 													<button
@@ -1218,7 +1218,7 @@
 														onclick={() => (inviteTeamId = null)}
 														class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
 													>
-														Cancel
+														{i18n.t('cancel')}
 													</button>
 												</div>
 											{/if}
@@ -1233,11 +1233,11 @@
 
 			{#if canRegisterInTournament}
 				<div class="rounded-2xl bg-white p-5 dark:bg-slate-900">
-					<h3 class="text-lg font-black text-slate-950 dark:text-slate-50">Join tournament</h3>
+					<h3 class="text-lg font-black text-slate-950 dark:text-slate-50">{i18n.t('join_tournament')}</h3>
 
 					{#if event.tournamentRegistrationType === 'individual'}
 						<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-							Register as an individual player.
+							{i18n.t('register_individual_desc')}
 						</p>
 
 						<button
@@ -1246,23 +1246,23 @@
 							disabled={actionLoading === 'join-individual'}
 							class="mt-4 w-full rounded-2xl bg-blue-600 px-5 py-3 font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
 						>
-							{actionLoading === 'join-individual' ? 'Joining...' : 'Join tournament'}
+							{actionLoading === 'join-individual' ? i18n.t('joining') : i18n.t('join_tournament')}
 						</button>
 					{:else}
 						<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-							Create a team. If open, other users can join your team.
+							{i18n.t('create_team_desc')}
 						</p>
 
 						<input
 							bind:value={teamName}
-							class="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-							placeholder="Team name"
+							class="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+							placeholder={i18n.t('team_name')}
 						/>
 
 						<label
 							class="mt-3 flex items-center justify-between rounded-2xl bg-slate-50 p-4 dark:bg-slate-800"
 						>
-							<span class="font-black text-slate-950 dark:text-slate-50">Open team</span>
+							<span class="font-black text-slate-950 dark:text-slate-50">{i18n.t('open_team')}</span>
 							<input bind:checked={teamOpen} type="checkbox" class="h-5 w-5" />
 						</label>
 
@@ -1272,7 +1272,7 @@
 							disabled={actionLoading === 'create-team'}
 							class="mt-4 w-full rounded-2xl bg-blue-600 px-5 py-3 font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
 						>
-							{actionLoading === 'create-team' ? 'Creating...' : 'Create team'}
+							{actionLoading === 'create-team' ? i18n.t('creating_tournament') : i18n.t('create_team')}
 						</button>
 					{/if}
 				</div>
@@ -1280,14 +1280,13 @@
 				<div
 					class="rounded-2xl bg-slate-50 p-5 text-sm font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400"
 				>
-					The tournament host cannot register as a player. Use a personal account that is not
-					hosting this tournament.
+					{i18n.t('host_cannot_register_desc')}
 				</div>
 			{:else if userEntry}
 				<div class="rounded-2xl bg-white p-5 dark:bg-slate-900">
-					<h3 class="text-lg font-black text-slate-950 dark:text-slate-50">Your registration</h3>
+					<h3 class="text-lg font-black text-slate-950 dark:text-slate-50">{i18n.t('your_registration')}</h3>
 					<p class="mt-2 text-sm font-bold text-slate-500 dark:text-slate-400">
-						You are registered as {userEntry.name}.
+						{i18n.t('registered_as', { name: userEntry.name })}
 					</p>
 					{#if userEntry.type === 'team'}
 						<button
@@ -1296,7 +1295,7 @@
 							disabled={actionLoading === `team-chat-${userEntry.id}`}
 							class="mt-4 w-full rounded-2xl bg-slate-950 px-5 py-3 font-black text-white transition hover:bg-blue-600 disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-blue-400"
 						>
-							{actionLoading === `team-chat-${userEntry.id}` ? 'Opening...' : 'Open team chat'}
+							{actionLoading === `team-chat-${userEntry.id}` ? i18n.t('opening') : i18n.t('open_team_chat')}
 						</button>
 					{/if}
 					<button
@@ -1305,7 +1304,7 @@
 						disabled={actionLoading === 'leave-tournament'}
 						class="mt-4 w-full rounded-2xl border border-red-100 bg-red-50 px-5 py-3 font-black text-red-700 transition hover:bg-red-100 disabled:opacity-60 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
 					>
-						{actionLoading === 'leave-tournament' ? 'Leaving...' : 'Leave tournament'}
+						{actionLoading === 'leave-tournament' ? i18n.t('leaving') : i18n.t('leave_tournament')}
 					</button>
 				</div>
 			{/if}
@@ -1317,7 +1316,7 @@
 					{#each groupNames as groupName}
 						<div class="rounded-2xl bg-white p-5 dark:bg-slate-900">
 							<h3 class="text-lg font-black text-slate-950 dark:text-slate-50">
-								Group {groupName}
+								{i18n.t('group_name', { name: groupName })}
 							</h3>
 
 							<div class="mt-3 space-y-2">
@@ -1333,12 +1332,12 @@
 							<table class="mt-4 w-full text-left text-xs">
 								<thead class="text-slate-400">
 									<tr>
-										<th class="py-2">Entry</th>
-										<th>P</th>
-										<th>W</th>
-										<th>D</th>
-										<th>L</th>
-										<th>Pts</th>
+										<th class="py-2">{i18n.t('entry')}</th>
+										<th>{i18n.t('played_short')}</th>
+										<th>{i18n.t('wins_short')}</th>
+										<th>{i18n.t('draws_short')}</th>
+										<th>{i18n.t('losses_short')}</th>
+										<th>{i18n.t('points_short')}</th>
 									</tr>
 								</thead>
 
@@ -1364,7 +1363,7 @@
 				<div
 					class="rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-sm font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
 				>
-					Matches have not been generated yet.
+					{i18n.t('matches_not_generated_yet')}
 				</div>
 			{:else}
 				{#if championEntry}
@@ -1393,7 +1392,7 @@
 								<p
 									class="text-xs font-black uppercase tracking-[0.25em] text-amber-600 dark:text-amber-400"
 								>
-									Tournament champion
+									{i18n.t('tournament_champion')}
 								</p>
 								<div
 									class="mt-2 flex min-w-0 max-w-full items-center justify-center gap-3 sm:justify-start"
@@ -1439,13 +1438,13 @@
 					>
 						<div class="border-b border-slate-200 px-5 py-4 dark:border-slate-800">
 							<h3 class="text-xl font-black text-slate-950 dark:text-white">
-								Championship bracket
+								{i18n.t('championship_bracket')}
 							</h3>
 							<p class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">
-								Winners advance from left to right towards the final.
+								{i18n.t('winners_advance_desc')}
 							</p>
 							<p class="mt-2 text-xs font-black text-purple-600 dark:text-purple-400 sm:hidden">
-								Scroll sideways to see the next rounds.
+								{i18n.t('scroll_sideways_desc')}
 							</p>
 						</div>
 						<div class="bracket-scroll max-h-[68dvh] p-2 sm:max-h-[75dvh] sm:p-5">
@@ -1457,7 +1456,7 @@
 											<span
 												class="rounded-full bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:bg-slate-900"
 												>{round.matches.length}
-												{round.matches.length === 1 ? 'match' : 'matches'}</span
+												{round.matches.length === 1 ? i18n.t('match') : i18n.t('matches')}</span
 											>
 										</div>
 										<div class="flex flex-1 flex-col justify-around gap-5">

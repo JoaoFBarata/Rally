@@ -10,6 +10,8 @@
 	import { getFriendsForUser } from '$lib/services/social.service';
 	import { inviteUsersToEvent } from '$lib/services/invite.service';
 	import { uploadEventGroupPhoto } from '$lib/services/storage.service';
+	import { getUserProfile } from '$lib/services/user.service';
+	import ImageCropperModal from '$lib/components/ImageCropperModal.svelte';
 	import type { VoiceExtractedFields } from '$lib/services/voice-event.service';
 	import TimeSelect from '$lib/components/TimeSelect.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -56,7 +58,9 @@
 	let groupPhotoPath = $state<string | null>(null);
 	let groupPhotoUploading = $state(false);
 	let groupPhotoUploadId = crypto.randomUUID();
-
+	let showCropper = $state(false);
+	let cropperImageSrc = $state('');
+	let cropperInputRef = $state<HTMLInputElement | null>(null);
 	let isRecurring = $state(false);
 	let recurringFrequency = $state<RecurringFrequency>('weekly');
 	let recurringOccurrences = $state(4);
@@ -188,8 +192,13 @@
 
 			createdEventId = createdEvent.id;
 			createdEventTitle = createdEvent.title;
-			friends = await getFriendsForUser(currentUser.uid);
-			showInviteModal = true;
+			const profile = await getUserProfile(currentUser.uid);
+			if (profile?.accountType === 'organization') {
+				await goto(resolve(`/events/${createdEvent.id}`));
+			} else {
+				friends = await getFriendsForUser(currentUser.uid);
+				showInviteModal = true;
+			}
 		} catch (err) {
 			console.error('Create event error:', err);
 			error = getFriendlyErrorMessage(err, i18n.t('create_event_failed'));
@@ -203,28 +212,14 @@
 		const file = input.files?.[0];
 		if (!file) return;
 
-		const currentUser = auth.currentUser;
-		if (!currentUser) return;
+		cropperInputRef = input;
 
-		groupPhotoUploading = true;
-		error = '';
-
-		try {
-			const uploaded = await uploadEventGroupPhoto({
-				eventId: groupPhotoUploadId,
-				userId: currentUser.uid,
-				file
-			});
-
-			groupPhotoURL = uploaded.url;
-			groupPhotoPath = uploaded.path;
-		} catch (err) {
-			console.error('Group photo upload error:', err);
-			error = getFriendlyErrorMessage(err, i18n.t('upload_photo_failed'));
-		} finally {
-			groupPhotoUploading = false;
-			input.value = '';
-		}
+		const reader = new FileReader();
+		reader.onload = () => {
+			cropperImageSrc = reader.result as string;
+			showCropper = true;
+		};
+		reader.readAsDataURL(file);
 	}
 
 	function handleVoiceExtracted(fields: VoiceExtractedFields) {
@@ -892,4 +887,41 @@
 			{/if}
 		</div>
 	</div>
+{/if}
+
+{#if showCropper}
+	<ImageCropperModal
+		imageSrc={cropperImageSrc}
+		shape="rect"
+		aspectRatio={16 / 9}
+		onConfirm={async (croppedFile) => {
+			showCropper = false;
+			const currentUser = auth.currentUser;
+			if (!currentUser) return;
+
+			groupPhotoUploading = true;
+			error = '';
+
+			try {
+				const uploaded = await uploadEventGroupPhoto({
+					eventId: groupPhotoUploadId,
+					userId: currentUser.uid,
+					file: croppedFile
+				});
+
+				groupPhotoURL = uploaded.url;
+				groupPhotoPath = uploaded.path;
+			} catch (err) {
+				console.error('Group photo upload error:', err);
+				error = getFriendlyErrorMessage(err, i18n.t('upload_photo_failed'));
+			} finally {
+				groupPhotoUploading = false;
+				if (cropperInputRef) cropperInputRef.value = '';
+			}
+		}}
+		onCancel={() => {
+			showCropper = false;
+			if (cropperInputRef) cropperInputRef.value = '';
+		}}
+	/>
 {/if}

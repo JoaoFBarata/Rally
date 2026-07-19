@@ -20,6 +20,7 @@
 		getMiniMapUrl,
 		getSportBackgroundImage
 	} from '$lib/utils/format.utils';
+	import { getOrganizationLogo } from '$lib/services/organization.service';
 
 	let {
 		event,
@@ -51,7 +52,7 @@
 
 	$effect(() => {
 		if (variant === 'vertical' && event.hostType === 'organization') {
-			creatorPhotoURL = event.organizationLogoURL || null;
+			creatorPhotoURL = getOrganizationLogo(event.organizationLogoURL);
 			creatorName = event.organizationName || 'Organization';
 			return;
 		}
@@ -474,15 +475,11 @@
 						<div
 							class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-xs font-black text-blue-600 dark:bg-slate-800 dark:text-blue-300"
 						>
-							{#if event.organizationLogoURL}
-								<img
-									src={event.organizationLogoURL}
-									alt={event.organizationName ?? 'Organization'}
-									class="h-full w-full object-cover"
-								/>
-							{:else}
-								{event.organizationName?.charAt(0).toUpperCase() ?? 'O'}
-							{/if}
+							<img
+								src={getOrganizationLogo(event.organizationLogoURL)}
+								alt={event.organizationName ?? 'Organization'}
+								class="h-full w-full object-cover"
+							/>
 						</div>
 
 						<p class="truncate text-xs font-black text-slate-500 dark:text-slate-400">

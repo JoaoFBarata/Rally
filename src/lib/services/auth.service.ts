@@ -105,7 +105,7 @@ export const authService = {
 			address: params.address,
 			city: params.city,
 			nif: params.nif,
-			logoURL: credential.user.photoURL
+			logoURL: '/default-org-logo.png'
 		});
 
 		await updateUserActiveOrganization({

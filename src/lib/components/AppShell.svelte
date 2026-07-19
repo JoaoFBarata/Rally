@@ -3,8 +3,9 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import { auth } from '$lib/firebase';
+	import { auth, db } from '$lib/firebase';
 	import { onAuthStateChanged } from 'firebase/auth';
+	import { doc, onSnapshot } from 'firebase/firestore';
 	import RallyLogo from '$lib/components/RallyLogo.svelte';
 	import NavIcon from '$lib/components/NavIcon.svelte';
 	import { initTheme } from '$lib/theme.svelte';
@@ -263,6 +264,7 @@
 	onMount(() => {
 		initTheme();
 		currentPushUserId = localStorage.getItem('rally_fcm_token_user_id') ?? '';
+		let unsubscribeUserDoc: (() => void) | null = null;
 
 		const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
 			const nextUserId = user?.uid ?? '';
@@ -273,6 +275,11 @@
 				currentPushUserId = '';
 			}
 
+			if (unsubscribeUserDoc) {
+				unsubscribeUserDoc();
+				unsubscribeUserDoc = null;
+			}
+
 			profile = null;
 			isPlatformAdmin = isPlatformAdminEmail(user?.email);
 			loadingProfile = true;
@@ -281,15 +288,28 @@
 				startNotifications(user.uid);
 
 				try {
-					profile = await ensureUserProfile(user);
-					if (profile?.language) {
-						i18n.setLanguage(profile.language as any);
-					}
+					await ensureUserProfile(user);
+					unsubscribeUserDoc = onSnapshot(doc(db, 'users', user.uid), (snapshot) => {
+						if (snapshot.exists()) {
+							profile = {
+								...snapshot.data(),
+								id: snapshot.id
+							} as UserProfile;
+							if (profile.language) {
+								i18n.setLanguage(profile.language as any);
+							}
+						} else {
+							profile = null;
+						}
+						loadingProfile = false;
+					}, (err) => {
+						console.error('Realtime profile load error:', err);
+						loadingProfile = false;
+					});
 					registerPushNotifications(user.uid);
 				} catch (err) {
 					console.error('Load shell profile error:', err);
 					profile = null;
-				} finally {
 					loadingProfile = false;
 				}
 			} else {
@@ -304,6 +324,9 @@
 
 		return () => {
 			unsubscribeAuth();
+			if (unsubscribeUserDoc) {
+				unsubscribeUserDoc();
+			}
 			stopNotifications();
 			if (Capacitor.isNativePlatform()) {
 				PushNotifications.removeAllListeners();

@@ -49,6 +49,13 @@ export function organizationHandleFromName(name: string) {
 	return slugify(name || 'organization');
 }
 
+export function getOrganizationLogo(logoURL?: string | null): string {
+	if (!logoURL || logoURL.includes('lh3.googleusercontent.com') || logoURL.includes('google-logo')) {
+		return '/default-org-logo.png';
+	}
+	return logoURL;
+}
+
 export function isOrganizationAdmin(organization: Organization, userId: string) {
 	return organization.ownerId === userId || organization.adminIds.includes(userId);
 }

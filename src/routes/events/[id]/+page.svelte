@@ -43,6 +43,7 @@
 		setUserTyping
 	} from '$lib/services/chat.service';
 	import { getUserProfilesByIds, getUserProfile } from '$lib/services/user.service';
+	import ImageCropperModal from '$lib/components/ImageCropperModal.svelte';
 	import EventMap from '$lib/components/maps/EventMap.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import EventWeather from '$lib/components/EventWeather.svelte';
@@ -130,6 +131,9 @@
 		confirmDialog = null;
 	}
 
+	let showCropper = $state(false);
+	let cropperImageSrc = $state('');
+	let cropperInputRef = $state<HTMLInputElement | null>(null);
 	let showPromoteModal = $state(false);
 	let promoting = $state(false);
 	let stoppingPromotion = $state(false);
@@ -203,7 +207,8 @@
 			event.eventKind !== 'tournament' &&
 			effectiveStatus !== 'cancelled' &&
 			effectiveStatus !== 'finished' &&
-			(isCreator || isParticipant)
+			(isCreator || isParticipant) &&
+			currentUserProfile?.accountType !== 'organization'
 		);
 	});
 
@@ -292,7 +297,7 @@
 			!!event &&
 			event.hostType === 'organization' &&
 			!!event.organizationId &&
-			event.creatorId === currentUser.uid
+			(event.creatorId === currentUser.uid || event.organizationId === currentUserProfile?.activeOrganizationId)
 		);
 	});
 
@@ -942,31 +947,14 @@
 
 		if (!file) return;
 
-		groupPhotoSaving = true;
-		error = '';
+		cropperInputRef = input;
 
-		try {
-			const uploadedPhoto = await uploadEventGroupPhoto({
-				eventId: event.id,
-				userId: currentUser.uid,
-				file
-			});
-
-			await updateEventGroupPhoto({
-				eventId: event.id,
-				userId: currentUser.uid,
-				groupPhotoURL: uploadedPhoto.url,
-				groupPhotoPath: uploadedPhoto.path
-			});
-
-			input.value = '';
-			await reloadEvent();
-		} catch (err) {
-			console.error('Update group photo error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not update group photo.');
-		} finally {
-			groupPhotoSaving = false;
-		}
+		const reader = new FileReader();
+		reader.onload = () => {
+			cropperImageSrc = reader.result as string;
+			showCropper = true;
+		};
+		reader.readAsDataURL(file);
 	}
 
 	async function clearCurrentUserGroupTyping() {
@@ -1040,7 +1028,7 @@
 			});
 
 			showPromoteModal = false;
-			await loadEventPage();
+			await goto(resolve(`/organizations/${event.organizationId}/manage`));
 		} catch (err) {
 			console.error('Promote event error:', err);
 			error = getFriendlyErrorMessage(err, 'Could not promote event.');
@@ -1084,6 +1072,15 @@
 				(request) => (myJoinRequest = request),
 				(err) => console.error('My join request listener error:', err)
 			);
+		}
+	});
+
+	$effect(() => {
+		if (page.url.searchParams.get('promote') === 'true' && event && canPromoteThisEvent && event.organizationVerificationStatus === 'verified') {
+			const cleanUrl = new URL(window.location.href);
+			cleanUrl.searchParams.delete('promote');
+			window.history.replaceState({}, '', cleanUrl.toString());
+			showPromoteModal = true;
 		}
 	});
 
@@ -1274,6 +1271,50 @@
 									<button type="button" onclick={contactOrganizer} disabled={contactLoading} class="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-800 transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100">
 										{contactLoading ? i18n.t('opening') : i18n.t('message_organizer')}
 									</button>
+								{/if}
+
+								{#if canPromoteThisEvent}
+									{#if isPromotionActive(event)}
+										<div class="mt-3 rounded-2xl bg-blue-50 p-4 dark:bg-blue-950/40">
+											<div class="flex items-center justify-between gap-3">
+												<div class="min-w-0">
+													<p class="font-black text-xs text-blue-700 dark:text-blue-300">{i18n.t('promotion_active')}</p>
+													{#if promotionStats}
+														<p class="mt-0.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+															{promotionStats.views} views · {promotionStats.clicks} clicks
+														</p>
+													{/if}
+												</div>
+												<button
+													type="button"
+													onclick={handleStopPromotion}
+													disabled={stoppingPromotion}
+													class="rounded-xl bg-white px-3 py-1.5 text-xs font-black text-slate-800 transition hover:bg-red-50 hover:text-red-700 disabled:opacity-60 dark:bg-slate-900 dark:text-slate-100"
+												>
+													{stoppingPromotion ? '...' : 'Stop'}
+												</button>
+											</div>
+										</div>
+									{:else}
+										{@const isOrgVerified = event.organizationVerificationStatus === 'verified'}
+										<button
+											type="button"
+											onclick={() => { if (isOrgVerified) showPromoteModal = true; }}
+											disabled={!isOrgVerified}
+											class={`mt-3 w-full rounded-2xl px-4 py-2.5 text-sm font-black text-white shadow-lg transition ${
+												isOrgVerified 
+													? 'bg-blue-600 shadow-blue-600/25 hover:bg-blue-700 cursor-pointer' 
+													: 'bg-slate-400 dark:bg-slate-700 cursor-not-allowed opacity-60 shadow-none'
+											}`}
+										>
+											{i18n.t('promote_event')}
+										</button>
+										{#if !isOrgVerified}
+											<p class="mt-2 text-center text-xs font-semibold text-red-600 dark:text-red-400">
+												{i18n.t('requires_verified_organization_promotion')}
+											</p>
+										{/if}
+									{/if}
 								{/if}
 							</div>
 
@@ -2085,20 +2126,31 @@
 										type="button"
 										onclick={handleStopPromotion}
 										disabled={stoppingPromotion}
-										class="rounded-xl bg-white px-3 py-2 text-xs font-black text-slate-800 transition hover:bg-red-50 hover:text-red-700 disabled:opacity-60 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-red-950 dark:hover:text-red-300"
+										class="rounded-xl bg-white px-3 py-2 text-xs font-black text-slate-800 transition hover:bg-red-50 hover:text-red-700 disabled:opacity-60 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-red-950 dark:hover:text-red-300 sm:px-4 sm:text-sm"
 									>
 										{stoppingPromotion ? 'Stopping...' : 'Stop'}
 									</button>
 								</div>
 							</div>
 						{:else}
+							{@const isOrgVerified = event.organizationVerificationStatus === 'verified'}
 							<button
 								type="button"
-								onclick={() => (showPromoteModal = true)}
-								class="mt-4 w-full rounded-2xl bg-blue-600 px-5 py-3 font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700"
+								onclick={() => { if (isOrgVerified) showPromoteModal = true; }}
+								disabled={!isOrgVerified}
+								class={`mt-4 w-full rounded-2xl px-5 py-3 font-black text-white shadow-lg transition ${
+									isOrgVerified 
+										? 'bg-blue-600 shadow-blue-600/25 hover:bg-blue-700 cursor-pointer' 
+										: 'bg-slate-400 dark:bg-slate-700 cursor-not-allowed opacity-60 shadow-none'
+								}`}
 							>
 								{i18n.t('promote_event')}
 							</button>
+							{#if !isOrgVerified}
+								<p class="mt-2 text-center text-xs font-semibold text-red-600 dark:text-red-400">
+									{i18n.t('requires_verified_organization_promotion')}
+								</p>
+							{/if}
 						{/if}
 					{/if}
 				</div>
@@ -2330,7 +2382,7 @@
 								type="number"
 								min="1"
 								step="1"
-								class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+								class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
 								placeholder="e.g. 25"
 							/>
 						</label>
@@ -2341,12 +2393,12 @@
 							</span>
 							<select
 								bind:value={promotionDurationDays}
-								class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+								class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
 							>
-								<option value="3">3 {i18n.t('days')}</option>
-								<option value="7">7 {i18n.t('days')}</option>
-								<option value="14">14 {i18n.t('days')}</option>
-								<option value="30">30 {i18n.t('days')}</option>
+								<option value="3" class="text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800">3 {i18n.t('days')}</option>
+								<option value="7" class="text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800">7 {i18n.t('days')}</option>
+								<option value="14" class="text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800">14 {i18n.t('days')}</option>
+								<option value="30" class="text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800">30 {i18n.t('days')}</option>
 							</select>
 						</label>
 
@@ -2356,10 +2408,10 @@
 							</span>
 							<select
 								bind:value={promotionTargetCountry}
-								class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+								class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
 							>
 								{#each PROMOTION_COUNTRIES as country}
-									<option value={country.code}>{country.label}</option>
+									<option value={country.code} class="text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800">{country.label}</option>
 								{/each}
 							</select>
 						</label>
@@ -2370,7 +2422,7 @@
 							</span>
 							<input
 								bind:value={promotionTargetCity}
-								class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+								class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
 								placeholder={i18n.t('optional_example', { value: event.location.name })}
 							/>
 							<span class="mt-1 block text-xs text-slate-500 dark:text-slate-400">
@@ -2457,4 +2509,47 @@
 			</div>
 		</div>
 	</dialog>
+{/if}
+
+{#if showCropper && event}
+	<ImageCropperModal
+		imageSrc={cropperImageSrc}
+		shape="rect"
+		aspectRatio={16 / 9}
+		onConfirm={async (croppedFile) => {
+			showCropper = false;
+			const currentUser = auth.currentUser;
+			if (!currentUser || !event) return;
+
+			groupPhotoSaving = true;
+			error = '';
+
+			try {
+				const uploadedPhoto = await uploadEventGroupPhoto({
+					eventId: event.id,
+					userId: currentUser.uid,
+					file: croppedFile
+				});
+
+				await updateEventGroupPhoto({
+					eventId: event.id,
+					userId: currentUser.uid,
+					groupPhotoURL: uploadedPhoto.url,
+					groupPhotoPath: uploadedPhoto.path
+				});
+
+				if (cropperInputRef) cropperInputRef.value = '';
+				await reloadEvent();
+			} catch (err) {
+				console.error('Update group photo error:', err);
+				error = getFriendlyErrorMessage(err, 'Could not update group photo.');
+			} finally {
+				groupPhotoSaving = false;
+			}
+		}}
+		onCancel={() => {
+			showCropper = false;
+			if (cropperInputRef) cropperInputRef.value = '';
+		}}
+	/>
 {/if}
