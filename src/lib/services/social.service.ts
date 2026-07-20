@@ -3,6 +3,7 @@ import {
 	collection,
 	deleteDoc,
 	doc,
+	getDoc,
 	getDocs,
 	onSnapshot,
 	query,
@@ -94,11 +95,19 @@ export async function getFriendRequestsForUser(userId: string) {
 
 export async function respondToFriendRequest(params: {
 	requestId: string;
-	fromUserId: string;
-	toUserId: string;
 	status: FriendRequestStatus;
 }) {
 	const requestRef = doc(db, 'friendRequests', params.requestId);
+
+	// Read the actual request doc rather than trusting the caller-supplied
+	// fromUserId/toUserId — otherwise a tampered client could create a
+	// friendship between arbitrary users via any request id.
+	const requestSnap = await getDoc(requestRef);
+	if (!requestSnap.exists()) {
+		throw new Error('Friend request not found.');
+	}
+
+	const request = requestSnap.data() as FriendRequest;
 
 	await updateDoc(requestRef, {
 		status: params.status,
@@ -109,12 +118,12 @@ export async function respondToFriendRequest(params: {
 		const friendshipRef = doc(
 			db,
 			'friendships',
-			friendshipIdFor(params.fromUserId, params.toUserId)
+			friendshipIdFor(request.fromUserId, request.toUserId)
 		);
 
 		await setDoc(friendshipRef, {
 			id: friendshipRef.id,
-			memberIds: [params.fromUserId, params.toUserId],
+			memberIds: [request.fromUserId, request.toUserId],
 			createdAt: serverTimestamp(),
 			updatedAt: serverTimestamp()
 		});

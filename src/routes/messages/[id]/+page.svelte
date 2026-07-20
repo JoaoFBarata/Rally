@@ -298,6 +298,15 @@
 		}
 	}
 
+	function isNearBottom() {
+		if (!messagesContainer) return true;
+		const threshold = 150;
+		return (
+			messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight <
+			threshold
+		);
+	}
+
 	async function loadGroupMetadata(currentConversation: ChatConversation) {
 		if (currentConversation.type !== 'group' && currentConversation.type !== 'tournament_team') {
 			return;
@@ -394,10 +403,25 @@
 			unsubscribeMessages = listenMessagesForConversation(
 				id,
 				async (liveMessages) => {
+					// Only auto-scroll when a genuinely new message arrives, not on
+					// every snapshot (edits/deletes of older messages also trigger
+					// this listener) — and only if it's the viewer's own message or
+					// they're already near the bottom, so scrolling up to reread
+					// history isn't yanked back down.
+					const previousLastId = messages.at(-1)?.id;
+					const wasNearBottom = isNearBottom();
+
 					messages = liveMessages;
 
 					await markConversationAsRead(id, currentUser.uid);
-					await scrollToBottom();
+
+					const newLastMessage = liveMessages.at(-1);
+					const isNewMessage = Boolean(newLastMessage) && newLastMessage?.id !== previousLastId;
+					const isOwnMessage = newLastMessage?.senderId === currentUser.uid;
+
+					if (isNewMessage && (isOwnMessage || wasNearBottom)) {
+						await scrollToBottom();
+					}
 				},
 				(listenerError) => {
 					console.error('Messages realtime error:', listenerError);
@@ -541,7 +565,8 @@
 			await deleteMessageForEveryone({
 				conversationId,
 				messageId: message.id,
-				userId: currentUser.uid
+				userId: currentUser.uid,
+				deletedPreviewText: i18n.t('message_deleted')
 			});
 		} catch (err) {
 			console.error('Delete message error:', err);

@@ -74,6 +74,7 @@
 	let searchTerm = $state(page.url.searchParams.get('search')?.trim() ?? '');
 	let promotedPage = $state(0);
 	let promotedRotationSeed = $state(0);
+	let showSponsored = $state(true);
 	const promotedPageSize = 4;
 
 	let dateFilterOptions = $derived([
@@ -532,16 +533,28 @@
 					onFilteredCountChange={(count) => (filteredEventCount = count)}
 					onSelectedEventChange={(eventId) => (selectedMapEventId = eventId)}
 				/>
-				{#if viewMode === 'map' && !selectedMapEventId}
+				{#if viewMode === 'map' && !selectedMapEventId && showSponsored}
 					<div
 						class="pointer-events-none absolute inset-x-3 bottom-3 z-20 hidden md:block md:inset-x-auto md:left-5 md:top-5 md:bottom-auto md:w-80"
 					>
 						<div class="pointer-events-auto space-y-3">
 							<section
-								class="rounded-[1.5rem] border border-blue-200 bg-white/95 p-4 shadow-xl shadow-slate-300/40 backdrop-blur dark:border-blue-900 dark:bg-slate-950/95 dark:shadow-none"
+								class="relative rounded-[1.5rem] border border-blue-200 bg-white/95 p-4 shadow-xl shadow-slate-300/40 backdrop-blur dark:border-blue-900 dark:bg-slate-950/95 dark:shadow-none"
 							>
+								<button
+									type="button"
+									onclick={() => (showSponsored = false)}
+									class="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+									aria-label={i18n.t('dismiss')}
+									title={i18n.t('dismiss')}
+								>
+									<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" class="h-4 w-4">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+									</svg>
+								</button>
+
 								<p
-									class="text-xs font-black uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400"
+									class="pr-6 text-xs font-black uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400"
 								>
 									{i18n.t('sponsored')}
 								</p>
@@ -586,7 +599,7 @@
 			</div>
 
 			<!-- Mobile Promoted Section -->
-			{#if viewMode === 'map'}
+			{#if viewMode === 'map' && showSponsored}
 				<section class="mt-1 md:hidden shrink-0">
 					<div class="mb-2 flex items-center justify-between gap-3">
 						<div>
@@ -597,6 +610,18 @@
 								{i18n.t('promoted_boost_msg')}
 							</p>
 						</div>
+
+						<button
+							type="button"
+							onclick={() => (showSponsored = false)}
+							class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+							aria-label={i18n.t('dismiss')}
+							title={i18n.t('dismiss')}
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" class="h-4 w-4">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+							</svg>
+						</button>
 					</div>
 
 					{#if promotedEvents.length}

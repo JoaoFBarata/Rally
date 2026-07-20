@@ -58,6 +58,7 @@
 	let date = $state('');
 	let startTime = $state('');
 	let endTime = $state('');
+	const todayStr = new Date().toLocaleDateString('en-CA');
 
 	let maxParticipants = $state('10');
 	let visibility = $state<EventVisibility>('public');
@@ -218,15 +219,23 @@
 			throw new Error(i18n.t('invalid_event_date_error'));
 		}
 
+		if (start <= new Date()) {
+			throw new Error(i18n.t('future_date_error'));
+		}
+
 		return start;
 	}
 
-	function buildEndDate() {
+	function buildEndDate(start: Date) {
 		if (!date || !endTime) return undefined;
 
 		const end = new Date(`${date}T${endTime}`);
 
 		if (Number.isNaN(end.getTime())) return undefined;
+
+		if (end <= start) {
+			throw new Error(i18n.t('end_after_start_error'));
+		}
 
 		return end;
 	}
@@ -296,7 +305,7 @@
 			validateForm();
 
 			const startAt = buildStartDate();
-			const endAt = buildEndDate();
+			const endAt = buildEndDate(startAt);
 
 			const createdEvent = await createSportEvent({
 				title: title.trim(),
@@ -611,6 +620,7 @@
 								<input
 									bind:value={date}
 									type="date"
+									min={todayStr}
 									class={`mt-2 min-w-0 ${inputClass}`}
 								/>
 							</label>

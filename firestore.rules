@@ -32,6 +32,13 @@ service cloud.firestore {
           || request.auth.uid in org.data.adminIds;
     }
 
+    // Reads the organization document to check its verification status —
+    // used to gate creation of official/payment-protected events.
+    function isOrgVerified(orgId) {
+      let org = get(/databases/$(database)/documents/organizations/$(orgId));
+      return org.data.get('verificationStatus', 'unverified') == 'verified';
+    }
+
 		function eventData(eventId) {
 			return get(/databases/$(database)/documents/events/$(eventId)).data;
 		}
@@ -145,6 +152,12 @@ service cloud.firestore {
             request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replies', 'updatedAt'])
             && request.resource.data.rating == resource.data.rating
             && request.resource.data.comment == resource.data.comment
+            && request.resource.data.replies.size() == resource.data.replies.size() + 1
+            // Only a real org admin may tag their reply as an official organization reply.
+            && (
+              request.resource.data.replies[request.resource.data.replies.size() - 1].authorRole != 'organization'
+              || isOrgAdmin(resource.data.organizationId)
+            )
           )
         );
       allow delete: if isAuth() && resource.data.userId == request.auth.uid;
@@ -187,7 +200,20 @@ service cloud.firestore {
     match /events/{eventId} {
       allow read: if isAuth();
 
-      allow create: if isAuth() && request.resource.data.creatorId == request.auth.uid;
+      allow create: if isAuth() && request.resource.data.creatorId == request.auth.uid
+        // Org-hosted events require the creator to actually admin that org.
+        && (
+          request.resource.data.get('hostType', 'user') != 'organization'
+          || (request.resource.data.organizationId is string
+              && isOrgAdmin(request.resource.data.organizationId))
+        )
+        // Official/payment-protected events require the org to be verified.
+        && (
+          request.resource.data.get('paymentMode', 'none') != 'official'
+          || (request.resource.data.get('hostType', 'user') == 'organization'
+              && request.resource.data.organizationId is string
+              && isOrgVerified(request.resource.data.organizationId))
+        );
 
       allow update: if isAuth() && (
         // Full control for creator
