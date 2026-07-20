@@ -109,6 +109,29 @@
 	let svelteMarkers: any[] = [];
 	let showFilters = $state(false);
 	const routeSourceId = 'selected-event-route';
+	let mapResizeFrame: number | null = null;
+	let mapResizeSettleTimer: number | null = null;
+
+	function scheduleMapResize() {
+		if (typeof window === 'undefined' || viewMode !== 'map') return;
+
+		if (mapResizeFrame !== null) window.cancelAnimationFrame(mapResizeFrame);
+		if (mapResizeSettleTimer !== null) window.clearTimeout(mapResizeSettleTimer);
+
+		// Wait until Svelte has removed `display: none` and the browser has completed layout.
+		mapResizeFrame = window.requestAnimationFrame(() => {
+			mapResizeFrame = window.requestAnimationFrame(() => {
+				map?.resize();
+				mapResizeFrame = null;
+			});
+		});
+
+		// A second pass covers slower sidebar and viewport transitions.
+		mapResizeSettleTimer = window.setTimeout(() => {
+			map?.resize();
+			mapResizeSettleTimer = null;
+		}, 250);
+	}
 
 	// Feed scoring
 	let feedEvents = $derived.by(() => {
@@ -817,17 +840,27 @@
 
 		map.on('load', () => {
 			mapReady = true;
-			map?.resize();
+			scheduleMapResize();
 			renderMarkers();
 			renderSelectedRoute();
 		});
 
+		const resizeObserver = new ResizeObserver(() => scheduleMapResize());
+		resizeObserver.observe(mapContainer);
+
 		return () => {
+			resizeObserver.disconnect();
+			if (mapResizeFrame !== null) window.cancelAnimationFrame(mapResizeFrame);
+			if (mapResizeSettleTimer !== null) window.clearTimeout(mapResizeSettleTimer);
 			unsubscribeThemeState();
 			clearMarkers();
 			routeEndpointMarkers.forEach((marker) => marker.remove());
 			map?.remove();
 		};
+	});
+
+	$effect(() => {
+		if (viewMode === 'map' && map) scheduleMapResize();
 	});
 
 	$effect(() => {
@@ -839,7 +872,7 @@
 </script>
 
 <section
-	class="relative flex flex-col overflow-visible rounded-[2rem] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900 md:min-h-0 md:flex-1 md:overflow-hidden"
+	class="relative flex min-w-0 w-full max-w-full flex-col overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900 md:min-h-0 md:flex-1"
 >
 	<div
 		bind:this={mapContainer}
@@ -1716,150 +1749,9 @@
 
 	{#if viewMode === 'feed'}
 		<!-- Feed list wrapper -->
-		<div class="flex-1 overflow-y-auto px-4 py-6 md:px-8">
-			<!-- Persistent search + category tabs -->
-			<div class="mb-6 space-y-3">
-				<div class="flex items-center gap-2.5">
-					<div
-						class="flex flex-1 items-center gap-3 rounded-2xl bg-slate-100/90 px-4 py-2.5 shadow-inner shadow-white/70 backdrop-blur dark:bg-slate-800/80 dark:shadow-none"
-					>
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2.4"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							class="h-5 w-5 shrink-0 text-slate-400 dark:text-slate-500"
-						>
-							<circle cx="11" cy="11" r="7" />
-							<path d="m20 20-3.5-3.5" />
-						</svg>
-						<label class="sr-only" for="feed-explore-search">Search events</label>
-						<input
-							id="feed-explore-search"
-							type="search"
-							value={localSearchTerm}
-							placeholder={i18n.t('search_events_orgs_placeholder')}
-							oninput={(event) =>
-								handleSearchInput((event.currentTarget as HTMLInputElement).value)}
-							class="min-w-0 flex-1 appearance-none border-0 bg-transparent p-0 text-sm font-black text-slate-900 outline-none ring-0 shadow-none placeholder:text-sm placeholder:font-bold placeholder:text-slate-400 focus:border-0 focus:outline-none focus:ring-0 dark:text-slate-100"
-						/>
-					</div>
-
-					<button
-						type="button"
-						onclick={() => (showFilters = !showFilters)}
-						class="flex shrink-0 items-center gap-2 rounded-2xl bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-					>
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2.2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							class="h-4 w-4 text-blue-600 dark:text-blue-400"
-						>
-							<path d="M3 5h18" />
-							<path d="M7 12h10" />
-							<path d="M10 19h4" />
-						</svg>
-						<span class="hidden sm:inline">{i18n.t('filters_label')}</span>
-						{#if activeFilterCount > 0}
-							<span class="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white">
-								{activeFilterCount}
-							</span>
-						{/if}
-					</button>
-				</div>
-
-				{#if localSearchTerm.trim()}
-					<div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-						{#if searchPreviewEvents.length}
-							{#each searchPreviewEvents as event (event.id)}
-								<button
-									type="button"
-									onclick={() => selectSearchResult(event)}
-									class="flex min-w-0 items-center gap-2.5 rounded-2xl border border-slate-200 bg-white p-2 text-left shadow-sm transition hover:border-blue-200 hover:bg-blue-50/60 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-blue-900 dark:hover:bg-blue-950/30"
-								>
-									<div
-										class="h-12 w-16 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800"
-									>
-										{#if getSelectedPreviewUrl(event)}
-											<img
-												src={getSelectedPreviewUrl(event)}
-												alt={event.title}
-												class="h-full w-full object-cover"
-											/>
-										{:else}
-											<div
-												class="grid h-full w-full place-items-center text-sm font-black uppercase text-blue-600 dark:text-blue-300"
-											>
-												{event.sport.charAt(0)}
-											</div>
-										{/if}
-									</div>
-									<div class="min-w-0 flex-1">
-										<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">
-											{event.title}
-										</p>
-										<p class="truncate text-xs font-bold text-slate-500 dark:text-slate-400">
-											{event.location?.address ??
-												event.location?.name ??
-												i18n.t('location_not_set')}
-										</p>
-										<p
-											class="mt-0.5 truncate text-[11px] font-bold text-slate-400 dark:text-slate-500"
-										>
-											{formatSelectedDate(event)}
-										</p>
-									</div>
-								</button>
-							{/each}
-						{:else}
-							<p
-								class="rounded-2xl border border-dashed border-slate-200 p-4 text-sm font-bold text-slate-500 dark:border-slate-700 dark:text-slate-400"
-							>
-								{i18n.t('no_events_found_search')}
-							</p>
-						{/if}
-					</div>
-				{:else if availableSports.length > 0}
-					<div
-						class="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-					>
-						<button
-							type="button"
-							onclick={() => {
-								for (const sport of [...selectedSports]) onToggleSport?.(sport);
-								clearSelectedEvent();
-							}}
-							class={`shrink-0 rounded-full px-4 py-2 text-sm font-bold transition ${
-								selectedSports.length === 0
-									? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
-									: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950'
-							}`}
-						>
-							{i18n.t('all')}
-						</button>
-						{#each availableSports as sport (sport)}
-							<button
-								type="button"
-								onclick={() => toggleSportFilter(sport)}
-								class={`shrink-0 rounded-full px-4 py-2 text-sm font-bold capitalize transition ${
-									selectedSports.includes(sport)
-										? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
-										: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950'
-								}`}
-							>
-								{i18n.t('sport_' + sport.toLowerCase())}
-							</button>
-						{/each}
-					</div>
-				{/if}
-			</div>
-
+		<div
+			class="min-w-0 w-full max-w-full flex-1 overflow-x-hidden overflow-y-auto px-3 py-6 sm:px-4 md:px-8"
+		>
 			{#if shownFeedCount === 0}
 				<div class="flex flex-col items-center justify-center py-20 text-center">
 					<div class="rounded-full bg-slate-100 p-4 dark:bg-slate-800 text-3xl mb-4">🔍</div>

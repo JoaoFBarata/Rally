@@ -5,8 +5,10 @@
 	import { resolve } from '$app/paths';
 	import { onMount } from 'svelte';
 	import QRCode from 'qrcode';
+	import { Capacitor } from '@capacitor/core';
+	import { Share } from '@capacitor/share';
 	import { authState } from '$lib/auth.svelte';
-	import { sendFriendRequestByTag } from '$lib/services/social.service';
+	import { addFriendByQrCode, sendFriendRequestByTag } from '$lib/services/social.service';
 	import { getUserProfile } from '$lib/services/user.service';
 	import type { UserProfile } from '$lib/schema';
 	import { createAppUrl } from '$lib/utils/app-url';
@@ -14,15 +16,17 @@
 	import { i18n } from '$lib/services/i18n.svelte';
 
 	let sending = $state(false);
-	let autoSent = $state(false);
 	let loadingProfile = $state(false);
 	let error = $state('');
 	let success = $state('');
 	let tag = $state('');
 	let sourceTag = $state('');
+	let sourceQrUserId = $state('');
+	let qrFriendProcessed = $state(false);
 	let currentProfile = $state<UserProfile | null>(null);
 	let qrCodeDataUrl = $state('');
 	let qrCodeLink = $state('');
+	let friendShareLink = $state('');
 	let showQr = $state(false);
 
 	async function goBack() {
@@ -30,24 +34,35 @@
 	}
 
 	async function copyFriendLink() {
-		if (!qrCodeLink) return;
-		await navigator.clipboard.writeText(qrCodeLink);
+		if (!friendShareLink) return;
+		await navigator.clipboard.writeText(friendShareLink);
 		success = i18n.t('friend_link_copied');
 	}
 
 	async function shareFriendLink() {
-		if (!qrCodeLink) return;
-		if (!navigator.share) {
-			await copyFriendLink();
-			return;
-		}
+		if (!friendShareLink) return;
 
 		try {
-			await navigator.share({
-				title: 'Rally',
-				text: i18n.t('friend_link_share_text'),
-				url: qrCodeLink
-			});
+			if (Capacitor.isNativePlatform()) {
+				await Share.share({
+					title: 'Rally',
+					text: i18n.t('friend_link_share_text'),
+					url: friendShareLink,
+					dialogTitle: i18n.t('share_friend_link')
+				});
+				return;
+			}
+
+			if (navigator.share) {
+				await navigator.share({
+					title: 'Rally',
+					text: i18n.t('friend_link_share_text'),
+					url: friendShareLink
+				});
+				return;
+			}
+
+			await copyFriendLink();
 		} catch (err) {
 			if ((err as DOMException)?.name !== 'AbortError') {
 				console.error('Friend link share error:', err);
@@ -55,7 +70,24 @@
 		}
 	}
 
-	async function sendInvite(targetTag = tag.trim(), automatic = false) {
+	async function acceptQrFriendship(currentUserId: string, targetUserId: string) {
+		if (qrFriendProcessed || sending) return;
+		qrFriendProcessed = true;
+		sending = true;
+		error = '';
+
+		try {
+			await addFriendByQrCode({ fromUserId: currentUserId, toUserId: targetUserId });
+			success = i18n.t('qr_friend_added');
+		} catch (err) {
+			console.error('QR friendship error:', err);
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_add_qr_friend'));
+		} finally {
+			sending = false;
+		}
+	}
+
+	async function sendInvite(targetTag = tag.trim()) {
 		const currentUser = authState.user;
 		const cleanTag = targetTag.trim().replace(/^@/, '');
 
@@ -73,11 +105,9 @@
 
 			success = i18n.t('friend_request_sent_to', { name: target.displayName });
 			tag = '';
-			if (automatic) autoSent = true;
 		} catch (err) {
 			console.error('Friend request error:', err);
 			error = getFriendlyErrorMessage(err, i18n.t('could_not_send_friend_request'));
-			if (automatic) autoSent = true;
 		} finally {
 			sending = false;
 		}
@@ -92,11 +122,13 @@
 			currentProfile = await getUserProfile(userId);
 
 			if (browser && currentProfile?.rallyTag) {
-				const link = createAppUrl(
+				friendShareLink = createAppUrl(
 					`/friends/add?tag=${encodeURIComponent(currentProfile.rallyTag)}`
 				);
-				qrCodeLink = link;
-				qrCodeDataUrl = await QRCode.toDataURL(link, {
+				qrCodeLink = createAppUrl(
+					`/friends/add?source=qr&user=${encodeURIComponent(currentProfile.id)}`
+				);
+				qrCodeDataUrl = await QRCode.toDataURL(qrCodeLink, {
 					width: 320,
 					margin: 1,
 					color: {
@@ -115,6 +147,10 @@
 
 	onMount(() => {
 		sourceTag = page.url.searchParams.get('tag')?.trim().replace(/^@/, '') ?? '';
+		sourceQrUserId =
+			page.url.searchParams.get('source') === 'qr'
+				? (page.url.searchParams.get('user')?.trim() ?? '')
+				: '';
 		tag = sourceTag;
 	});
 
@@ -129,10 +165,7 @@
 		}
 
 		void loadCurrentProfile(currentUser.uid);
-
-		if (sourceTag && !autoSent && !sending) {
-			void sendInvite(sourceTag, true);
-		}
+		if (sourceQrUserId) void acceptQrFriendship(currentUser.uid, sourceQrUserId);
 	});
 </script>
 
@@ -195,7 +228,13 @@
 				</button>
 			</div>
 
-			{#if sourceTag}
+			{#if sourceQrUserId && !success && !error}
+				<div
+					class="mt-5 rounded-2xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"
+				>
+					{i18n.t('qr_friendship_processing')}
+				</div>
+			{:else if sourceTag}
 				<div
 					class="mt-5 rounded-2xl bg-blue-50 p-4 text-sm font-semibold text-blue-800 dark:bg-blue-950/40 dark:text-blue-200"
 				>
@@ -212,13 +251,13 @@
 			>
 				<div class="flex gap-2">
 					<div
-						class="flex min-w-0 flex-1 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500 focus-within:border-blue-300 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-100 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400 dark:focus-within:border-blue-800 dark:focus-within:ring-blue-950/40"
+						class="flex min-w-0 flex-1 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500 focus-within:border-blue-300 focus-within:ring-4 focus-within:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:focus-within:border-blue-700 dark:focus-within:ring-blue-950/40"
 					>
 						<input
 							id="friend-tag"
 							bind:value={tag}
 							placeholder={i18n.t('add_friend_placeholder')}
-							class="min-w-0 flex-1 border-0 bg-transparent p-0 text-slate-900 shadow-none outline-none ring-0 placeholder:text-slate-400 focus:border-0 focus:outline-none focus:ring-0 dark:text-slate-100"
+							class="min-w-0 flex-1 appearance-none border-0 bg-slate-50 p-0 text-slate-950 caret-blue-600 shadow-none outline-none ring-0 [color-scheme:light] placeholder:text-slate-400 focus:border-0 focus:outline-none focus:ring-0 dark:bg-slate-900 dark:text-white dark:caret-blue-400 dark:[color-scheme:dark] dark:placeholder:text-slate-500"
 						/>
 					</div>
 
@@ -253,7 +292,7 @@
 				<button
 					type="button"
 					onclick={shareFriendLink}
-					disabled={!qrCodeLink}
+					disabled={!friendShareLink}
 					class="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:opacity-50"
 				>
 					{i18n.t('share_friend_link')}
@@ -261,7 +300,7 @@
 				<button
 					type="button"
 					onclick={copyFriendLink}
-					disabled={!qrCodeLink}
+					disabled={!friendShareLink}
 					class="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-200 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700"
 				>
 					{i18n.t('copy_friend_link')}

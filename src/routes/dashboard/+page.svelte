@@ -1,6 +1,6 @@
 <!-- src/routes/dashboard/+page.svelte -->
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { SvelteMap } from 'svelte/reactivity';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
@@ -666,6 +666,12 @@
 				error = getFriendlyErrorMessage(err, 'Could not load your dashboard data.');
 			} finally {
 				loading = false;
+				await tick();
+				window.requestAnimationFrame(() => {
+					window.requestAnimationFrame(() => {
+						window.dispatchEvent(new CustomEvent('rally:dashboard-ready'));
+					});
+				});
 			}
 		});
 

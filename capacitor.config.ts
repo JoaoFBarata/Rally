@@ -1,14 +1,18 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'adc.fct.rally',
-  appName: 'rally',
-  webDir: 'build',
-  plugins: {
-    PushNotifications: {
-      presentationOptions: ["badge", "sound", "alert"]
-    }
-  }
+	appId: 'adc.fct.rally',
+	appName: 'rally',
+	webDir: 'build',
+	plugins: {
+		StatusBar: {
+			overlaysWebView: false,
+			style: 'DEFAULT'
+		},
+		PushNotifications: {
+			presentationOptions: ['badge', 'sound', 'alert']
+		}
+	}
 };
 
 export default config;

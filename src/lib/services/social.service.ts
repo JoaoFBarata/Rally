@@ -191,13 +191,7 @@ export function listenFriendRequestsForUser(
 }
 
 export async function addFriendByQrCode(params: { fromUserId: string; toUserId: string }) {
-	const targetUser = await getUserProfile(params.toUserId);
-
-	if (!targetUser) {
-		throw new Error('User not found.');
-	}
-
-	if (targetUser.id === params.fromUserId) {
+	if (params.toUserId === params.fromUserId) {
 		throw new Error('You cannot add yourself as a friend.');
 	}
 
@@ -207,31 +201,23 @@ export async function addFriendByQrCode(params: { fromUserId: string; toUserId: 
 		throw new Error('Organizations cannot add friends.');
 	}
 
-	if (targetUser.accountType === 'organization') {
-		throw new Error('Organizations cannot be added as friends. Send them a message instead.');
-	}
+	const friendshipRef = doc(db, 'friendships', friendshipIdFor(params.fromUserId, params.toUserId));
+	const existingFriendshipsQuery = query(
+		collection(db, 'friendships'),
+		where('memberIds', 'array-contains', params.fromUserId)
+	);
+	const existingFriendships = await getDocs(existingFriendshipsQuery);
+	const alreadyFriends = existingFriendships.docs.some((friendshipDoc) =>
+		(friendshipDoc.data().memberIds as string[] | undefined)?.includes(params.toUserId)
+	);
+	if (alreadyFriends) return;
 
-	const relationship = await getRelationshipStatus({
-		currentUserId: params.fromUserId,
-		targetUserId: targetUser.id
-	});
-
-	if (relationship === 'friends') {
-		return targetUser;
-	}
-	if (relationship === 'request_received') {
-		throw new Error('This user has already sent you a friend request. Check your messages.');
-	}
-
-	const friendshipRef = doc(db, 'friendships', friendshipIdFor(params.fromUserId, targetUser.id));
 	await setDoc(friendshipRef, {
 		id: friendshipRef.id,
-		memberIds: [params.fromUserId, targetUser.id],
+		memberIds: [params.fromUserId, params.toUserId],
 		createdAt: serverTimestamp(),
 		updatedAt: serverTimestamp()
 	});
-
-	return targetUser;
 }
 
 export async function getRelationshipStatus(params: {

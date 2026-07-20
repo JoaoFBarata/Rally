@@ -565,9 +565,9 @@
 			{error}
 		</section>
 	{:else}
-		<div class="flex flex-col gap-3 md:min-h-0 md:flex-1">
+		<div class="flex min-w-0 w-full max-w-full flex-col gap-3 md:min-h-0 md:flex-1">
 			<!-- Positioning container for Map and Desktop Promoted Overlay -->
-			<div class="relative flex flex-col md:min-h-0 md:flex-1">
+			<div class="relative flex min-w-0 w-full max-w-full flex-col md:min-h-0 md:flex-1">
 				<ExploreMap
 					events={filteredEvents}
 					totalEventsCount={eventsInSelectedDateRangeCount}
