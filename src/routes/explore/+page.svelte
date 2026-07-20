@@ -13,7 +13,6 @@
 	import { ensureUserProfile } from '$lib/services/user.service';
 	import type { Sport, SportEvent, SportLevel, UserProfile } from '$lib/schema';
 	import ExploreMap from '$lib/components/maps/ExploreMap.svelte';
-	import RallyWordmark from '$lib/components/RallyWordmark.svelte';
 	import EventCard from '$lib/components/EventCard.svelte';
 	import { getEventStartAtMillis, isPromotionActive } from '$lib/services/event.service';
 	import { subscribeToEventCatalogChanges } from '$lib/services/realtime.service';
@@ -462,7 +461,6 @@
 <main class="mx-auto flex min-h-[calc(100dvh-96px)] w-full max-w-[1500px] flex-col overflow-visible px-2.5 pb-28 pt-3 sm:px-5 sm:py-8 md:h-auto md:pb-8">
 	<header class="mb-2 sm:mb-6 shrink-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 		<div>
-			<RallyWordmark size="sm" />
 			<h1 class="text-2xl font-black tracking-tight sm:mt-3 sm:text-3xl">{i18n.t('explore')}</h1>
 			<p class="mt-1 hidden text-sm text-slate-500 sm:block">
 				{searchTerm ? i18n.t('showing_results', { searchTerm }) : i18n.t('explore_subtitle')}

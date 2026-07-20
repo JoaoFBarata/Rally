@@ -427,7 +427,7 @@
 				</div>
 			</aside>
 			<div class="flex min-w-0 flex-1 flex-col overflow-x-clip">
-				<main class="min-h-screen min-w-0 overflow-x-clip pb-28 md:px-28">
+				<main class={`min-h-screen min-w-0 overflow-x-clip pb-28 ${pathname === '/explore' || pathname === '/profile' ? '' : 'md:px-28'}`}>
 					{@render children()}
 				</main>
 			</div>

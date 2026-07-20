@@ -1,5 +1,5 @@
 <script lang="ts">
-	type AvatarSize = 'sm' | 'md' | 'lg' | 'xl';
+	type AvatarSize = 'sm' | 'md' | 'lg' | 'xl' | '2xl';
 
 	let {
 		photoURL = null,
@@ -19,7 +19,8 @@
 		sm: 'h-9 w-9 text-sm',
 		md: 'h-11 w-11 text-base',
 		lg: 'h-14 w-14 text-xl',
-		xl: 'h-20 w-20 text-3xl'
+		xl: 'h-20 w-20 text-3xl',
+		'2xl': 'h-40 w-40 text-6xl'
 	};
 
 	const currentSize = $derived(sizes[size]);

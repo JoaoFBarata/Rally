@@ -101,11 +101,7 @@
 	let showFilters = $state(false);
 	const routeSourceId = 'selected-event-route';
 
-	// Feed rails & scoring
-	let featuredFeedRail = $state<HTMLDivElement | null>(null);
-	let friendsFeedRail = $state<HTMLDivElement | null>(null);
-	let generalFeedRail = $state<HTMLDivElement | null>(null);
-
+	// Feed scoring
 	let feedEvents = $derived.by(() => {
 		const sorted = [...events].sort((a, b) => {
 			let scoreA = 0;
@@ -184,22 +180,6 @@
 	let searchPreviewEvents = $derived(
 		localSearchTerm.trim() ? events.slice(0, 6) : []
 	);
-
-	function getFeedRail(kind: 'featured' | 'friends' | 'general') {
-		if (kind === 'featured') return featuredFeedRail;
-		if (kind === 'friends') return friendsFeedRail;
-		return generalFeedRail;
-	}
-
-	function scrollFeedRail(kind: 'featured' | 'friends' | 'general', direction: number) {
-		const rail = getFeedRail(kind);
-		if (!rail) return;
-
-		rail.scrollBy({
-			left: direction * Math.max(rail.clientWidth * 0.86, 260),
-			behavior: 'smooth'
-		});
-	}
 
 	let clusterIndex: any = null;
 	let hasFitBoundsForCurrentEvents = false;
@@ -873,11 +853,11 @@
 			{/if}
 		</div>
 	{/if}
-
+	</div>
 	<!-- Floating Filters Modal Card (Mobile Only) -->
 	{#if showFilters}
 		<div
-			class="absolute inset-x-4 bottom-16 z-[9999] max-h-[65%] overflow-y-auto rounded-3xl border border-slate-200/50 bg-white/75 p-5 shadow-2xl backdrop-blur-md dark:border-slate-800/50 dark:bg-slate-900/75 md:hidden fullscreen-force-block"
+			class="fixed inset-x-4 bottom-20 z-[9999] max-h-[65dvh] overflow-y-auto rounded-3xl border border-slate-200/50 bg-white/95 p-5 shadow-2xl backdrop-blur-md dark:border-slate-800/50 dark:bg-slate-900/95 md:hidden fullscreen-force-block"
 		>
 			<div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
 				<h3 class="text-base font-black text-slate-950 dark:text-slate-50">{i18n.t('filters_label')}</h3>
@@ -1121,7 +1101,7 @@
 			</div>
 		</div>
 	{/if}
-	</div>
+
 
 	<!-- Desktop Filters Bar (Web Only) -->
 	<div class="hidden md:block border-t border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900 shrink-0">
@@ -1518,33 +1498,128 @@
 	{#if viewMode === 'feed'}
 		<!-- Feed list wrapper -->
 		<div class="flex-1 overflow-y-auto px-4 py-6 md:px-8">
-			<!-- Mobile Filters button inside feed -->
-			<div class="mb-6 flex items-center justify-between gap-3 md:hidden">
-				<button
-					type="button"
-					onclick={() => (showFilters = !showFilters)}
-					class="flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-black text-slate-700 shadow-sm border border-slate-200/60 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 transition-all active:scale-95 hover:bg-slate-250 dark:hover:bg-slate-750"
-				>
-					<svg
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						class="h-4 w-4 text-blue-600 dark:text-blue-400"
+			<!-- Persistent search + category tabs -->
+			<div class="mb-6 space-y-3">
+				<div class="flex items-center gap-2.5">
+					<div class="flex flex-1 items-center gap-3 rounded-2xl bg-slate-100/90 px-4 py-2.5 shadow-inner shadow-white/70 backdrop-blur dark:bg-slate-800/80 dark:shadow-none">
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.4"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="h-5 w-5 shrink-0 text-slate-400 dark:text-slate-500"
+						>
+							<circle cx="11" cy="11" r="7" />
+							<path d="m20 20-3.5-3.5" />
+						</svg>
+						<label class="sr-only" for="feed-explore-search">Search events</label>
+						<input
+							id="feed-explore-search"
+							type="search"
+							value={localSearchTerm}
+							placeholder={i18n.t('search_events_orgs_placeholder')}
+							oninput={(event) => handleSearchInput((event.currentTarget as HTMLInputElement).value)}
+							class="min-w-0 flex-1 appearance-none border-0 bg-transparent p-0 text-sm font-black text-slate-900 outline-none ring-0 shadow-none placeholder:text-sm placeholder:font-bold placeholder:text-slate-400 focus:border-0 focus:outline-none focus:ring-0 dark:text-slate-100"
+						/>
+					</div>
+
+					<button
+						type="button"
+						onclick={() => (showFilters = !showFilters)}
+						class="flex shrink-0 items-center gap-2 rounded-2xl bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
 					>
-						<path d="M3 5h18" />
-						<path d="M7 12h10" />
-						<path d="M10 19h4" />
-					</svg>
-					<span>{i18n.t('filters_label')}</span>
-					{#if activeFilterCount > 0}
-						<span class="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white">
-							{activeFilterCount}
-						</span>
-					{/if}
-				</button>
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="h-4 w-4 text-blue-600 dark:text-blue-400"
+						>
+							<path d="M3 5h18" />
+							<path d="M7 12h10" />
+							<path d="M10 19h4" />
+						</svg>
+						<span class="hidden sm:inline">{i18n.t('filters_label')}</span>
+						{#if activeFilterCount > 0}
+							<span class="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white">
+								{activeFilterCount}
+							</span>
+						{/if}
+					</button>
+				</div>
+
+				{#if localSearchTerm.trim()}
+					<div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+						{#if searchPreviewEvents.length}
+							{#each searchPreviewEvents as event (event.id)}
+								<button
+									type="button"
+									onclick={() => selectSearchResult(event)}
+									class="flex min-w-0 items-center gap-2.5 rounded-2xl border border-slate-200 bg-white p-2 text-left shadow-sm transition hover:border-blue-200 hover:bg-blue-50/60 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-blue-900 dark:hover:bg-blue-950/30"
+								>
+									<div class="h-12 w-16 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
+										{#if getSelectedPreviewUrl(event)}
+											<img src={getSelectedPreviewUrl(event)} alt={event.title} class="h-full w-full object-cover" />
+										{:else}
+											<div class="grid h-full w-full place-items-center text-sm font-black uppercase text-blue-600 dark:text-blue-300">
+												{event.sport.charAt(0)}
+											</div>
+										{/if}
+									</div>
+									<div class="min-w-0 flex-1">
+										<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">
+											{event.title}
+										</p>
+										<p class="truncate text-xs font-bold text-slate-500 dark:text-slate-400">
+											{event.location?.address ?? event.location?.name ?? i18n.t('location_not_set')}
+										</p>
+										<p class="mt-0.5 truncate text-[11px] font-bold text-slate-400 dark:text-slate-500">
+											{formatSelectedDate(event)}
+										</p>
+									</div>
+								</button>
+							{/each}
+						{:else}
+							<p class="rounded-2xl border border-dashed border-slate-200 p-4 text-sm font-bold text-slate-500 dark:border-slate-700 dark:text-slate-400">
+								{i18n.t('no_events_found_search')}
+							</p>
+						{/if}
+					</div>
+				{:else if availableSports.length > 0}
+					<div class="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+						<button
+							type="button"
+							onclick={() => {
+								for (const sport of [...selectedSports]) onToggleSport?.(sport);
+								clearSelectedEvent();
+							}}
+							class={`shrink-0 rounded-full px-4 py-2 text-sm font-bold transition ${
+								selectedSports.length === 0
+									? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
+									: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950'
+							}`}
+						>
+							{i18n.t('all')}
+						</button>
+						{#each availableSports as sport (sport)}
+							<button
+								type="button"
+								onclick={() => toggleSportFilter(sport)}
+								class={`shrink-0 rounded-full px-4 py-2 text-sm font-bold capitalize transition ${
+									selectedSports.includes(sport)
+										? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
+										: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950'
+								}`}
+							>
+								{i18n.t('sport_' + sport.toLowerCase())}
+							</button>
+						{/each}
+					</div>
+				{/if}
 			</div>
 
 			{#if shownFeedCount === 0}
@@ -1567,58 +1642,25 @@
 					{/if}
 				</div>
 			{:else}
-				<div class="mb-6">
-					<p class="text-xs font-black uppercase tracking-wider text-slate-400">
-						{formatShowingEvents(shownFeedCount)}
-					</p>
-				</div>
+				<p class="mb-5 text-xs font-black uppercase tracking-wider text-slate-400">
+					{formatShowingEvents(shownFeedCount)}
+				</p>
 
-				<div class="space-y-10 pb-16">
+				<div class="space-y-12 pb-16">
 					<!-- 1. Featured Section -->
 					{#if feedFeaturedEvents.length > 0}
 						<section>
-							<div class="mb-4 flex items-end justify-between gap-3">
-								<div>
-									<h3 class="flex items-center gap-2 text-base font-black text-slate-900 dark:text-slate-100">
-										<span class="text-slate-400">★</span> {i18n.t('featured_games')}
-									</h3>
-									<p class="text-xs text-slate-500 dark:text-slate-400">
-										{i18n.t('promoted_matching_pref')}
-									</p>
-								</div>
-								{#if feedFeaturedEvents.length > 2}
-									<div class="flex shrink-0 items-center gap-2">
-										<button
-											type="button"
-											onclick={() => scrollFeedRail('featured', -1)}
-											class="grid h-9 w-9 place-items-center rounded-full bg-white text-slate-950 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 dark:bg-slate-900 dark:text-white dark:ring-slate-800 dark:hover:bg-slate-800"
-											aria-label="Previous featured events"
-										>
-											<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
-												<path d="m15 18-6-6 6-6" />
-											</svg>
-										</button>
-										<button
-											type="button"
-											onclick={() => scrollFeedRail('featured', 1)}
-											class="grid h-9 w-9 place-items-center rounded-full bg-white text-slate-950 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 dark:bg-slate-900 dark:text-white dark:ring-slate-800 dark:hover:bg-slate-800"
-											aria-label="Next featured events"
-										>
-											<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
-												<path d="m9 18 6-6-6-6" />
-											</svg>
-										</button>
-									</div>
-								{/if}
+							<div class="mb-4">
+								<h3 class="flex items-center gap-2 text-base font-black text-slate-900 dark:text-slate-100">
+									<span class="text-slate-400">★</span> {i18n.t('featured_games')}
+								</h3>
+								<p class="text-xs text-slate-500 dark:text-slate-400">
+									{i18n.t('promoted_matching_pref')}
+								</p>
 							</div>
-							<div
-								bind:this={featuredFeedRail}
-								class="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-4 pb-2 md:mx-0 md:px-0"
-							>
+							<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
 								{#each feedFeaturedEvents as event (event.id)}
-									<div class="w-[calc(50%-0.375rem)] shrink-0 snap-start sm:w-[calc(50%-0.375rem)] md:w-[31%] lg:w-[23%] xl:w-[18.5%]">
-										<EventCard {event} variant="vertical" />
-									</div>
+									<EventCard {event} variant="vertical" />
 								{/each}
 							</div>
 						</section>
@@ -1627,48 +1669,17 @@
 					<!-- 2. Friends Section -->
 					{#if feedFriendsEvents.length > 0}
 						<section>
-							<div class="mb-4 flex items-end justify-between gap-3">
-								<div>
-									<h3 class="flex items-center gap-2 text-base font-black text-slate-900 dark:text-slate-100">
-										<span class="text-slate-400">◎</span> {i18n.t('friends_activity')}
-									</h3>
-									<p class="text-xs text-slate-500 dark:text-slate-400">
-										{i18n.t('friends_activity_sub')}
-									</p>
-								</div>
-								{#if feedFriendsEvents.length > 2}
-									<div class="flex shrink-0 items-center gap-2">
-										<button
-											type="button"
-											onclick={() => scrollFeedRail('friends', -1)}
-											class="grid h-9 w-9 place-items-center rounded-full bg-white text-slate-950 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 dark:bg-slate-900 dark:text-white dark:ring-slate-800 dark:hover:bg-slate-800"
-											aria-label="Previous friends events"
-										>
-											<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
-												<path d="m15 18-6-6 6-6" />
-											</svg>
-										</button>
-										<button
-											type="button"
-											onclick={() => scrollFeedRail('friends', 1)}
-											class="grid h-9 w-9 place-items-center rounded-full bg-white text-slate-950 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 dark:bg-slate-900 dark:text-white dark:ring-slate-800 dark:hover:bg-slate-800"
-											aria-label="Next friends events"
-										>
-											<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
-												<path d="m9 18 6-6-6-6" />
-											</svg>
-										</button>
-									</div>
-								{/if}
+							<div class="mb-4">
+								<h3 class="flex items-center gap-2 text-base font-black text-slate-900 dark:text-slate-100">
+									<span class="text-slate-400">◎</span> {i18n.t('friends_activity')}
+								</h3>
+								<p class="text-xs text-slate-500 dark:text-slate-400">
+									{i18n.t('friends_activity_sub')}
+								</p>
 							</div>
-							<div
-								bind:this={friendsFeedRail}
-								class="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-4 pb-2 md:mx-0 md:px-0"
-							>
+							<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
 								{#each feedFriendsEvents as event (event.id)}
-									<div class="w-[calc(50%-0.375rem)] shrink-0 snap-start sm:w-[calc(50%-0.375rem)] md:w-[31%] lg:w-[23%] xl:w-[18.5%]">
-										<EventCard {event} variant="vertical" />
-									</div>
+									<EventCard {event} variant="vertical" />
 								{/each}
 							</div>
 						</section>
@@ -1677,48 +1688,17 @@
 					<!-- 3. General Section -->
 					{#if feedGeneralEvents.length > 0}
 						<section>
-							<div class="mb-4 flex items-end justify-between gap-3">
-								<div>
-									<h3 class="flex items-center gap-2 text-base font-black text-slate-900 dark:text-slate-100">
-										<span class="text-slate-400">⌕</span> {i18n.t('explore_games')}
-									</h3>
-									<p class="text-xs text-slate-500 dark:text-slate-400">
-										{i18n.t('explore_games_sub')}
-									</p>
-								</div>
-								{#if feedGeneralEvents.length > 2}
-									<div class="flex shrink-0 items-center gap-2">
-										<button
-											type="button"
-											onclick={() => scrollFeedRail('general', -1)}
-											class="grid h-9 w-9 place-items-center rounded-full bg-white text-slate-950 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 dark:bg-slate-900 dark:text-white dark:ring-slate-800 dark:hover:bg-slate-800"
-											aria-label="Previous explore events"
-										>
-											<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
-												<path d="m15 18-6-6 6-6" />
-											</svg>
-										</button>
-										<button
-											type="button"
-											onclick={() => scrollFeedRail('general', 1)}
-											class="grid h-9 w-9 place-items-center rounded-full bg-white text-slate-950 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 dark:bg-slate-900 dark:text-white dark:ring-slate-800 dark:hover:bg-slate-800"
-											aria-label="Next explore events"
-										>
-											<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
-												<path d="m9 18 6-6-6-6" />
-											</svg>
-										</button>
-									</div>
-								{/if}
+							<div class="mb-4">
+								<h3 class="flex items-center gap-2 text-base font-black text-slate-900 dark:text-slate-100">
+									<span class="text-slate-400">⌕</span> {i18n.t('explore_games')}
+								</h3>
+								<p class="text-xs text-slate-500 dark:text-slate-400">
+									{i18n.t('explore_games_sub')}
+								</p>
 							</div>
-							<div
-								bind:this={generalFeedRail}
-								class="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-4 pb-2 md:mx-0 md:px-0"
-							>
+							<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
 								{#each feedGeneralEvents as event (event.id)}
-									<div class="w-[calc(50%-0.375rem)] shrink-0 snap-start sm:w-[calc(50%-0.375rem)] md:w-[31%] lg:w-[23%] xl:w-[18.5%]">
-										<EventCard {event} variant="vertical" />
-									</div>
+									<EventCard {event} variant="vertical" />
 								{/each}
 							</div>
 						</section>
