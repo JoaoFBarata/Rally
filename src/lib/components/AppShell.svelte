@@ -28,6 +28,8 @@
 	let loadingProfile = $state(true);
 	let isPlatformAdmin = $state(false);
 	let currentPushUserId = '';
+	let sidebarExpanded = $state(false);
+	let sidebarCollapsed = $derived(!sidebarExpanded);
 
 	let pathname = $derived(page.url.pathname);
 
@@ -342,12 +344,31 @@
 {:else}
 	<div class="min-h-screen bg-white text-black dark:bg-[#111111] dark:text-white font-montserrat">
 		<div class="flex min-h-screen min-w-0 overflow-x-clip">
-			<!-- Desktop sidebar -->
-			<aside class="hidden md:flex flex-col h-screen w-71 sticky top-0 shrink-0 bg-[#f6f6f6] dark:bg-[#212121]">
-				<div class="w-full pl-6.75 mt-13.25">
-					<RallyLogo size="md" href={organizationManageHref ?? '/'}/>
-					<button class="mt-10.25 w-53.25 h-14.5 bg-[#0095ff] hover:shadow-[0px_5px_15px_0px_rgba(100,100,111,0.7)] dark:hover:shadow-[0px_5px_15px_0px_rgba(155,155,144,0.7)] rounded-[10px] text-white cursor-pointer" onclick={() => goto(resolveNavHref(createEventHref))}>
-						<h3 class="text-[20px] font-semibold">{i18n.t('new_event')}</h3>
+			<!-- Desktop sidebar spacer (reserves the collapsed width in the layout flow) -->
+			<div class="hidden md:block h-screen w-24 shrink-0" aria-hidden="true"></div>
+
+			<!-- Desktop sidebar (fixed/overlaid so hover-expand doesn't shift page content) -->
+			<aside
+				class={`hidden md:flex flex-col h-screen fixed top-0 left-0 z-40 overflow-hidden bg-[#f6f6f6] transition-[width] duration-200 ease-in-out dark:bg-[#212121] ${
+					sidebarCollapsed ? 'w-24' : 'w-71 shadow-2xl shadow-slate-400/30 dark:shadow-black/50'
+				}`}
+				onmouseenter={() => (sidebarExpanded = true)}
+				onmouseleave={() => (sidebarExpanded = false)}
+			>
+				<div class={sidebarCollapsed ? 'flex w-full flex-col items-center mt-13.25' : 'w-full pl-6.75 mt-13.25'}>
+					<RallyLogo size="md" mark={sidebarCollapsed} href={organizationManageHref ?? '/'}/>
+					<button
+						class={sidebarCollapsed
+							? 'mt-10.25 flex h-14.5 w-14.5 items-center justify-center bg-[#0095ff] hover:shadow-[0px_5px_15px_0px_rgba(100,100,111,0.7)] dark:hover:shadow-[0px_5px_15px_0px_rgba(155,155,144,0.7)] rounded-[10px] text-white cursor-pointer'
+							: 'mt-10.25 w-53.25 h-14.5 bg-[#0095ff] hover:shadow-[0px_5px_15px_0px_rgba(100,100,111,0.7)] dark:hover:shadow-[0px_5px_15px_0px_rgba(155,155,144,0.7)] rounded-[10px] text-white cursor-pointer'}
+						onclick={() => goto(resolveNavHref(createEventHref))}
+						title={sidebarCollapsed ? i18n.t('new_event') : undefined}
+					>
+						{#if sidebarCollapsed}
+							<NavIcon name="create" />
+						{:else}
+							<h3 class="text-[20px] font-semibold">{i18n.t('new_event')}</h3>
+						{/if}
 					</button>
 				</div>
 				<div class="w-full grow flex flex-col justify-between bg-[#eaeaea] dark:bg-[#1A1A1A] rounded-tr-[75px] mt-10 pb-9">
@@ -355,30 +376,42 @@
 						{#each navItems as item, idx (item.href)}
 							<a
 								href={resolveNavHref(item.href)}
-								class={`flex flex-row items-center gap-6 text-[1.25rem] ${idx==0 ? 'rounded-tr-[75px] ' : ''}font-medium transition px-[2.59375rem] py-5 w-full ${
+								title={sidebarCollapsed ? item.label : undefined}
+								class={`flex items-center text-[1.25rem] ${idx==0 ? 'rounded-tr-[75px] ' : ''}font-medium transition py-5 w-full ${
+												sidebarCollapsed ? 'flex-col justify-center gap-1 px-2' : 'flex-row gap-6 px-[2.59375rem]'
+											} ${
 												isActive(item.href)
 													? 'bg-blue-600 text-white'
 													: 'text-slate-600 hover:bg-slate-300 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
 										  }`}>
-								<span class="flex items-center justify-center h-6 w-6 text-lg">
+								<span class="relative flex items-center justify-center h-6 w-6 text-lg">
 									<NavIcon name={item.icon} />
+									{#if sidebarCollapsed && item.href === '/messages' && notificationState.unreadMessages > 0}
+										<span class="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-red-500"></span>
+									{/if}
 								</span>
-								<span>{item.label}</span>
 
-								{#if item.href === '/messages' && notificationState.unreadMessages > 0}
-									<span
-										class={`ml-auto flex min-h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold ${
-											isActive(item.href) ? 'bg-white text-blue-600' : 'bg-red-500 text-white'
-										}`}>
-										{formatBadge(notificationState.unreadMessages)}
-									</span>
+								{#if !sidebarCollapsed}
+									<span>{item.label}</span>
+
+									{#if item.href === '/messages' && notificationState.unreadMessages > 0}
+										<span
+											class={`ml-auto flex min-h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold ${
+												isActive(item.href) ? 'bg-white text-blue-600' : 'bg-red-500 text-white'
+											}`}>
+											{formatBadge(notificationState.unreadMessages)}
+										</span>
+									{/if}
 								{/if}
 							</a>
 						{/each}
 					</div>
 					<div>
 						<a href={resolveNavHref('/settings')}
-							class={`flex flex-row items-center gap-6 text-[1.25rem] font-medium transition px-[2.59375rem] py-5 w-full ${
+							title={sidebarCollapsed ? i18n.t('settings') : undefined}
+							class={`flex items-center text-[1.25rem] font-medium transition py-5 w-full ${
+												sidebarCollapsed ? 'flex-col justify-center gap-1 px-2' : 'flex-row gap-6 px-[2.59375rem]'
+											} ${
 												isActive('/settings')
 													? 'bg-blue-600 text-white'
 													: 'text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
@@ -386,7 +419,9 @@
 							<span class="flex items-center justify-center h-6 w-6 text-lg">
 								<NavIcon name="settings"/>
 							</span>
-							<span>{i18n.t('settings')}</span>
+							{#if !sidebarCollapsed}
+								<span>{i18n.t('settings')}</span>
+							{/if}
 						</a>
 					</div>
 				</div>

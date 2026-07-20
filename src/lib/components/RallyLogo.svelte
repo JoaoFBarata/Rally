@@ -5,7 +5,8 @@
 
 	type LogoSize = 'sm' | 'md' | 'lg';
 
-	let { size = 'md', href = '/' }: { size?: LogoSize; href?: string } = $props();
+	let { size = 'md', href = '/', mark = false }: { size?: LogoSize; href?: string; mark?: boolean } =
+		$props();
 
 	const sizes: Record<LogoSize, string> = {
 		sm: 'h-8',
@@ -20,7 +21,9 @@
 	});
 
 	const logoSrc = $derived(
-		$themeState ? '/rally-logo-white.png' : '/rally-logo-black.png'
+		mark
+			? $themeState ? '/r-logo-white.PNG' : '/r-logo-black.PNG'
+			: $themeState ? '/rally-logo-white.png' : '/rally-logo-black.png'
 	);
 </script>
 
