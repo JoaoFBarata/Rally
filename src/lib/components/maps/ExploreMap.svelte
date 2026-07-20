@@ -194,6 +194,7 @@
 
 	let clusterIndex: any = null;
 	let hasFitBoundsForCurrentEvents = false;
+	let previousVisibleEventIds = '';
 	type EventPointFeature = {
 		type: 'Feature';
 		properties: {
@@ -271,7 +272,22 @@
 
 	$effect(() => {
 		if (events) {
-			hasFitBoundsForCurrentEvents = false;
+			// Only reset the fit-bounds flag when the actual set of visible event
+			// ids changes (a real filter/search change, or the first load) — not
+			// on every `events` reference change, which also fires whenever any
+			// event anywhere in the app mutates (e.g. someone else joining an
+			// event) via the unfiltered realtime catalog listener. Otherwise the
+			// map yanks the user's pan/zoom back to fit-bounds on totally
+			// unrelated updates.
+			const visibleEventIds = events
+				.map((event: SportEvent) => event.id)
+				.sort()
+				.join(',');
+
+			if (visibleEventIds !== previousVisibleEventIds) {
+				hasFitBoundsForCurrentEvents = false;
+			}
+			previousVisibleEventIds = visibleEventIds;
 
 			const points: EventPointFeature[] = events
 				.map((event: SportEvent): EventPointFeature | null => {

@@ -190,7 +190,7 @@
 			if (profile) deviceAccounts = rememberDeviceAccount(profile, auth.currentUser);
 
 			if (canFastSwitchDeviceAccount(account)) {
-				const switchedUser = await authService.signInWithGoogle();
+				const { user: switchedUser, profile: switchedProfile } = await authService.signInWithGoogle();
 
 				if (switchedUser.uid !== account.id) {
 					deviceAccounts = getDeviceAccounts();
@@ -198,7 +198,6 @@
 					return;
 				}
 
-				const switchedProfile = await ensureUserProfile(switchedUser);
 				deviceAccounts = rememberDeviceAccount(switchedProfile, switchedUser);
 				showAccountSwitcher = false;
 				await goto(getPostSwitchHref(deviceAccounts.find((item) => item.id === switchedUser.uid) ?? account));

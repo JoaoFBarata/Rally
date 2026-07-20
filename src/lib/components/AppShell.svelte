@@ -3,8 +3,8 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import { auth, db } from '$lib/firebase';
-	import { onAuthStateChanged } from 'firebase/auth';
+	import { db } from '$lib/firebase';
+	import { authState } from '$lib/auth.svelte';
 	import { doc, onSnapshot } from 'firebase/firestore';
 	import RallyLogo from '$lib/components/RallyLogo.svelte';
 	import NavIcon from '$lib/components/NavIcon.svelte';
@@ -278,9 +278,25 @@
 		const storedSidebarExpanded = localStorage.getItem('rally_sidebar_expanded');
 		if (storedSidebarExpanded !== null) sidebarExpanded = storedSidebarExpanded === 'true';
 		currentPushUserId = localStorage.getItem('rally_fcm_token_user_id') ?? '';
+	});
+
+	// Drives profile loading, admin detection, and push notifications off the
+	// single shared `authState` singleton (src/lib/auth.svelte.ts) instead of
+	// running a second, independent onAuthStateChanged listener — two separate
+	// listeners for the same Firebase user can resolve out of order on fast
+	// login/logout/account-switch and leave stale profile data on screen.
+	// `authGeneration` guards against exactly that: any async work belonging to
+	// a superseded auth transition is dropped instead of applied.
+	let authGeneration = 0;
+
+	$effect(() => {
+		if (authState.loading) return;
+
+		const user = authState.user;
+		const generation = ++authGeneration;
 		let unsubscribeUserDoc: (() => void) | null = null;
 
-		const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+		(async () => {
 			const nextUserId = user?.uid ?? '';
 			if (currentPushUserId && currentPushUserId !== nextUserId) {
 				await removeStoredPushTokenForUser(currentPushUserId);
@@ -289,10 +305,7 @@
 				currentPushUserId = '';
 			}
 
-			if (unsubscribeUserDoc) {
-				unsubscribeUserDoc();
-				unsubscribeUserDoc = null;
-			}
+			if (generation !== authGeneration) return;
 
 			profile = null;
 			isPlatformAdmin = isPlatformAdminEmail(user?.email);
@@ -303,9 +316,12 @@
 
 				try {
 					await ensureUserProfile(user);
+					if (generation !== authGeneration) return;
+
 					unsubscribeUserDoc = onSnapshot(
 						doc(db, 'users', user.uid),
 						(snapshot) => {
+							if (generation !== authGeneration) return;
 							if (snapshot.exists()) {
 								profile = {
 									...snapshot.data(),
@@ -320,6 +336,7 @@
 							loadingProfile = false;
 						},
 						(err) => {
+							if (generation !== authGeneration) return;
 							console.error('Realtime profile load error:', err);
 							loadingProfile = false;
 						}
@@ -327,8 +344,10 @@
 					registerPushNotifications(user.uid);
 				} catch (err) {
 					console.error('Load shell profile error:', err);
-					profile = null;
-					loadingProfile = false;
+					if (generation === authGeneration) {
+						profile = null;
+						loadingProfile = false;
+					}
 				}
 			} else {
 				stopNotifications();
@@ -338,10 +357,9 @@
 				localStorage.removeItem('rally_fcm_token_user_id');
 				loadingProfile = false;
 			}
-		});
+		})();
 
 		return () => {
-			unsubscribeAuth();
 			if (unsubscribeUserDoc) {
 				unsubscribeUserDoc();
 			}

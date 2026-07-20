@@ -20,7 +20,6 @@
 		updateOrganizationProfile,
 		getOrganizationLogo
 	} from '$lib/services/organization.service';
-	import { ensureUserProfile } from '$lib/services/user.service';
 	import {
 		calculatePromotionStats,
 		getEventsCreatedByOrganization,
@@ -545,7 +544,7 @@
 			}
 
 			if (canFastSwitchDeviceAccount(account)) {
-				const switchedUser = await authService.signInWithGoogle();
+				const { user: switchedUser, profile: switchedProfile } = await authService.signInWithGoogle();
 
 				if (switchedUser.uid !== account.id) {
 					deviceAccounts = getDeviceAccounts();
@@ -553,7 +552,6 @@
 					return;
 				}
 
-				const switchedProfile = await ensureUserProfile(switchedUser);
 				deviceAccounts = rememberDeviceAccount(switchedProfile, switchedUser);
 				showSettingsModal = false;
 				showAccountSwitcher = false;
@@ -1071,6 +1069,12 @@
 					<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">{i18n.t('current_status')}</p>
 					<p class="mt-1 font-black text-slate-950 dark:text-slate-50 sm:mt-2">{verificationLabel()}</p>
 				</div>
+				{#if organization.verificationStatus === 'rejected' && organization.verificationNote}
+					<div class="mt-3 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900/60 dark:bg-red-950/40 sm:p-4">
+						<p class="text-xs font-bold uppercase tracking-[0.2em] text-red-500 dark:text-red-400">{i18n.t('rejection_reason')}</p>
+						<p class="mt-1 font-bold text-red-700 dark:text-red-300">{organization.verificationNote}</p>
+					</div>
+				{/if}
 				{#if organization.verificationStatus !== 'verified'}
 					<div class="mt-4 space-y-3 sm:mt-5">
 						<div class="rounded-2xl border border-slate-200 p-3 text-xs dark:border-slate-700 sm:p-4 sm:text-sm">

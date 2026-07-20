@@ -9,6 +9,7 @@ import {
 	getDocs,
 	increment,
 	query,
+	runTransaction,
 	setDoc,
 	Timestamp,
 	serverTimestamp,
@@ -899,24 +900,41 @@ export async function joinEvent(eventId: string, userId: string) {
 		throw new Error('Use tournament registration instead of joining the event directly.');
 	}
 
-	if (event.participantIds.includes(userId)) {
-		await syncEventGroupConversation(event);
-		return;
-	}
+	const eventRef = doc(db, 'events', eventId);
+	let alreadyJoined = false;
+	let newParticipantIds = event.participantIds;
+	let newStatus = event.status;
 
-	if (event.participantIds.length >= event.maxParticipants || status === 'full') {
-		throw new Error('Event is already full');
-	}
+	// Re-check capacity and write atomically inside a transaction — a plain
+	// read-then-write here would let two concurrent joins both see one spot
+	// free and overbook the event (or silently clobber each other).
+	await runTransaction(db, async (transaction) => {
+		const snap = await transaction.get(eventRef);
+		if (!snap.exists()) {
+			throw new Error('Event not found');
+		}
 
-	const newParticipantIds = [...event.participantIds, userId];
+		const current = snap.data() as SportEvent;
 
-	const newStatus: EventStatus =
-		newParticipantIds.length >= event.maxParticipants ? 'full' : 'open';
+		if (current.participantIds.includes(userId)) {
+			alreadyJoined = true;
+			newParticipantIds = current.participantIds;
+			newStatus = current.status;
+			return;
+		}
 
-	await updateDoc(doc(db, 'events', eventId), {
-		participantIds: newParticipantIds,
-		status: newStatus,
-		updatedAt: serverTimestamp()
+		if (current.participantIds.length >= current.maxParticipants) {
+			throw new Error('Event is already full');
+		}
+
+		newParticipantIds = [...current.participantIds, userId];
+		newStatus = newParticipantIds.length >= current.maxParticipants ? 'full' : 'open';
+
+		transaction.update(eventRef, {
+			participantIds: newParticipantIds,
+			status: newStatus,
+			updatedAt: serverTimestamp()
+		});
 	});
 
 	await syncEventGroupConversation({
@@ -924,6 +942,8 @@ export async function joinEvent(eventId: string, userId: string) {
 		participantIds: newParticipantIds,
 		status: newStatus
 	});
+
+	if (alreadyJoined) return;
 
 	void sendRallySystemMessage(
 		userId,
@@ -946,20 +966,35 @@ export async function leaveEvent(eventId: string, userId: string) {
 		throw new Error('The creator cannot leave the event. Cancel the event instead.');
 	}
 
-	if (!event.participantIds.includes(userId)) {
-		return;
-	}
+	const eventRef = doc(db, 'events', eventId);
+	let wasParticipant = false;
+	let newParticipantIds = event.participantIds;
+	let newStatus = event.status;
 
-	const newParticipantIds = event.participantIds.filter((id) => id !== userId);
+	await runTransaction(db, async (transaction) => {
+		const snap = await transaction.get(eventRef);
+		if (!snap.exists()) {
+			throw new Error('Event not found');
+		}
 
-	const newStatus: EventStatus =
-		newParticipantIds.length >= event.maxParticipants ? 'full' : 'open';
+		const current = snap.data() as SportEvent;
 
-	await updateDoc(doc(db, 'events', eventId), {
-		participantIds: newParticipantIds,
-		status: newStatus,
-		updatedAt: serverTimestamp()
+		if (!current.participantIds.includes(userId)) {
+			return;
+		}
+
+		wasParticipant = true;
+		newParticipantIds = current.participantIds.filter((id) => id !== userId);
+		newStatus = newParticipantIds.length >= current.maxParticipants ? 'full' : 'open';
+
+		transaction.update(eventRef, {
+			participantIds: newParticipantIds,
+			status: newStatus,
+			updatedAt: serverTimestamp()
+		});
 	});
+
+	if (!wasParticipant) return;
 
 	await syncEventGroupConversation({
 		...event,
@@ -1050,15 +1085,26 @@ export async function removeParticipantFromEvent(params: {
 		throw new Error('The creator cannot be removed.');
 	}
 
-	const newParticipantIds = event.participantIds.filter((id) => id !== params.participantId);
+	const eventRef = doc(db, 'events', params.eventId);
+	let newParticipantIds = event.participantIds;
+	let newStatus = event.status;
 
-	const newStatus: EventStatus =
-		newParticipantIds.length >= event.maxParticipants ? 'full' : 'open';
+	await runTransaction(db, async (transaction) => {
+		const snap = await transaction.get(eventRef);
+		if (!snap.exists()) {
+			throw new Error('Event not found');
+		}
 
-	await updateDoc(doc(db, 'events', params.eventId), {
-		participantIds: newParticipantIds,
-		status: newStatus,
-		updatedAt: serverTimestamp()
+		const current = snap.data() as SportEvent;
+
+		newParticipantIds = current.participantIds.filter((id) => id !== params.participantId);
+		newStatus = newParticipantIds.length >= current.maxParticipants ? 'full' : 'open';
+
+		transaction.update(eventRef, {
+			participantIds: newParticipantIds,
+			status: newStatus,
+			updatedAt: serverTimestamp()
+		});
 	});
 
 	await syncEventGroupConversation({

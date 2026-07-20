@@ -4,6 +4,7 @@ import {
 	arrayUnion,
 	arrayRemove,
 	collection,
+	deleteField,
 	doc,
 	getDoc,
 	getDocs,
@@ -295,6 +296,7 @@ export async function deleteMessageForEveryone(params: {
 	conversationId: string;
 	messageId: string;
 	userId: string;
+	deletedPreviewText?: string;
 }) {
 	const messageRef = doc(db, 'conversations', params.conversationId, 'messages', params.messageId);
 	const messageSnap = await getDoc(messageRef);
@@ -323,6 +325,24 @@ export async function deleteMessageForEveryone(params: {
 		deletedBy: params.userId,
 		editedAt: null
 	});
+
+	// If this was the conversation's most recent message, refresh the
+	// list-preview text so it doesn't keep showing the now-deleted content.
+	const conversationRef = doc(db, 'conversations', params.conversationId);
+	const conversationSnap = await getDoc(conversationRef);
+
+	if (conversationSnap.exists()) {
+		const conversation = conversationSnap.data() as ChatConversation;
+		const isLatestMessage =
+			message.createdAt != null && conversation.lastMessageAt?.isEqual?.(message.createdAt);
+
+		if (isLatestMessage) {
+			await updateDoc(conversationRef, {
+				lastMessage: params.deletedPreviewText ?? 'This message was deleted.',
+				updatedAt: serverTimestamp()
+			});
+		}
+	}
 }
 
 export async function getConversationById(conversationId: string) {
@@ -415,55 +435,33 @@ export async function setUserTyping(params: {
 	displayName: string;
 }) {
 	const conversationRef = doc(db, 'conversations', params.conversationId);
-	const conversationSnap = await getDoc(conversationRef);
 
-	if (!conversationSnap.exists()) return;
-
-	const conversationData = conversationSnap.data() as ChatConversation;
-
-	const nextTyping = {
-		...(conversationData.typing ?? {}),
-		[params.userId]: {
+	// Per-key dot-path update — a whole-map read-modify-write here would let
+	// two typers in the same conversation clobber each other's entry.
+	await updateDoc(conversationRef, {
+		[`typing.${params.userId}`]: {
 			userId: params.userId,
 			displayName: params.displayName,
 			updatedAt: serverTimestamp()
 		}
-	};
-
-	await updateDoc(conversationRef, {
-		typing: nextTyping
 	});
 }
 export async function clearUserTyping(conversationId: string, userId: string) {
 	const conversationRef = doc(db, 'conversations', conversationId);
-	const conversationSnap = await getDoc(conversationRef);
-
-	if (!conversationSnap.exists()) return;
-
-	const conversationData = conversationSnap.data() as ChatConversation;
-	const nextTyping = { ...(conversationData.typing ?? {}) };
-
-	delete nextTyping[userId];
 
 	await updateDoc(conversationRef, {
-		typing: nextTyping
+		[`typing.${userId}`]: deleteField()
 	});
 }
 export async function markConversationAsRead(conversationId: string, userId: string) {
 	const conversationRef = doc(db, 'conversations', conversationId);
-	const conversationSnap = await getDoc(conversationRef);
 
-	if (!conversationSnap.exists()) return;
-
-	const conversationData = conversationSnap.data() as ChatConversation;
-	const nextUnreadCounts = {
-		...(conversationData.unreadCounts ?? {}),
-		[userId]: 0
-	};
-
+	// Per-key dot-path update — a whole-map read-modify-write here could race
+	// with sendMessage's increment() on another participant's unread count
+	// and overwrite it with a stale value.
 	await updateDoc(conversationRef, {
 		unreadFor: arrayRemove(userId),
-		unreadCounts: nextUnreadCounts
+		[`unreadCounts.${userId}`]: 0
 	});
 }
 
@@ -480,10 +478,23 @@ export function listenMessagesForConversation(
 	return onSnapshot(
 		q,
 		(snap) => {
-			const messages = snap.docs.map((docSnap) => ({
-				id: docSnap.id,
-				...docSnap.data()
-			})) as ChatMessage[];
+			// Pending serverTimestamp() writes resolve to null locally until the
+			// server ack arrives. Firestore's query engine sorts that null before
+			// every other value regardless of read options, so a just-sent
+			// message can briefly jump to the top of `snap.docs` — the
+			// `estimate` option only fixes the *value* .data() returns, not that
+			// ordering. Re-sorting client-side by the now-non-null estimated
+			// timestamp keeps the list in the right order immediately.
+			const messages = snap.docs
+				.map((docSnap) => ({
+					id: docSnap.id,
+					...docSnap.data({ serverTimestamps: 'estimate' })
+				}))
+				.sort((a, b) => {
+					const aMs = (a as ChatMessage).createdAt?.toMillis?.() ?? 0;
+					const bMs = (b as ChatMessage).createdAt?.toMillis?.() ?? 0;
+					return aMs - bMs;
+				}) as ChatMessage[];
 
 			callback(messages);
 		},

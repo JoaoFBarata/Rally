@@ -408,35 +408,49 @@
 		}
 	}
 
+	let currentUserId = $state<string | null>(null);
+
 	onMount(() => {
-		let unsubscribeTarget = () => {};
-		let unsubscribeActivity = () => {};
-		const unsubscribe = onAuthStateChanged(auth, async (user) => {
-			unsubscribeTarget();
-			unsubscribeActivity();
+		const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
 			if (!user) {
 				await goto(resolve('/login'));
 				return;
 			}
 
-			await loadUserPage(user.uid);
-			const targetUserId = page.params.id;
-			if (targetUserId) {
-				unsubscribeTarget = subscribeToUserChanges(
-					targetUserId,
-					() => void loadUserPage(user.uid, false)
-				);
-				if (currentProfile?.accountType !== 'organization') {
-					unsubscribeActivity = subscribeToUserActivityChanges(
-						user.uid,
-						() => void loadUserPage(user.uid, false)
-					);
-				}
-			}
+			currentUserId = user.uid;
 		});
 
+		return () => unsubscribeAuth();
+	});
+
+	// Re-run whenever the viewed user (page.params.id) or the signed-in user
+	// changes — SvelteKit reuses this component instance across navigations
+	// between /users/[id] routes, so without this effect the page kept
+	// showing the previous user's data until a hard refresh.
+	$effect(() => {
+		const targetUserId = page.params.id;
+		const uid = currentUserId;
+		if (!uid || !targetUserId) return;
+
+		let unsubscribeTarget = () => {};
+		let unsubscribeActivity = () => {};
+		let cancelled = false;
+
+		(async () => {
+			await loadUserPage(uid);
+			if (cancelled) return;
+
+			unsubscribeTarget = subscribeToUserChanges(targetUserId, () => void loadUserPage(uid, false));
+			if (currentProfile?.accountType !== 'organization') {
+				unsubscribeActivity = subscribeToUserActivityChanges(
+					uid,
+					() => void loadUserPage(uid, false)
+				);
+			}
+		})();
+
 		return () => {
-			unsubscribe();
+			cancelled = true;
 			unsubscribeTarget();
 			unsubscribeActivity();
 		};

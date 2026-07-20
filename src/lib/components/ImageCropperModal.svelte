@@ -180,17 +180,23 @@
 	});
 
 	let isHiding = $state(false);
+	let cropError = $state('');
 
 	function handleConfirm() {
 		if (!imgEl) return;
 		isHiding = true;
+		cropError = '';
 
 		const canvas = document.createElement('canvas');
 		canvas.width = cropWidth * 2; // high resolution crop
 		canvas.height = cropHeight * 2;
 
 		const ctx = canvas.getContext('2d');
-		if (!ctx) return;
+		if (!ctx) {
+			isHiding = false;
+			cropError = i18n.t('crop_failed_error');
+			return;
+		}
 
 		// Calculate coordinates on the original image
 		const imgNaturalW = imgEl.naturalWidth;
@@ -229,6 +235,9 @@
 			if (blob) {
 				const croppedFile = new File([blob], 'cropped-image.png', { type: 'image/png' });
 				onConfirm(croppedFile);
+			} else {
+				isHiding = false;
+				cropError = i18n.t('crop_failed_error');
 			}
 		}, 'image/png');
 	}
@@ -320,6 +329,10 @@
 				class="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-slate-200 dark:bg-slate-800"
 			/>
 		</div>
+
+		{#if cropError}
+			<p class="mt-4 text-sm font-bold text-red-600 dark:text-red-400">{cropError}</p>
+		{/if}
 
 		<!-- Bottom buttons -->
 		<div class="mt-6 flex justify-end gap-3">

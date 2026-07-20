@@ -35,6 +35,7 @@
 	let route = $state<{ lat: number; lng: number }[]>([]);
 	let startDate = $state('');
 	let startTime = $state('');
+	const todayStr = new Date().toLocaleDateString('en-CA');
 	let durationMinutes = $state(90);
 	let maxParticipants = $state(10);
 	let visibility = $state<EventVisibility>('private');
@@ -197,6 +198,15 @@
 
 		if (Number.isNaN(parsedStartAt.getTime())) {
 			error = 'Choose a valid event date and start time.';
+			return;
+		}
+
+		// Only block a past start time for events that hadn't started yet when
+		// this page loaded — editing other fields on an already-started/past
+		// event shouldn't be blocked just because time has since moved on.
+		const originalStartAt = event?.startAt?.toDate?.() ?? null;
+		if ((!originalStartAt || originalStartAt > new Date()) && parsedStartAt <= new Date()) {
+			error = 'The event must be scheduled in the future.';
 			return;
 		}
 
@@ -490,6 +500,7 @@
 								id="startDate"
 								type="date"
 								bind:value={startDate}
+								min={todayStr}
 								class={`mt-2 min-w-0 ${inputClass}`}
 							/>
 						</div>

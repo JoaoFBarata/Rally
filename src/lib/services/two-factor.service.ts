@@ -70,20 +70,26 @@ export async function startEmailTwoFactorChallenge(params: {
 	const returnTo = params.returnTo?.startsWith('/') ? params.returnTo : '/dashboard';
 	const verifyPath = `/verify-2fa?returnTo=${encodeURIComponent(returnTo)}`;
 
-	await sendSignInLinkToEmail(auth, email, {
-		url: createAppUrl(verifyPath),
-		handleCodeInApp: true
-	});
+	try {
+		await sendSignInLinkToEmail(auth, email, {
+			url: createAppUrl(verifyPath),
+			handleCodeInApp: true
+		});
 
-	const pending: PendingTwoFactorChallenge = {
-		email,
-		returnTo,
-		method: 'email',
-		createdAt: Date.now()
-	};
+		const pending: PendingTwoFactorChallenge = {
+			email,
+			returnTo,
+			method: 'email',
+			createdAt: Date.now()
+		};
 
-	localStorage.setItem(PENDING_2FA_KEY, JSON.stringify(pending));
-	await signOut(auth);
+		localStorage.setItem(PENDING_2FA_KEY, JSON.stringify(pending));
+	} finally {
+		// Always sign out of the freshly-created session, whether or not the
+		// verification email was sent — an authenticated session must never
+		// survive a failed 2FA challenge.
+		await signOut(auth);
+	}
 }
 
 export function currentUrlIsEmailTwoFactorLink() {

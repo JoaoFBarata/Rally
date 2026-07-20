@@ -1,6 +1,7 @@
 import { auth } from '$lib/firebase';
 import {
 	createUserWithEmailAndPassword,
+	deleteUser,
 	GoogleAuthProvider,
 	sendPasswordResetEmail,
 	signInWithEmailAndPassword,
@@ -44,23 +45,32 @@ export const authService = {
 	async register(email: string, password: string, displayName: string, language?: string) {
 		const credential = await createUserWithEmailAndPassword(auth, email, password);
 
-		await updateProfile(credential.user, {
-			displayName
-		});
+		try {
+			await updateProfile(credential.user, {
+				displayName
+			});
 
-		await createUserProfile({
-			id: credential.user.uid,
-			email: credential.user.email ?? email,
-			displayName,
-			photoURL: credential.user.photoURL,
-			accountType: 'personal',
-			language
-		});
+			await createUserProfile({
+				id: credential.user.uid,
+				email: credential.user.email ?? email,
+				displayName,
+				photoURL: credential.user.photoURL,
+				accountType: 'personal',
+				language
+			});
+		} catch (err) {
+			// Roll back the Auth account so a retry doesn't hit
+			// auth/email-already-in-use on an unusable half-created account.
+			await deleteUser(credential.user).catch((cleanupErr) =>
+				console.error('Failed to roll back partially created account:', cleanupErr)
+			);
+			throw err;
+		}
 
-		await sendRallySystemMessage(
+		void sendRallySystemMessage(
 			credential.user.uid,
 			'Welcome to Rally! You will receive event updates and more through this chat.'
-		);
+		).catch((err) => console.error('Welcome message error:', err));
 
 		return credential.user;
 	},
@@ -81,43 +91,53 @@ export const authService = {
 	}) {
 		const credential = await createUserWithEmailAndPassword(auth, params.email, params.password);
 
-		await updateProfile(credential.user, {
-			displayName: params.organizationName
-		});
+		let organization;
+		try {
+			await updateProfile(credential.user, {
+				displayName: params.organizationName
+			});
 
-		await createUserProfile({
-			id: credential.user.uid,
-			email: credential.user.email ?? params.email,
-			displayName: params.organizationName,
-			photoURL: credential.user.photoURL,
-			accountType: 'organization',
-			language: params.language
-		});
+			await createUserProfile({
+				id: credential.user.uid,
+				email: credential.user.email ?? params.email,
+				displayName: params.organizationName,
+				photoURL: credential.user.photoURL,
+				accountType: 'organization',
+				language: params.language
+			});
 
-		const organization = await createOrganization({
-			name: params.organizationName,
-			type: params.organizationType,
-			description: params.description ?? '',
-			ownerId: credential.user.uid,
-			contactEmail: params.contactEmail ?? params.email,
-			phone: params.phone,
-			website: params.website,
-			address: params.address,
-			city: params.city,
-			nif: params.nif,
-			logoURL: '/default-org-logo.png'
-		});
+			organization = await createOrganization({
+				name: params.organizationName,
+				type: params.organizationType,
+				description: params.description ?? '',
+				ownerId: credential.user.uid,
+				contactEmail: params.contactEmail ?? params.email,
+				phone: params.phone,
+				website: params.website,
+				address: params.address,
+				city: params.city,
+				nif: params.nif,
+				logoURL: '/default-org-logo.png'
+			});
 
-		await updateUserActiveOrganization({
-			userId: credential.user.uid,
-			organizationId: organization.id,
-			accountType: 'organization'
-		});
+			await updateUserActiveOrganization({
+				userId: credential.user.uid,
+				organizationId: organization.id,
+				accountType: 'organization'
+			});
+		} catch (err) {
+			// Roll back the Auth account so a retry doesn't hit
+			// auth/email-already-in-use on an unusable half-created account.
+			await deleteUser(credential.user).catch((cleanupErr) =>
+				console.error('Failed to roll back partially created account:', cleanupErr)
+			);
+			throw err;
+		}
 
-		await sendRallySystemMessage(
+		void sendRallySystemMessage(
 			credential.user.uid,
 			'Welcome to Rally! You will receive organization updates and event activity through this chat.'
-		);
+		).catch((err) => console.error('Welcome message error:', err));
 
 		return {
 			user: credential.user,
@@ -170,8 +190,8 @@ export const authService = {
 			const credential = GoogleAuthProvider.credential(result.idToken);
 			const userCredential = await signInWithCredential(auth, credential);
 
-			await ensureUserProfile(userCredential.user);
-			return userCredential.user;
+			const profile = await ensureUserProfile(userCredential.user);
+			return { user: userCredential.user, profile };
 		} else {
 			const provider = new GoogleAuthProvider();
 
@@ -181,9 +201,9 @@ export const authService = {
 
 			const result = await signInWithPopup(auth, provider);
 
-			await ensureUserProfile(result.user);
+			const profile = await ensureUserProfile(result.user);
 
-			return result.user;
+			return { user: result.user, profile };
 		}
 	},
 

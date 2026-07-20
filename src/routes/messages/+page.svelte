@@ -242,10 +242,8 @@
 		const conversationsWithProfiles = await Promise.all(
 			visibleConversations.map(async (conversation) => {
 				const unreadCount =
-					(conversation.unreadCounts?.[currentUserId] ?? 0) > 0 ||
-					conversation.unreadFor?.includes(currentUserId)
-						? 1
-						: 0;
+					conversation.unreadCounts?.[currentUserId] ??
+					(conversation.unreadFor?.includes(currentUserId) ? 1 : 0);
 
 				if (conversation.type === 'rally_system') {
 					const isCleared = isConversationClearedForUser(conversation, currentUserId);
@@ -514,8 +512,6 @@
 		try {
 			await respondToFriendRequest({
 				requestId: request.id,
-				fromUserId: request.fromUserId,
-				toUserId: currentUser.uid,
 				status
 			});
 

@@ -171,6 +171,13 @@
 
 		if (!currentUser) return;
 
+		const cleanDisplayName = displayName.trim();
+
+		if (!cleanDisplayName) {
+			error = 'Please enter your name.';
+			return;
+		}
+
 		const cleanAge = String(age ?? '').trim();
 		const parsedAge = cleanAge === '' ? null : Number(cleanAge);
 
@@ -185,7 +192,7 @@
 
 		try {
 			await updateUserProfileDetails(currentUser.uid, {
-				displayName,
+				displayName: cleanDisplayName,
 				bio,
 				city,
 				country,

@@ -398,7 +398,7 @@
 					</span>
 					<div class="min-w-0 text-right">
 						<p class="truncate whitespace-nowrap text-xs font-black text-blue-600 dark:text-blue-300">
-							{event.participantIds.length}/{event.maxParticipants} {i18n.t('players_lowercase')}
+							{formattedCapacity}
 						</p>
 						{#if event.pricePerPerson}
 							<p class="truncate text-[10px] font-bold text-slate-500 dark:text-slate-400">
@@ -533,7 +533,9 @@
 
 			<div class="shrink-0 rounded-2xl bg-slate-50 px-2 py-1 text-center dark:bg-slate-800 sm:px-3 sm:py-2">
 				<p class="text-xs font-black text-blue-600 dark:text-blue-300 sm:text-sm">
-					{event.participantIds.length}/{event.maxParticipants}
+					{event.participantIds.length}/{event.eventKind === 'tournament'
+						? (event.maxTournamentEntries ?? event.maxParticipants)
+						: event.maxParticipants}
 				</p>
 
 				<p class="hidden text-xs font-medium text-slate-500 dark:text-slate-400 sm:block">{i18n.t('players_lowercase')}</p>
