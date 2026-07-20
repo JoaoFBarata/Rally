@@ -3,6 +3,7 @@
 	import { fade } from 'svelte/transition';
 	import { authState } from '$lib/auth.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
+	import CardSwap from '$lib/components/CardSwap.svelte';
 
 	let contentVisible = $state(false);
 	let activePersona = $state(0);
@@ -130,22 +131,10 @@
 		}
 	];
 
-	const steps = [
-		{
-			num: '01',
-			title: 'Create your event',
-			desc: 'Pick a sport, set the date, location and how many players you need. Takes under a minute.'
-		},
-		{
-			num: '02',
-			title: 'Invite & share',
-			desc: 'Send invites to friends or make your event public so nearby players can find and join it.'
-		},
-		{
-			num: '03',
-			title: 'Play together',
-			desc: 'Confirm your roster, coordinate with your friends and show up, well handle the rest.'
-		}
+	const showcaseItems = [
+		{ src: '/showcase/explore.png', alt: 'Explore' },
+		{ src: '/showcase/profile.png', alt: 'Profile' },
+		{ src: '/showcase/messages_new.png', alt: 'Messages' }
 	];
 
 	const rallyPointsSteps = [
@@ -455,37 +444,34 @@
 	</section>
 
 	<!-- ─── HOW IT WORKS ─────────────────────────────────────────────────── -->
-	<section class="bg-slate-50 px-8 py-20 dark:bg-slate-900/50">
-		<div class="mx-auto max-w-4xl">
-			<div use:reveal class="text-center">
+	<section
+		class="relative flex min-h-[560px] items-center overflow-hidden bg-slate-50 px-8 py-20 dark:bg-slate-900/50 sm:min-h-[680px]"
+	>
+		<div use:reveal class="relative z-10 mx-auto w-full max-w-6xl">
+			<div class="max-w-md">
 				<p class="text-xs font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">
 					How it works
 				</p>
-				<h2 class="mt-2 text-3xl font-black text-slate-950 dark:text-white">
+				<h2 class="mt-2 text-3xl font-black text-slate-950 dark:text-white sm:text-4xl">
 					Up and running in minutes
 				</h2>
-			</div>
-
-			<div class="mt-12">
-				{#each steps as step, i}
-					<div
-						use:reveal={{ delay: i * 100 }}
-						class={`flex items-baseline gap-8 border-t border-slate-200 py-8 dark:border-slate-800 ${i === steps.length - 1 ? 'border-b' : ''}`}
-					>
-						<span
-							class="w-10 shrink-0 text-3xl font-black tabular-nums text-blue-600 dark:text-blue-400"
-							>{step.num}</span
-						>
-						<div>
-							<h3 class="font-black text-slate-950 dark:text-white">{step.title}</h3>
-							<p class="mt-1 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-								{step.desc}
-							</p>
-						</div>
-					</div>
-				{/each}
+				<p class="mt-4 text-base leading-relaxed text-slate-500 dark:text-slate-400">
+					Create an event, invite your friends or open it up to nearby players, and show up. We
+					handle the scheduling, reminders and coordination so you can just focus on playing.
+				</p>
 			</div>
 		</div>
+
+		<CardSwap
+			items={showcaseItems}
+			width={900}
+			height={600}
+			cardDistance={110}
+			verticalDistance={80}
+			delay={2800}
+			skewAmount={6}
+			pauseOnHover={true}
+		/>
 	</section>
 
 	<!-- ─── RALLY POINTS ────────────────────────────────────────────────── -->
