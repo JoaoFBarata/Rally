@@ -1101,6 +1101,8 @@ class I18nService {
 			"admin": "Admin",
 			"organization": "Organization",
 			"new_event": "+ New event",
+			"collapse_sidebar": "Collapse sidebar",
+			"expand_sidebar": "Expand sidebar",
 			"logout": "Log out",
 
 			// Auth / Register / Login
@@ -1819,6 +1821,8 @@ class I18nService {
 			"admin": "Admin",
 			"organization": "Organização",
 			"new_event": "+ Novo evento",
+			"collapse_sidebar": "Recolher barra lateral",
+			"expand_sidebar": "Expandir barra lateral",
 			"logout": "Sair",
 
 			// Auth / Registo / Login
@@ -2537,6 +2541,8 @@ class I18nService {
 			"admin": "Admin",
 			"organization": "Organización",
 			"new_event": "+ Nuevo evento",
+			"collapse_sidebar": "Contraer barra lateral",
+			"expand_sidebar": "Expandir barra lateral",
 			"logout": "Cerrar sesión",
 
 			// Auth / Registro / Login
@@ -3254,6 +3260,8 @@ class I18nService {
 			"admin": "Admin",
 			"organization": "Organisation",
 			"new_event": "+ Nouvel événement",
+			"collapse_sidebar": "Réduire la barre latérale",
+			"expand_sidebar": "Agrandir la barre latérale",
 			"logout": "Se déconnecter",
 
 			// Auth / Inscription / Connexion

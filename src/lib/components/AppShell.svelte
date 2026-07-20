@@ -8,6 +8,7 @@
 	import { doc, onSnapshot } from 'firebase/firestore';
 	import RallyLogo from '$lib/components/RallyLogo.svelte';
 	import NavIcon from '$lib/components/NavIcon.svelte';
+	import { PanelLeft } from '@lucide/svelte';
 	import { initTheme } from '$lib/theme.svelte';
 	import type { UserProfile } from '$lib/schema';
 	import { ensureUserProfile, removeUserFcmToken, saveUserFcmToken } from '$lib/services/user.service';
@@ -28,7 +29,7 @@
 	let loadingProfile = $state(true);
 	let isPlatformAdmin = $state(false);
 	let currentPushUserId = '';
-	let sidebarExpanded = $state(false);
+	let sidebarExpanded = $state(true);
 	let sidebarCollapsed = $derived(!sidebarExpanded);
 
 	let pathname = $derived(page.url.pathname);
@@ -174,6 +175,11 @@
 		return resolve(href as any);
 	}
 
+	function toggleSidebar() {
+		sidebarExpanded = !sidebarExpanded;
+		localStorage.setItem('rally_sidebar_expanded', String(sidebarExpanded));
+	}
+
 	$effect(() => {
 		if (loadingProfile || !organizationId) return;
 
@@ -265,6 +271,8 @@
 
 	onMount(() => {
 		initTheme();
+		const storedSidebarExpanded = localStorage.getItem('rally_sidebar_expanded');
+		if (storedSidebarExpanded !== null) sidebarExpanded = storedSidebarExpanded === 'true';
 		currentPushUserId = localStorage.getItem('rally_fcm_token_user_id') ?? '';
 		let unsubscribeUserDoc: (() => void) | null = null;
 
@@ -338,25 +346,44 @@
 </script>
 
 {#if shouldHideNavigation()}
-	<div class="min-h-dvh bg-white text-black dark:bg-[#111111] dark:text-white font-montserrat">
+	<div class="min-h-dvh bg-white text-black dark:bg-[#161616] dark:text-white font-montserrat">
 		{@render children()}
 	</div>
 {:else}
-	<div class="min-h-screen bg-white text-black dark:bg-[#111111] dark:text-white font-montserrat">
+	<div class="min-h-screen bg-white text-black dark:bg-[#161616] dark:text-white font-montserrat">
 		<div class="flex min-h-screen min-w-0 overflow-x-clip">
-			<!-- Desktop sidebar spacer (reserves the collapsed width in the layout flow) -->
-			<div class="hidden md:block h-screen w-24 shrink-0" aria-hidden="true"></div>
-
-			<!-- Desktop sidebar (fixed/overlaid so hover-expand doesn't shift page content) -->
+			<!-- Desktop sidebar -->
 			<aside
-				class={`hidden md:flex flex-col h-screen fixed top-0 left-0 z-40 overflow-hidden bg-[#f6f6f6] transition-[width] duration-200 ease-in-out dark:bg-[#212121] ${
-					sidebarCollapsed ? 'w-24' : 'w-71 shadow-2xl shadow-slate-400/30 dark:shadow-black/50'
+				class={`hidden md:flex flex-col h-screen sticky top-0 shrink-0 overflow-hidden bg-[#f6f6f6] transition-[width] duration-200 ease-in-out dark:bg-[#242424] ${
+					sidebarCollapsed ? 'w-24' : 'w-71'
 				}`}
-				onmouseenter={() => (sidebarExpanded = true)}
-				onmouseleave={() => (sidebarExpanded = false)}
 			>
-				<div class={sidebarCollapsed ? 'flex w-full flex-col items-center mt-13.25' : 'w-full pl-6.75 mt-13.25'}>
-					<RallyLogo size="md" mark={sidebarCollapsed} href={organizationManageHref ?? '/'}/>
+				<div class={sidebarCollapsed ? 'flex w-full flex-col items-center pt-6' : 'flex w-full items-center justify-between pl-6.75 pr-6 pt-6'}>
+					{#if sidebarCollapsed}
+						<button
+							type="button"
+							onclick={toggleSidebar}
+							title={i18n.t('expand_sidebar')}
+							aria-label={i18n.t('expand_sidebar')}
+							class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-200 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+						>
+							<PanelLeft class="h-5 w-5" />
+						</button>
+					{:else}
+						<RallyLogo size="md" href={organizationManageHref ?? '/'} />
+						<button
+							type="button"
+							onclick={toggleSidebar}
+							title={i18n.t('collapse_sidebar')}
+							aria-label={i18n.t('collapse_sidebar')}
+							class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-200 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+						>
+							<PanelLeft class="h-5 w-5" />
+						</button>
+					{/if}
+				</div>
+
+				<div class={sidebarCollapsed ? 'flex w-full flex-col items-center mt-6.25' : 'w-full pl-6.75 mt-6.25'}>
 					<button
 						class={sidebarCollapsed
 							? 'mt-10.25 flex h-14.5 w-14.5 items-center justify-center bg-[#0095ff] hover:shadow-[0px_5px_15px_0px_rgba(100,100,111,0.7)] dark:hover:shadow-[0px_5px_15px_0px_rgba(155,155,144,0.7)] rounded-[10px] text-white cursor-pointer'
@@ -371,7 +398,7 @@
 						{/if}
 					</button>
 				</div>
-				<div class="w-full grow flex flex-col justify-between bg-[#eaeaea] dark:bg-[#1A1A1A] rounded-tr-[75px] mt-10 pb-9">
+				<div class="w-full grow flex flex-col justify-between bg-[#eaeaea] dark:bg-[#1E1E1E] rounded-tr-[75px] mt-10 pb-9">
 					<div>
 						{#each navItems as item, idx (item.href)}
 							<a

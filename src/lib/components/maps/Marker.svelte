@@ -24,7 +24,7 @@
                 </div>
             {:else}
                 <div id="marker-occupation-wrapper" class="absolute bottom-0 left-0 w-[calc(var(--marker-scale)*2.3125rem)] h-[calc(var(--marker-scale)*2.3125rem)] rounded-full p-[calc(var(--marker-scale)*0.1875rem)] bg-linear-115 from-[#ff595eFF] from-50% to-[#00B4D8FF] to-50%">
-                    <div class="w-full h-full bg-linear-115 from-[#fdfdfdFF] from-50% to-[#00B4D8FF] to-50% dark:from-[#212121] flex flex-row items-center justify-between px-[calc(var(--marker-scale)*0.1875rem)] rounded-full">
+                    <div class="w-full h-full bg-linear-115 from-[#fdfdfdFF] from-50% to-[#00B4D8FF] to-50% dark:from-[#242424] flex flex-row items-center justify-between px-[calc(var(--marker-scale)*0.1875rem)] rounded-full">
                         <div class="mb-[calc(var(--marker-scale)*0.25rem)]">
                             <h3 class="text-[calc(var(--marker-scale)*0.625rem)] text-black dark:text-white font-bold">{n_confirmed_attendees}</h3>
                         </div>
@@ -33,7 +33,7 @@
                         </div>
                     </div>
                 </div>
-                <div id="marker-sport-wrapper" class="absolute bottom-0 right-0 w-[calc(var(--marker-scale)*2.8125rem)] h-[calc(var(--marker-scale)*2.8125rem)] rounded-full border-[calc(var(--marker-scale)*0.25rem)] border-solid border-[#0065fdFF] bg-[#fdfdfdFF] dark:bg-[#212121] flex justify-center items-center">
+                <div id="marker-sport-wrapper" class="absolute bottom-0 right-0 w-[calc(var(--marker-scale)*2.8125rem)] h-[calc(var(--marker-scale)*2.8125rem)] rounded-full border-[calc(var(--marker-scale)*0.25rem)] border-solid border-[#0065fdFF] bg-[#fdfdfdFF] dark:bg-[#242424] flex justify-center items-center">
                     <img src="{sport}_icon.png" alt="" class="p-[calc(var(--marker-scale)*0.375rem)]">
                 </div>
             {/if}
@@ -41,6 +41,6 @@
     </div>
     <div id="marker-pin-wrapper" class="w-full flex flex-col items-center justify-center">
         <div id="marker-pin-connector" class="h-[calc(var(--marker-scale)*1.75125rem)] w-[0.001rem] mb-[calc(var(--marker-scale)*-0.6rem)] ml-[calc(var(--marker-scale)*0.005rem)] border-[calc(var(--marker-scale)*0.125rem)] border-solid border-[#0065fdFF] z-1 rounded-b-[calc(var(--marker-scale)*0.1875rem)]"></div>
-        <div id="marker-pin" class="w-[calc(var(--marker-scale)*1.0625rem)] h-[calc(var(--marker-scale)*1.0625rem)] rounded-full bg-[#fdfdfdFF] dark:bg-[#212121] border-[calc(var(--marker-scale)*0.1875rem)] border-solid border-[#0065fdFF]"></div>
+        <div id="marker-pin" class="w-[calc(var(--marker-scale)*1.0625rem)] h-[calc(var(--marker-scale)*1.0625rem)] rounded-full bg-[#fdfdfdFF] dark:bg-[#242424] border-[calc(var(--marker-scale)*0.1875rem)] border-solid border-[#0065fdFF]"></div>
     </div>
 </div>
