@@ -46,6 +46,13 @@ export function getEventTemporalState(
 
 	const startMs = getEventStartMs(event);
 	const endMs = getEventEndMs(event);
+	const isTournament = event.eventKind === 'tournament' || Boolean(event.tournamentStatus);
+
+	if (isTournament) {
+		if (event.tournamentStatus === 'in_progress') return 'live';
+		if (startMs && startMs - nowMs <= STARTING_SOON_MS) return 'starting_soon';
+		return 'upcoming';
+	}
 
 	if (endMs && nowMs >= endMs) return 'finished';
 	if (startMs && nowMs >= startMs) return 'live';

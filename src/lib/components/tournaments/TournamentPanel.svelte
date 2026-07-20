@@ -17,6 +17,7 @@
 		removeTournamentPlayer,
 		syncTournamentBracketProgress,
 		updateTournamentMatchResult,
+		updateTournamentMatchSchedule,
 		leaveTournament,
 		cancelEvent
 	} from '$lib/services/event.service';
@@ -72,6 +73,11 @@
 	);
 
 	let isRegistrationOpen = $derived(event.tournamentStatus === 'registration_open');
+	let canLeaveCurrentTournament = $derived(
+		event.status !== 'finished' &&
+			event.status !== 'cancelled' &&
+			event.tournamentStatus !== 'finished'
+	);
 
 	let maxEntries = $derived(event.maxTournamentEntries ?? event.maxParticipants);
 
@@ -206,6 +212,13 @@
 		} catch {
 			return i18n.t('not_scheduled');
 		}
+	}
+
+	function getMatchVisualStatus(match: TournamentMatch) {
+		const scheduled = timestampToDate(match.scheduledAt);
+		if (match.status === 'finished') return i18n.t('status_finished');
+		if (scheduled && scheduled.getTime() <= Date.now()) return i18n.t('status_in_progress');
+		return i18n.t('status_scheduled');
 	}
 
 	function timestampToDate(value: unknown): Date | null {
@@ -588,6 +601,10 @@
 		success = '';
 
 		try {
+			if (input.homeScore.trim() === '' || input.awayScore.trim() === '') {
+				throw new Error(i18n.t('add_valid_scores'));
+			}
+
 			const homeScore = Number(input.homeScore);
 			const awayScore = Number(input.awayScore);
 
@@ -611,6 +628,36 @@
 		} catch (err) {
 			console.error('Update match result error:', err);
 			error = getFriendlyErrorMessage(err, i18n.t('could_not_update_match'));
+		} finally {
+			actionLoading = '';
+		}
+	}
+
+	async function handleScheduleMatch(match: TournamentMatch) {
+		if (!currentUserId) return;
+
+		const input = matchInputs[match.id];
+		if (!input) return;
+
+		actionLoading = `schedule-${match.id}`;
+		error = '';
+		success = '';
+
+		try {
+			await updateTournamentMatchSchedule({
+				matchId: match.id,
+				userId: currentUserId,
+				scheduledAt:
+					input.scheduledDate && input.scheduledTime
+						? new Date(`${input.scheduledDate}T${input.scheduledTime}`)
+						: null
+			});
+
+			success = i18n.t('match_scheduled');
+			await loadTournamentData();
+		} catch (err) {
+			console.error('Update match schedule error:', err);
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_schedule_match'));
 		} finally {
 			actionLoading = '';
 		}
@@ -717,13 +764,18 @@
 		}`}
 	>
 		<div class={`flex items-center justify-between ${compact ? 'gap-1.5' : 'gap-3'}`}>
+			<div class="min-w-0">
+				<p
+					class={`${compact ? 'text-[9px]' : 'text-[10px]'} truncate font-black uppercase tracking-[0.2em] text-slate-400`}
+				>
+					{match.groupName ? `${i18n.t('group_label')} ${match.groupName}` : roundTitle}
+				</p>
+				<p class={`${compact ? 'text-[9px]' : 'text-[10px]'} mt-0.5 font-black text-blue-600 dark:text-blue-300`}>
+					{getMatchVisualStatus(match)}
+				</p>
+			</div>
 			<p
-				class={`${compact ? 'text-[9px]' : 'text-[10px]'} font-black uppercase tracking-[0.2em] text-slate-400`}
-			>
-				{match.groupName ? `${i18n.t('group_label')} ${match.groupName}` : roundTitle}
-			</p>
-			<p
-				class={`${compact ? 'text-[9px]' : 'text-[10px]'} font-bold text-slate-500 dark:text-slate-400`}
+				class={`${compact ? 'text-[9px]' : 'text-[10px]'} shrink-0 font-bold text-slate-500 dark:text-slate-400`}
 			>
 				{formatTimestamp(match.scheduledAt)}
 			</p>
@@ -740,11 +792,10 @@
 				}`}
 			>
 				{#if getMatchProfile(match.homeEntryId) && compact}
-					<img
-						src={getMatchProfile(match.homeEntryId)?.photoURL ?? ''}
-						alt={match.homeName}
-						referrerpolicy="no-referrer"
-						class="h-7 w-7 shrink-0 rounded-full bg-slate-100 object-cover dark:bg-slate-800"
+					<UserAvatar
+						photoURL={getMatchProfile(match.homeEntryId)?.photoURL}
+						displayName={match.homeName}
+						size="sm"
 					/>
 				{:else if getMatchProfile(match.homeEntryId)}
 					<UserAvatar
@@ -775,11 +826,10 @@
 				}`}
 			>
 				{#if getMatchProfile(match.awayEntryId) && compact}
-					<img
-						src={getMatchProfile(match.awayEntryId)?.photoURL ?? ''}
-						alt={match.awayName}
-						referrerpolicy="no-referrer"
-						class="h-7 w-7 shrink-0 rounded-full bg-slate-100 object-cover dark:bg-slate-800"
+					<UserAvatar
+						photoURL={getMatchProfile(match.awayEntryId)?.photoURL}
+						displayName={match.awayName}
+						size="sm"
 					/>
 				{:else if getMatchProfile(match.awayEntryId)}
 					<UserAvatar
@@ -803,9 +853,9 @@
 			</div>
 		</div>
 
-		{#if match.winnerName}
+		{#if match.winnerName && match.status === 'finished'}
 			<p class="mt-3 text-xs font-black text-purple-700 dark:text-purple-300">
-				{i18n.t('advanced')}: {match.winnerName}
+				{i18n.t('winner')}: {match.winnerName}
 			</p>
 		{/if}
 
@@ -855,20 +905,30 @@
 							class="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
 						/>
 					</div>
-					<button
-						type="button"
-						onclick={() => handleSaveMatch(match)}
-						disabled={actionLoading === `match-${match.id}` ||
-							!match.homeEntryId ||
-							!match.awayEntryId}
-						class="rounded-xl bg-purple-600 px-4 py-2 text-sm font-black text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
-					>
-						{!match.homeEntryId || !match.awayEntryId
-							? i18n.t('awaiting_participants')
-							: actionLoading === `match-${match.id}`
-								? i18n.t('saving')
-								: i18n.t('save_result')}
-					</button>
+					<div class="grid gap-2 sm:grid-cols-2">
+						<button
+							type="button"
+							onclick={() => handleScheduleMatch(match)}
+							disabled={actionLoading === `schedule-${match.id}`}
+							class="rounded-xl border border-blue-100 bg-blue-50 px-4 py-2 text-sm font-black text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300"
+						>
+							{actionLoading === `schedule-${match.id}` ? i18n.t('saving') : i18n.t('schedule_match')}
+						</button>
+						<button
+							type="button"
+							onclick={() => handleSaveMatch(match)}
+							disabled={actionLoading === `match-${match.id}` ||
+								!match.homeEntryId ||
+								!match.awayEntryId}
+							class="rounded-xl bg-purple-600 px-4 py-2 text-sm font-black text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+						>
+							{!match.homeEntryId || !match.awayEntryId
+								? i18n.t('awaiting_participants')
+								: actionLoading === `match-${match.id}`
+									? i18n.t('saving')
+									: i18n.t('save_result')}
+						</button>
+					</div>
 				</div>
 			</details>
 		{/if}
@@ -1255,6 +1315,7 @@
 
 						<input
 							bind:value={teamName}
+							maxlength="32"
 							class="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
 							placeholder={i18n.t('team_name')}
 						/>
@@ -1298,14 +1359,16 @@
 							{actionLoading === `team-chat-${userEntry.id}` ? i18n.t('opening') : i18n.t('open_team_chat')}
 						</button>
 					{/if}
-					<button
-						type="button"
-						onclick={handleLeaveTournament}
-						disabled={actionLoading === 'leave-tournament'}
-						class="mt-4 w-full rounded-2xl border border-red-100 bg-red-50 px-5 py-3 font-black text-red-700 transition hover:bg-red-100 disabled:opacity-60 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
-					>
-						{actionLoading === 'leave-tournament' ? i18n.t('leaving') : i18n.t('leave_tournament')}
-					</button>
+					{#if canLeaveCurrentTournament}
+						<button
+							type="button"
+							onclick={handleLeaveTournament}
+							disabled={actionLoading === 'leave-tournament'}
+							class="mt-4 w-full rounded-2xl border border-red-100 bg-red-50 px-5 py-3 font-black text-red-700 transition hover:bg-red-100 disabled:opacity-60 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
+						>
+							{actionLoading === 'leave-tournament' ? i18n.t('leaving') : i18n.t('leave_tournament')}
+						</button>
+					{/if}
 				</div>
 			{/if}
 		</div>
@@ -1329,27 +1392,35 @@
 								{/each}
 							</div>
 
-							<table class="mt-4 w-full text-left text-xs">
+							<table class="mt-4 w-full table-fixed text-left text-[11px] sm:text-xs">
+								<colgroup>
+									<col class="w-[46%]" />
+									<col class="w-[10.8%]" />
+									<col class="w-[10.8%]" />
+									<col class="w-[10.8%]" />
+									<col class="w-[10.8%]" />
+									<col class="w-[10.8%]" />
+								</colgroup>
 								<thead class="text-slate-400">
 									<tr>
-										<th class="py-2">{i18n.t('entry')}</th>
-										<th>{i18n.t('played_short')}</th>
-										<th>{i18n.t('wins_short')}</th>
-										<th>{i18n.t('draws_short')}</th>
-										<th>{i18n.t('losses_short')}</th>
-										<th>{i18n.t('points_short')}</th>
+										<th class="py-2 pr-2">{i18n.t('entry')}</th>
+										<th class="text-center">{i18n.t('played_short')}</th>
+										<th class="text-center">{i18n.t('wins_short')}</th>
+										<th class="text-center">{i18n.t('draws_short')}</th>
+										<th class="text-center">{i18n.t('losses_short')}</th>
+										<th class="text-center">{i18n.t('points_short')}</th>
 									</tr>
 								</thead>
 
 								<tbody>
 									{#each getStandingRows(groupName) as row}
 										<tr class="border-t border-slate-100 dark:border-slate-800">
-											<td class="py-2 font-black text-slate-700 dark:text-slate-200">{row.name}</td>
-											<td>{row.played}</td>
-											<td>{row.wins}</td>
-											<td>{row.draws}</td>
-											<td>{row.losses}</td>
-											<td class="font-black">{row.points}</td>
+											<td class="min-w-0 truncate py-2 pr-2 font-black text-slate-700 dark:text-slate-200">{row.name}</td>
+											<td class="text-center">{row.played}</td>
+											<td class="text-center">{row.wins}</td>
+											<td class="text-center">{row.draws}</td>
+											<td class="text-center">{row.losses}</td>
+											<td class="text-center font-black">{row.points}</td>
 										</tr>
 									{/each}
 								</tbody>
@@ -1415,18 +1486,82 @@
 					</div>
 				{/if}
 
+				{#if event.tournamentFormat === 'league' && entries.length > 0}
+					<section class="rounded-3xl bg-white p-4 dark:bg-slate-900 sm:p-5">
+						<h3 class="text-lg font-black text-slate-950 dark:text-slate-50">
+							{event.title}
+						</h3>
+						<div class="mt-3">
+							<table class="w-full table-fixed text-left text-[11px] sm:text-xs">
+								<colgroup>
+									<col class="w-[46%]" />
+									<col class="w-[10.8%]" />
+									<col class="w-[10.8%]" />
+									<col class="w-[10.8%]" />
+									<col class="w-[10.8%]" />
+									<col class="w-[10.8%]" />
+								</colgroup>
+								<thead class="text-slate-400">
+									<tr>
+										<th class="py-2 pr-2">{i18n.t('entry')}</th>
+										<th class="text-center">{i18n.t('played_short')}</th>
+										<th class="text-center">{i18n.t('wins_short')}</th>
+										<th class="text-center">{i18n.t('draws_short')}</th>
+										<th class="text-center">{i18n.t('losses_short')}</th>
+										<th class="text-center">{i18n.t('points_short')}</th>
+									</tr>
+								</thead>
+								<tbody>
+									{#each getStandingRows(null) as row, index}
+										<tr class="border-t border-slate-100 dark:border-slate-800">
+											<td class="min-w-0 truncate py-2 pr-2 font-black text-slate-700 dark:text-slate-200">
+												<span class="text-slate-400">{index + 1}.</span> {row.name}
+											</td>
+											<td class="text-center">{row.played}</td>
+											<td class="text-center">{row.wins}</td>
+											<td class="text-center">{row.draws}</td>
+											<td class="text-center">{row.losses}</td>
+											<td class="text-center font-black">{row.points}</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
+					</section>
+				{/if}
+
 				{#if preliminarySections.length > 0}
 					<div class="grid gap-4 lg:grid-cols-2">
 						{#each preliminarySections as section}
 							<section class="rounded-3xl bg-slate-50 p-5 dark:bg-slate-950">
-								<h3 class="text-lg font-black text-slate-950 dark:text-slate-50">
-									{section.title}
-								</h3>
-								<div class="mt-4 grid gap-3 sm:grid-cols-2">
-									{#each section.matches as match (match.id)}
-										{@render matchCard(match, section.title)}
-									{/each}
-								</div>
+								{#if section.stage === 'league'}
+									<details>
+										<summary class="cursor-pointer list-none">
+											<div class="flex items-center justify-between gap-3">
+												<h3 class="text-lg font-black text-slate-950 dark:text-slate-50">
+													{section.title}
+												</h3>
+												<span class="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-500 dark:bg-slate-900 dark:text-slate-300">
+													{section.matches.length} {section.matches.length === 1 ? i18n.t('match') : i18n.t('matches')}
+												</span>
+											</div>
+										</summary>
+										<div class="mt-4 grid max-h-[32rem] gap-3 overflow-y-auto pr-1 sm:grid-cols-2">
+											{#each section.matches as match (match.id)}
+												{@render matchCard(match, section.title, true)}
+											{/each}
+										</div>
+									</details>
+								{:else}
+									<h3 class="text-lg font-black text-slate-950 dark:text-slate-50">
+										{section.title}
+									</h3>
+									<div class="mt-4 grid gap-3 sm:grid-cols-2">
+										{#each section.matches as match (match.id)}
+											{@render matchCard(match, section.title)}
+										{/each}
+									</div>
+								{/if}
 							</section>
 						{/each}
 					</div>

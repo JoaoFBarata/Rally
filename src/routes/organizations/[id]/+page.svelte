@@ -98,8 +98,16 @@
 	let visiblePastEventCount = $state(3);
 	const reviewsPerPage = 4;
 
+	let liveEvents = $derived.by(() =>
+		sortUpcomingEvents(events.filter((event) => getEventTemporalState(event) === 'live'))
+	);
 	let upcomingEvents = $derived.by(() =>
-		sortUpcomingEvents(events.filter((event) => !isPastOrganizationEvent(event)))
+		sortUpcomingEvents(
+			events.filter(
+				(event) =>
+					!isPastOrganizationEvent(event) && getEventTemporalState(event) !== 'live'
+			)
+		)
 	);
 	let pastEvents = $derived.by(() =>
 		[...events]
@@ -937,6 +945,20 @@
 						</div>
 					</section>
 
+					{#if liveEvents.length > 0}
+						<section class="mx-auto max-w-5xl border-t border-emerald-100 px-6 py-5 dark:border-emerald-900/60">
+							<div class="mb-3">
+								<p class="text-xs font-black uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400">{i18n.t('live_and_soon')}</p>
+								<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">{i18n.t('happening_around_you')}</h2>
+							</div>
+							<div class="-mx-1 max-w-3xl space-y-3 px-1">
+								{#each liveEvents.slice(0, 2) as event (event.id)}
+									<PublicProfileEventCard {event} />
+								{/each}
+							</div>
+						</section>
+					{/if}
+
 					<section id="organization-events" class="mx-auto max-w-5xl border-t border-slate-200 px-6 py-5 dark:border-slate-800">
 						<div class="mb-3 flex items-center justify-between gap-3">
 							<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">{i18n.t('upcoming_events')}</h2>
@@ -1308,6 +1330,20 @@
 
 		<div class="mt-5 grid max-w-full gap-5 md:mt-8 md:grid-cols-[minmax(0,1fr)_22rem]">
 			<section class="min-w-0 max-w-full space-y-5 overflow-hidden">
+				{#if liveEvents.length > 0}
+					<section>
+						<div class="mb-3">
+							<p class="text-xs font-black uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400">{i18n.t('live_and_soon')}</p>
+							<h2 class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">{i18n.t('happening_around_you')}</h2>
+						</div>
+						<div class="-mx-1 space-y-3 px-1">
+							{#each liveEvents.slice(0, 2) as event (event.id)}
+								<PublicProfileEventCard {event} />
+							{/each}
+						</div>
+					</section>
+				{/if}
+
 				<div class="flex items-center justify-between gap-3">
 					<div>
 						<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 md:text-2xl">{i18n.t('upcoming_events')}</h2>

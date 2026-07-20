@@ -1815,10 +1815,15 @@ export async function createTournamentTeam(params: {
 		throw new Error('You are already registered in this tournament.');
 	}
 
+	const teamName = params.teamName.trim().slice(0, 32);
+	if (!teamName) {
+		throw new Error('Add a team name.');
+	}
+
 	const entryRef = await addDoc(getTournamentEntryCollection(), {
 		eventId: params.eventId,
 		type: 'team',
-		name: params.teamName.trim(),
+		name: teamName,
 		captainId: params.captainId,
 		memberIds: [params.captainId],
 		isOpen: params.isOpen,
@@ -1834,7 +1839,7 @@ export async function createTournamentTeam(params: {
 		id: entryRef.id,
 		eventId: params.eventId,
 		type: 'team',
-		name: params.teamName.trim(),
+		name: teamName,
 		captainId: params.captainId,
 		memberIds: [params.captainId],
 		isOpen: params.isOpen,
@@ -2131,6 +2136,36 @@ export async function generateTournamentMatches(params: { eventId: string; userI
 
 	await updateDoc(doc(db, 'events', params.eventId), {
 		tournamentStatus: 'in_progress',
+		updatedAt: serverTimestamp()
+	});
+}
+
+export async function updateTournamentMatchSchedule(params: {
+	matchId: string;
+	userId: string;
+	scheduledAt: Date | null;
+}) {
+	const matchRef = doc(db, 'tournamentMatches', params.matchId);
+	const matchSnap = await getDoc(matchRef);
+
+	if (!matchSnap.exists()) {
+		throw new Error('Match not found.');
+	}
+
+	const match = {
+		id: matchSnap.id,
+		...matchSnap.data()
+	} as TournamentMatch;
+
+	if (match.status === 'finished') {
+		throw new Error('Finished matches cannot be rescheduled.');
+	}
+
+	const event = await assertTournamentEvent(match.eventId);
+	await assertCanManageEvent(event, params.userId);
+
+	await updateDoc(matchRef, {
+		scheduledAt: params.scheduledAt ? Timestamp.fromDate(params.scheduledAt) : null,
 		updatedAt: serverTimestamp()
 	});
 }

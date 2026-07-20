@@ -99,6 +99,14 @@
 	let pastEvents = $derived(
 		organizationEvents.filter((event) => !upcomingEvents.some((item) => item.id === event.id))
 	);
+	let highlightedManageEvents = $derived.by(() => {
+		const highlighted = upcomingEvents.find((event) => getEventTemporalState(event) === 'live') ?? upcomingEvents[0];
+		if (!highlighted) return [];
+		return [
+			highlighted,
+			...upcomingEvents.filter((event) => event.id !== highlighted.id).slice(0, 1)
+		];
+	});
 
 	let stoppingPromotionId = $state('');
 
@@ -230,6 +238,9 @@
 	}
 
 	function getStatusLabel(event: SportEvent) {
+		const temporalState = getEventTemporalState(event);
+		if (temporalState === 'live') return i18n.t('happening_now');
+		if (temporalState === 'starting_soon') return i18n.t('starting_soon');
 		const status = getEffectiveStatus(event);
 		if (status === 'cancelled') return i18n.t('cancelled') || 'Cancelled';
 		if (status === 'finished') return i18n.t('finished') || 'Finished';
@@ -239,6 +250,9 @@
 	}
 
 	function getStatusClasses(event: SportEvent) {
+		const temporalState = getEventTemporalState(event);
+		if (temporalState === 'live') return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300';
+		if (temporalState === 'starting_soon') return 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300';
 		const status = getEffectiveStatus(event);
 		if (status === 'cancelled') return 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300';
 		if (status === 'finished') return 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300';
@@ -836,13 +850,13 @@
 					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">{i18n.t('upcoming_events')}</h2>
 					<button type="button" onclick={() => (activeManageTab = 'events')} class="text-sm font-black text-blue-600 dark:text-blue-400">{i18n.t('view_all')}</button>
 				</div>
-				{#if upcomingEvents.length === 0}
+				{#if highlightedManageEvents.length === 0}
 					<div class="rounded-[1.5rem] border border-dashed border-slate-300 bg-white p-6 text-center text-sm font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
 						{i18n.t('no_upcoming_events')}
 					</div>
 				{:else}
 					<div class="grid gap-3 lg:grid-cols-2">
-						{#each upcomingEvents.slice(0, 2) as event (event.id)}
+						{#each highlightedManageEvents as event (event.id)}
 							<a
 								href={resolve(`/events/${event.id}`)}
 								class="group flex gap-2.5 overflow-hidden rounded-[1.15rem] bg-white p-2 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800 sm:gap-4 sm:rounded-[1.45rem] sm:p-3.5"

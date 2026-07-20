@@ -57,14 +57,14 @@
 		priceFilter?: 'all' | 'free' | 'paid';
 		maxPrice?: number;
 		highestPrice?: number;
-		audienceFilter?: 'all' | 'mine' | 'friends' | 'public' | 'joined';
+		audienceFilter?: 'all' | 'mine' | 'friends' | 'public' | 'joined' | 'following_orgs';
 		searchTerm?: string;
 		onlyTournaments?: boolean;
 		activeFilterCount?: number;
 		dateFilterOptions?: { value: 'today' | '7' | '14' | '30' | 'all'; label: string }[];
 		priceFilterOptions?: { value: 'all' | 'free' | 'paid'; label: string }[];
 		audienceFilterOptions?: {
-			value: 'all' | 'mine' | 'friends' | 'public' | 'joined';
+			value: 'all' | 'mine' | 'friends' | 'public' | 'joined' | 'following_orgs';
 			label: string;
 		}[];
 		onToggleSport?: (sport: Sport) => void;
@@ -72,7 +72,7 @@
 		onDateFilterChange?: (value: 'today' | '7' | '14' | '30' | 'all') => void;
 		onPriceFilterChange?: (value: 'all' | 'free' | 'paid') => void;
 		onMaxPriceChange?: (value: number) => void;
-		onAudienceFilterChange?: (value: 'all' | 'mine' | 'friends' | 'public' | 'joined') => void;
+		onAudienceFilterChange?: (value: 'all' | 'mine' | 'friends' | 'public' | 'joined' | 'following_orgs') => void;
 		onOnlyTournamentsChange?: (value: boolean) => void;
 		onSearchChange?: (value: string) => void;
 		onClearFilters?: () => void;

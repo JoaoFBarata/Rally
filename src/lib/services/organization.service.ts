@@ -7,6 +7,8 @@ import {
 	getDoc,
 	getDocs,
 	increment,
+	limit,
+	orderBy,
 	query,
 	serverTimestamp,
 	setDoc,
@@ -133,6 +135,16 @@ export async function getOrganizationById(organizationId: string) {
 
 export async function getOrganizationsForAdmin(userId: string) {
 	const q = query(collection(db, 'organizations'), where('adminIds', 'array-contains', userId));
+	const snap = await getDocs(q);
+
+	return snap.docs.map((docSnap) => ({
+		...docSnap.data(),
+		id: docSnap.id
+	})) as Organization[];
+}
+
+export async function getPublicOrganizations(maxResults = 40) {
+	const q = query(collection(db, 'organizations'), orderBy('name'), limit(maxResults));
 	const snap = await getDocs(q);
 
 	return snap.docs.map((docSnap) => ({
