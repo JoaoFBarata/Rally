@@ -176,22 +176,26 @@
 				</div>
 			</div>
 
-			<div class="hidden md:block overflow-hidden relative rounded-[2rem]">
+			<div class="relative hidden md:mx-auto md:block md:max-w-4xl md:px-14">
 				<div
+					class="overflow-hidden rounded-[2rem]"
+				>
+					<div
 					class="flex will-change-transform transition-transform duration-500 ease-out"
 					style={`transform: translateX(calc(-100% * ${currentIndex}));`}
-				>
-					{#each events as event (event.id)}
-						<div class="w-full shrink-0">
-							<EventCard
-								event={event}
-								variant={cardVariant}
-								{compactHero}
-								{miniHero}
-								{heroCtaLabel}
-							/>
-						</div>
-					{/each}
+					>
+						{#each events as event (event.id)}
+							<div class="w-full shrink-0">
+								<EventCard
+									event={event}
+									variant={cardVariant}
+									{compactHero}
+									{miniHero}
+									{heroCtaLabel}
+								/>
+							</div>
+						{/each}
+					</div>
 				</div>
 			</div>
 
@@ -199,7 +203,7 @@
 				<button
 					type="button"
 					onclick={showPrevious}
-					class="absolute -left-4 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-slate-700 shadow-md ring-1 ring-slate-200 transition hover:scale-105 hover:bg-slate-50 active:scale-95 dark:bg-slate-900/95 dark:text-slate-200 dark:ring-slate-800 dark:hover:bg-slate-800 md:grid"
+					class="absolute left-0 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-slate-700 shadow-md ring-1 ring-slate-200 transition hover:scale-105 hover:bg-slate-50 active:scale-95 dark:bg-slate-900/95 dark:text-slate-200 dark:ring-slate-800 dark:hover:bg-slate-800 md:grid"
 					aria-label="Previous event"
 				>
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
@@ -210,7 +214,7 @@
 				<button
 					type="button"
 					onclick={showNext}
-					class="absolute -right-4 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-slate-700 shadow-md ring-1 ring-slate-200 transition hover:scale-105 hover:bg-slate-50 active:scale-95 dark:bg-slate-900/95 dark:text-slate-200 dark:ring-slate-800 dark:hover:bg-slate-800 md:grid"
+					class="absolute right-0 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-slate-700 shadow-md ring-1 ring-slate-200 transition hover:scale-105 hover:bg-slate-50 active:scale-95 dark:bg-slate-900/95 dark:text-slate-200 dark:ring-slate-800 dark:hover:bg-slate-800 md:grid"
 					aria-label="Next event"
 				>
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
