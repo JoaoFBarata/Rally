@@ -1021,7 +1021,7 @@ const missingUiTranslations: Record<Language, Record<string, string>> = {
 const routeAndTournamentTranslations: Record<Language, Record<string, string>> = {
 	en: {
 		category_label: 'Category', category_filter_sub: 'Filter events by category.', only_tournaments: 'Only tournaments',
-		route: 'Route', route_editor_sub: 'Tap the map to add route points.', undo: 'Undo', clear: 'Clear',
+		route: 'Route', route_editor_sub: 'Tap the map to add route points.', route_start_suggested: 'Starting point suggested from your meeting location.', undo: 'Undo', clear: 'Clear',
 		route_points_defined: '{count} {unit} defined', route_point: 'point', route_points: 'points', route_distance: 'Distance: {distance} km',
 		approximate_event_location: 'Approximate event location.', no_location_selected: 'No location selected', no_location_selected_sub: 'This event does not have map coordinates yet.',
 		search_events: 'Search events', view_event: 'View event', tournament_final: 'Final', tournament_semi_finals: 'Semi-finals', tournament_round: 'Round {count}',
@@ -1032,7 +1032,7 @@ const routeAndTournamentTranslations: Record<Language, Record<string, string>> =
 	},
 	pt: {
 		category_label: 'Categoria', category_filter_sub: 'Filtra eventos por categoria.', only_tournaments: 'Apenas torneios',
-		route: 'Percurso', route_editor_sub: 'Toca no mapa para adicionar pontos ao percurso.', undo: 'Desfazer', clear: 'Limpar',
+		route: 'Percurso', route_editor_sub: 'Toca no mapa para adicionar pontos ao percurso.', route_start_suggested: 'Ponto de partida sugerido a partir do local de encontro.', undo: 'Desfazer', clear: 'Limpar',
 		route_points_defined: '{count} {unit} definidos', route_point: 'ponto', route_points: 'pontos', route_distance: 'Distância: {distance} km',
 		approximate_event_location: 'Localização aproximada do evento.', no_location_selected: 'Nenhuma localização selecionada', no_location_selected_sub: 'Este evento ainda não tem coordenadas no mapa.',
 		search_events: 'Pesquisar eventos', view_event: 'Ver evento', tournament_final: 'Final', tournament_semi_finals: 'Meias-finais', tournament_round: 'Ronda {count}',
@@ -1043,7 +1043,7 @@ const routeAndTournamentTranslations: Record<Language, Record<string, string>> =
 	},
 	es: {
 		category_label: 'Categoría', category_filter_sub: 'Filtra eventos por categoría.', only_tournaments: 'Solo torneos',
-		route: 'Ruta', route_editor_sub: 'Toca el mapa para añadir puntos a la ruta.', undo: 'Deshacer', clear: 'Limpiar',
+		route: 'Ruta', route_editor_sub: 'Toca el mapa para añadir puntos a la ruta.', route_start_suggested: 'Punto de partida sugerido a partir de tu ubicación de encuentro.', undo: 'Deshacer', clear: 'Limpiar',
 		route_points_defined: '{count} {unit} definidos', route_point: 'punto', route_points: 'puntos', route_distance: 'Distancia: {distance} km',
 		approximate_event_location: 'Ubicación aproximada del evento.', no_location_selected: 'No se ha seleccionado una ubicación', no_location_selected_sub: 'Este evento aún no tiene coordenadas en el mapa.',
 		search_events: 'Buscar eventos', view_event: 'Ver evento', tournament_final: 'Final', tournament_semi_finals: 'Semifinales', tournament_round: 'Ronda {count}',
@@ -1065,7 +1065,7 @@ const routeAndTournamentTranslations: Record<Language, Record<string, string>> =
 	},
 	fr: {
 		category_label: 'Catégorie', category_filter_sub: 'Filtrer les événements par catégorie.', only_tournaments: 'Tournois uniquement',
-		route: 'Parcours', route_editor_sub: 'Touchez la carte pour ajouter des points au parcours.', undo: 'Annuler', clear: 'Effacer',
+		route: 'Parcours', route_editor_sub: 'Touchez la carte pour ajouter des points au parcours.', route_start_suggested: 'Point de départ suggéré à partir de votre lieu de rendez-vous.', undo: 'Annuler', clear: 'Effacer',
 		route_points_defined: '{count} {unit} définis', route_point: 'point', route_points: 'points', route_distance: 'Distance : {distance} km',
 		approximate_event_location: 'Localisation approximative de l’événement.', no_location_selected: 'Aucun lieu sélectionné', no_location_selected_sub: 'Cet événement n’a pas encore de coordonnées sur la carte.',
 		search_events: 'Rechercher des événements', view_event: 'Voir l’événement', tournament_final: 'Finale', tournament_semi_finals: 'Demi-finales', tournament_round: 'Tour {count}',

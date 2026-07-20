@@ -20,6 +20,9 @@
 	let distanceKm = $derived(calculateRouteDistanceKm(points));
 	let lastCenterKey = '';
 	let endpointMarkers: mapboxgl.Marker[] = [];
+	// True while the only point in `points` is a suggested starting point (mirroring the
+	// event's meeting location) that the user hasn't drawn/edited yet.
+	let startIsSuggested = $state(false);
 
 	function geoJson() {
 		return {
@@ -54,8 +57,8 @@
 		map.addLayer({ id: `${sourceId}-line`, type: 'line', source: sourceId, filter: ['==', '$type', 'LineString'], paint: { 'line-color': '#0095ff', 'line-width': 5, 'line-opacity': 0.95 } });
 	}
 
-	function undo() { points = points.slice(0, -1); }
-	function clear() { points = []; }
+	function undo() { startIsSuggested = false; points = points.slice(0, -1); }
+	function clear() { startIsSuggested = false; points = []; }
 
 	onMount(() => {
 		(mapboxgl as any).workerClass = MapboxWorker;
@@ -67,9 +70,16 @@
 			center: center ? [center.lng, center.lat] : [-9.1393, 38.7223], zoom: center ? 15 : 10
 		});
 		lastCenterKey = center ? `${center.lat},${center.lng}` : '';
+
+		// Suggest the meeting location as the route's starting point on a fresh route.
+		if (points.length === 0 && center) {
+			points = [{ lat: center.lat, lng: center.lng }];
+			startIsSuggested = true;
+		}
+
 		map.addControl(new mapboxgl.NavigationControl(), 'top-right');
 		map.on('load', () => { ready = true; addLayers(); renderEndpoints(); });
-		map.on('click', (event) => { points = [...points, { lat: event.lngLat.lat, lng: event.lngLat.lng }]; });
+		map.on('click', (event) => { startIsSuggested = false; points = [...points, { lat: event.lngLat.lat, lng: event.lngLat.lng }]; });
 		const unsubscribe = themeState.subscribe((dark) => map?.setConfig('basemap', { lightPreset: dark ? 'night' : 'day' }));
 		return () => { unsubscribe(); endpointMarkers.forEach((marker) => marker.remove()); map?.remove(); };
 	});
@@ -79,14 +89,23 @@
 		const centerKey = center ? `${center.lat},${center.lng}` : '';
 		if (!ready || !map || !centerKey || centerKey === lastCenterKey) return;
 		lastCenterKey = centerKey;
-		points = [];
+
+		// Only move the route itself when it's empty, or still just the suggested
+		// starting point — never discard a route the user has actually drawn.
+		if (points.length === 0) {
+			points = [{ lat: center!.lat, lng: center!.lng }];
+			startIsSuggested = true;
+		} else if (startIsSuggested && points.length === 1) {
+			points = [{ lat: center!.lat, lng: center!.lng }];
+		}
+
 		map.flyTo({ center: [center!.lng, center!.lat], zoom: 15, essential: true });
 	});
 </script>
 
 <section class="overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
 	<div class="flex items-center justify-between gap-3 p-3 sm:p-4">
-		<div><h3 class="text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('route')}</h3><p class="text-xs font-semibold text-slate-500 dark:text-slate-400">{i18n.t('route_editor_sub')}</p></div>
+		<div><h3 class="text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('route')}</h3><p class="text-xs font-semibold text-slate-500 dark:text-slate-400">{startIsSuggested ? i18n.t('route_start_suggested') : i18n.t('route_editor_sub')}</p></div>
 		<div class="flex shrink-0 gap-2"><button type="button" onclick={undo} disabled={points.length === 0} class="rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-700 disabled:opacity-40 dark:bg-slate-800 dark:text-slate-200">{i18n.t('undo')}</button><button type="button" onclick={clear} disabled={points.length === 0} class="rounded-xl bg-red-50 px-3 py-2 text-xs font-black text-red-700 disabled:opacity-40 dark:bg-red-950/40 dark:text-red-300">{i18n.t('clear')}</button></div>
 	</div>
 	<div bind:this={mapContainer} class="route-editor-map h-72 w-full sm:h-96"></div>
