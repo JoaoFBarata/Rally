@@ -9,6 +9,7 @@
 	import { isPromotionActive, getEventStartAtMillis } from '$lib/services/event.service';
 	import { formatDate, getCurrencySymbol, getSportBackgroundImage } from '$lib/utils/format.utils';
 	import { i18n } from '$lib/services/i18n.svelte';
+	import { getEventTemporalState } from '$lib/utils/event-lifecycle.utils';
 
 	let {
 		events,
@@ -24,18 +25,21 @@
 		maxPrice = 50,
 		highestPrice = 50,
 		audienceFilter = 'all',
+		temporalFilter = 'all',
 		searchTerm = '',
 		onlyTournaments = false,
 		activeFilterCount = 0,
 		dateFilterOptions = [],
 		priceFilterOptions = [],
 		audienceFilterOptions = [],
+		temporalFilterOptions = [],
 		onToggleSport,
 		onToggleLevel,
 		onDateFilterChange,
 		onPriceFilterChange,
 		onMaxPriceChange,
 		onAudienceFilterChange,
+		onTemporalFilterChange,
 		onOnlyTournamentsChange,
 		onSearchChange,
 		onClearFilters,
@@ -58,6 +62,7 @@
 		maxPrice?: number;
 		highestPrice?: number;
 		audienceFilter?: 'all' | 'mine' | 'friends' | 'public' | 'joined' | 'following_orgs';
+		temporalFilter?: 'all' | 'live' | 'starting_soon';
 		searchTerm?: string;
 		onlyTournaments?: boolean;
 		activeFilterCount?: number;
@@ -67,12 +72,16 @@
 			value: 'all' | 'mine' | 'friends' | 'public' | 'joined' | 'following_orgs';
 			label: string;
 		}[];
+		temporalFilterOptions?: { value: 'all' | 'live' | 'starting_soon'; label: string }[];
 		onToggleSport?: (sport: Sport) => void;
 		onToggleLevel?: (level: SportLevel) => void;
 		onDateFilterChange?: (value: 'today' | '7' | '14' | '30' | 'all') => void;
 		onPriceFilterChange?: (value: 'all' | 'free' | 'paid') => void;
 		onMaxPriceChange?: (value: number) => void;
-		onAudienceFilterChange?: (value: 'all' | 'mine' | 'friends' | 'public' | 'joined' | 'following_orgs') => void;
+		onAudienceFilterChange?: (
+			value: 'all' | 'mine' | 'friends' | 'public' | 'joined' | 'following_orgs'
+		) => void;
+		onTemporalFilterChange?: (value: 'all' | 'live' | 'starting_soon') => void;
 		onOnlyTournamentsChange?: (value: boolean) => void;
 		onSearchChange?: (value: string) => void;
 		onClearFilters?: () => void;
@@ -114,8 +123,10 @@
 			// 2. City match (+50)
 			if (profile?.city) {
 				const userCity = profile.city.trim().toLowerCase();
-				const locA = (a.location?.name ?? '').toLowerCase() + ' ' + (a.location?.address ?? '').toLowerCase();
-				const locB = (b.location?.name ?? '').toLowerCase() + ' ' + (b.location?.address ?? '').toLowerCase();
+				const locA =
+					(a.location?.name ?? '').toLowerCase() + ' ' + (a.location?.address ?? '').toLowerCase();
+				const locB =
+					(b.location?.name ?? '').toLowerCase() + ' ' + (b.location?.address ?? '').toLowerCase();
 				if (locA.includes(userCity)) scoreA += 50;
 				if (locB.includes(userCity)) scoreB += 50;
 			}
@@ -157,29 +168,29 @@
 	});
 
 	let feedFeaturedEvents = $derived.by(() => {
-		return feedEvents.filter(e => isPromotionActive(e));
+		return feedEvents.filter((e) => isPromotionActive(e));
 	});
 
 	let feedFriendsEvents = $derived.by(() => {
-		const featuredIds = new Set(feedFeaturedEvents.map(e => e.id));
-		return feedEvents.filter(e => 
-			!featuredIds.has(e.id) && 
-			(friendIds.includes(e.creatorId) || e.participantIds.some((id: string) => friendIds.includes(id)))
+		const featuredIds = new Set(feedFeaturedEvents.map((e) => e.id));
+		return feedEvents.filter(
+			(e) =>
+				!featuredIds.has(e.id) &&
+				(friendIds.includes(e.creatorId) ||
+					e.participantIds.some((id: string) => friendIds.includes(id)))
 		);
 	});
 
 	let feedGeneralEvents = $derived.by(() => {
-		const featuredIds = new Set(feedFeaturedEvents.map(e => e.id));
-		const friendEventIds = new Set(feedFriendsEvents.map(e => e.id));
-		return feedEvents.filter(e => !featuredIds.has(e.id) && !friendEventIds.has(e.id));
+		const featuredIds = new Set(feedFeaturedEvents.map((e) => e.id));
+		const friendEventIds = new Set(feedFriendsEvents.map((e) => e.id));
+		return feedEvents.filter((e) => !featuredIds.has(e.id) && !friendEventIds.has(e.id));
 	});
 
 	let shownFeedCount = $derived(
 		feedFeaturedEvents.length + feedFriendsEvents.length + feedGeneralEvents.length
 	);
-	let searchPreviewEvents = $derived(
-		localSearchTerm.trim() ? events.slice(0, 6) : []
-	);
+	let searchPreviewEvents = $derived(localSearchTerm.trim() ? events.slice(0, 6) : []);
 
 	let clusterIndex: any = null;
 	let hasFitBoundsForCurrentEvents = false;
@@ -253,10 +264,7 @@
 	$effect(() => {
 		onFilteredCountChange?.(events.length);
 
-		if (
-			selectedEvent &&
-			!events.some((event: SportEvent) => event.id === selectedEvent?.id)
-		) {
+		if (selectedEvent && !events.some((event: SportEvent) => event.id === selectedEvent?.id)) {
 			clearSelectedEvent();
 		}
 	});
@@ -373,9 +381,9 @@
 		markers = [];
 
 		for (const comp of svelteMarkers) {
-            unmount(comp);
-        }
-        svelteMarkers = [];
+			unmount(comp);
+		}
+		svelteMarkers = [];
 	}
 
 	function getEventPriority(event: SportEvent) {
@@ -388,7 +396,8 @@
 
 	function getEventStartTime(event: SportEvent) {
 		const value = event.startAt;
-		const date = typeof value?.toDate === 'function' ? value.toDate() : new Date(value as unknown as string);
+		const date =
+			typeof value?.toDate === 'function' ? value.toDate() : new Date(value as unknown as string);
 		const time = date.getTime();
 		return Number.isNaN(time) ? Number.MAX_SAFE_INTEGER : time;
 	}
@@ -401,19 +410,14 @@
 		});
 	}
 
-	function getDistanceMeters(
-		a: { lat: number; lng: number },
-		b: { lat: number; lng: number }
-	) {
+	function getDistanceMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
 		const earthRadius = 6371000;
 		const toRadians = (value: number) => (value * Math.PI) / 180;
 		const dLat = toRadians(b.lat - a.lat);
 		const dLng = toRadians(b.lng - a.lng);
 		const lat1 = toRadians(a.lat);
 		const lat2 = toRadians(b.lat);
-		const h =
-			Math.sin(dLat / 2) ** 2 +
-			Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+		const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
 		return 2 * earthRadius * Math.asin(Math.sqrt(h));
 	}
 
@@ -500,13 +504,30 @@
 			return;
 		}
 
-		const data = { type: 'Feature' as const, properties: {}, geometry: { type: 'LineString' as const, coordinates: route.map((point) => [point.lng, point.lat]) } };
+		const data = {
+			type: 'Feature' as const,
+			properties: {},
+			geometry: {
+				type: 'LineString' as const,
+				coordinates: route.map((point) => [point.lng, point.lat])
+			}
+		};
 		if (source) {
 			source.setData(data);
 		} else {
 			map.addSource(routeSourceId, { type: 'geojson', data });
-			map.addLayer({ id: `${routeSourceId}-outline`, type: 'line', source: routeSourceId, paint: { 'line-color': '#ffffff', 'line-width': 8, 'line-opacity': 0.85 } });
-			map.addLayer({ id: `${routeSourceId}-line`, type: 'line', source: routeSourceId, paint: { 'line-color': '#0095ff', 'line-width': 5, 'line-opacity': 0.98 } });
+			map.addLayer({
+				id: `${routeSourceId}-outline`,
+				type: 'line',
+				source: routeSourceId,
+				paint: { 'line-color': '#ffffff', 'line-width': 8, 'line-opacity': 0.85 }
+			});
+			map.addLayer({
+				id: `${routeSourceId}-line`,
+				type: 'line',
+				source: routeSourceId,
+				paint: { 'line-color': '#0095ff', 'line-width': 5, 'line-opacity': 0.98 }
+			});
 		}
 
 		const startElement = document.createElement('div');
@@ -514,15 +535,23 @@
 		const finishElement = document.createElement('div');
 		finishElement.className = 'route-finish-marker';
 		routeEndpointMarkers = [
-			new mapboxgl.Marker({ element: startElement, anchor: 'center' }).setLngLat([route[0].lng, route[0].lat]).addTo(map),
-			new mapboxgl.Marker({ element: finishElement, anchor: 'center' }).setLngLat([route.at(-1)!.lng, route.at(-1)!.lat]).addTo(map)
+			new mapboxgl.Marker({ element: startElement, anchor: 'center' })
+				.setLngLat([route[0].lng, route[0].lat])
+				.addTo(map),
+			new mapboxgl.Marker({ element: finishElement, anchor: 'center' })
+				.setLngLat([route.at(-1)!.lng, route.at(-1)!.lat])
+				.addTo(map)
 		];
 	}
 
 	function setSatelliteMode(nextSatelliteMode: boolean) {
 		if (!map || satelliteMode === nextSatelliteMode) return;
 		satelliteMode = nextSatelliteMode;
-		map.setStyle(nextSatelliteMode ? 'mapbox://styles/mapbox/standard-satellite' : 'mapbox://styles/mapbox/standard');
+		map.setStyle(
+			nextSatelliteMode
+				? 'mapbox://styles/mapbox/standard-satellite'
+				: 'mapbox://styles/mapbox/standard'
+		);
 		map.once('style.load', () => {
 			map?.setConfig('basemap', { lightPreset: $themeState ? 'night' : 'day' });
 			renderSelectedRoute();
@@ -536,7 +565,7 @@
 
 	function getMarkerColor(event: SportEvent) {
 		if (selectedEvent?.id === event.id) {
-			return '#00f2ff';
+			return '#10b981'; // Green - Selected event
 		}
 		if (event.creatorId === currentUserId) {
 			return '#00B4D8'; // Blue - My events
@@ -572,13 +601,13 @@
 			const bounds = new mapboxgl.LngLatBounds();
 			const allCoords: { lat: number; lng: number }[] = events
 				.map((event: SportEvent) => getCoords(event))
-				.filter((coords: { lat: number; lng: number } | null): coords is { lat: number; lng: number } => Boolean(coords));
+				.filter(
+					(coords: { lat: number; lng: number } | null): coords is { lat: number; lng: number } =>
+						Boolean(coords)
+				);
 			const mapCenter = currentMap.getCenter();
 			const nearbyCoords = allCoords.filter((coords: { lat: number; lng: number }) => {
-				return getDistanceMeters(
-					{ lat: mapCenter.lat, lng: mapCenter.lng },
-					coords
-				) <= 90000;
+				return getDistanceMeters({ lat: mapCenter.lat, lng: mapCenter.lng }, coords) <= 90000;
 			});
 			const coordsToFit = nearbyCoords.length ? nearbyCoords : allCoords;
 
@@ -620,7 +649,11 @@
 					: null;
 				const priorityEvent = selectedClusterEvent ?? clusterEvents[0];
 				const creator = creatorProfiles[priorityEvent.creatorId];
-				const photoURL = priorityEvent.groupPhotoURL || priorityEvent.organizationLogoURL || creator?.photoURL || '';
+				const photoURL =
+					priorityEvent.groupPhotoURL ||
+					priorityEvent.organizationLogoURL ||
+					creator?.photoURL ||
+					'';
 
 				const el = document.createElement('div');
 				el.className = 'custom-marker custom-cluster-marker';
@@ -637,7 +670,8 @@
 						max_occupancy: priorityEvent.maxParticipants || 0,
 						marker_color: getMarkerColor(priorityEvent),
 						marker_scale: selectedClusterEvent ? 0.78 : 0.6,
-						cluster_count: count - 1
+						cluster_count: count - 1,
+						temporal_state: getEventTemporalState(priorityEvent)
 					}
 				});
 				svelteMarkers.push(markerComponent);
@@ -649,10 +683,7 @@
 						const currentZoom = currentMap.getZoom();
 						currentMap.flyTo({
 							center: [lng, lat],
-							zoom: Math.max(
-								currentZoom,
-								Math.min(Math.max(expansionZoom, currentZoom + 1), 16)
-							),
+							zoom: Math.max(currentZoom, Math.min(Math.max(expansionZoom, currentZoom + 1), 16)),
 							speed: 1.2
 						});
 					} catch (e) {
@@ -667,7 +698,8 @@
 			} else {
 				const event = feature.properties.event;
 				const creator = creatorProfiles[event.creatorId];
-				const photoURL = event.groupPhotoURL || event.organizationLogoURL || creator?.photoURL || '';
+				const photoURL =
+					event.groupPhotoURL || event.organizationLogoURL || creator?.photoURL || '';
 				const isSelectedMarker = selectedEvent?.id === event.id;
 
 				const el = document.createElement('div');
@@ -684,7 +716,8 @@
 						n_confirmed_attendees: event.participantIds?.length || 0,
 						max_occupancy: event.maxParticipants || 0,
 						marker_color: getMarkerColor(event),
-						marker_scale: isSelectedMarker ? 0.78 : 0.6
+						marker_scale: isSelectedMarker ? 0.78 : 0.6,
+						temporal_state: getEventTemporalState(event)
 					}
 				});
 				svelteMarkers.push(markerComponent);
@@ -730,8 +763,8 @@
 
 		map.on('zoom', () => {
 			updateZoomScale();
-			renderMarkers();
 		});
+		map.on('zoomend', renderMarkers);
 		map.on('moveend', () => {
 			renderMarkers();
 		});
@@ -755,7 +788,10 @@
 				button.title = 'Alternar mapa de satélite';
 				button.setAttribute('aria-label', 'Alternar mapa de satélite');
 				button.innerHTML = '<span aria-hidden="true" style="font-size:15px">◉</span>';
-				button.onclick = () => { setSatelliteMode(!satelliteMode); button.classList.toggle('mapboxgl-ctrl-satellite-active', satelliteMode); };
+				button.onclick = () => {
+					setSatelliteMode(!satelliteMode);
+					button.classList.toggle('mapboxgl-ctrl-satellite-active', satelliteMode);
+				};
 				container.append(button);
 				return container;
 			},
@@ -794,73 +830,82 @@
 		class="relative h-[60dvh] min-h-[420px] w-full flex-none md:h-[calc(100vh-240px)] md:min-h-[620px]"
 		class:hidden={viewMode !== 'map'}
 	>
-
-	{#if viewMode === 'map'}
-		<div class="absolute inset-x-3 top-3 z-20 flex items-center justify-between gap-2 md:hidden fullscreen-force-show">
-			<button
-				type="button"
-				onclick={() => (showFilters = !showFilters)}
-				class="flex min-w-0 items-center gap-2 rounded-full border border-slate-200/60 bg-white/95 px-3 py-2 text-sm font-black text-slate-700 shadow-md backdrop-blur transition active:scale-95 dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-200"
+		{#if viewMode === 'map'}
+			<div
+				class="absolute inset-x-3 top-3 z-20 flex items-center justify-between gap-2 md:hidden fullscreen-force-show"
 			>
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					class="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400"
+				<button
+					type="button"
+					onclick={() => (showFilters = !showFilters)}
+					class="flex min-w-0 items-center gap-2 rounded-full border border-slate-200/60 bg-white/95 px-3 py-2 text-sm font-black text-slate-700 shadow-md backdrop-blur transition active:scale-95 dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-200"
 				>
-					<path d="M3 5h18" />
-					<path d="M7 12h10" />
-					<path d="M10 19h4" />
-				</svg>
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400"
+					>
+						<path d="M3 5h18" />
+						<path d="M7 12h10" />
+						<path d="M10 19h4" />
+					</svg>
 
-				<span class="truncate">{i18n.t('filters_label')}</span>
+					<span class="truncate">{i18n.t('filters_label')}</span>
 
-				{#if activeFilterCount > 0}
-					<span class="shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white">
-						{activeFilterCount}
-					</span>
-				{/if}
-			</button>
+					{#if activeFilterCount > 0}
+						<span
+							class="shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white"
+						>
+							{activeFilterCount}
+						</span>
+					{/if}
+				</button>
 
-			<span class="shrink-0 rounded-full border border-blue-100 bg-white/95 px-3 py-2 text-[11px] font-black uppercase tracking-wide text-blue-700 shadow-md backdrop-blur dark:border-blue-900/70 dark:bg-slate-900/95 dark:text-blue-300">
-				{formatShowingEvents(events.length)}
-			</span>
-		</div>
-
-		<div
-			class="absolute right-2 bottom-2 z-10 flex flex-row flex-wrap items-center gap-3 rounded-xl bg-white/95 p-2 shadow-md backdrop-blur dark:bg-slate-900/95 text-xs md:right-4 md:bottom-4 md:flex-col md:items-start md:gap-2 md:rounded-2xl md:p-4 md:shadow-lg md:text-sm"
-		>
-			{#if currentUserId}
-				<div class="flex items-center gap-1.5">
-					<span class="h-2.5 w-2.5 rounded-full bg-[#00B4D8]"></span>
-					<span>{i18n.t('my_events')}</span>
-				</div>
-			{/if}
-
-			<div class="flex items-center gap-1.5">
-				<span class="h-2.5 w-2.5 rounded-full bg-red-600"></span>
-				<span>{i18n.t('public_events')}</span>
+				<span
+					class="shrink-0 rounded-full border border-blue-100 bg-white/95 px-3 py-2 text-[11px] font-black uppercase tracking-wide text-blue-700 shadow-md backdrop-blur dark:border-blue-900/70 dark:bg-slate-900/95 dark:text-blue-300"
+				>
+					{formatShowingEvents(events.length)}
+				</span>
 			</div>
 
-			{#if currentUserId}
+			<div
+				class="absolute right-2 bottom-2 z-10 flex flex-row flex-wrap items-center gap-3 rounded-xl bg-white/95 p-2 shadow-md backdrop-blur dark:bg-slate-900/95 text-xs md:right-4 md:bottom-4 md:flex-col md:items-start md:gap-2 md:rounded-2xl md:p-4 md:shadow-lg md:text-sm"
+			>
+				{#if currentUserId}
+					<div class="flex items-center gap-1.5">
+						<span class="h-2.5 w-2.5 rounded-full bg-[#00B4D8]"></span>
+						<span>{i18n.t('my_events')}</span>
+					</div>
+				{/if}
+
 				<div class="flex items-center gap-1.5">
-					<span class="h-2.5 w-2.5 rounded-full bg-yellow-600"></span>
-					<span>{i18n.t('friends_events')}</span>
+					<span class="h-2.5 w-2.5 rounded-full bg-red-600"></span>
+					<span>{i18n.t('public_events')}</span>
 				</div>
-			{/if}
-		</div>
-	{/if}
+
+				{#if currentUserId}
+					<div class="flex items-center gap-1.5">
+						<span class="h-2.5 w-2.5 rounded-full bg-yellow-600"></span>
+						<span>{i18n.t('friends_events')}</span>
+					</div>
+				{/if}
+			</div>
+		{/if}
 	</div>
 	<!-- Floating Filters Modal Card (Mobile Only) -->
 	{#if showFilters}
 		<div
 			class="fixed inset-x-4 bottom-20 z-[9999] max-h-[65dvh] overflow-y-auto rounded-3xl border border-slate-200/50 bg-white/95 p-5 shadow-2xl backdrop-blur-md dark:border-slate-800/50 dark:bg-slate-900/95 md:hidden fullscreen-force-block"
 		>
-			<div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-				<h3 class="text-base font-black text-slate-950 dark:text-slate-50">{i18n.t('filters_label')}</h3>
+			<div
+				class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800"
+			>
+				<h3 class="text-base font-black text-slate-950 dark:text-slate-50">
+					{i18n.t('filters_label')}
+				</h3>
 				<div class="flex items-center gap-3">
 					{#if activeFilterCount > 0}
 						<button
@@ -884,7 +929,9 @@
 
 			<div class="mt-4">
 				<label class="sr-only" for="mobile-explore-search">Search events</label>
-				<div class="flex items-center gap-3 rounded-2xl bg-slate-100/90 px-3.5 py-2.5 shadow-inner shadow-white/70 backdrop-blur dark:bg-slate-800/80 dark:shadow-none">
+				<div
+					class="flex items-center gap-3 rounded-2xl bg-slate-100/90 px-3.5 py-2.5 shadow-inner shadow-white/70 backdrop-blur dark:bg-slate-800/80 dark:shadow-none"
+				>
 					<svg
 						viewBox="0 0 24 24"
 						fill="none"
@@ -916,11 +963,19 @@
 									onclick={() => selectSearchResult(event)}
 									class="flex w-full items-center gap-2.5 rounded-2xl border border-slate-100 bg-white p-2 text-left shadow-sm transition active:scale-[0.99] dark:border-slate-800 dark:bg-slate-900"
 								>
-									<div class="h-10 w-12 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
+									<div
+										class="h-10 w-12 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800"
+									>
 										{#if getSelectedPreviewUrl(event)}
-											<img src={getSelectedPreviewUrl(event)} alt={event.title} class="h-full w-full object-cover" />
+											<img
+												src={getSelectedPreviewUrl(event)}
+												alt={event.title}
+												class="h-full w-full object-cover"
+											/>
 										{:else}
-											<div class="grid h-full w-full place-items-center text-sm font-black uppercase text-blue-600 dark:text-blue-300">
+											<div
+												class="grid h-full w-full place-items-center text-sm font-black uppercase text-blue-600 dark:text-blue-300"
+											>
 												{event.sport.charAt(0)}
 											</div>
 										{/if}
@@ -930,16 +985,22 @@
 											{event.title}
 										</p>
 										<p class="truncate text-xs font-bold text-slate-500 dark:text-slate-400">
-											{event.location?.address ?? event.location?.name ?? i18n.t('location_not_set')}
+											{event.location?.address ??
+												event.location?.name ??
+												i18n.t('location_not_set')}
 										</p>
 									</div>
-									<span class="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+									<span
+										class="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500 dark:bg-slate-800 dark:text-slate-300"
+									>
 										{formatSelectedDate(event)}
 									</span>
 								</button>
 							{/each}
 						{:else}
-							<p class="rounded-2xl border border-dashed border-slate-200 p-3 text-sm font-bold text-slate-500 dark:border-slate-700 dark:text-slate-400">
+							<p
+								class="rounded-2xl border border-dashed border-slate-200 p-3 text-sm font-bold text-slate-500 dark:border-slate-700 dark:text-slate-400"
+							>
 								{i18n.t('no_events_found_search')}
 							</p>
 						{/if}
@@ -971,8 +1032,39 @@
 			</div>
 
 			<!-- Audience Filter -->
+			<div class="mt-5 border-t border-slate-100 pt-4 dark:border-slate-800">
+				<p class="text-xs font-black uppercase tracking-wider text-slate-400">
+					{i18n.t('event_timing_filter')}
+				</p>
+				<div class="mt-2.5 flex flex-wrap gap-1.5">
+					{#each temporalFilterOptions as option (option.value)}
+						<button
+							type="button"
+							onclick={() => {
+								onTemporalFilterChange?.(option.value);
+								clearSelectedEvent();
+							}}
+							class={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+								temporalFilter === option.value
+									? option.value === 'live'
+										? 'bg-emerald-500 text-white shadow-sm'
+										: option.value === 'starting_soon'
+											? 'bg-amber-400 text-slate-950 shadow-sm'
+											: 'bg-blue-600 text-white shadow-sm'
+									: 'border border-slate-100 bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
+							}`}
+						>
+							{option.label}
+						</button>
+					{/each}
+				</div>
+			</div>
+
+			<!-- Audience Filter -->
 			<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
-				<p class="text-xs font-black uppercase tracking-wider text-slate-400">{i18n.t('event_type_label')}</p>
+				<p class="text-xs font-black uppercase tracking-wider text-slate-400">
+					{i18n.t('event_type_label')}
+				</p>
 				<div class="mt-2.5 flex flex-wrap gap-1.5">
 					{#each audienceFilterOptions as option (option.value)}
 						<button
@@ -1031,7 +1123,9 @@
 
 				{#if priceFilter === 'paid'}
 					<label class="mt-3 block">
-						<div class="mb-1 flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400">
+						<div
+							class="mb-1 flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400"
+						>
 							<span>{i18n.t('max_price')}</span>
 							<span>€{maxPrice}</span>
 						</div>
@@ -1053,11 +1147,15 @@
 			<!-- Sports Filter -->
 			<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
 				<div>
-					<p class="text-xs font-black uppercase tracking-wider text-slate-400">{i18n.t('sport_label')}</p>
+					<p class="text-xs font-black uppercase tracking-wider text-slate-400">
+						{i18n.t('sport_label')}
+					</p>
 				</div>
 
 				{#if availableSports.length === 0}
-					<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">{i18n.t('no_sports_available')}</p>
+					<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+						{i18n.t('no_sports_available')}
+					</p>
 				{:else}
 					<div class="mt-2.5 flex flex-wrap gap-1.5">
 						{#each availableSports as sport (sport)}
@@ -1080,7 +1178,9 @@
 			<!-- Levels Filter -->
 			<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
 				<div>
-					<p class="text-xs font-black uppercase tracking-wider text-slate-400">{i18n.t('level_label')}</p>
+					<p class="text-xs font-black uppercase tracking-wider text-slate-400">
+						{i18n.t('level_label')}
+					</p>
 				</div>
 
 				<div class="mt-2.5 flex flex-wrap gap-1.5">
@@ -1102,9 +1202,10 @@
 		</div>
 	{/if}
 
-
 	<!-- Desktop Filters Bar (Web Only) -->
-	<div class="hidden md:block border-t border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900 shrink-0">
+	<div
+		class="hidden md:block border-t border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900 shrink-0"
+	>
 		<div class="flex items-center justify-between gap-3">
 			<div class="flex items-center gap-4">
 				<button
@@ -1154,7 +1255,9 @@
 		{#if showFilters}
 			<div class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700">
 				<label class="sr-only" for="desktop-explore-search">Search events</label>
-				<div class="flex max-w-xl items-center gap-3 rounded-2xl bg-slate-100/90 px-4 py-2.5 shadow-inner shadow-white/70 backdrop-blur dark:bg-slate-800/80 dark:shadow-none">
+				<div
+					class="flex max-w-xl items-center gap-3 rounded-2xl bg-slate-100/90 px-4 py-2.5 shadow-inner shadow-white/70 backdrop-blur dark:bg-slate-800/80 dark:shadow-none"
+				>
 					<svg
 						viewBox="0 0 24 24"
 						fill="none"
@@ -1186,11 +1289,19 @@
 									onclick={() => selectSearchResult(event)}
 									class="flex min-w-0 items-center gap-2.5 rounded-2xl border border-slate-200 bg-white p-2 text-left shadow-sm transition hover:border-blue-200 hover:bg-blue-50/60 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-blue-900 dark:hover:bg-blue-950/30"
 								>
-									<div class="h-12 w-16 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
+									<div
+										class="h-12 w-16 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800"
+									>
 										{#if getSelectedPreviewUrl(event)}
-											<img src={getSelectedPreviewUrl(event)} alt={event.title} class="h-full w-full object-cover" />
+											<img
+												src={getSelectedPreviewUrl(event)}
+												alt={event.title}
+												class="h-full w-full object-cover"
+											/>
 										{:else}
-											<div class="grid h-full w-full place-items-center text-sm font-black uppercase text-blue-600 dark:text-blue-300">
+											<div
+												class="grid h-full w-full place-items-center text-sm font-black uppercase text-blue-600 dark:text-blue-300"
+											>
 												{event.sport.charAt(0)}
 											</div>
 										{/if}
@@ -1200,16 +1311,22 @@
 											{event.title}
 										</p>
 										<p class="truncate text-xs font-bold text-slate-500 dark:text-slate-400">
-											{event.location?.address ?? event.location?.name ?? i18n.t('location_not_set')}
+											{event.location?.address ??
+												event.location?.name ??
+												i18n.t('location_not_set')}
 										</p>
-										<p class="mt-0.5 truncate text-[11px] font-bold text-slate-400 dark:text-slate-500">
+										<p
+											class="mt-0.5 truncate text-[11px] font-bold text-slate-400 dark:text-slate-500"
+										>
 											{formatSelectedDate(event)}
 										</p>
 									</div>
 								</button>
 							{/each}
 						{:else}
-							<p class="rounded-2xl border border-dashed border-slate-200 p-4 text-sm font-bold text-slate-500 dark:border-slate-700 dark:text-slate-400">
+							<p
+								class="rounded-2xl border border-dashed border-slate-200 p-4 text-sm font-bold text-slate-500 dark:border-slate-700 dark:text-slate-400"
+							>
 								{i18n.t('no_events_found_search')}
 							</p>
 						{/if}
@@ -1217,7 +1334,9 @@
 				{/if}
 			</div>
 
-			<div class="mt-5 grid gap-4 border-t border-slate-200 pt-4 dark:border-slate-700 lg:grid-cols-3">
+			<div
+				class="mt-5 grid gap-4 border-t border-slate-200 pt-4 dark:border-slate-700 lg:grid-cols-4"
+			>
 				<div>
 					<p class="text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('date')}</p>
 					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
@@ -1244,7 +1363,40 @@
 				</div>
 
 				<div>
-					<p class="text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('event_type_label')}</p>
+					<p class="text-sm font-black text-slate-950 dark:text-slate-50">
+						{i18n.t('event_timing_filter')}
+					</p>
+					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+						{i18n.t('event_timing_filter_sub')}
+					</p>
+					<div class="mt-3 flex flex-wrap gap-2">
+						{#each temporalFilterOptions as option (option.value)}
+							<button
+								type="button"
+								onclick={() => {
+									onTemporalFilterChange?.(option.value);
+									clearSelectedEvent();
+								}}
+								class={`rounded-full px-4 py-2 text-sm font-bold transition ${
+									temporalFilter === option.value
+										? option.value === 'live'
+											? 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/25'
+											: option.value === 'starting_soon'
+												? 'bg-amber-400 text-slate-950 shadow-sm shadow-amber-400/25'
+												: 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
+										: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700'
+								}`}
+							>
+								{option.label}
+							</button>
+						{/each}
+					</div>
+				</div>
+
+				<div>
+					<p class="text-sm font-black text-slate-950 dark:text-slate-50">
+						{i18n.t('event_type_label')}
+					</p>
 					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
 						{i18n.t('type_filter_sub')}
 					</p>
@@ -1308,7 +1460,9 @@
 
 					{#if priceFilter === 'paid'}
 						<label class="mt-3 block">
-							<div class="mb-1 flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400">
+							<div
+								class="mb-1 flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400"
+							>
 								<span>{i18n.t('max_price')}</span>
 								<span>€{maxPrice}</span>
 							</div>
@@ -1337,7 +1491,9 @@
 				</div>
 
 				{#if availableSports.length === 0}
-					<p class="mt-4 text-sm text-slate-500 dark:text-slate-400">{i18n.t('no_sports_available')}</p>
+					<p class="mt-4 text-sm text-slate-500 dark:text-slate-400">
+						{i18n.t('no_sports_available')}
+					</p>
 				{:else}
 					<div class="mt-4 flex flex-wrap gap-2">
 						{#each availableSports as sport (sport)}
@@ -1388,13 +1544,32 @@
 		>
 			<div class="flex items-center justify-between gap-3">
 				<div class="flex min-w-0 flex-wrap items-center gap-2">
-					<span class="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-blue-600 dark:bg-blue-950/70 dark:text-blue-300 md:px-3 md:py-1 md:text-xs">
+					<span
+						class="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-blue-600 dark:bg-blue-950/70 dark:text-blue-300 md:px-3 md:py-1 md:text-xs"
+					>
 						{selectedEvent.sport}
 						<img src="/{selectedEvent.sport}_icon.png" alt="" class="h-3.5 w-3.5" />
 					</span>
+					{#if getEventTemporalState(selectedEvent) === 'live'}
+						<span
+							class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 md:px-3 md:py-1 md:text-xs"
+						>
+							<span class="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"></span>
+							{i18n.t('happening_now')}
+						</span>
+					{:else if getEventTemporalState(selectedEvent) === 'starting_soon'}
+						<span
+							class="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-amber-700 dark:bg-amber-950 dark:text-amber-300 md:px-3 md:py-1 md:text-xs"
+						>
+							{i18n.t('starting_soon')}
+						</span>
+					{/if}
 					{#if selectedEventGroup.length > 1}
-						<span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300 md:px-3 md:py-1 md:text-xs">
-							{selectedEventIndex + 1}/{selectedEventGroup.length} {i18n.t('nearby_lowercase')}
+						<span
+							class="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300 md:px-3 md:py-1 md:text-xs"
+						>
+							{selectedEventIndex + 1}/{selectedEventGroup.length}
+							{i18n.t('nearby_lowercase')}
 						</span>
 					{/if}
 				</div>
@@ -1409,48 +1584,74 @@
 			</div>
 
 			<div class="mt-2.5 flex gap-2.5 md:mt-3 md:gap-3">
-				<div class="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800 sm:h-20 sm:w-20 md:h-28 md:w-28">
+				<div
+					class="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800 sm:h-20 sm:w-20 md:h-28 md:w-28"
+				>
 					{#if getSelectedPreviewUrl(selectedEvent)}
-						<img src={getSelectedPreviewUrl(selectedEvent)} alt={selectedEvent.title} class="h-full w-full object-cover" />
+						<img
+							src={getSelectedPreviewUrl(selectedEvent)}
+							alt={selectedEvent.title}
+							class="h-full w-full object-cover"
+						/>
 					{:else}
-						<div class="grid h-full w-full place-items-center text-2xl font-black text-blue-600 dark:text-blue-300 md:text-3xl">
+						<div
+							class="grid h-full w-full place-items-center text-2xl font-black text-blue-600 dark:text-blue-300 md:text-3xl"
+						>
 							{selectedEvent.title.charAt(0).toUpperCase()}
 						</div>
 					{/if}
 				</div>
 
 				<div class="min-w-0 flex-1">
-					<h2 class="line-clamp-2 text-base font-black leading-tight text-slate-950 dark:text-slate-50 md:text-lg">
+					<h2
+						class="line-clamp-2 text-base font-black leading-tight text-slate-950 dark:text-slate-50 md:text-lg"
+					>
 						{selectedEvent.title}
 					</h2>
-					<p class="mt-0.5 truncate text-xs font-bold text-slate-500 dark:text-slate-400 md:mt-1 md:text-sm">
-						📍 {selectedEvent.location?.address ?? selectedEvent.location?.name ?? i18n.t('location_not_set')}
+					<p
+						class="mt-0.5 truncate text-xs font-bold text-slate-500 dark:text-slate-400 md:mt-1 md:text-sm"
+					>
+						📍 {selectedEvent.location?.address ??
+							selectedEvent.location?.name ??
+							i18n.t('location_not_set')}
 					</p>
 					<p class="mt-1 truncate text-xs font-semibold text-slate-400 dark:text-slate-500">
 						{formatSelectedDate(selectedEvent)}
 					</p>
 
 					<div class="mt-2 flex flex-wrap gap-1.5 md:mt-3">
-						<span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black capitalize text-slate-600 dark:bg-slate-800 dark:text-slate-300 md:px-2.5 md:py-1 md:text-[11px]">
+						<span
+							class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black capitalize text-slate-600 dark:bg-slate-800 dark:text-slate-300 md:px-2.5 md:py-1 md:text-[11px]"
+						>
 							{formatLevel(selectedEvent.level ?? 'casual')}
 						</span>
-						<span class="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-600 dark:bg-blue-950/70 dark:text-blue-300 md:px-2.5 md:py-1 md:text-[11px]">
-							{selectedEvent.participantIds.length}/{selectedEvent.maxParticipants} {i18n.t('players_lowercase')}
+						<span
+							class="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-600 dark:bg-blue-950/70 dark:text-blue-300 md:px-2.5 md:py-1 md:text-[11px]"
+						>
+							{selectedEvent.participantIds.length}/{selectedEvent.maxParticipants}
+							{i18n.t('players_lowercase')}
 						</span>
 						{#if selectedEvent.routeDistanceKm !== null && selectedEvent.routeDistanceKm !== undefined}
-							<span class="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300 md:px-2.5 md:py-1 md:text-[11px]">{selectedEvent.routeDistanceKm.toFixed(2)} km</span>
+							<span
+								class="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300 md:px-2.5 md:py-1 md:text-[11px]"
+								>{selectedEvent.routeDistanceKm.toFixed(2)} km</span
+							>
 						{/if}
 					</div>
 				</div>
 			</div>
 
 			{#if selectedEventGroup.length > 1}
-				<div class="mt-2.5 flex items-center justify-between rounded-2xl bg-slate-50 px-2.5 py-1.5 dark:bg-slate-950/60 md:mt-3 md:px-3 md:py-2">
+				<div
+					class="mt-2.5 flex items-center justify-between rounded-2xl bg-slate-50 px-2.5 py-1.5 dark:bg-slate-950/60 md:mt-3 md:px-3 md:py-2"
+				>
 					<div class="min-w-0">
 						<p class="text-xs font-black text-slate-700 dark:text-slate-200">
 							{i18n.t('events_in_area', { count: selectedEventGroup.length })}
 						</p>
-						<p class="hidden truncate text-[11px] font-bold text-slate-400 dark:text-slate-500 sm:block">
+						<p
+							class="hidden truncate text-[11px] font-bold text-slate-400 dark:text-slate-500 sm:block"
+						>
 							{i18n.t('use_arrows_preview_msg')}
 						</p>
 					</div>
@@ -1464,7 +1665,9 @@
 							‹
 						</button>
 
-						<span class="min-w-10 text-center text-xs font-black text-slate-500 dark:text-slate-300">
+						<span
+							class="min-w-10 text-center text-xs font-black text-slate-500 dark:text-slate-300"
+						>
 							{selectedEventIndex + 1}/{selectedEventGroup.length}
 						</span>
 
@@ -1501,7 +1704,9 @@
 			<!-- Persistent search + category tabs -->
 			<div class="mb-6 space-y-3">
 				<div class="flex items-center gap-2.5">
-					<div class="flex flex-1 items-center gap-3 rounded-2xl bg-slate-100/90 px-4 py-2.5 shadow-inner shadow-white/70 backdrop-blur dark:bg-slate-800/80 dark:shadow-none">
+					<div
+						class="flex flex-1 items-center gap-3 rounded-2xl bg-slate-100/90 px-4 py-2.5 shadow-inner shadow-white/70 backdrop-blur dark:bg-slate-800/80 dark:shadow-none"
+					>
 						<svg
 							viewBox="0 0 24 24"
 							fill="none"
@@ -1520,7 +1725,8 @@
 							type="search"
 							value={localSearchTerm}
 							placeholder={i18n.t('search_events_orgs_placeholder')}
-							oninput={(event) => handleSearchInput((event.currentTarget as HTMLInputElement).value)}
+							oninput={(event) =>
+								handleSearchInput((event.currentTarget as HTMLInputElement).value)}
 							class="min-w-0 flex-1 appearance-none border-0 bg-transparent p-0 text-sm font-black text-slate-900 outline-none ring-0 shadow-none placeholder:text-sm placeholder:font-bold placeholder:text-slate-400 focus:border-0 focus:outline-none focus:ring-0 dark:text-slate-100"
 						/>
 					</div>
@@ -1561,11 +1767,19 @@
 									onclick={() => selectSearchResult(event)}
 									class="flex min-w-0 items-center gap-2.5 rounded-2xl border border-slate-200 bg-white p-2 text-left shadow-sm transition hover:border-blue-200 hover:bg-blue-50/60 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-blue-900 dark:hover:bg-blue-950/30"
 								>
-									<div class="h-12 w-16 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
+									<div
+										class="h-12 w-16 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800"
+									>
 										{#if getSelectedPreviewUrl(event)}
-											<img src={getSelectedPreviewUrl(event)} alt={event.title} class="h-full w-full object-cover" />
+											<img
+												src={getSelectedPreviewUrl(event)}
+												alt={event.title}
+												class="h-full w-full object-cover"
+											/>
 										{:else}
-											<div class="grid h-full w-full place-items-center text-sm font-black uppercase text-blue-600 dark:text-blue-300">
+											<div
+												class="grid h-full w-full place-items-center text-sm font-black uppercase text-blue-600 dark:text-blue-300"
+											>
 												{event.sport.charAt(0)}
 											</div>
 										{/if}
@@ -1575,22 +1789,30 @@
 											{event.title}
 										</p>
 										<p class="truncate text-xs font-bold text-slate-500 dark:text-slate-400">
-											{event.location?.address ?? event.location?.name ?? i18n.t('location_not_set')}
+											{event.location?.address ??
+												event.location?.name ??
+												i18n.t('location_not_set')}
 										</p>
-										<p class="mt-0.5 truncate text-[11px] font-bold text-slate-400 dark:text-slate-500">
+										<p
+											class="mt-0.5 truncate text-[11px] font-bold text-slate-400 dark:text-slate-500"
+										>
 											{formatSelectedDate(event)}
 										</p>
 									</div>
 								</button>
 							{/each}
 						{:else}
-							<p class="rounded-2xl border border-dashed border-slate-200 p-4 text-sm font-bold text-slate-500 dark:border-slate-700 dark:text-slate-400">
+							<p
+								class="rounded-2xl border border-dashed border-slate-200 p-4 text-sm font-bold text-slate-500 dark:border-slate-700 dark:text-slate-400"
+							>
 								{i18n.t('no_events_found_search')}
 							</p>
 						{/if}
 					</div>
 				{:else if availableSports.length > 0}
-					<div class="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+					<div
+						class="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+					>
 						<button
 							type="button"
 							onclick={() => {
@@ -1624,10 +1846,10 @@
 
 			{#if shownFeedCount === 0}
 				<div class="flex flex-col items-center justify-center py-20 text-center">
-					<div class="rounded-full bg-slate-100 p-4 dark:bg-slate-800 text-3xl mb-4">
-						🔍
-					</div>
-					<h3 class="text-lg font-black text-slate-950 dark:text-slate-50">{i18n.t('no_events_found')}</h3>
+					<div class="rounded-full bg-slate-100 p-4 dark:bg-slate-800 text-3xl mb-4">🔍</div>
+					<h3 class="text-lg font-black text-slate-950 dark:text-slate-50">
+						{i18n.t('no_events_found')}
+					</h3>
 					<p class="mt-1 text-sm text-slate-500 max-w-sm dark:text-slate-400">
 						{i18n.t('no_events_found_sub')}
 					</p>
@@ -1651,8 +1873,11 @@
 					{#if feedFeaturedEvents.length > 0}
 						<section>
 							<div class="mb-4">
-								<h3 class="flex items-center gap-2 text-base font-black text-slate-900 dark:text-slate-100">
-									<span class="text-slate-400">★</span> {i18n.t('featured_games')}
+								<h3
+									class="flex items-center gap-2 text-base font-black text-slate-900 dark:text-slate-100"
+								>
+									<span class="text-slate-400">★</span>
+									{i18n.t('featured_games')}
 								</h3>
 								<p class="text-xs text-slate-500 dark:text-slate-400">
 									{i18n.t('promoted_matching_pref')}
@@ -1670,8 +1895,11 @@
 					{#if feedFriendsEvents.length > 0}
 						<section>
 							<div class="mb-4">
-								<h3 class="flex items-center gap-2 text-base font-black text-slate-900 dark:text-slate-100">
-									<span class="text-slate-400">◎</span> {i18n.t('friends_activity')}
+								<h3
+									class="flex items-center gap-2 text-base font-black text-slate-900 dark:text-slate-100"
+								>
+									<span class="text-slate-400">◎</span>
+									{i18n.t('friends_activity')}
 								</h3>
 								<p class="text-xs text-slate-500 dark:text-slate-400">
 									{i18n.t('friends_activity_sub')}
@@ -1689,8 +1917,11 @@
 					{#if feedGeneralEvents.length > 0}
 						<section>
 							<div class="mb-4">
-								<h3 class="flex items-center gap-2 text-base font-black text-slate-900 dark:text-slate-100">
-									<span class="text-slate-400">⌕</span> {i18n.t('explore_games')}
+								<h3
+									class="flex items-center gap-2 text-base font-black text-slate-900 dark:text-slate-100"
+								>
+									<span class="text-slate-400">⌕</span>
+									{i18n.t('explore_games')}
 								</h3>
 								<p class="text-xs text-slate-500 dark:text-slate-400">
 									{i18n.t('explore_games_sub')}
@@ -1717,7 +1948,7 @@
 	:global(:fullscreen) .fullscreen-force-block {
 		display: block !important;
 	}
-	
+
 	/* Also cover vendor prefixes for fullscreen */
 	:global(:-webkit-full-screen) .fullscreen-force-show {
 		display: flex !important;
@@ -1725,6 +1956,22 @@
 	:global(:-webkit-full-screen) .fullscreen-force-block {
 		display: block !important;
 	}
-	:global(.route-start-marker) { height: 18px; width: 18px; border-radius: 999px; background: #22c55e; border: 3px solid white; box-shadow: 0 1px 5px rgb(0 0 0 / 0.4); }
-	:global(.route-finish-marker) { height: 20px; width: 20px; border-radius: 4px; border: 2px solid white; background-color: white; background-image: conic-gradient(#111 25%, white 0 50%, #111 0 75%, white 0); background-size: 10px 10px; box-shadow: 0 1px 5px rgb(0 0 0 / 0.45); }
+	:global(.route-start-marker) {
+		height: 18px;
+		width: 18px;
+		border-radius: 999px;
+		background: #22c55e;
+		border: 3px solid white;
+		box-shadow: 0 1px 5px rgb(0 0 0 / 0.4);
+	}
+	:global(.route-finish-marker) {
+		height: 20px;
+		width: 20px;
+		border-radius: 4px;
+		border: 2px solid white;
+		background-color: white;
+		background-image: conic-gradient(#111 25%, white 0 50%, #111 0 75%, white 0);
+		background-size: 10px 10px;
+		box-shadow: 0 1px 5px rgb(0 0 0 / 0.45);
+	}
 </style>

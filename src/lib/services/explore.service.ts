@@ -2,7 +2,6 @@ import { collection, getDocs, onSnapshot, query, where } from 'firebase/firestor
 import { db } from '$lib/firebase';
 import type { SportEvent, UserProfile } from '$lib/schema';
 import {
-	getEffectiveEventStatus,
 	getEventById,
 	getEventStartAtMillis,
 	isPromotionActive,
@@ -15,6 +14,7 @@ import {
 	getOrganizationsFollowedByUser
 } from '$lib/services/organization.service';
 import { getUserProfile } from '$lib/services/user.service';
+import { getEventTemporalState } from '$lib/utils/event-lifecycle.utils';
 
 function eventFromDoc(docSnap: { id: string; data: () => unknown }) {
 	return {
@@ -24,15 +24,14 @@ function eventFromDoc(docSnap: { id: string; data: () => unknown }) {
 }
 
 function isVisibleInExplore(event: SportEvent, windowDays?: number | null) {
-	const status = getEffectiveEventStatus(event);
-
-	if (status === 'cancelled') return false;
-	if (status === 'finished') return false;
+	const temporalState = getEventTemporalState(event);
+	if (temporalState === 'cancelled' || temporalState === 'finished') return false;
 
 	const startAtMs = getEventStartAtMillis(event);
 	const now = Date.now();
 
-	if (startAtMs < now) return false;
+	// Live events remain discoverable until their explicit (or inferred) end time.
+	if (temporalState === 'live') return true;
 	if (windowDays && windowDays > 0) {
 		return startAtMs <= now + windowDays * 24 * 60 * 60 * 1000;
 	}
@@ -179,9 +178,14 @@ export async function getPromotedEventsForUser(userId: string, profile: UserProf
 				canSeeOwnPromotion(event, userId, profile) ||
 				event.organizationId !== profile.activeOrganizationId
 		)
-		.filter((event) => canSeeOwnPromotion(event, userId, profile) || !event.participantIds.includes(userId))
+		.filter(
+			(event) =>
+				canSeeOwnPromotion(event, userId, profile) || !event.participantIds.includes(userId)
+		)
 		.filter((event) => isSamePromotionCountry(event, profile))
-		.filter((event) => canSeeOwnPromotion(event, userId, profile) || promotionWeight(event, profile) > 0);
+		.filter(
+			(event) => canSeeOwnPromotion(event, userId, profile) || promotionWeight(event, profile) > 0
+		);
 
 	const events = await refreshOrganizationSnapshots(candidates);
 
@@ -233,9 +237,15 @@ export function subscribeToPromotedEventsForUser(
 						canSeeOwnPromotion(event, userId, profile) ||
 						event.organizationId !== profile.activeOrganizationId
 				)
-				.filter((event) => canSeeOwnPromotion(event, userId, profile) || !event.participantIds.includes(userId))
+				.filter(
+					(event) =>
+						canSeeOwnPromotion(event, userId, profile) || !event.participantIds.includes(userId)
+				)
 				.filter((event) => isSamePromotionCountry(event, profile))
-				.filter((event) => canSeeOwnPromotion(event, userId, profile) || promotionWeight(event, profile) > 0);
+				.filter(
+					(event) =>
+						canSeeOwnPromotion(event, userId, profile) || promotionWeight(event, profile) > 0
+				);
 
 			const events = await refreshOrganizationSnapshots(candidates);
 			if (currentVersion !== requestVersion) return;
@@ -312,15 +322,17 @@ export async function getVisibleEventsForUser(
 
 	const friendIds = friends.map((friend) => friend.id).filter(Boolean);
 
-	const friendEventSnapshots = await Promise.all(chunkArray(friendIds, 10).map((chunk) => {
-		const friendsEventsQuery = query(
-			collection(db, 'events'),
-			where('creatorId', 'in', chunk),
-			where('visibility', '==', 'friends')
-		);
+	const friendEventSnapshots = await Promise.all(
+		chunkArray(friendIds, 10).map((chunk) => {
+			const friendsEventsQuery = query(
+				collection(db, 'events'),
+				where('creatorId', 'in', chunk),
+				where('visibility', '==', 'friends')
+			);
 
-		return getDocs(friendsEventsQuery);
-	}));
+			return getDocs(friendsEventsQuery);
+		})
+	);
 
 	for (const friendsEventsSnap of friendEventSnapshots) {
 		for (const docSnap of friendsEventsSnap.docs) {
@@ -331,14 +343,16 @@ export async function getVisibleEventsForUser(
 
 	const followedOrganizationIds = followedOrganizations.map((organization) => organization.id);
 
-	const followedOrgEventSnapshots = await Promise.all(chunkArray(followedOrganizationIds, 10).map((chunk) => {
-		const followedOrgEventsQuery = query(
-			collection(db, 'events'),
-			where('organizationId', 'in', chunk)
-		);
+	const followedOrgEventSnapshots = await Promise.all(
+		chunkArray(followedOrganizationIds, 10).map((chunk) => {
+			const followedOrgEventsQuery = query(
+				collection(db, 'events'),
+				where('organizationId', 'in', chunk)
+			);
 
-		return getDocs(followedOrgEventsQuery);
-	}));
+			return getDocs(followedOrgEventsQuery);
+		})
+	);
 
 	for (const followedOrgEventsSnap of followedOrgEventSnapshots) {
 		for (const docSnap of followedOrgEventsSnap.docs) {

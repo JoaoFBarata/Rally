@@ -19,18 +19,29 @@
 	import { subscribeToEventCatalogChanges } from '$lib/services/realtime.service';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { i18n } from '$lib/services/i18n.svelte';
+	import { getEventTemporalState } from '$lib/utils/event-lifecycle.utils';
 
 	type DateFilter = 'today' | '7' | '14' | '30' | 'all';
 	type PriceFilter = 'all' | 'free' | 'paid';
 	type AudienceFilter = 'all' | 'mine' | 'friends' | 'public' | 'joined' | 'following_orgs';
+	type TemporalFilter = 'all' | 'live' | 'starting_soon';
 
 	const defaultDateFilter: DateFilter = '7';
 	const defaultPriceFilter: PriceFilter = 'all';
 	const defaultAudienceFilter: AudienceFilter = 'all';
+	const defaultTemporalFilter: TemporalFilter = 'all';
 	const availableLevels: SportLevel[] = ['beginner', 'casual', 'intermediate', 'advanced'];
 	const validDateFilters: DateFilter[] = ['today', '7', '14', '30', 'all'];
 	const validPriceFilters: PriceFilter[] = ['all', 'free', 'paid'];
-	const validAudienceFilters: AudienceFilter[] = ['all', 'mine', 'friends', 'public', 'joined', 'following_orgs'];
+	const validAudienceFilters: AudienceFilter[] = [
+		'all',
+		'mine',
+		'friends',
+		'public',
+		'joined',
+		'following_orgs'
+	];
+	const validTemporalFilters: TemporalFilter[] = ['all', 'live', 'starting_soon'];
 
 	function getValidParam<T extends string>(key: string, validValues: T[], fallback: T) {
 		const value = page.url.searchParams.get(key) as T | null;
@@ -56,14 +67,14 @@
 	let followedOrganizationIds = $state<string[]>([]);
 	let filteredEventCount = $state(0);
 	let selectedMapEventId = $state<string | null>(null);
-	let viewMode = $state<'map' | 'feed'>((page.url.searchParams.get('view') as 'map' | 'feed') || 'map');
+	let viewMode = $state<'map' | 'feed'>(
+		(page.url.searchParams.get('view') as 'map' | 'feed') || 'map'
+	);
 	let selectedSports = $state<Sport[]>(getListParam<Sport>('sports'));
 	let selectedLevels = $state<SportLevel[]>(
 		getListParam<SportLevel>('levels').filter((level) => availableLevels.includes(level))
 	);
-	let dateFilter = $state<DateFilter>(
-		getValidParam('date', validDateFilters, defaultDateFilter)
-	);
+	let dateFilter = $state<DateFilter>(getValidParam('date', validDateFilters, defaultDateFilter));
 	let dateFilterManuallyChanged = $state(page.url.searchParams.has('date'));
 	let priceFilter = $state<PriceFilter>(
 		getValidParam('price', validPriceFilters, defaultPriceFilter)
@@ -74,6 +85,10 @@
 	);
 	let onlyTournaments = $state(page.url.searchParams.get('tournaments') === 'true');
 	let searchTerm = $state(page.url.searchParams.get('search')?.trim() ?? '');
+	let temporalFilter = $state<TemporalFilter>(
+		getValidParam('status', validTemporalFilters, defaultTemporalFilter)
+	);
+	let nowMs = $state(Date.now());
 	let promotedPage = $state(0);
 	let promotedRotationSeed = $state(0);
 	const promotedPageSize = 4;
@@ -97,6 +112,11 @@
 		{ value: 'public' as const, label: i18n.t('public_events') },
 		{ value: 'joined' as const, label: i18n.t('joined') },
 		{ value: 'following_orgs' as const, label: i18n.t('following_orgs') }
+	]);
+	let temporalFilterOptions = $derived([
+		{ value: 'all' as const, label: i18n.t('all') },
+		{ value: 'live' as const, label: i18n.t('happening_now') },
+		{ value: 'starting_soon' as const, label: i18n.t('starting_soon') }
 	]);
 
 	let allExploreEvents = $derived.by(() => {
@@ -125,6 +145,7 @@
 			(dateFilter === defaultDateFilter ? 0 : 1) +
 			(priceFilter === defaultPriceFilter ? 0 : 1) +
 			(audienceFilter === defaultAudienceFilter ? 0 : 1) +
+			(temporalFilter === defaultTemporalFilter ? 0 : 1) +
 			(onlyTournaments ? 1 : 0) +
 			(searchTerm.trim() ? 1 : 0)
 		);
@@ -138,8 +159,12 @@
 
 	function matchesDateFilter(event: SportEvent) {
 		const startAtMs = getEventStartAtMillis(event);
-		const now = new Date();
+		const now = new Date(nowMs);
 		const eventDate = new Date(startAtMs);
+		const temporalState = getEventTemporalState(event, nowMs);
+
+		if (temporalState === 'cancelled' || temporalState === 'finished') return false;
+		if (temporalState === 'live') return true;
 
 		if (
 			!dateFilterManuallyChanged &&
@@ -147,9 +172,9 @@
 			event.visibility === 'public' &&
 			isPromotionActive(event)
 		) {
-			return startAtMs >= Date.now();
+			return startAtMs >= nowMs;
 		}
-		if (dateFilter === 'all') return startAtMs >= Date.now();
+		if (dateFilter === 'all') return startAtMs >= nowMs;
 		if (dateFilter === 'today') {
 			return (
 				eventDate.getFullYear() === now.getFullYear() &&
@@ -159,7 +184,12 @@
 		}
 
 		const days = Number(dateFilter);
-		return startAtMs >= Date.now() && startAtMs <= Date.now() + days * 24 * 60 * 60 * 1000;
+		return startAtMs >= nowMs && startAtMs <= nowMs + days * 24 * 60 * 60 * 1000;
+	}
+
+	function matchesTemporalFilter(event: SportEvent) {
+		if (temporalFilter === 'all') return true;
+		return getEventTemporalState(event, nowMs) === temporalFilter;
 	}
 
 	function matchesPriceFilter(event: SportEvent) {
@@ -169,8 +199,8 @@
 		return true;
 	}
 
-	let eventsInSelectedDateRangeCount = $derived.by(() =>
-		allExploreEvents.filter((event) => matchesDateFilter(event)).length
+	let eventsInSelectedDateRangeCount = $derived.by(
+		() => allExploreEvents.filter((event) => matchesDateFilter(event)).length
 	);
 
 	function matchesAudienceFilter(event: SportEvent) {
@@ -181,7 +211,9 @@
 		if (audienceFilter === 'public') return event.visibility === 'public';
 		if (audienceFilter === 'joined') return event.participantIds.includes(currentUserId);
 		if (audienceFilter === 'following_orgs') {
-			return Boolean(event.organizationId && followedOrganizationIds.includes(event.organizationId));
+			return Boolean(
+				event.organizationId && followedOrganizationIds.includes(event.organizationId)
+			);
 		}
 		return true;
 	}
@@ -230,6 +262,7 @@
 				matchesTournament &&
 				matchesDateFilter(event) &&
 				matchesPriceFilter(event) &&
+				matchesTemporalFilter(event) &&
 				matchesAudienceFilter(event)
 			);
 		});
@@ -263,12 +296,11 @@
 		if (rankedEvents.length <= 1) return rankedEvents;
 
 		const rotationOffset = promotedRotationSeed % rankedEvents.length;
-		return [
-			...rankedEvents.slice(rotationOffset),
-			...rankedEvents.slice(0, rotationOffset)
-		];
+		return [...rankedEvents.slice(rotationOffset), ...rankedEvents.slice(0, rotationOffset)];
 	});
-	let promotedPageCount = $derived(Math.max(1, Math.ceil(promotedEvents.length / promotedPageSize)));
+	let promotedPageCount = $derived(
+		Math.max(1, Math.ceil(promotedEvents.length / promotedPageSize))
+	);
 	let visiblePromotedEvents = $derived(
 		promotedEvents.slice(
 			promotedPage * promotedPageSize,
@@ -281,9 +313,7 @@
 		if (pageCount <= 7) return Array.from({ length: pageCount }, (_, index) => index);
 
 		const indexes = new Set<number>([0, pageCount - 1, activePage - 1, activePage, activePage + 1]);
-		return [...indexes]
-			.filter((index) => index >= 0 && index < pageCount)
-			.sort((a, b) => a - b);
+		return [...indexes].filter((index) => index >= 0 && index < pageCount).sort((a, b) => a - b);
 	}
 
 	function setPromotedPage(page: number) {
@@ -336,6 +366,9 @@
 
 		if (audienceFilter !== defaultAudienceFilter) params.set('audience', audienceFilter);
 		else params.delete('audience');
+
+		if (temporalFilter !== defaultTemporalFilter) params.set('status', temporalFilter);
+		else params.delete('status');
 
 		if (onlyTournaments) params.set('tournaments', 'true');
 		else params.delete('tournaments');
@@ -394,6 +427,12 @@
 		syncExploreQuery();
 	}
 
+	function setTemporalFilter(value: TemporalFilter) {
+		temporalFilter = value;
+		clearSelectedEvent();
+		syncExploreQuery();
+	}
+
 	function setOnlyTournaments(value: boolean) {
 		onlyTournaments = value;
 		clearSelectedEvent();
@@ -413,6 +452,7 @@
 		dateFilterManuallyChanged = false;
 		priceFilter = defaultPriceFilter;
 		audienceFilter = defaultAudienceFilter;
+		temporalFilter = defaultTemporalFilter;
 		onlyTournaments = false;
 		maxPrice = highestPrice;
 		searchTerm = '';
@@ -428,6 +468,7 @@
 			promotedRotationSeed += 1;
 			setPromotedPage(promotedPage + 1);
 		}, 9000);
+		const lifecycleTimer = window.setInterval(() => (nowMs = Date.now()), 30_000);
 		void (async () => {
 			const currentUser = auth.currentUser;
 			if (!currentUser) {
@@ -457,6 +498,7 @@
 		})();
 		return () => {
 			window.clearInterval(promotionRotationTimer);
+			window.clearInterval(lifecycleTimer);
 			unsubscribeEvents();
 			unsubscribePromotions();
 		};
@@ -468,26 +510,43 @@
 	});
 </script>
 
-<main class="mx-auto flex min-h-[calc(100dvh-96px)] w-full max-w-[1500px] flex-col overflow-visible px-2.5 pb-28 pt-3 sm:px-5 sm:py-8 md:h-auto md:pb-8">
-	<header class="mb-2 sm:mb-6 shrink-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+<main
+	class="mx-auto flex min-h-[calc(100dvh-96px)] w-full max-w-[1500px] flex-col overflow-visible px-2.5 pb-28 pt-3 sm:px-5 sm:py-8 md:h-auto md:pb-8"
+>
+	<header
+		class="mb-2 sm:mb-6 shrink-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+	>
 		<div>
 			<h1 class="text-2xl font-black tracking-tight sm:mt-3 sm:text-3xl">{i18n.t('explore')}</h1>
 			<p class="mt-1 hidden text-sm text-slate-500 sm:block">
 				{searchTerm ? i18n.t('showing_results', { searchTerm }) : i18n.t('explore_subtitle')}
 			</p>
 		</div>
-		<div class="inline-flex rounded-full bg-slate-100 p-1 dark:bg-slate-800 self-start sm:self-center">
+		<div
+			class="inline-flex rounded-full bg-slate-100 p-1 dark:bg-slate-800 self-start sm:self-center"
+		>
 			<button
 				type="button"
-				onclick={() => { viewMode = 'map'; syncExploreQuery(); }}
-				class="rounded-full px-4 py-2 text-xs font-black transition duration-200 {viewMode === 'map' ? 'bg-white text-slate-950 shadow-md dark:bg-slate-700 dark:text-slate-50' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'}"
+				onclick={() => {
+					viewMode = 'map';
+					syncExploreQuery();
+				}}
+				class="rounded-full px-4 py-2 text-xs font-black transition duration-200 {viewMode === 'map'
+					? 'bg-white text-slate-950 shadow-md dark:bg-slate-700 dark:text-slate-50'
+					: 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'}"
 			>
 				🗺️ {i18n.t('map_view')}
 			</button>
 			<button
 				type="button"
-				onclick={() => { viewMode = 'feed'; syncExploreQuery(); }}
-				class="rounded-full px-4 py-2 text-xs font-black transition duration-200 {viewMode === 'feed' ? 'bg-white text-slate-950 shadow-md dark:bg-slate-700 dark:text-slate-50' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'}"
+				onclick={() => {
+					viewMode = 'feed';
+					syncExploreQuery();
+				}}
+				class="rounded-full px-4 py-2 text-xs font-black transition duration-200 {viewMode ===
+				'feed'
+					? 'bg-white text-slate-950 shadow-md dark:bg-slate-700 dark:text-slate-50'
+					: 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'}"
 			>
 				📰 {i18n.t('feed_view')}
 			</button>
@@ -522,12 +581,14 @@
 					{maxPrice}
 					{highestPrice}
 					{audienceFilter}
+					{temporalFilter}
 					{searchTerm}
 					{onlyTournaments}
 					{activeFilterCount}
 					{dateFilterOptions}
 					{priceFilterOptions}
 					{audienceFilterOptions}
+					{temporalFilterOptions}
 					{profile}
 					{viewMode}
 					onToggleSport={toggleSportFilter}
@@ -536,6 +597,7 @@
 					onPriceFilterChange={setPriceFilter}
 					onMaxPriceChange={setMaxPrice}
 					onAudienceFilterChange={setAudienceFilter}
+					onTemporalFilterChange={setTemporalFilter}
 					onOnlyTournamentsChange={setOnlyTournaments}
 					onSearchChange={setSearchTerm}
 					onClearFilters={clearAllFilters}
@@ -572,7 +634,9 @@
 									{/each}
 								</div>
 								{#if promotedPageCount > 1}
-									<div class="flex items-center justify-center gap-1.5 rounded-full bg-white/90 px-3 py-2 shadow-sm backdrop-blur dark:bg-slate-950/90">
+									<div
+										class="flex items-center justify-center gap-1.5 rounded-full bg-white/90 px-3 py-2 shadow-sm backdrop-blur dark:bg-slate-950/90"
+									>
 										{#each getVisiblePageDots(promotedPageCount, promotedPage) as pageIndex (pageIndex)}
 											<button
 												type="button"
@@ -600,7 +664,9 @@
 				<section class="mt-1 md:hidden shrink-0">
 					<div class="mb-2 flex items-center justify-between gap-3">
 						<div>
-							<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">
+							<p
+								class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400"
+							>
 								{i18n.t('promoted')}
 							</p>
 							<p class="mt-0.5 text-xs font-bold text-slate-500 dark:text-slate-400">
@@ -620,28 +686,40 @@
 										<div class="flex items-center justify-between gap-3">
 											<div class="min-w-0 flex-1">
 												<div class="flex items-center gap-2">
-													<span class="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">
+													<span
+														class="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400"
+													>
 														{event.sport}
 													</span>
-													<span class="rounded-full bg-blue-100 px-2 py-0.5 text-[9px] font-black uppercase text-blue-700 dark:bg-blue-950/80 dark:text-blue-300">
+													<span
+														class="rounded-full bg-blue-100 px-2 py-0.5 text-[9px] font-black uppercase text-blue-700 dark:bg-blue-950/80 dark:text-blue-300"
+													>
 														{i18n.t('promoted')}
 													</span>
 												</div>
 
-												<h3 class="mt-1.5 truncate text-sm font-black text-slate-900 dark:text-slate-100">
+												<h3
+													class="mt-1.5 truncate text-sm font-black text-slate-900 dark:text-slate-100"
+												>
 													{event.title}
 												</h3>
 
-												<div class="mt-1 flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+												<div
+													class="mt-1 flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400"
+												>
 													<span class="truncate">📍 {event.location.name}</span>
 												</div>
 											</div>
 
-											<div class="shrink-0 rounded-2xl bg-blue-50 px-3 py-2 text-center dark:bg-blue-950/80">
+											<div
+												class="shrink-0 rounded-2xl bg-blue-50 px-3 py-2 text-center dark:bg-blue-950/80"
+											>
 												<p class="text-sm font-black text-blue-600 dark:text-blue-300">
 													{event.participantIds.length}/{event.maxParticipants}
 												</p>
-												<p class="text-[9px] font-bold text-slate-500 dark:text-slate-400">{i18n.t('players')}</p>
+												<p class="text-[9px] font-bold text-slate-500 dark:text-slate-400">
+													{i18n.t('players')}
+												</p>
 											</div>
 										</div>
 									</a>

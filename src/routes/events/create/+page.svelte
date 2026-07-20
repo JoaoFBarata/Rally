@@ -41,7 +41,15 @@
 	let route = $state<{ lat: number; lng: number }[]>([]);
 	let startDate = $state('');
 	let startTime = $state('');
-	let durationMinutes = $state(90);
+	let durationHoursValue = $state('01');
+	let durationMinutesValue = $state('30');
+	let durationMinutes = $derived.by(() => {
+		if (!/^\d{1,2}$/.test(durationHoursValue) || !/^\d{1,2}$/.test(durationMinutesValue)) return 0;
+		const hours = Number(durationHoursValue);
+		const minutes = Number(durationMinutesValue);
+		if (hours > 12 || minutes > 59 || ![0, 15, 30, 45].includes(minutes)) return 0;
+		return hours * 60 + minutes;
+	});
 	let maxParticipants = $state(10);
 	let visibility = $state<EventVisibility>('private');
 	let priceMode = $state<'free' | 'per_person' | 'total_split'>('free');
@@ -82,7 +90,11 @@
 			end.setDate(end.getDate() + offsetDays * (recurringOccurrences - 1));
 		}
 
-		return end.toLocaleDateString(getCurrentLocale(), { day: 'numeric', month: 'short', year: 'numeric' });
+		return end.toLocaleDateString(getCurrentLocale(), {
+			day: 'numeric',
+			month: 'short',
+			year: 'numeric'
+		});
 	});
 
 	const todayStr = new Date().toLocaleDateString('en-CA');
@@ -97,6 +109,17 @@
 		{ value: 'GBP', label: 'GBP £' },
 		{ value: 'BRL', label: 'BRL R$' }
 	];
+	function setDurationFromMinutes(totalMinutes: number) {
+		const roundedMinutes = Math.max(15, Math.min(12 * 60 + 45, Math.round(totalMinutes / 15) * 15));
+		const hours = Math.floor(roundedMinutes / 60);
+		const minutes = roundedMinutes % 60;
+		durationHoursValue = String(hours).padStart(2, '0');
+		durationMinutesValue = String(minutes).padStart(2, '0');
+	}
+
+	function normalizeDurationValue() {
+		if (durationMinutes > 0) setDurationFromMinutes(durationMinutes);
+	}
 
 	let showInviteModal = $state(false);
 	let createdEventId = $state('');
@@ -116,14 +139,7 @@
 			return;
 		}
 
-		if (
-			!title.trim() ||
-			!startDate ||
-			!startTime ||
-			maxParticipants < 2 ||
-			!visibility ||
-			!level
-		) {
+		if (!title.trim() || !startDate || !startTime || maxParticipants < 2 || !visibility || !level) {
 			error = i18n.t('required_fields_error');
 			return;
 		}
@@ -134,7 +150,7 @@
 			return;
 		}
 
-		if (!duration || duration < 10) {
+		if (!duration || duration < 15) {
 			error = i18n.t('valid_duration_error');
 			return;
 		}
@@ -237,7 +253,7 @@
 		}
 		if (fields.date) startDate = fields.date;
 		if (fields.time) startTime = fields.time;
-		if (fields.durationMinutes) durationMinutes = fields.durationMinutes;
+		if (fields.durationMinutes) setDurationFromMinutes(fields.durationMinutes);
 		if (fields.maxParticipants) maxParticipants = fields.maxParticipants;
 		if (fields.priceTotal !== null && fields.priceTotal !== undefined) {
 			priceMode = 'total_split';
@@ -292,24 +308,34 @@
 			<!-- Choice bypassed but left as fallback -->
 			<div class="mb-4 sm:mb-8 flex flex-col justify-between sm:flex-row sm:items-center gap-4">
 				<div>
-					<h2 class="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50 sm:text-3xl">{i18n.t('create_event')}</h2>
+					<h2 class="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50 sm:text-3xl">
+						{i18n.t('create_event')}
+					</h2>
 					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400 sm:text-base">
 						{i18n.t('create_event_sub')}
 					</p>
 				</div>
-				<div class="flex items-center gap-2 rounded-2xl bg-blue-50/70 p-3 ring-1 ring-blue-100/80 dark:bg-blue-950/30 dark:ring-blue-900/40">
+				<div
+					class="flex items-center gap-2 rounded-2xl bg-blue-50/70 p-3 ring-1 ring-blue-100/80 dark:bg-blue-950/30 dark:ring-blue-900/40"
+				>
 					<VoiceRecordButton onExtracted={handleVoiceExtracted} />
 				</div>
 			</div>
 		{:else}
-			<div class="mb-4 sm:mb-8 flex flex-col justify-between sm:flex-row sm:items-center gap-4 border-b border-slate-100 pb-4 dark:border-slate-800">
+			<div
+				class="mb-4 sm:mb-8 flex flex-col justify-between sm:flex-row sm:items-center gap-4 border-b border-slate-100 pb-4 dark:border-slate-800"
+			>
 				<div>
-					<h2 class="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50 sm:text-3xl">{i18n.t('create_event')}</h2>
+					<h2 class="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50 sm:text-3xl">
+						{i18n.t('create_event')}
+					</h2>
 					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400 sm:text-base">
 						{i18n.t('create_event_sub')}
 					</p>
 				</div>
-				<div class="flex items-center gap-2 rounded-2xl bg-blue-50/70 p-3 ring-1 ring-blue-100/80 dark:bg-blue-950/30 dark:ring-blue-900/40">
+				<div
+					class="flex items-center gap-2 rounded-2xl bg-blue-50/70 p-3 ring-1 ring-blue-100/80 dark:bg-blue-950/30 dark:ring-blue-900/40"
+				>
 					<VoiceRecordButton onExtracted={handleVoiceExtracted} />
 				</div>
 			</div>
@@ -324,448 +350,482 @@
 
 			<div>
 				<form
-				class="space-y-4 sm:space-y-5"
-				onsubmit={(e) => {
-					e.preventDefault();
-					handleCreateEvent();
-				}}
-			>
-				<div>
-					<label for="title" class={labelClass}>
-						{i18n.t('event_title_label')}
-					</label>
-
-					<input
-						id="title"
-						bind:value={title}
-						maxlength={TEXT_LIMITS.eventTitle}
-						placeholder={i18n.t('event_title_placeholder')}
-						class={`mt-2 ${inputClass}`}
-					/>
-				</div>
-
-				<div class="flex items-center gap-3 sm:gap-4">
-					<div class="relative h-12 w-12 shrink-0 sm:h-16 sm:w-16">
-						{#if groupPhotoURL}
-							<img
-								src={groupPhotoURL}
-								alt={title || 'Event group'}
-								class="h-12 w-12 rounded-full object-cover ring-4 ring-slate-100 dark:ring-slate-800 sm:h-16 sm:w-16"
-							/>
-						{:else}
-							<div
-								class="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-xl font-black text-blue-600 ring-4 ring-slate-100 dark:bg-blue-950 dark:text-blue-300 dark:ring-slate-800 sm:h-16 sm:w-16 sm:text-2xl"
-							>
-								📷
-							</div>
-						{/if}
-
-						<label
-							title={i18n.t('add_group_photo')}
-							class="absolute -bottom-1 -right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-white text-xs text-blue-600 shadow-lg ring-2 ring-slate-100 transition hover:bg-blue-50 dark:bg-white dark:text-blue-600 dark:ring-slate-800 sm:h-7 sm:w-7"
-						>
-							{#if groupPhotoUploading}
-								…
-							{:else}
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke-width="2.4"
-									stroke="currentColor"
-									class="h-3.5 w-3.5"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18A2.25 2.25 0 0 0 4.5 20.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z"
-									/>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z"
-									/>
-								</svg>
-							{/if}
-							<input
-								type="file"
-								accept="image/*"
-								class="hidden"
-								onchange={handleGroupPhotoFileChange}
-							/>
+					class="space-y-4 sm:space-y-5"
+					onsubmit={(e) => {
+						e.preventDefault();
+						handleCreateEvent();
+					}}
+				>
+					<div>
+						<label for="title" class={labelClass}>
+							{i18n.t('event_title_label')}
 						</label>
+
+						<input
+							id="title"
+							bind:value={title}
+							maxlength={TEXT_LIMITS.eventTitle}
+							placeholder={i18n.t('event_title_placeholder')}
+							class={`mt-2 ${inputClass}`}
+						/>
 					</div>
+
+					<div class="flex items-center gap-3 sm:gap-4">
+						<div class="relative h-12 w-12 shrink-0 sm:h-16 sm:w-16">
+							{#if groupPhotoURL}
+								<img
+									src={groupPhotoURL}
+									alt={title || 'Event group'}
+									class="h-12 w-12 rounded-full object-cover ring-4 ring-slate-100 dark:ring-slate-800 sm:h-16 sm:w-16"
+								/>
+							{:else}
+								<div
+									class="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-xl font-black text-blue-600 ring-4 ring-slate-100 dark:bg-blue-950 dark:text-blue-300 dark:ring-slate-800 sm:h-16 sm:w-16 sm:text-2xl"
+								>
+									📷
+								</div>
+							{/if}
+
+							<label
+								title={i18n.t('add_group_photo')}
+								class="absolute -bottom-1 -right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-white text-xs text-blue-600 shadow-lg ring-2 ring-slate-100 transition hover:bg-blue-50 dark:bg-white dark:text-blue-600 dark:ring-slate-800 sm:h-7 sm:w-7"
+							>
+								{#if groupPhotoUploading}
+									…
+								{:else}
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke-width="2.4"
+										stroke="currentColor"
+										class="h-3.5 w-3.5"
+									>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18A2.25 2.25 0 0 0 4.5 20.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z"
+										/>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z"
+										/>
+									</svg>
+								{/if}
+								<input
+									type="file"
+									accept="image/*"
+									class="hidden"
+									onchange={handleGroupPhotoFileChange}
+								/>
+							</label>
+						</div>
 
 						<div class="min-w-0">
-						<p class="text-sm font-bold text-slate-700 dark:text-slate-300">{i18n.t('group_photo')}</p>
-						<p class="text-xs text-slate-500 dark:text-slate-400 sm:text-sm">{i18n.t('optional_group_photo_sub')}</p>
+							<p class="text-sm font-bold text-slate-700 dark:text-slate-300">
+								{i18n.t('group_photo')}
+							</p>
+							<p class="text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
+								{i18n.t('optional_group_photo_sub')}
+							</p>
+						</div>
 					</div>
-				</div>
 
-				<div class="grid grid-cols-2 gap-3 sm:gap-5">
-					<div class="min-w-0">
-						<label for="sport" class={labelClass}>
-							{i18n.t('sport_label')}
-						</label>
+					<div class="grid grid-cols-2 gap-3 sm:gap-5">
+						<div class="min-w-0">
+							<label for="sport" class={labelClass}>
+								{i18n.t('sport_label')}
+							</label>
 
-						<select
-							id="sport"
-							bind:value={sport}
-							class={`mt-2 ${inputClass}`}
-						>
-							<option value="football">{i18n.t('sport_football')}</option>
-							<option value="padel">{i18n.t('sport_padel')}</option>
-							<option value="basketball">{i18n.t('sport_basketball')}</option>
-							<option value="running">{i18n.t('sport_running')}</option>
-							<option value="gym">{i18n.t('sport_gym')}</option>
-							<option value="tennis">{i18n.t('sport_tennis')}</option>
-							<option value="cycling">{i18n.t('sport_cycling')}</option>
-							<option value="volleyball">{i18n.t('sport_volleyball')}</option>
-							<option value="bowling">{i18n.t('sport_bowling')}</option>
-							<option value="snooker">{i18n.t('sport_snooker')}</option>
-							<option value="golf">{i18n.t('sport_golf')}</option>
-							<option value="swimming">{i18n.t('sport_swimming')}</option>
-							<option value="hiking">{i18n.t('sport_hiking')}</option>
-							<option value="yoga">{i18n.t('sport_yoga')}</option>
-							<option value="surf">{i18n.t('sport_surf')}</option>
-							<option value="pingpong">{i18n.t('sport_pingpong')}</option>
-							<option value="rugby">{i18n.t('sport_rugby')}</option>
-							<option value="americanfootball">{i18n.t('sport_americanfootball')}</option>
-							<option value="other">{i18n.t('sport_other')}</option>
-						</select>
+							<select id="sport" bind:value={sport} class={`mt-2 ${inputClass}`}>
+								<option value="football">{i18n.t('sport_football')}</option>
+								<option value="padel">{i18n.t('sport_padel')}</option>
+								<option value="basketball">{i18n.t('sport_basketball')}</option>
+								<option value="running">{i18n.t('sport_running')}</option>
+								<option value="gym">{i18n.t('sport_gym')}</option>
+								<option value="tennis">{i18n.t('sport_tennis')}</option>
+								<option value="cycling">{i18n.t('sport_cycling')}</option>
+								<option value="volleyball">{i18n.t('sport_volleyball')}</option>
+								<option value="bowling">{i18n.t('sport_bowling')}</option>
+								<option value="snooker">{i18n.t('sport_snooker')}</option>
+								<option value="golf">{i18n.t('sport_golf')}</option>
+								<option value="swimming">{i18n.t('sport_swimming')}</option>
+								<option value="hiking">{i18n.t('sport_hiking')}</option>
+								<option value="yoga">{i18n.t('sport_yoga')}</option>
+								<option value="surf">{i18n.t('sport_surf')}</option>
+								<option value="pingpong">{i18n.t('sport_pingpong')}</option>
+								<option value="rugby">{i18n.t('sport_rugby')}</option>
+								<option value="americanfootball">{i18n.t('sport_americanfootball')}</option>
+								<option value="other">{i18n.t('sport_other')}</option>
+							</select>
 
-						{#if sport === 'other'}
-							<input
-								bind:value={customSport}
-								maxlength={TEXT_LIMITS.customSport}
-								placeholder={i18n.t('custom_sport_placeholder')}
-								class={`mt-3 ${inputClass}`}
-							/>
-						{/if}
+							{#if sport === 'other'}
+								<input
+									bind:value={customSport}
+									maxlength={TEXT_LIMITS.customSport}
+									placeholder={i18n.t('custom_sport_placeholder')}
+									class={`mt-3 ${inputClass}`}
+								/>
+							{/if}
+						</div>
+						<div class="min-w-0">
+							<label for="level" class={labelClass}>
+								{i18n.t('level_label')}
+							</label>
+
+							<select id="level" bind:value={level} class={`mt-2 ${inputClass}`}>
+								<option value="beginner">{i18n.t('beginner')}</option>
+								<option value="casual">{i18n.t('casual')}</option>
+								<option value="intermediate">{i18n.t('intermediate')}</option>
+								<option value="advanced">{i18n.t('advanced')}</option>
+							</select>
+						</div>
 					</div>
-					<div class="min-w-0">
-						<label for="level" class={labelClass}>
-							{i18n.t('level_label')}
-						</label>
-
-						<select
-							id="level"
-							bind:value={level}
-							class={`mt-2 ${inputClass}`}
-						>
-							<option value="beginner">{i18n.t('beginner')}</option>
-							<option value="casual">{i18n.t('casual')}</option>
-							<option value="intermediate">{i18n.t('intermediate')}</option>
-							<option value="advanced">{i18n.t('advanced')}</option>
-						</select>
-					</div>
-				</div>
-				<div>
+					<div>
 						<label for="description" class={labelClass}>
 							{i18n.t('description_label')}
 						</label>
 
-					<textarea
-						id="description"
-						bind:value={description}
-						maxlength={TEXT_LIMITS.eventDescription}
-						placeholder={i18n.t('description_placeholder')}
-						class={`mt-2 min-h-24 sm:min-h-28 ${inputClass}`}
-					></textarea>
-				</div>
+						<textarea
+							id="description"
+							bind:value={description}
+							maxlength={TEXT_LIMITS.eventDescription}
+							placeholder={i18n.t('description_placeholder')}
+							class={`mt-2 min-h-24 sm:min-h-28 ${inputClass}`}
+						></textarea>
+					</div>
 
-				<div>
+					<div>
 						<label for="whatToBring" class={labelClass}>
 							{i18n.t('what_to_bring_label')}
 						</label>
 
-					<textarea
-						id="whatToBring"
-						bind:value={whatToBring}
-						maxlength={TEXT_LIMITS.whatToBring}
-						placeholder={i18n.t('what_to_bring_placeholder')}
-						class={`mt-2 min-h-16 sm:min-h-20 ${inputClass}`}
-					></textarea>
-				</div>
+						<textarea
+							id="whatToBring"
+							bind:value={whatToBring}
+							maxlength={TEXT_LIMITS.whatToBring}
+							placeholder={i18n.t('what_to_bring_placeholder')}
+							class={`mt-2 min-h-16 sm:min-h-20 ${inputClass}`}
+						></textarea>
+					</div>
 
-				<div>
+					<div>
 						<label for="location" class={labelClass}>
 							{i18n.t('location_name_label')}
 						</label>
 
-					<input
-						id="location"
-						bind:value={locationName}
-						maxlength={TEXT_LIMITS.locationName}
-						placeholder={i18n.t('location_name_placeholder')}
-						class={`mt-2 ${inputClass}`}
-					/>
-				</div>
-
-				<div class="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5">
-					<div class="min-w-0">
-						<label for="startDate" class={labelClass}>
-							{i18n.t('date_label')}
-						</label>
-
 						<input
-							id="startDate"
-							type="date"
-							bind:value={startDate}
-							min={todayStr}
-							class={`mt-2 min-w-0 ${inputClass}`}
-						/>
-					</div>
-
-					<div class="min-w-0">
-						<label for="startTime" class={labelClass}>
-							{i18n.t('start_time_label')}
-						</label>
-
-						<TimeSelect id="startTime" bind:value={startTime} placeholder={i18n.t('choose_time')} />
-					</div>
-
-					<div class="min-w-0">
-						<label
-							for="durationMinutes"
-								class={labelClass}
-							>
-							{i18n.t('duration_label')}
-						</label>
-
-						<input
-							id="durationMinutes"
-							type="number"
-							min="10"
-							step="5"
-							bind:value={durationMinutes}
-							placeholder="90"
-							class={`mt-2 min-w-0 ${inputClass}`}
-						/>
-					</div>
-
-					<div class="min-w-0">
-						<label
-							for="maxParticipants"
-								class={labelClass}
-						>
-							{i18n.t('max_players_label')}
-						</label>
-
-						<input
-							id="maxParticipants"
-							type="number"
-							min="2"
-							bind:value={maxParticipants}
+							id="location"
+							bind:value={locationName}
+							maxlength={TEXT_LIMITS.locationName}
+							placeholder={i18n.t('location_name_placeholder')}
 							class={`mt-2 ${inputClass}`}
 						/>
 					</div>
-				</div>
 
-				<div
-					class="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800 sm:p-4"
-				>
-					<label class="flex cursor-pointer items-center justify-between gap-4">
-						<div>
-							<p class="text-sm font-bold text-slate-700 dark:text-slate-300">
-								{i18n.t('repeat_event_label')}
-							</p>
-							<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">
-								{i18n.t('repeat_event_sub')}
-							</p>
-						</div>
-
-						<input
-							type="checkbox"
-							bind:checked={isRecurring}
-							class="h-5 w-5 shrink-0 rounded border-slate-300 text-blue-600 accent-blue-600 dark:border-slate-600"
-						/>
-					</label>
-
-					{#if isRecurring}
-						<div class="mt-4 grid grid-cols-2 gap-3">
-							<div class="min-w-0">
-								<label
-									for="recurringFrequency"
-									class={labelClass}
-								>
-									{i18n.t('repeats_label')}
-								</label>
-
-								<select
-									id="recurringFrequency"
-									bind:value={recurringFrequency}
-									class={`mt-2 bg-white dark:bg-slate-900 ${inputClass}`}
-								>
-									<option value="weekly">{i18n.t('every_week')}</option>
-									<option value="biweekly">{i18n.t('every_2_weeks')}</option>
-									<option value="monthly">{i18n.t('every_month')}</option>
-								</select>
-							</div>
-
-							<div class="min-w-0">
-								<label
-									for="recurringOccurrences"
-									class={labelClass}
-								>
-									{i18n.t('number_of_events_label')}
-								</label>
-
-								<input
-									id="recurringOccurrences"
-									type="number"
-									min="2"
-									max="12"
-									bind:value={recurringOccurrences}
-									class={`mt-2 bg-white dark:bg-slate-900 ${inputClass}`}
-								/>
-							</div>
-						</div>
-
-						{#if recurringEndDateLabel}
-							<p class="mt-3 text-sm font-medium text-slate-500 dark:text-slate-400">
-								{i18n.t('series_events_summary', { count: recurringOccurrences, date: recurringEndDateLabel })}
-							</p>
-						{/if}
-					{/if}
-				</div>
-
-				<div class="grid grid-cols-2 gap-3 sm:gap-5">
-					<div>
-					<label for="visibility" class={labelClass}>
-							{i18n.t('visibility_label')}
-						</label>
-
-						<select
-							id="visibility"
-							bind:value={visibility}
-							class={`mt-2 ${inputClass}`}
-						>
-							<option value="private">{i18n.t('visibility_private')}</option>
-							<option value="friends">{i18n.t('visibility_friends')}</option>
-							<option value="public">{i18n.t('visibility_public')}</option>
-						</select>
-					</div>
-
-					<div>
-						<span class={labelClass}>{i18n.t('pricing_label')}</span>
-						<div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
-							<button
-								type="button"
-								onclick={() => { priceMode = 'free'; priceValue = null; }}
-								class={`min-h-11 rounded-2xl border px-3 py-2.5 text-center text-sm font-bold leading-tight break-words transition ${
-									priceMode === 'free'
-										? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
-										: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
-								}`}
-							>
-								{i18n.t('free')}
-							</button>
-							<button
-								type="button"
-								onclick={() => { priceMode = 'per_person'; }}
-								class={`min-h-11 rounded-2xl border px-3 py-2.5 text-center text-sm font-bold leading-tight break-words transition ${
-									priceMode === 'per_person'
-										? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
-										: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
-								}`}
-							>
-								{i18n.t('per_person_pricing')}
-							</button>
-							<button
-								type="button"
-								onclick={() => { priceMode = 'total_split'; }}
-								class={`min-h-11 rounded-2xl border px-3 py-2.5 text-center text-sm font-bold leading-tight break-words transition ${
-									priceMode === 'total_split'
-										? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
-										: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
-								}`}
-							>
-								{i18n.t('total_split_pricing')}
-							</button>
-						</div>
-					</div>
-
-					{#if priceMode !== 'free'}
-						<div class="sm:col-span-2">
-							<label for="price" class={labelClass}>
-								{priceMode === 'per_person' ? i18n.t('price_per_person_label') : i18n.t('total_event_price_label')}
+					<div class="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5">
+						<div class="min-w-0">
+							<label for="startDate" class={labelClass}>
+								{i18n.t('date_label')}
 							</label>
 
-							<div class="mt-2 grid grid-cols-[minmax(0,1fr)_5.75rem] gap-2 sm:grid-cols-[minmax(0,1fr)_6.5rem]">
+							<input
+								id="startDate"
+								type="date"
+								bind:value={startDate}
+								min={todayStr}
+								class={`mt-2 min-w-0 ${inputClass}`}
+							/>
+						</div>
+
+						<div class="min-w-0">
+							<label for="startTime" class={labelClass}>
+								{i18n.t('start_time_label')}
+							</label>
+
+							<TimeSelect
+								id="startTime"
+								bind:value={startTime}
+								placeholder={i18n.t('choose_time')}
+							/>
+						</div>
+
+						<div class="min-w-0">
+							<label for="durationHoursValue" class={labelClass}>
+								{i18n.t('duration_label')}
+							</label>
+
+							<div
+								class="mt-2 flex min-w-0 items-center gap-1 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-slate-950 transition focus-within:border-blue-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus-within:bg-slate-800 dark:focus-within:ring-blue-950 sm:px-4 sm:py-3"
+							>
 								<input
-									id="price"
-									type="number"
-									min="0"
-									step="0.01"
-									bind:value={priceValue}
-									placeholder="0.00"
-									required
-									class={inputClass}
+									id="durationHoursValue"
+									type="text"
+									inputmode="numeric"
+									maxlength="2"
+									pattern="[0-9][0-9]?"
+									bind:value={durationHoursValue}
+									onblur={normalizeDurationValue}
+									aria-label={i18n.t('duration_hours_aria')}
+									placeholder="01"
+									class="w-6 border-0 bg-transparent p-0 text-center text-sm font-semibold tabular-nums outline-none ring-0 sm:text-base"
 								/>
-								<select bind:value={currency} aria-label={i18n.t('currency')} class={inputClass}>
-									{#each currencyOptions as option}
-										<option value={option.value}>{option.label}</option>
-									{/each}
-								</select>
+								<span class="select-none font-black text-slate-400">:</span>
+								<input
+									type="text"
+									inputmode="numeric"
+									maxlength="2"
+									pattern="[0-9][0-9]?"
+									bind:value={durationMinutesValue}
+									onblur={normalizeDurationValue}
+									aria-label={i18n.t('duration_minutes_aria')}
+									placeholder="30"
+									class="w-6 border-0 bg-transparent p-0 text-center text-sm font-semibold tabular-nums outline-none ring-0 sm:text-base"
+								/>
+								<span
+									class="ml-auto select-none text-sm font-bold text-slate-400 dark:text-slate-500"
+									>h</span
+								>
 							</div>
 						</div>
+
+						<div class="min-w-0">
+							<label for="maxParticipants" class={labelClass}>
+								{i18n.t('max_players_label')}
+							</label>
+
+							<input
+								id="maxParticipants"
+								type="number"
+								min="2"
+								bind:value={maxParticipants}
+								class={`mt-2 ${inputClass}`}
+							/>
+						</div>
+					</div>
+
+					<div
+						class="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800 sm:p-4"
+					>
+						<label class="flex cursor-pointer items-center justify-between gap-4">
+							<div>
+								<p class="text-sm font-bold text-slate-700 dark:text-slate-300">
+									{i18n.t('repeat_event_label')}
+								</p>
+								<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">
+									{i18n.t('repeat_event_sub')}
+								</p>
+							</div>
+
+							<input
+								type="checkbox"
+								bind:checked={isRecurring}
+								class="h-5 w-5 shrink-0 rounded border-slate-300 text-blue-600 accent-blue-600 dark:border-slate-600"
+							/>
+						</label>
+
+						{#if isRecurring}
+							<div class="mt-4 grid grid-cols-2 gap-3">
+								<div class="min-w-0">
+									<label for="recurringFrequency" class={labelClass}>
+										{i18n.t('repeats_label')}
+									</label>
+
+									<select
+										id="recurringFrequency"
+										bind:value={recurringFrequency}
+										class={`mt-2 bg-white dark:bg-slate-900 ${inputClass}`}
+									>
+										<option value="weekly">{i18n.t('every_week')}</option>
+										<option value="biweekly">{i18n.t('every_2_weeks')}</option>
+										<option value="monthly">{i18n.t('every_month')}</option>
+									</select>
+								</div>
+
+								<div class="min-w-0">
+									<label for="recurringOccurrences" class={labelClass}>
+										{i18n.t('number_of_events_label')}
+									</label>
+
+									<input
+										id="recurringOccurrences"
+										type="number"
+										min="2"
+										max="12"
+										bind:value={recurringOccurrences}
+										class={`mt-2 bg-white dark:bg-slate-900 ${inputClass}`}
+									/>
+								</div>
+							</div>
+
+							{#if recurringEndDateLabel}
+								<p class="mt-3 text-sm font-medium text-slate-500 dark:text-slate-400">
+									{i18n.t('series_events_summary', {
+										count: recurringOccurrences,
+										date: recurringEndDateLabel
+									})}
+								</p>
+							{/if}
+						{/if}
+					</div>
+
+					<div class="grid grid-cols-2 gap-3 sm:gap-5">
+						<div>
+							<label for="visibility" class={labelClass}>
+								{i18n.t('visibility_label')}
+							</label>
+
+							<select id="visibility" bind:value={visibility} class={`mt-2 ${inputClass}`}>
+								<option value="private">{i18n.t('visibility_private')}</option>
+								<option value="friends">{i18n.t('visibility_friends')}</option>
+								<option value="public">{i18n.t('visibility_public')}</option>
+							</select>
+						</div>
+
+						<div>
+							<span class={labelClass}>{i18n.t('pricing_label')}</span>
+							<div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+								<button
+									type="button"
+									onclick={() => {
+										priceMode = 'free';
+										priceValue = null;
+									}}
+									class={`min-h-11 rounded-2xl border px-3 py-2.5 text-center text-sm font-bold leading-tight break-words transition ${
+										priceMode === 'free'
+											? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
+											: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
+									}`}
+								>
+									{i18n.t('free')}
+								</button>
+								<button
+									type="button"
+									onclick={() => {
+										priceMode = 'per_person';
+									}}
+									class={`min-h-11 rounded-2xl border px-3 py-2.5 text-center text-sm font-bold leading-tight break-words transition ${
+										priceMode === 'per_person'
+											? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
+											: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
+									}`}
+								>
+									{i18n.t('per_person_pricing')}
+								</button>
+								<button
+									type="button"
+									onclick={() => {
+										priceMode = 'total_split';
+									}}
+									class={`min-h-11 rounded-2xl border px-3 py-2.5 text-center text-sm font-bold leading-tight break-words transition ${
+										priceMode === 'total_split'
+											? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
+											: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
+									}`}
+								>
+									{i18n.t('total_split_pricing')}
+								</button>
+							</div>
+						</div>
+
+						{#if priceMode !== 'free'}
+							<div class="sm:col-span-2">
+								<label for="price" class={labelClass}>
+									{priceMode === 'per_person'
+										? i18n.t('price_per_person_label')
+										: i18n.t('total_event_price_label')}
+								</label>
+
+								<div
+									class="mt-2 grid grid-cols-[minmax(0,1fr)_5.75rem] gap-2 sm:grid-cols-[minmax(0,1fr)_6.5rem]"
+								>
+									<input
+										id="price"
+										type="number"
+										min="0"
+										step="0.01"
+										bind:value={priceValue}
+										placeholder="0.00"
+										required
+										class={inputClass}
+									/>
+									<select bind:value={currency} aria-label={i18n.t('currency')} class={inputClass}>
+										{#each currencyOptions as option}
+											<option value={option.value}>{option.label}</option>
+										{/each}
+									</select>
+								</div>
+							</div>
+						{/if}
+					</div>
+
+					<div>
+						<p class="text-sm font-bold text-slate-700 dark:text-slate-300">
+							{i18n.t('who_can_join_label')}
+						</p>
+
+						<div class="mt-2 grid grid-cols-2 gap-3">
+							<button
+								type="button"
+								onclick={() => (joinPolicy = 'open')}
+								class={`rounded-2xl border p-2.5 text-left transition sm:p-3 ${
+									joinPolicy === 'open'
+										? 'border-blue-500 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/40'
+										: 'border-slate-200 bg-white hover:border-blue-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-blue-500'
+								}`}
+							>
+								<p class="text-sm font-bold text-slate-950 dark:text-slate-50 sm:text-base">
+									{i18n.t('open_join_label')}
+								</p>
+								<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">
+									{i18n.t('open_join_sub')}
+								</p>
+							</button>
+
+							<button
+								type="button"
+								onclick={() => (joinPolicy = 'approval')}
+								class={`rounded-2xl border p-2.5 text-left transition sm:p-3 ${
+									joinPolicy === 'approval'
+										? 'border-blue-500 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/40'
+										: 'border-slate-200 bg-white hover:border-blue-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-blue-500'
+								}`}
+							>
+								<p class="text-sm font-bold text-slate-950 dark:text-slate-50 sm:text-base">
+									{i18n.t('request_join_label')}
+								</p>
+								<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">
+									{i18n.t('request_join_sub')}
+								</p>
+							</button>
+						</div>
+					</div>
+
+					<div class="mt-4 sm:mt-8">
+						<LocationPickerMap bind:lat bind:lng bind:address autofillAddress={voiceLocationHint} />
+					</div>
+					{#if (sport === 'running' || sport === 'cycling' || sport === 'hiking') && lat !== null && lng !== null}
+						<div class="mt-4">
+							<RouteEditorMap
+								bind:points={route}
+								center={lat !== null && lng !== null ? { lat, lng } : null}
+							/>
+						</div>
 					{/if}
-				</div>
-
-				<div>
-					<p class="text-sm font-bold text-slate-700 dark:text-slate-300">{i18n.t('who_can_join_label')}</p>
-
-					<div class="mt-2 grid grid-cols-2 gap-3">
-						<button
-							type="button"
-							onclick={() => (joinPolicy = 'open')}
-						class={`rounded-2xl border p-2.5 text-left transition sm:p-3 ${
-								joinPolicy === 'open'
-									? 'border-blue-500 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/40'
-									: 'border-slate-200 bg-white hover:border-blue-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-blue-500'
-							}`}
-						>
-							<p class="text-sm font-bold text-slate-950 dark:text-slate-50 sm:text-base">{i18n.t('open_join_label')}</p>
-							<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">
-								{i18n.t('open_join_sub')}
-							</p>
-						</button>
-
-						<button
-							type="button"
-							onclick={() => (joinPolicy = 'approval')}
-						class={`rounded-2xl border p-2.5 text-left transition sm:p-3 ${
-								joinPolicy === 'approval'
-									? 'border-blue-500 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/40'
-									: 'border-slate-200 bg-white hover:border-blue-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-blue-500'
-							}`}
-						>
-							<p class="text-sm font-bold text-slate-950 dark:text-slate-50 sm:text-base">{i18n.t('request_join_label')}</p>
-							<p class="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">
-								{i18n.t('request_join_sub')}
-							</p>
-						</button>
-					</div>
-				</div>
-
-				<div class="mt-4 sm:mt-8">
-					<LocationPickerMap bind:lat bind:lng bind:address autofillAddress={voiceLocationHint} />
-				</div>
-				{#if (sport === 'running' || sport === 'cycling' || sport === 'hiking') && lat !== null && lng !== null}
-					<div class="mt-4">
-						<RouteEditorMap bind:points={route} center={lat !== null && lng !== null ? { lat, lng } : null} />
-					</div>
-				{/if}
-				<button
-					type="submit"
-					disabled={loading || groupPhotoUploading}
-					class="mt-3 w-full rounded-2xl bg-blue-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:shadow-blue-950/40 sm:py-4 sm:text-base"
-				>
-					{loading ? i18n.t('creating_btn') : groupPhotoUploading ? i18n.t('uploading_photo_btn') : i18n.t('create_event_btn')}
-				</button>
-			</form>
-		</div>
+					<button
+						type="submit"
+						disabled={loading || groupPhotoUploading}
+						class="mt-3 w-full rounded-2xl bg-blue-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:shadow-blue-950/40 sm:py-4 sm:text-base"
+					>
+						{loading
+							? i18n.t('creating_btn')
+							: groupPhotoUploading
+								? i18n.t('uploading_photo_btn')
+								: i18n.t('create_event_btn')}
+					</button>
+				</form>
+			</div>
 		{/if}
 	</div>
 </div>
@@ -784,9 +844,12 @@
 		>
 			<div class="flex items-start justify-between gap-4 p-6 pb-4">
 				<div>
-					<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">{i18n.t('invite_friends_modal_title')}</h2>
+					<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">
+						{i18n.t('invite_friends_modal_title')}
+					</h2>
 					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-						{i18n.t('to_event_text')} <span class="font-bold text-slate-700 dark:text-slate-300">{createdEventTitle}</span>
+						{i18n.t('to_event_text')}
+						<span class="font-bold text-slate-700 dark:text-slate-300">{createdEventTitle}</span>
 					</p>
 				</div>
 
@@ -888,7 +951,9 @@
 						class="flex-1 rounded-2xl bg-blue-600 px-4 py-3 font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						{inviteSending
-							? i18n.t('sending') !== 'sending' ? i18n.t('sending') : 'Sending...'
+							? i18n.t('sending') !== 'sending'
+								? i18n.t('sending')
+								: 'Sending...'
 							: `${i18n.t('invite_btn')}${selectedFriendIds.length > 0 ? ` (${selectedFriendIds.length})` : ''}`}
 					</button>
 				</div>

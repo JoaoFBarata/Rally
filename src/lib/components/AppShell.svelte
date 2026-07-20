@@ -11,7 +11,11 @@
 	import { PanelLeft } from '@lucide/svelte';
 	import { initTheme } from '$lib/theme.svelte';
 	import type { UserProfile } from '$lib/schema';
-	import { ensureUserProfile, removeUserFcmToken, saveUserFcmToken } from '$lib/services/user.service';
+	import {
+		ensureUserProfile,
+		removeUserFcmToken,
+		saveUserFcmToken
+	} from '$lib/services/user.service';
 	import { i18n } from '$lib/services/i18n.svelte';
 	import { isPlatformAdminEmail } from '$lib/admin';
 	import {
@@ -299,23 +303,27 @@
 
 				try {
 					await ensureUserProfile(user);
-					unsubscribeUserDoc = onSnapshot(doc(db, 'users', user.uid), (snapshot) => {
-						if (snapshot.exists()) {
-							profile = {
-								...snapshot.data(),
-								id: snapshot.id
-							} as UserProfile;
-							if (profile.language) {
-								i18n.setLanguage(profile.language as any);
+					unsubscribeUserDoc = onSnapshot(
+						doc(db, 'users', user.uid),
+						(snapshot) => {
+							if (snapshot.exists()) {
+								profile = {
+									...snapshot.data(),
+									id: snapshot.id
+								} as UserProfile;
+								if (profile.language) {
+									i18n.setLanguage(profile.language as any);
+								}
+							} else {
+								profile = null;
 							}
-						} else {
-							profile = null;
+							loadingProfile = false;
+						},
+						(err) => {
+							console.error('Realtime profile load error:', err);
+							loadingProfile = false;
 						}
-						loadingProfile = false;
-					}, (err) => {
-						console.error('Realtime profile load error:', err);
-						loadingProfile = false;
-					});
+					);
 					registerPushNotifications(user.uid);
 				} catch (err) {
 					console.error('Load shell profile error:', err);
@@ -354,63 +362,62 @@
 		<div class="flex min-h-screen min-w-0 overflow-x-clip">
 			<!-- Desktop sidebar -->
 			<aside
-				class={`hidden md:flex flex-col h-screen sticky top-0 shrink-0 overflow-hidden bg-[#f6f6f6] transition-[width] duration-200 ease-in-out dark:bg-[#242424] ${
+				class={`hidden md:flex flex-col h-screen sticky top-0 shrink-0 overflow-hidden bg-[#f6f6f6] transition-[width] duration-300 ease-in-out dark:bg-[#242424] ${
 					sidebarCollapsed ? 'w-24' : 'w-71'
 				}`}
 			>
-				<div class={sidebarCollapsed ? 'flex w-full flex-col items-center pt-6' : 'flex w-full items-center justify-between pl-6.75 pr-6 pt-6'}>
-					{#if sidebarCollapsed}
-						<button
-							type="button"
-							onclick={toggleSidebar}
-							title={i18n.t('expand_sidebar')}
-							aria-label={i18n.t('expand_sidebar')}
-							class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-200 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
-						>
-							<PanelLeft class="h-5 w-5" />
-						</button>
-					{:else}
+				<div class="relative h-18 w-full shrink-0">
+					<div
+						class={`absolute left-6.75 top-6 transition-all duration-300 ease-in-out ${sidebarCollapsed ? '-translate-x-3 opacity-0 pointer-events-none' : 'translate-x-0 opacity-100'}`}
+					>
 						<RallyLogo size="md" href={organizationManageHref ?? '/'} />
-						<button
-							type="button"
-							onclick={toggleSidebar}
-							title={i18n.t('collapse_sidebar')}
-							aria-label={i18n.t('collapse_sidebar')}
-							class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-200 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
-						>
-							<PanelLeft class="h-5 w-5" />
-						</button>
-					{/if}
+					</div>
+					<button
+						type="button"
+						onclick={toggleSidebar}
+						title={sidebarCollapsed ? i18n.t('expand_sidebar') : i18n.t('collapse_sidebar')}
+						aria-label={sidebarCollapsed ? i18n.t('expand_sidebar') : i18n.t('collapse_sidebar')}
+						class="absolute top-7.5 right-6 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors duration-300 ease-in-out hover:bg-slate-200 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+					>
+						<PanelLeft class="h-5 w-5" />
+					</button>
 				</div>
 
-				<div class={sidebarCollapsed ? 'flex w-full flex-col items-center mt-6.25' : 'w-full pl-6.75 mt-6.25'}>
+				<div
+					class={`mt-6.25 flex w-full justify-center transition-[padding] duration-300 ease-in-out ${sidebarCollapsed ? 'px-4.75' : 'px-6.75'}`}
+				>
 					<button
-						class={sidebarCollapsed
-							? 'mt-10.25 flex h-14.5 w-14.5 items-center justify-center bg-[#0095ff] hover:shadow-[0px_5px_15px_0px_rgba(100,100,111,0.7)] dark:hover:shadow-[0px_5px_15px_0px_rgba(155,155,144,0.7)] rounded-[10px] text-white cursor-pointer'
-							: 'mt-10.25 w-53.25 h-14.5 bg-[#0095ff] hover:shadow-[0px_5px_15px_0px_rgba(100,100,111,0.7)] dark:hover:shadow-[0px_5px_15px_0px_rgba(155,155,144,0.7)] rounded-[10px] text-white cursor-pointer'}
+						class={`relative mt-10.25 flex h-14.5 items-center justify-center overflow-hidden rounded-[10px] bg-[#0095ff] text-white cursor-pointer transition-[width,box-shadow] duration-300 ease-in-out hover:shadow-[0px_5px_15px_0px_rgba(100,100,111,0.7)] dark:hover:shadow-[0px_5px_15px_0px_rgba(155,155,144,0.7)] ${sidebarCollapsed ? 'w-14.5' : 'w-53.25'}`}
 						onclick={() => goto(resolveNavHref(createEventHref))}
 						title={sidebarCollapsed ? i18n.t('new_event') : undefined}
 					>
-						{#if sidebarCollapsed}
-							<NavIcon name="create" />
-						{:else}
-							<h3 class="text-[20px] font-semibold">{i18n.t('new_event')}</h3>
-						{/if}
+						<span
+							class={`absolute transition-all duration-200 ${sidebarCollapsed ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`}
+							><NavIcon name="create" /></span
+						>
+						<h3
+							class={`whitespace-nowrap text-[20px] font-semibold transition-all duration-200 ${sidebarCollapsed ? 'scale-95 opacity-0' : 'scale-100 opacity-100'}`}
+						>
+							{i18n.t('new_event')}
+						</h3>
 					</button>
 				</div>
-				<div class="w-full grow flex flex-col justify-between bg-[#eaeaea] dark:bg-[#1E1E1E] rounded-tr-[75px] mt-10 pb-9">
+				<div
+					class="w-full grow flex flex-col justify-between bg-[#eaeaea] dark:bg-[#1E1E1E] rounded-tr-[75px] mt-10 pb-9"
+				>
 					<div>
 						{#each navItems as item, idx (item.href)}
 							<a
 								href={resolveNavHref(item.href)}
 								title={sidebarCollapsed ? item.label : undefined}
-								class={`flex items-center text-[1.25rem] ${idx==0 ? 'rounded-tr-[75px] ' : ''}font-medium transition py-5 w-full ${
-												sidebarCollapsed ? 'flex-col justify-center gap-1 px-2' : 'flex-row gap-6 px-[2.59375rem]'
-											} ${
-												isActive(item.href)
-													? 'bg-blue-600 text-white'
-													: 'text-slate-600 hover:bg-slate-300 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
-										  }`}>
+								class={`flex flex-row items-center text-[1.25rem] ${idx == 0 ? 'rounded-tr-[75px] ' : ''}font-medium transition-all duration-300 py-5 w-full gap-6 ${
+									sidebarCollapsed ? 'px-9' : 'px-[2.59375rem]'
+								} ${
+									isActive(item.href)
+										? 'bg-blue-600 text-white'
+										: 'text-slate-600 hover:bg-slate-300 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
+								}`}
+							>
 								<span class="relative flex items-center justify-center h-6 w-6 text-lg">
 									<NavIcon name={item.icon} />
 									{#if sidebarCollapsed && item.href === '/messages' && notificationState.unreadMessages > 0}
@@ -418,43 +425,50 @@
 									{/if}
 								</span>
 
-								{#if !sidebarCollapsed}
-									<span>{item.label}</span>
+								<span
+									class={`whitespace-nowrap transition-all duration-200 ${sidebarCollapsed ? 'pointer-events-none -translate-x-2 opacity-0' : 'translate-x-0 opacity-100'}`}
+									>{item.label}</span
+								>
 
-									{#if item.href === '/messages' && notificationState.unreadMessages > 0}
-										<span
-											class={`ml-auto flex min-h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold ${
-												isActive(item.href) ? 'bg-white text-blue-600' : 'bg-red-500 text-white'
-											}`}>
-											{formatBadge(notificationState.unreadMessages)}
-										</span>
-									{/if}
+								{#if !sidebarCollapsed && item.href === '/messages' && notificationState.unreadMessages > 0}
+									<span
+										class={`ml-auto flex min-h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold ${
+											isActive(item.href) ? 'bg-white text-blue-600' : 'bg-red-500 text-white'
+										}`}
+									>
+										{formatBadge(notificationState.unreadMessages)}
+									</span>
 								{/if}
 							</a>
 						{/each}
 					</div>
 					<div>
-						<a href={resolveNavHref('/settings')}
+						<a
+							href={resolveNavHref('/settings')}
 							title={sidebarCollapsed ? i18n.t('settings') : undefined}
-							class={`flex items-center text-[1.25rem] font-medium transition py-5 w-full ${
-												sidebarCollapsed ? 'flex-col justify-center gap-1 px-2' : 'flex-row gap-6 px-[2.59375rem]'
-											} ${
-												isActive('/settings')
-													? 'bg-blue-600 text-white'
-													: 'text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
-									}`}>
+							class={`flex flex-row items-center gap-6 text-[1.25rem] font-medium transition-all duration-300 py-5 w-full ${
+								sidebarCollapsed ? 'px-9' : 'px-[2.59375rem]'
+							} ${
+								isActive('/settings')
+									? 'bg-blue-600 text-white'
+									: 'text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
+							}`}
+						>
 							<span class="flex items-center justify-center h-6 w-6 text-lg">
-								<NavIcon name="settings"/>
+								<NavIcon name="settings" />
 							</span>
-							{#if !sidebarCollapsed}
-								<span>{i18n.t('settings')}</span>
-							{/if}
+							<span
+								class={`whitespace-nowrap transition-all duration-200 ${sidebarCollapsed ? 'pointer-events-none -translate-x-2 opacity-0' : 'translate-x-0 opacity-100'}`}
+								>{i18n.t('settings')}</span
+							>
 						</a>
 					</div>
 				</div>
 			</aside>
 			<div class="flex min-w-0 flex-1 flex-col overflow-x-clip">
-				<main class={`min-h-screen min-w-0 overflow-x-clip pb-28 ${pathname === '/explore' || pathname === '/profile' ? '' : 'md:px-28'}`}>
+				<main
+					class={`min-h-screen min-w-0 overflow-x-clip pb-28 ${pathname === '/explore' || pathname === '/profile' ? '' : 'md:px-28'}`}
+				>
 					{@render children()}
 				</main>
 			</div>
@@ -496,7 +510,10 @@
 						</span>
 					</a>
 					{#if idx == Math.floor(mobileNavItems.length / 2) - 1}
-						<a href={resolveNavHref(createEventHref)} class="flex flex-col items-center justify-end gap-1">
+						<a
+							href={resolveNavHref(createEventHref)}
+							class="flex flex-col items-center justify-end gap-1"
+						>
 							<span
 								class={`relative flex items-center justify-center text-lg transition-all ${mobileNavItems.length > 5 ? 'h-10 w-10' : 'h-11 w-11'} -translate-y-2 rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/35 hover:bg-blue-700 active:scale-95`}
 							>
