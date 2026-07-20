@@ -203,6 +203,17 @@
 		});
 	}
 
+	function canViewerSeeProfileEvent(
+		event: SportEvent,
+		currentUserId: string,
+		viewerRelationship: RelationshipStatus
+	): boolean {
+		if (event.visibility === 'public') return true;
+		if (event.creatorId === currentUserId || event.participantIds?.includes(currentUserId)) return true;
+		if (event.visibility === 'friends') return viewerRelationship === 'friends';
+		return false;
+	}
+
 	async function loadUserPage(currentUserId: string, showLoading = true) {
 		if (showLoading) loading = true;
 		error = '';
@@ -302,13 +313,19 @@
 						})
 			]);
 
+			relationship = loadedRelationship;
 			allHostedEvents = sortEventsByStatusThenDate(
-				allHosted.filter((e) => e.visibility === 'public')
+				allHosted.filter((event) =>
+					canViewerSeeProfileEvent(event, currentUserId, loadedRelationship)
+				)
 			);
 			allParticipatedEvents = sortEventsByStatusThenDate(
-				allParticipated.filter((e) => e.visibility === 'public' && e.creatorId !== targetUserId)
+				allParticipated.filter(
+					(event) =>
+						event.creatorId !== targetUserId &&
+						canViewerSeeProfileEvent(event, currentUserId, loadedRelationship)
+				)
 			);
-			relationship = loadedRelationship;
 			currentFriends = loadedCurrentFriends;
 			targetFriends = loadedTargetFriends;
 		} catch (err) {
@@ -835,7 +852,18 @@
 						</div>
 						<div class="-mx-1 space-y-3 px-1">
 							{#each liveProfileEvents.slice(0, 2) as event (event.id)}
-								<PublicProfileEventCard {event} />
+								<div class="overflow-hidden rounded-[1.9rem] border border-emerald-100 bg-white p-2 shadow-sm shadow-emerald-100/70 dark:border-emerald-900/60 dark:bg-slate-900 dark:shadow-none">
+									<div class="mb-2 flex items-center justify-between gap-2 px-2 pt-1">
+										<div class="min-w-0">
+											<p class="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">{i18n.t('happening_now')}</p>
+											<p class="truncate text-xs font-bold text-slate-500 dark:text-slate-400">{targetProfile.displayName}</p>
+										</div>
+										{#if event.eventKind === 'tournament'}
+											<span class="shrink-0 rounded-full bg-purple-50 px-3 py-1 text-xs font-black text-purple-700 dark:bg-purple-950 dark:text-purple-300">{i18n.t('status_tournament')}</span>
+										{/if}
+									</div>
+									<PublicProfileEventCard {event} />
+								</div>
 							{/each}
 						</div>
 					</section>

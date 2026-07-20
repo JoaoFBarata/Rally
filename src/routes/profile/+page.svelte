@@ -402,7 +402,9 @@
 		</div>
 
 		<div class="flex items-center justify-between gap-3 md:hidden">
-			<p class="text-base font-black text-slate-950 dark:text-slate-50">{i18n.t('profile')}</p>
+			<h1 class="text-2xl font-black tracking-tight text-slate-950 dark:text-slate-50">
+				{i18n.t('profile')}
+			</h1>
 			<a
 				href={resolve('/settings')}
 				class="grid h-10 w-10 place-items-center rounded-full bg-white text-slate-600 shadow-sm ring-1 ring-slate-200 transition hover:text-blue-600 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-800 dark:hover:text-blue-400"
@@ -1281,12 +1283,16 @@
 						</p>
 					</div>
 				{:else}
-					<div class="mt-3 divide-y divide-slate-100 dark:divide-slate-800">
+					<div
+						class="mt-3 grid max-h-[34rem] gap-2 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3"
+					>
 						{#each friends as friend (friend.id)}
-							<div class="flex items-center justify-between gap-3 py-2.5">
+							<div
+								class="flex min-w-0 items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-2.5 dark:border-slate-800 dark:bg-slate-950/40"
+							>
 								<a
 									href={resolve(`/users/${friend.id}`)}
-									class="flex min-w-0 flex-1 items-center gap-3 rounded-2xl p-1.5 transition hover:bg-slate-50 dark:hover:bg-slate-800"
+									class="flex min-w-0 flex-1 items-center gap-3 rounded-2xl p-1 transition hover:bg-white dark:hover:bg-slate-900"
 								>
 									<UserAvatar
 										photoURL={friend.photoURL}

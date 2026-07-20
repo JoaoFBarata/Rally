@@ -47,6 +47,7 @@
 	import EventCard from '$lib/components/EventCard.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import PromotedEventCarousel from '$lib/components/PromotedEventCarousel.svelte';
+	import RallyLogo from '$lib/components/RallyLogo.svelte';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import {
 		subscribeToEventCatalogChanges,
@@ -89,7 +90,7 @@
 	let showNotifications = $state(false);
 	let dashboardSearch = $state('');
 	let radiusKm = $state(20);
-	let discoverTab = $state<'nearby' | 'recommended' | 'following'>('nearby');
+	let discoverTab = $state<'nearby' | 'recommended' | 'following'>('recommended');
 	let userDeviceLocation = $state<{ lat: number; lng: number } | null>(null);
 	let locationStatus = $state<'idle' | 'loading' | 'ready' | 'blocked' | 'unsupported'>('idle');
 	let scrollContainer = $state<HTMLDivElement>();
@@ -169,6 +170,8 @@
 	let primarySpotlightRally = $derived(spotlightRallies[0] ?? null);
 	let compactSpotlightRallies = $derived(spotlightRallies.slice(1, 5));
 	let recentlyFinishedRallies = $derived.by(() => {
+		if (spotlightRallies.length > 0) return [];
+
 		const finished = allUserEvents
 			.filter((event) => event.status !== 'cancelled')
 			.filter((event) => getEventTemporalState(event, nowMs) === 'finished')
@@ -785,7 +788,7 @@
 	<div class="mx-auto w-full max-w-[1500px] px-4 py-5 sm:px-5 sm:py-8">
 		<header class="mb-5 flex items-center justify-between gap-4 sm:mb-7">
 			<div class="min-w-0">
-				<p class="text-sm font-black text-blue-600 dark:text-blue-400">Rally</p>
+				<RallyLogo size="xs" href="/dashboard" />
 				<h1
 					class="mt-1 line-clamp-2 break-words text-2xl font-black leading-tight tracking-tight text-slate-950 dark:text-slate-50 sm:text-4xl"
 				>
@@ -1680,23 +1683,6 @@
 				>
 					<button
 						type="button"
-						onclick={() => (discoverTab = 'nearby')}
-						class={`relative shrink-0 pb-3 pr-5 text-sm font-bold transition ${
-							discoverTab === 'nearby'
-								? 'text-slate-950 dark:text-slate-50'
-								: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
-						}`}
-					>
-						{i18n.t('nearby')}
-						{#if discoverTab === 'nearby'}
-							<span
-								class="absolute bottom-0 left-0 right-5 h-0.5 rounded-full bg-slate-950 dark:bg-white"
-							></span>
-						{/if}
-					</button>
-
-					<button
-						type="button"
 						onclick={() => (discoverTab = 'recommended')}
 						class={`relative shrink-0 pb-3 pr-5 text-sm font-bold transition ${
 							discoverTab === 'recommended'
@@ -1706,6 +1692,23 @@
 					>
 						{i18n.t('for_you')}
 						{#if discoverTab === 'recommended'}
+							<span
+								class="absolute bottom-0 left-0 right-5 h-0.5 rounded-full bg-slate-950 dark:bg-white"
+							></span>
+						{/if}
+					</button>
+
+					<button
+						type="button"
+						onclick={() => (discoverTab = 'nearby')}
+						class={`relative shrink-0 pb-3 pr-5 text-sm font-bold transition ${
+							discoverTab === 'nearby'
+								? 'text-slate-950 dark:text-slate-50'
+								: 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
+						}`}
+					>
+						{i18n.t('nearby')}
+						{#if discoverTab === 'nearby'}
 							<span
 								class="absolute bottom-0 left-0 right-5 h-0.5 rounded-full bg-slate-950 dark:bg-white"
 							></span>

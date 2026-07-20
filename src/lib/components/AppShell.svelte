@@ -521,7 +521,7 @@
 						</span>
 
 						<span
-							class={`max-w-12 truncate text-[10px] font-medium sm:text-[11px] ${
+							class={`max-w-14 truncate text-[11px] font-bold leading-none ${
 								isActive(item.href)
 									? 'text-blue-600 dark:text-blue-400'
 									: 'text-slate-400 dark:text-slate-500'

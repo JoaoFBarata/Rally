@@ -18,9 +18,14 @@ const PUSH_TEXT = {
     en: {
         someone: "Someone",
         friend: "A friend",
+        rallyTitle: "Rally",
         eventFallback: "an event",
         attachment: "Sent an attachment.",
         newMessageFrom: (name) => `New message from ${name}`,
+        friendRequestTitle: "Friend request",
+        friendRequestBody: (name) => `${name} sent you a friend request.`,
+        friendAcceptedTitle: "Friend request accepted",
+        friendAcceptedBody: (name) => `${name} accepted your friend request.`,
         eventInviteTitle: "Event invite",
         eventInviteBody: (name, title) => `${name} invited you to "${title}".`,
         eventStartingSoonTitle: "Event starting soon",
@@ -29,9 +34,14 @@ const PUSH_TEXT = {
     pt: {
         someone: "Alguém",
         friend: "Um amigo",
+        rallyTitle: "Rally",
         eventFallback: "um evento",
         attachment: "Enviou um anexo.",
         newMessageFrom: (name) => `Nova mensagem de ${name}`,
+        friendRequestTitle: "Pedido de amizade",
+        friendRequestBody: (name) => `${name} enviou-te um pedido de amizade.`,
+        friendAcceptedTitle: "Pedido de amizade aceite",
+        friendAcceptedBody: (name) => `${name} aceitou o teu pedido de amizade.`,
         eventInviteTitle: "Convite de evento",
         eventInviteBody: (name, title) => `${name} convidou-te para "${title}".`,
         eventStartingSoonTitle: "Evento quase a começar",
@@ -40,9 +50,14 @@ const PUSH_TEXT = {
     es: {
         someone: "Alguien",
         friend: "Un amigo",
+        rallyTitle: "Rally",
         eventFallback: "un evento",
         attachment: "Envió un archivo adjunto.",
         newMessageFrom: (name) => `Nuevo mensaje de ${name}`,
+        friendRequestTitle: "Solicitud de amistad",
+        friendRequestBody: (name) => `${name} te envió una solicitud de amistad.`,
+        friendAcceptedTitle: "Solicitud de amistad aceptada",
+        friendAcceptedBody: (name) => `${name} aceptó tu solicitud de amistad.`,
         eventInviteTitle: "Invitación de evento",
         eventInviteBody: (name, title) => `${name} te invitó a "${title}".`,
         eventStartingSoonTitle: "Evento a punto de empezar",
@@ -51,9 +66,14 @@ const PUSH_TEXT = {
     fr: {
         someone: "Quelqu’un",
         friend: "Un ami",
+        rallyTitle: "Rally",
         eventFallback: "un événement",
         attachment: "A envoyé une pièce jointe.",
         newMessageFrom: (name) => `Nouveau message de ${name}`,
+        friendRequestTitle: "Demande d’ami",
+        friendRequestBody: (name) => `${name} vous a envoyé une demande d’ami.`,
+        friendAcceptedTitle: "Demande d’ami acceptée",
+        friendAcceptedBody: (name) => `${name} a accepté votre demande d’ami.`,
         eventInviteTitle: "Invitation à un événement",
         eventInviteBody: (name, title) => `${name} vous a invité à « ${title} ».`,
         eventStartingSoonTitle: "Événement bientôt",
@@ -251,12 +271,9 @@ exports.onMessageCreated = onDocumentCreated("conversations/{conversationId}/mes
             });
         });
 
-        // Skip sending push notifications for system messages
-        if (senderId === "rally-system") return;
-
         // Find the sender's display name
-        const senderDoc = await db.collection("users").doc(senderId).get();
-        const senderName = senderDoc.exists ? (senderDoc.data().displayName || PUSH_TEXT.pt.someone) : PUSH_TEXT.pt.someone;
+        const senderDoc = senderId === "rally-system" ? null : await db.collection("users").doc(senderId).get();
+        const senderName = senderDoc?.exists ? (senderDoc.data().displayName || PUSH_TEXT.pt.someone) : PUSH_TEXT.pt.rallyTitle;
 
         const recipients = memberIds.filter(id => id !== senderId);
 
@@ -275,7 +292,7 @@ exports.onMessageCreated = onDocumentCreated("conversations/{conversationId}/mes
 
             const payload = {
                 notification: {
-                    title: text.newMessageFrom(senderName),
+                    title: senderId === "rally-system" ? text.rallyTitle : text.newMessageFrom(senderName),
                     body: notificationBody
                 },
                 data: {
@@ -308,6 +325,95 @@ exports.onMessageCreated = onDocumentCreated("conversations/{conversationId}/mes
         }
     } catch (error) {
         console.error("Error in onMessageCreated Cloud Function:", error);
+    }
+});
+
+// Trigger: New friend request created in friendRequests/{requestId}
+exports.onFriendRequestCreated = onDocumentCreated("friendRequests/{requestId}", async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return;
+
+    const request = snapshot.data();
+    if (request.status !== "pending") return;
+
+    const fromUserId = request.fromUserId;
+    const toUserId = request.toUserId;
+    if (!fromUserId || !toUserId || fromUserId === toUserId) return;
+
+    try {
+        const [senderDoc, recipientDoc] = await Promise.all([
+            db.collection("users").doc(fromUserId).get(),
+            db.collection("users").doc(toUserId).get()
+        ]);
+
+        if (!recipientDoc.exists) return;
+
+        const recipientData = recipientDoc.data();
+        const text = pushTextFor(recipientData.language);
+        const senderName = senderDoc.exists
+            ? (senderDoc.data().displayName || text.friend)
+            : text.friend;
+
+        await sendPushToUser(toUserId, {
+            notification: {
+                title: text.friendRequestTitle,
+                body: text.friendRequestBody(senderName)
+            },
+            data: {
+                path: "/messages"
+            },
+            android: {
+                notification: {
+                    channelId: "rally_default_channel"
+                }
+            }
+        });
+    } catch (error) {
+        console.error("Error in onFriendRequestCreated Cloud Function:", error);
+    }
+});
+
+// Trigger: Friend request accepted in friendRequests/{requestId}
+exports.onFriendRequestUpdated = onDocumentUpdated("friendRequests/{requestId}", async (event) => {
+    const before = event.data?.before?.data();
+    const after = event.data?.after?.data();
+    if (!before || !after) return;
+    if (before.status === after.status || after.status !== "accepted") return;
+
+    const fromUserId = after.fromUserId;
+    const toUserId = after.toUserId;
+    if (!fromUserId || !toUserId || fromUserId === toUserId) return;
+
+    try {
+        const [acceptedByDoc, requesterDoc] = await Promise.all([
+            db.collection("users").doc(toUserId).get(),
+            db.collection("users").doc(fromUserId).get()
+        ]);
+
+        if (!requesterDoc.exists) return;
+
+        const requesterData = requesterDoc.data();
+        const text = pushTextFor(requesterData.language);
+        const acceptedByName = acceptedByDoc.exists
+            ? (acceptedByDoc.data().displayName || text.friend)
+            : text.friend;
+
+        await sendPushToUser(fromUserId, {
+            notification: {
+                title: text.friendAcceptedTitle,
+                body: text.friendAcceptedBody(acceptedByName)
+            },
+            data: {
+                path: "/messages"
+            },
+            android: {
+                notification: {
+                    channelId: "rally_default_channel"
+                }
+            }
+        });
+    } catch (error) {
+        console.error("Error in onFriendRequestUpdated Cloud Function:", error);
     }
 });
 

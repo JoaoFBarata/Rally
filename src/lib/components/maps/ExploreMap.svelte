@@ -108,6 +108,9 @@
 	let routeEndpointMarkers: mapboxgl.Marker[] = [];
 	let svelteMarkers: any[] = [];
 	let showFilters = $state(false);
+	let featuredFeedScroller = $state<HTMLDivElement | null>(null);
+	let friendsFeedScroller = $state<HTMLDivElement | null>(null);
+	let generalFeedScroller = $state<HTMLDivElement | null>(null);
 	const routeSourceId = 'selected-event-route';
 	let mapResizeFrame: number | null = null;
 	let mapResizeSettleTimer: number | null = null;
@@ -370,6 +373,12 @@
 	function clearAllFilters() {
 		onClearFilters?.();
 		clearSelectedEvent();
+	}
+
+	function scrollFeedSection(scroller: HTMLDivElement | null, direction: -1 | 1) {
+		if (!scroller) return;
+		const scrollAmount = Math.min(scroller.clientWidth * 0.86, 520);
+		scroller.scrollBy({ left: scrollAmount * direction, behavior: 'smooth' });
 	}
 
 	function toggleSportFilter(sport: Sport) {
@@ -1753,6 +1762,42 @@
 		<div
 			class="min-w-0 w-full max-w-full flex-1 overflow-x-hidden overflow-y-auto px-3 py-6 sm:px-4 md:px-8"
 		>
+			<div class="mb-4 flex items-center justify-between gap-3 md:hidden">
+				<button
+					type="button"
+					onclick={() => (showFilters = !showFilters)}
+					class="flex min-w-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 shadow-sm transition active:scale-95 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+				>
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400"
+					>
+						<path d="M3 5h18" />
+						<path d="M7 12h10" />
+						<path d="M10 19h4" />
+					</svg>
+
+					<span class="truncate">{i18n.t('filters_label')}</span>
+
+					{#if activeFilterCount > 0}
+						<span
+							class="shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white"
+						>
+							{activeFilterCount}
+						</span>
+					{/if}
+				</button>
+
+				<span class="min-w-0 truncate text-right text-[11px] font-black uppercase tracking-wide text-slate-400">
+					{formatShowingEvents(shownFeedCount)}
+				</span>
+			</div>
+
 			{#if shownFeedCount === 0}
 				<div class="flex flex-col items-center justify-center py-20 text-center">
 					<div class="rounded-full bg-slate-100 p-4 dark:bg-slate-800 text-3xl mb-4">🔍</div>
@@ -1773,7 +1818,7 @@
 					{/if}
 				</div>
 			{:else}
-				<p class="mb-5 text-xs font-black uppercase tracking-wider text-slate-400">
+				<p class="mb-5 hidden text-xs font-black uppercase tracking-wider text-slate-400 md:block">
 					{formatShowingEvents(shownFeedCount)}
 				</p>
 
@@ -1781,20 +1826,45 @@
 					<!-- 1. Featured Section -->
 					{#if feedFeaturedEvents.length > 0}
 						<section>
-							<div class="mb-4">
-								<h3
-									class="flex items-center gap-2 text-base font-black text-slate-900 dark:text-slate-100"
-								>
-									<span class="text-slate-400">★</span>
-									{i18n.t('featured_games')}
-								</h3>
-								<p class="text-xs text-slate-500 dark:text-slate-400">
-									{i18n.t('promoted_matching_pref')}
-								</p>
+							<div class="mb-4 flex items-end justify-between gap-3">
+								<div class="min-w-0">
+									<h3
+										class="flex items-center gap-2 text-base font-black text-slate-900 dark:text-slate-100"
+									>
+										<span class="text-slate-400">★</span>
+										{i18n.t('featured_games')}
+									</h3>
+									<p class="text-xs text-slate-500 dark:text-slate-400">
+										{i18n.t('promoted_matching_pref')}
+									</p>
+								</div>
+								<div class="flex shrink-0 items-center gap-2">
+									<button
+										type="button"
+										onclick={() => scrollFeedSection(featuredFeedScroller, -1)}
+										class="grid h-9 w-9 place-items-center rounded-full bg-white text-lg font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-blue-950"
+										aria-label={i18n.t('previous_nearby_event')}
+									>
+										‹
+									</button>
+									<button
+										type="button"
+										onclick={() => scrollFeedSection(featuredFeedScroller, 1)}
+										class="grid h-9 w-9 place-items-center rounded-full bg-white text-lg font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-blue-950"
+										aria-label={i18n.t('next_nearby_event')}
+									>
+										›
+									</button>
+								</div>
 							</div>
-							<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+							<div
+								bind:this={featuredFeedScroller}
+								class="-mx-3 flex snap-x gap-4 overflow-x-auto px-3 pb-3 sm:-mx-4 sm:px-4"
+							>
 								{#each feedFeaturedEvents as event (event.id)}
-									<EventCard {event} variant="vertical" />
+									<div class="w-[calc((100vw-4rem)/1.72)] max-w-[13.5rem] shrink-0 snap-start sm:w-52 lg:w-56">
+										<EventCard {event} variant="vertical" />
+									</div>
 								{/each}
 							</div>
 						</section>
@@ -1803,20 +1873,45 @@
 					<!-- 2. Friends Section -->
 					{#if feedFriendsEvents.length > 0}
 						<section>
-							<div class="mb-4">
-								<h3
-									class="flex items-center gap-2 text-base font-black text-slate-900 dark:text-slate-100"
-								>
-									<span class="text-slate-400">◎</span>
-									{i18n.t('friends_activity')}
-								</h3>
-								<p class="text-xs text-slate-500 dark:text-slate-400">
-									{i18n.t('friends_activity_sub')}
-								</p>
+							<div class="mb-4 flex items-end justify-between gap-3">
+								<div class="min-w-0">
+									<h3
+										class="flex items-center gap-2 text-base font-black text-slate-900 dark:text-slate-100"
+									>
+										<span class="text-slate-400">◎</span>
+										{i18n.t('friends_activity')}
+									</h3>
+									<p class="text-xs text-slate-500 dark:text-slate-400">
+										{i18n.t('friends_activity_sub')}
+									</p>
+								</div>
+								<div class="flex shrink-0 items-center gap-2">
+									<button
+										type="button"
+										onclick={() => scrollFeedSection(friendsFeedScroller, -1)}
+										class="grid h-9 w-9 place-items-center rounded-full bg-white text-lg font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-blue-950"
+										aria-label={i18n.t('previous_nearby_event')}
+									>
+										‹
+									</button>
+									<button
+										type="button"
+										onclick={() => scrollFeedSection(friendsFeedScroller, 1)}
+										class="grid h-9 w-9 place-items-center rounded-full bg-white text-lg font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-blue-950"
+										aria-label={i18n.t('next_nearby_event')}
+									>
+										›
+									</button>
+								</div>
 							</div>
-							<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+							<div
+								bind:this={friendsFeedScroller}
+								class="-mx-3 flex snap-x gap-4 overflow-x-auto px-3 pb-3 sm:-mx-4 sm:px-4"
+							>
 								{#each feedFriendsEvents as event (event.id)}
-									<EventCard {event} variant="vertical" />
+									<div class="w-[calc((100vw-4rem)/1.72)] max-w-[13.5rem] shrink-0 snap-start sm:w-52 lg:w-56">
+										<EventCard {event} variant="vertical" />
+									</div>
 								{/each}
 							</div>
 						</section>
@@ -1825,20 +1920,45 @@
 					<!-- 3. General Section -->
 					{#if feedGeneralEvents.length > 0}
 						<section>
-							<div class="mb-4">
-								<h3
-									class="flex items-center gap-2 text-base font-black text-slate-900 dark:text-slate-100"
-								>
-									<span class="text-slate-400">⌕</span>
-									{i18n.t('explore_games')}
-								</h3>
-								<p class="text-xs text-slate-500 dark:text-slate-400">
-									{i18n.t('explore_games_sub')}
-								</p>
+							<div class="mb-4 flex items-end justify-between gap-3">
+								<div class="min-w-0">
+									<h3
+										class="flex items-center gap-2 text-base font-black text-slate-900 dark:text-slate-100"
+									>
+										<span class="text-slate-400">⌕</span>
+										{i18n.t('explore_games')}
+									</h3>
+									<p class="text-xs text-slate-500 dark:text-slate-400">
+										{i18n.t('explore_games_sub')}
+									</p>
+								</div>
+								<div class="flex shrink-0 items-center gap-2">
+									<button
+										type="button"
+										onclick={() => scrollFeedSection(generalFeedScroller, -1)}
+										class="grid h-9 w-9 place-items-center rounded-full bg-white text-lg font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-blue-950"
+										aria-label={i18n.t('previous_nearby_event')}
+									>
+										‹
+									</button>
+									<button
+										type="button"
+										onclick={() => scrollFeedSection(generalFeedScroller, 1)}
+										class="grid h-9 w-9 place-items-center rounded-full bg-white text-lg font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-blue-950"
+										aria-label={i18n.t('next_nearby_event')}
+									>
+										›
+									</button>
+								</div>
 							</div>
-							<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+							<div
+								bind:this={generalFeedScroller}
+								class="-mx-3 flex snap-x gap-4 overflow-x-auto px-3 pb-3 sm:-mx-4 sm:px-4"
+							>
 								{#each feedGeneralEvents as event (event.id)}
-									<EventCard {event} variant="vertical" />
+									<div class="w-[calc((100vw-4rem)/1.72)] max-w-[13.5rem] shrink-0 snap-start sm:w-52 lg:w-56">
+										<EventCard {event} variant="vertical" />
+									</div>
 								{/each}
 							</div>
 						</section>

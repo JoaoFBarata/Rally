@@ -108,7 +108,10 @@
 					fromUserId: currentUser.uid,
 					toUserId: sourceLinkUserId
 				});
-				success = i18n.t('friend_request_sent');
+				const target = await getUserProfile(sourceLinkUserId);
+				success = target
+					? i18n.t('friend_request_sent_to', { name: target.displayName })
+					: i18n.t('friend_request_sent');
 			} else {
 				const target = await sendFriendRequestByTag({
 					fromUserId: currentUser.uid,

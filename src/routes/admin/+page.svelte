@@ -29,6 +29,7 @@
 
 	let verificationRequests = $state<RequestWithOrg[]>([]);
 	let loadingRequests = $state(false);
+	let verificationRequestsLoaded = $state(false);
 	let requestsError = $state('');
 
 	let processingId = $state('');
@@ -84,8 +85,10 @@
 				})
 			);
 			verificationRequests = withOrgs;
+			verificationRequestsLoaded = true;
 		} catch (e) {
 			requestsError = (e as Error).message;
+			verificationRequestsLoaded = true;
 		} finally {
 			loadingRequests = false;
 		}
@@ -183,7 +186,12 @@
 	});
 
 	$effect(() => {
-		if (activeTab === 'verifications' && verificationRequests.length === 0 && !loadingRequests) {
+		if (
+			activeTab === 'verifications' &&
+			!verificationRequestsLoaded &&
+			verificationRequests.length === 0 &&
+			!loadingRequests
+		) {
 			loadVerificationRequests();
 		}
 	});

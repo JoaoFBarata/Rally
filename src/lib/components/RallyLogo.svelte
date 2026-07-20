@@ -3,7 +3,7 @@
 	import { onMount } from 'svelte';
 	import { initTheme, themeState } from '$lib/theme.svelte';
 
-	type LogoSize = 'sm' | 'compact' | 'md' | 'lg';
+	type LogoSize = 'xs' | 'sm' | 'compact' | 'md' | 'lg';
 
 	let {
 		size = 'md',
@@ -12,6 +12,7 @@
 	}: { size?: LogoSize; href?: string; mark?: boolean } = $props();
 
 	const sizes: Record<LogoSize, string> = {
+		xs: 'h-7',
 		sm: 'h-8',
 		compact: 'h-11',
 		md: 'h-12',
