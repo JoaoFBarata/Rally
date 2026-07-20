@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { onAuthStateChanged } from 'firebase/auth';
 	import { i18n } from '$lib/services/i18n.svelte';
 	import { browser } from '$app/environment';
 	import { auth } from '$lib/firebase';
@@ -53,6 +54,19 @@
 	);
 	let creatorPhotoURL = $state<string | null>(null);
 	let creatorName = $state('');
+	let currentUserId = $state(auth.currentUser?.uid ?? '');
+	let isCurrentUserOrganizer = $derived(
+		Boolean(currentUserId) && event.creatorId === currentUserId
+	);
+	let isCurrentUserJoined = $derived(
+		!isCurrentUserOrganizer &&
+			Boolean(currentUserId) &&
+			event.participantIds.includes(currentUserId)
+	);
+	let hasCurrentUserRelationship = $derived(isCurrentUserOrganizer || isCurrentUserJoined);
+	let currentUserRelationshipLabel = $derived(
+		isCurrentUserOrganizer ? i18n.t('hosting') : i18n.t('joined')
+	);
 
 	$effect(() => {
 		if (variant === 'vertical' && event.hostType === 'organization') {
@@ -62,14 +76,16 @@
 		}
 
 		if (variant === 'vertical' && event.creatorId) {
-			getUserProfile(event.creatorId).then(profile => {
-				if (profile) {
-					creatorPhotoURL = profile.photoURL || null;
-					creatorName = profile.displayName || '';
-				}
-			}).catch(err => {
-				console.error('Error fetching creator profile:', err);
-			});
+			getUserProfile(event.creatorId)
+				.then((profile) => {
+					if (profile) {
+						creatorPhotoURL = profile.photoURL || null;
+						creatorName = profile.displayName || '';
+					}
+				})
+				.catch((err) => {
+					console.error('Error fetching creator profile:', err);
+				});
 		}
 	});
 
@@ -93,7 +109,9 @@
 		if (status === 'cancelled') return i18n.t('status_cancelled');
 		if (status === 'finished') return i18n.t('status_finished');
 		if (event.eventKind === 'tournament') return i18n.t('status_tournament');
-		return status === 'open' || status === 'full' ? i18n.t('status_upcoming') : i18n.t('status_past');
+		return status === 'open' || status === 'full'
+			? i18n.t('status_upcoming')
+			: i18n.t('status_past');
 	}
 
 	function getTemporalBadgeLabel() {
@@ -117,8 +135,6 @@
 	function getLevelLabel(level: string | undefined | null) {
 		return i18n.t(level || 'casual');
 	}
-
-
 
 	function formatHeroLocation() {
 		const address = event.location?.address?.trim();
@@ -146,9 +162,10 @@
 	}
 
 	function formatHeroCapacity() {
-		const max = event.eventKind === 'tournament'
-			? (event.maxTournamentEntries ?? event.maxParticipants)
-			: event.maxParticipants;
+		const max =
+			event.eventKind === 'tournament'
+				? (event.maxTournamentEntries ?? event.maxParticipants)
+				: event.maxParticipants;
 
 		return `${event.participantIds.length}/${max}`;
 	}
@@ -183,8 +200,6 @@
 		return 'border-slate-200 bg-white shadow-slate-200/70 hover:border-blue-200 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none dark:hover:border-blue-700';
 	}
 
-
-
 	function handleClick() {
 		if (!showPromotion) return;
 		const key = `rally:promotion-click:${event.id}`;
@@ -194,11 +209,15 @@
 	}
 
 	onMount(() => {
-		if (!showPromotion) return;
-		const key = `rally:promotion-view:${event.id}`;
-		if (sessionStorage.getItem(key)) return;
-		sessionStorage.setItem(key, '1');
-		void trackEventPromotionView(event.id, auth.currentUser?.uid);
+		const unsubscribe = onAuthStateChanged(auth, (user) => (currentUserId = user?.uid ?? ''));
+		if (showPromotion) {
+			const key = `rally:promotion-view:${event.id}`;
+			if (!sessionStorage.getItem(key)) {
+				sessionStorage.setItem(key, '1');
+				void trackEventPromotionView(event.id, auth.currentUser?.uid);
+			}
+		}
+		return unsubscribe;
 	});
 </script>
 
@@ -223,52 +242,88 @@
 		</div>
 		{#if !event.groupPhotoURL}
 			<div class="absolute inset-0 opacity-25">
-				<div class="absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/35"></div>
+				<div
+					class="absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/35"
+				></div>
 				<div class="absolute bottom-0 left-0 right-0 h-1/2 border-t border-white/25"></div>
 				<div class="absolute left-8 top-0 h-full border-l border-white/15"></div>
 				<div class="absolute right-8 top-0 h-full border-l border-white/15"></div>
 			</div>
 		{/if}
-		<div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/50 to-slate-950/10"></div>
+		<div
+			class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/50 to-slate-950/10"
+		></div>
 		<div class="pointer-events-none absolute inset-0 opacity-35">
 			<div class="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/20 blur-2xl"></div>
 			<div class="absolute bottom-8 left-8 h-28 w-28 rounded-full bg-blue-400/30 blur-3xl"></div>
 		</div>
 
-		<div class={`relative flex h-full min-h-[inherit] flex-col justify-between ${miniHero ? 'p-3 sm:p-4' : `p-4 ${compactHero ? 'sm:p-4' : 'sm:p-5'}`}`}>
+		<div
+			class={`relative flex h-full min-h-[inherit] flex-col justify-between ${miniHero ? 'p-3 sm:p-4' : `p-4 ${compactHero ? 'sm:p-4' : 'sm:p-5'}`}`}
+		>
 			<div class="mb-2 flex items-start justify-between gap-3 sm:mb-0">
 				<div class="flex min-w-0 flex-wrap gap-2">
-					<span class={`rounded-full bg-emerald-500/90 font-black text-white shadow-lg shadow-emerald-950/20 ${miniHero ? 'px-2.5 py-0.5 text-[10px] sm:px-3 sm:py-1 sm:text-xs' : 'px-3 py-1 text-xs'}`}>
+					<span
+						class={`rounded-full bg-emerald-500/90 font-black text-white shadow-lg shadow-emerald-950/20 ${miniHero ? 'px-2.5 py-0.5 text-[10px] sm:px-3 sm:py-1 sm:text-xs' : 'px-3 py-1 text-xs'}`}
+					>
 						{formatDate(event.startAt)}
 					</span>
-					<span class={`rounded-full font-black shadow-lg ${getTemporalBadgeClasses()} ${miniHero ? 'px-2.5 py-0.5 text-[10px] sm:px-3 sm:py-1 sm:text-xs' : 'px-3 py-1 text-xs'}`}>
+					<span
+						class={`rounded-full font-black shadow-lg ${getTemporalBadgeClasses()} ${miniHero ? 'px-2.5 py-0.5 text-[10px] sm:px-3 sm:py-1 sm:text-xs' : 'px-3 py-1 text-xs'}`}
+					>
 						{getTemporalBadgeLabel()}
 					</span>
 				</div>
-				<span class={`rounded-full bg-white/90 font-black text-slate-950 ${miniHero ? 'px-2.5 py-0.5 text-[10px] sm:px-3 sm:py-1 sm:text-xs' : 'px-3 py-1 text-xs'}`}>
-					{formatHeroCapacity()}
-				</span>
+				<div class="flex shrink-0 flex-col items-end gap-1.5">
+					<span
+						class={`rounded-full bg-white/90 font-black text-slate-950 ${miniHero ? 'px-2.5 py-0.5 text-[10px] sm:px-3 sm:py-1 sm:text-xs' : 'px-3 py-1 text-xs'}`}
+					>
+						{formatHeroCapacity()}
+					</span>
+					{#if hasCurrentUserRelationship}
+						<span
+							class="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2.5 py-1 text-[10px] font-black text-white shadow-lg shadow-emerald-950/20 sm:text-xs"
+						>
+							<span aria-hidden="true">✓</span>
+							{currentUserRelationshipLabel}
+						</span>
+					{/if}
+				</div>
 			</div>
 
 			<div>
-				<div class={`${miniHero ? 'mb-1.5 sm:mb-3' : compactHero ? 'mb-2' : 'mb-3'} flex flex-wrap gap-2`}>
-					<span class={`rounded-full bg-white/15 font-black backdrop-blur ${miniHero ? 'px-2 py-0.5 text-[10px] sm:px-3 sm:py-1 sm:text-xs' : 'px-3 py-1 text-xs'}`}>
+				<div
+					class={`${miniHero ? 'mb-1.5 sm:mb-3' : compactHero ? 'mb-2' : 'mb-3'} flex flex-wrap gap-2`}
+				>
+					<span
+						class={`rounded-full bg-white/15 font-black backdrop-blur ${miniHero ? 'px-2 py-0.5 text-[10px] sm:px-3 sm:py-1 sm:text-xs' : 'px-3 py-1 text-xs'}`}
+					>
 						{formattedSportLabel}
 					</span>
-					<span class={`rounded-full bg-white/15 font-black capitalize backdrop-blur ${miniHero ? 'hidden px-2 py-0.5 text-[10px] sm:inline-flex sm:px-3 sm:py-1 sm:text-xs' : 'px-3 py-1 text-xs'}`}>
+					<span
+						class={`rounded-full bg-white/15 font-black capitalize backdrop-blur ${miniHero ? 'hidden px-2 py-0.5 text-[10px] sm:inline-flex sm:px-3 sm:py-1 sm:text-xs' : 'px-3 py-1 text-xs'}`}
+					>
 						{getLevelLabel(event.level)}
 					</span>
 				</div>
 
-				<h3 class={`${miniHero ? 'line-clamp-1 text-base sm:text-xl' : compactHero ? 'text-lg sm:text-xl' : 'text-xl sm:text-3xl'} max-w-[18rem] font-black leading-tight text-white`}>
+				<h3
+					class={`${miniHero ? 'line-clamp-1 text-base sm:text-xl' : compactHero ? 'text-lg sm:text-xl' : 'text-xl sm:text-3xl'} max-w-[18rem] font-black leading-tight text-white`}
+				>
 					{event.title}
 				</h3>
-				<p class={`${miniHero ? 'mt-1 text-xs sm:mt-2 sm:text-sm' : 'mt-2 text-sm'} truncate font-bold text-white/80`}>
+				<p
+					class={`${miniHero ? 'mt-1 text-xs sm:mt-2 sm:text-sm' : 'mt-2 text-sm'} truncate font-bold text-white/80`}
+				>
 					{formatHeroLocation()}
 				</p>
 
-				<div class={`${miniHero ? 'mt-2 sm:mt-4' : 'mt-3 sm:mt-4'} flex items-center justify-between gap-3`}>
-					<span class={`${miniHero ? 'text-xs sm:text-sm' : 'text-sm'} truncate font-bold text-white/75`}>
+				<div
+					class={`${miniHero ? 'mt-2 sm:mt-4' : 'mt-3 sm:mt-4'} flex items-center justify-between gap-3`}
+				>
+					<span
+						class={`${miniHero ? 'text-xs sm:text-sm' : 'text-sm'} truncate font-bold text-white/75`}
+					>
 						{routeDistanceLabel ? `${routeDistanceLabel} · ${formattedPrice}` : formattedPrice}
 					</span>
 					{#if heroCtaLabel}
@@ -312,9 +367,17 @@
 
 		<div class="min-w-0 flex-1 py-1">
 			<div class="flex min-w-0 items-center gap-2">
-				<p class="min-w-0 flex-1 truncate text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base">
+				<p
+					class="min-w-0 flex-1 truncate text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base"
+				>
 					{event.title}
 				</p>
+				{#if hasCurrentUserRelationship}
+					<span
+						class="shrink-0 rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+						>✓ {currentUserRelationshipLabel}</span
+					>
+				{/if}
 				<span
 					class={`shrink-0 rounded-full px-2 py-1 text-[10px] font-black ${getStatusClasses()}`}
 				>
@@ -326,7 +389,9 @@
 				{formattedSportLabel} - {event.location.name}
 			</p>
 			<p class="mt-2 truncate text-xs font-black text-slate-400 dark:text-slate-500">
-				{formatDate(event.startAt)} - {formattedCapacity} - {formattedPrice}{routeDistanceLabel ? ` - ${routeDistanceLabel}` : ''}
+				{formatDate(event.startAt)} - {formattedCapacity} - {formattedPrice}{routeDistanceLabel
+					? ` - ${routeDistanceLabel}`
+					: ''}
 			</p>
 		</div>
 	</a>
@@ -338,49 +403,84 @@
 			class="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:hover:shadow-none"
 		>
 			{#if showImage}
-				<div class="relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-slate-100 dark:bg-slate-800">
+				<div
+					class="relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-slate-100 dark:bg-slate-800"
+				>
 					{#if event.groupPhotoURL}
-						<img src={event.groupPhotoURL} alt={event.title} class="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
+						<img
+							src={event.groupPhotoURL}
+							alt={event.title}
+							class="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+						/>
 					{:else}
-						<img src={getDefaultSportImage()} alt={event.title} class="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
+						<img
+							src={getDefaultSportImage()}
+							alt={event.title}
+							class="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+						/>
 					{/if}
 
 					<div class="absolute inset-x-2 top-2 flex items-start justify-between gap-2">
 						<div class="flex flex-wrap gap-1.5">
+							{#if hasCurrentUserRelationship}
+								<span
+									class="rounded-full bg-emerald-500 px-2.5 py-1 text-[10px] font-black text-white shadow-lg"
+									>✓ {currentUserRelationshipLabel}</span
+								>
+							{/if}
 							{#if showPromotion}
-								<span class="rounded-full bg-blue-600 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-white shadow-lg">
+								<span
+									class="rounded-full bg-blue-600 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-white shadow-lg"
+								>
 									{i18n.t('event_promoted')}
 								</span>
 							{/if}
-							<span class={`rounded-full px-2.5 py-1 text-[10px] font-black shadow-sm backdrop-blur ${getStatusClasses()}`}>
+							<span
+								class={`rounded-full px-2.5 py-1 text-[10px] font-black shadow-sm backdrop-blur ${getStatusClasses()}`}
+							>
 								{getStatusLabel()}
 							</span>
 						</div>
 
 						<!-- Creator avatar bubble -->
 						{#if creatorPhotoURL}
-							<div class="h-8 w-8 shrink-0 overflow-hidden rounded-full border-2 border-white shadow-md dark:border-slate-900">
-								<img src={creatorPhotoURL} alt={creatorName} class="h-full w-full object-cover" title={`Created by ${creatorName}`} />
+							<div
+								class="h-8 w-8 shrink-0 overflow-hidden rounded-full border-2 border-white shadow-md dark:border-slate-900"
+							>
+								<img
+									src={creatorPhotoURL}
+									alt={creatorName}
+									class="h-full w-full object-cover"
+									title={`Created by ${creatorName}`}
+								/>
 							</div>
 						{:else if creatorName}
-							<div class="grid h-8 w-8 shrink-0 place-items-center rounded-full border-2 border-white bg-blue-500 text-xs font-black text-white shadow-md dark:border-slate-900">
+							<div
+								class="grid h-8 w-8 shrink-0 place-items-center rounded-full border-2 border-white bg-blue-500 text-xs font-black text-white shadow-md dark:border-slate-900"
+							>
 								{creatorName.charAt(0).toUpperCase()}
 							</div>
 						{/if}
 					</div>
 
-					<span class="absolute bottom-2 left-2 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-black text-slate-700 shadow-sm backdrop-blur dark:bg-slate-950/90 dark:text-slate-200">
+					<span
+						class="absolute bottom-2 left-2 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-black text-slate-700 shadow-sm backdrop-blur dark:bg-slate-950/90 dark:text-slate-200"
+					>
 						{formatShortDate(event.startAt)}
 					</span>
 				</div>
 			{/if}
 
 			<div class="flex flex-1 flex-col p-4">
-				<span class="text-[10px] font-black uppercase tracking-wide text-blue-600 dark:text-blue-400">
+				<span
+					class="text-[10px] font-black uppercase tracking-wide text-blue-600 dark:text-blue-400"
+				>
 					{formattedSportLabel}
 				</span>
 
-				<h3 class="mt-1 line-clamp-1 text-base font-black leading-tight text-slate-950 dark:text-slate-50">
+				<h3
+					class="mt-1 line-clamp-1 text-base font-black leading-tight text-slate-950 dark:text-slate-50"
+				>
 					{event.title}
 				</h3>
 
@@ -392,12 +492,18 @@
 					🕒 {formatDate(event.startAt)}
 				</p>
 
-				<div class="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-slate-800/60">
-					<span class="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black capitalize text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+				<div
+					class="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-slate-800/60"
+				>
+					<span
+						class="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black capitalize text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+					>
 						{getLevelLabel(event.level)}
 					</span>
 					<div class="min-w-0 text-right">
-						<p class="truncate whitespace-nowrap text-xs font-black text-blue-600 dark:text-blue-300">
+						<p
+							class="truncate whitespace-nowrap text-xs font-black text-blue-600 dark:text-blue-300"
+						>
 							{formattedCapacity}
 						</p>
 						{#if event.pricePerPerson}
@@ -417,145 +523,175 @@
 		<a
 			href={`/events/${event.id}`}
 			onclick={handleClick}
-	class={`group flex h-full min-h-[6.7rem] overflow-hidden rounded-[1.35rem] border shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg sm:min-h-[8.25rem] sm:rounded-[1.5rem] ${getCardClasses()}`}
->
-	{#if showImage}
-		<div
-			class={`relative w-20 shrink-0 overflow-hidden bg-blue-50 dark:bg-blue-950/40 sm:w-32 lg:w-40 ${
-				showPromotion ? 'bg-blue-50 dark:bg-blue-950/40' : 'bg-slate-100 dark:bg-slate-800'
-			}`}
+			class={`group flex h-full min-h-[6.7rem] overflow-hidden rounded-[1.35rem] border shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg sm:min-h-[8.25rem] sm:rounded-[1.5rem] ${getCardClasses()}`}
 		>
-			{#if event.groupPhotoURL}
-				<img src={event.groupPhotoURL} alt={event.title} class="h-full w-full object-cover" />
-			{:else}
-				<img src={getDefaultSportImage()} alt={event.title} class="h-full w-full object-cover" />
-			{/if}
-
-			{#if showPromotion}
-				<span
-					class="absolute left-2 top-2 rounded-full bg-blue-600 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow-lg shadow-blue-700/20 sm:left-3 sm:top-3 sm:px-2.5 sm:py-1 sm:text-[10px]"
+			{#if showImage}
+				<div
+					class={`relative w-20 shrink-0 overflow-hidden bg-blue-50 dark:bg-blue-950/40 sm:w-32 lg:w-40 ${
+						showPromotion ? 'bg-blue-50 dark:bg-blue-950/40' : 'bg-slate-100 dark:bg-slate-800'
+					}`}
 				>
-					{i18n.t('event_promoted')}
-				</span>
-			{:else}
-				<span
-					class="absolute bottom-2 left-2 rounded-full bg-white/90 px-2 py-0.5 text-[9px] font-black text-slate-700 shadow-sm backdrop-blur dark:bg-slate-950/85 dark:text-slate-200 sm:bottom-3 sm:left-3 sm:px-2.5 sm:py-1 sm:text-[10px]"
-				>
-					{formatDate(event.startAt)}
-				</span>
-			{/if}
-		</div>
-	{/if}
+					{#if event.groupPhotoURL}
+						<img src={event.groupPhotoURL} alt={event.title} class="h-full w-full object-cover" />
+					{:else}
+						<img
+							src={getDefaultSportImage()}
+							alt={event.title}
+							class="h-full w-full object-cover"
+						/>
+					{/if}
 
-	<div class="flex min-w-0 flex-1 flex-col p-2.5 sm:p-4">
-		{#if showPromotion}
-			<div class="mb-2 hidden items-center justify-between gap-3 sm:flex">
-				<span
-					class="rounded-full bg-blue-50 px-3 py-1 text-xs font-black uppercase tracking-wide text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-				>
-					{i18n.t('sponsored')}
-				</span>
-
-				<span class="truncate text-xs font-bold text-slate-500 dark:text-slate-400">
-					Selected for you
-				</span>
-			</div>
-		{/if}
-
-		<div class="flex items-start justify-between gap-4">
-			<div class="min-w-0 flex-1">
-				{#if event.hostType === 'organization'}
-					<div class="mb-2 hidden min-w-0 items-center gap-2 sm:flex">
-						<div
-							class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-xs font-black text-blue-600 dark:bg-slate-800 dark:text-blue-300"
+					{#if showPromotion}
+						<span
+							class="absolute left-2 top-2 rounded-full bg-blue-600 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow-lg shadow-blue-700/20 sm:left-3 sm:top-3 sm:px-2.5 sm:py-1 sm:text-[10px]"
 						>
-							<img
-								src={getOrganizationLogo(event.organizationLogoURL)}
-								alt={event.organizationName ?? 'Organization'}
-								class="h-full w-full object-cover"
-							/>
-						</div>
+							{i18n.t('event_promoted')}
+						</span>
+					{:else}
+						<span
+							class="absolute bottom-2 left-2 rounded-full bg-white/90 px-2 py-0.5 text-[9px] font-black text-slate-700 shadow-sm backdrop-blur dark:bg-slate-950/85 dark:text-slate-200 sm:bottom-3 sm:left-3 sm:px-2.5 sm:py-1 sm:text-[10px]"
+						>
+							{formatDate(event.startAt)}
+						</span>
+					{/if}
+				</div>
+			{/if}
 
-						<p class="truncate text-xs font-black text-slate-500 dark:text-slate-400">
-							Hosted by {event.organizationName ?? 'Organization'}
-						</p>
+			<div class="flex min-w-0 flex-1 flex-col p-2.5 sm:p-4">
+				{#if showPromotion}
+					<div class="mb-2 hidden items-center justify-between gap-3 sm:flex">
+						<span
+							class="rounded-full bg-blue-50 px-3 py-1 text-xs font-black uppercase tracking-wide text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+						>
+							{i18n.t('sponsored')}
+						</span>
 
-						{#if event.organizationVerificationStatus === 'verified'}
-							<span
-								class="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-							>
-								Verified
-							</span>
-						{/if}
+						<span class="truncate text-xs font-bold text-slate-500 dark:text-slate-400">
+							Selected for you
+						</span>
 					</div>
 				{/if}
 
-				<div class="flex min-h-0 flex-wrap items-center gap-1.5 sm:min-h-8 sm:gap-2">
-					<p class="text-xs font-black uppercase tracking-wide text-blue-600 dark:text-blue-400">
-						{event.sport}
-					</p>
+				<div class="flex items-start justify-between gap-4">
+					<div class="min-w-0 flex-1">
+						{#if event.hostType === 'organization'}
+							<div class="mb-2 hidden min-w-0 items-center gap-2 sm:flex">
+								<div
+									class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-xs font-black text-blue-600 dark:bg-slate-800 dark:text-blue-300"
+								>
+									<img
+										src={getOrganizationLogo(event.organizationLogoURL)}
+										alt={event.organizationName ?? 'Organization'}
+										class="h-full w-full object-cover"
+									/>
+								</div>
 
-					<span class={`rounded-full px-2 py-0.5 text-[10px] font-black sm:px-3 sm:py-1 sm:text-xs ${getStatusClasses()}`}>
-						{getStatusLabel()}
-					</span>
+								<p class="truncate text-xs font-black text-slate-500 dark:text-slate-400">
+									Hosted by {event.organizationName ?? 'Organization'}
+								</p>
 
-					{#if event.eventKind === 'tournament'}
-						<span
-							class="hidden rounded-full bg-purple-50 px-3 py-1 text-xs font-black text-purple-700 dark:bg-purple-950 dark:text-purple-300 sm:inline-flex"
+								{#if event.organizationVerificationStatus === 'verified'}
+									<span
+										class="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+									>
+										Verified
+									</span>
+								{/if}
+							</div>
+						{/if}
+
+						<div class="flex min-h-0 flex-wrap items-center gap-1.5 sm:min-h-8 sm:gap-2">
+							<p
+								class="text-xs font-black uppercase tracking-wide text-blue-600 dark:text-blue-400"
+							>
+								{event.sport}
+							</p>
+
+							<span
+								class={`rounded-full px-2 py-0.5 text-[10px] font-black sm:px-3 sm:py-1 sm:text-xs ${getStatusClasses()}`}
+							>
+								{getStatusLabel()}
+							</span>
+
+							{#if hasCurrentUserRelationship}
+								<span
+									class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 sm:px-3 sm:py-1 sm:text-xs"
+									>✓ {currentUserRelationshipLabel}</span
+								>
+							{/if}
+
+							{#if event.eventKind === 'tournament'}
+								<span
+									class="hidden rounded-full bg-purple-50 px-3 py-1 text-xs font-black text-purple-700 dark:bg-purple-950 dark:text-purple-300 sm:inline-flex"
+								>
+									Tournament
+								</span>
+							{/if}
+
+							{#if event.paymentMode === 'official'}
+								<span
+									class="hidden rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 sm:inline-flex"
+								>
+									Protected payment
+								</span>
+							{/if}
+
+							<EventWeather
+								lat={event.location.lat}
+								lng={event.location.lng}
+								startAt={event.startAt}
+								size="sm"
+							/>
+						</div>
+
+						<h3
+							class="mt-0.5 line-clamp-1 text-sm font-black leading-tight text-slate-950 dark:text-slate-50 sm:mt-1 sm:line-clamp-2 sm:text-lg"
 						>
-							Tournament
-						</span>
-					{/if}
+							{event.title}
+						</h3>
 
-					{#if event.paymentMode === 'official'}
-						<span
-							class="hidden rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 sm:inline-flex"
+						<p
+							class="mt-0.5 truncate text-[11px] font-semibold text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm"
 						>
-							Protected payment
-						</span>
-					{/if}
+							📍 {event.location.name}
+						</p>
 
-					<EventWeather lat={event.location.lat} lng={event.location.lng} startAt={event.startAt} size="sm" />
+						<p
+							class="hidden truncate text-xs font-semibold text-slate-500 dark:text-slate-400 sm:mt-1 sm:block sm:text-sm"
+						>
+							🕒 {formatDate(event.startAt)}
+						</p>
+					</div>
+
+					<div
+						class="shrink-0 rounded-2xl bg-slate-50 px-2 py-1 text-center dark:bg-slate-800 sm:px-3 sm:py-2"
+					>
+						<p class="text-xs font-black text-blue-600 dark:text-blue-300 sm:text-sm">
+							{event.participantIds.length}/{event.eventKind === 'tournament'
+								? (event.maxTournamentEntries ?? event.maxParticipants)
+								: event.maxParticipants}
+						</p>
+
+						<p class="hidden text-xs font-medium text-slate-500 dark:text-slate-400 sm:block">
+							{i18n.t('players_lowercase')}
+						</p>
+					</div>
 				</div>
 
-				<h3 class="mt-0.5 line-clamp-1 text-sm font-black leading-tight text-slate-950 dark:text-slate-50 sm:mt-1 sm:line-clamp-2 sm:text-lg">
-					{event.title}
-				</h3>
+				<div class="mt-auto hidden flex-wrap items-center justify-between gap-2 pt-3 sm:flex">
+					<span
+						class="rounded-full bg-slate-100 px-3 py-1 text-xs font-black capitalize text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+					>
+						{getLevelLabel(event.level)}
+					</span>
 
-				<p class="mt-0.5 truncate text-[11px] font-semibold text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">
-					📍 {event.location.name}
-				</p>
-
-				<p class="hidden truncate text-xs font-semibold text-slate-500 dark:text-slate-400 sm:mt-1 sm:block sm:text-sm">
-					🕒 {formatDate(event.startAt)}
-				</p>
+					{#if event.pricePerPerson}
+						<span class="text-sm font-medium text-slate-600 dark:text-slate-300">
+							{formattedPrice}
+						</span>
+					{/if}
+				</div>
 			</div>
-
-			<div class="shrink-0 rounded-2xl bg-slate-50 px-2 py-1 text-center dark:bg-slate-800 sm:px-3 sm:py-2">
-				<p class="text-xs font-black text-blue-600 dark:text-blue-300 sm:text-sm">
-					{event.participantIds.length}/{event.eventKind === 'tournament'
-						? (event.maxTournamentEntries ?? event.maxParticipants)
-						: event.maxParticipants}
-				</p>
-
-				<p class="hidden text-xs font-medium text-slate-500 dark:text-slate-400 sm:block">{i18n.t('players_lowercase')}</p>
-			</div>
-		</div>
-
-		<div class="mt-auto hidden flex-wrap items-center justify-between gap-2 pt-3 sm:flex">
-			<span
-				class="rounded-full bg-slate-100 px-3 py-1 text-xs font-black capitalize text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-			>
-				{getLevelLabel(event.level)}
-			</span>
-
-			{#if event.pricePerPerson}
-				<span class="text-sm font-medium text-slate-600 dark:text-slate-300">
-					{formattedPrice}
-				</span>
-			{/if}
-		</div>
-	</div>
-</a>
-{/if}
+		</a>
+	{/if}
 {/if}

@@ -9,6 +9,7 @@
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
 	import { themeState } from '$lib/theme.svelte';
+	import { i18n } from '$lib/services/i18n.svelte';
 	import {
 		shouldRequireTwoFactor,
 		startEmailTwoFactorChallenge
@@ -46,9 +47,9 @@
 			await goto(safeReturnTo);
 		} catch (err) {
 			console.error('Login error:', err);
-			const friendly = getFriendlyErrorMessage(err, 'Could not log in.');
+			const friendly = getFriendlyErrorMessage(err, i18n.t('login_error'));
 			error = friendly.includes('auth/operation-not-allowed')
-				? 'Email link verification is not enabled in Firebase Auth yet.'
+				? i18n.t('email_link_not_enabled')
 				: friendly;
 		} finally {
 			loading = false;
@@ -57,7 +58,10 @@
 
 	onMount(() => {
 		const accountEmail = page.url.searchParams.get('email');
-		switchingAccount = Boolean(page.url.searchParams.get('switchAccount') || page.url.searchParams.get('mode') === 'addAccount');
+		switchingAccount = Boolean(
+			page.url.searchParams.get('switchAccount') ||
+			page.url.searchParams.get('mode') === 'addAccount'
+		);
 
 		if (accountEmail) {
 			email = accountEmail;
@@ -70,7 +74,7 @@
 		success = '';
 
 		if (!email.trim()) {
-			error = 'Write your email first, then tap forgot password.';
+			error = i18n.t('enter_email_reset');
 			return;
 		}
 
@@ -78,18 +82,22 @@
 
 		try {
 			await authService.sendPasswordReset(email.trim());
-			success = 'Password reset email sent. Check your inbox.';
+			success = i18n.t('reset_email_sent');
 		} catch (err) {
 			console.error('Password reset error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not send password reset email.');
+			error = getFriendlyErrorMessage(err, i18n.t('reset_email_error'));
 		} finally {
 			resetLoading = false;
 		}
 	}
 </script>
 
-<main class="min-h-screen bg-slate-50 dark:bg-slate-950">
-	<section class="mx-auto grid min-h-screen max-w-6xl items-center gap-10 px-6 py-8 lg:grid-cols-2">
+<main
+	class="min-h-dvh bg-white dark:bg-slate-900 lg:min-h-screen lg:bg-slate-50 lg:dark:bg-slate-950"
+>
+	<section
+		class="mx-auto grid min-h-dvh max-w-6xl items-stretch lg:min-h-screen lg:grid-cols-2 lg:items-center lg:gap-10 lg:px-6 lg:py-8"
+	>
 		<div class="hidden lg:block">
 			<div>
 				<div class="flex items-center gap-3">
@@ -97,36 +105,38 @@
 					<ThemeToggle />
 				</div>
 
-				<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Find your game.</p>
+				<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">{i18n.t('find_your_game')}</p>
 			</div>
 
 			<h1
 				class="mt-8 text-6xl font-black leading-tight tracking-tight text-slate-950 dark:text-slate-50"
 			>
-				Welcome back.
+				{i18n.t('welcome_back')}
 			</h1>
 
 			<p class="mt-5 max-w-lg text-lg leading-8 text-slate-600 dark:text-slate-400">
-				Access your account and manage your events, teams, and more. We’ve missed you!
+				{i18n.t('login_intro')}
 			</p>
 		</div>
 
-		<div class="mx-auto w-full max-w-md">
-			<div class="mb-8 lg:hidden">
+		<div class="mx-auto flex min-h-dvh w-full max-w-none flex-col lg:block lg:min-h-0 lg:max-w-md">
+			<div class="mb-5 px-5 pt-[max(1.25rem,env(safe-area-inset-top))] lg:hidden">
 				<div class="flex items-center gap-3">
 					<RallyLogo size="md" href="/" />
 					<ThemeToggle />
 				</div>
 
-				<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Find your game.</p>
+				<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">{i18n.t('find_your_game')}</p>
 			</div>
 
 			<div
-				class="rounded-4xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+				class="flex-1 bg-white px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-5 dark:bg-slate-900 sm:mx-5 sm:mb-5 sm:rounded-4xl sm:border sm:border-slate-200 sm:p-8 sm:shadow-xl sm:shadow-slate-200/60 sm:dark:border-slate-800 sm:dark:shadow-none lg:m-0 lg:flex-none"
 			>
-				<h1 class="text-3xl font-black text-slate-950 dark:text-slate-50">Log in</h1>
+				<h1 class="text-3xl font-black text-slate-950 dark:text-slate-50">
+					{i18n.t('login_title')}
+				</h1>
 				<p class="mt-2 text-slate-500 dark:text-slate-400">
-					{switchingAccount ? 'Choose or confirm the account you want to use.' : 'Continue to Rally.'}
+					{switchingAccount ? i18n.t('choose_account_login') : i18n.t('continue_to_rally')}
 				</p>
 
 				<div class="mt-8">
@@ -135,7 +145,9 @@
 
 				<div class="my-6 flex items-center gap-3">
 					<div class="h-px flex-1 bg-slate-200 dark:bg-slate-700"></div>
-					<span class="text-xs font-bold uppercase tracking-wide text-slate-400"> or </span>
+					<span class="text-xs font-bold uppercase tracking-wide text-slate-400">
+						{i18n.t('or')}
+					</span>
 					<div class="h-px flex-1 bg-slate-200 dark:bg-slate-700"></div>
 				</div>
 
@@ -182,7 +194,7 @@
 								for="password"
 								class="text-sm font-semibold text-slate-700 dark:text-slate-300"
 							>
-								Password
+								{i18n.t('password')}
 							</label>
 
 							<button
@@ -191,7 +203,7 @@
 								disabled={resetLoading}
 								class="text-sm font-bold text-blue-600 hover:text-blue-700 disabled:opacity-60 dark:text-blue-400 dark:hover:text-blue-300"
 							>
-								{resetLoading ? 'Sending...' : 'Forgot password?'}
+								{resetLoading ? i18n.t('sending') : i18n.t('forgot_password')}
 							</button>
 						</div>
 
@@ -210,9 +222,19 @@
 								class="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition"
 							>
 								{#if showPassword}
-									<img src="/eye_open.png" alt="Show password" class="h-5 w-5 object-contain" class:invert={$themeState} />
+									<img
+										src="/eye_open.png"
+										alt={i18n.t('show_password')}
+										class="h-5 w-5 object-contain"
+										class:invert={$themeState}
+									/>
 								{:else}
-									<img src="/eye_closed.png" alt="Hide password" class="h-5 w-5 object-contain" class:invert={$themeState} />
+									<img
+										src="/eye_closed.png"
+										alt={i18n.t('hide_password')}
+										class="h-5 w-5 object-contain"
+										class:invert={$themeState}
+									/>
 								{/if}
 							</button>
 						</div>
@@ -223,17 +245,17 @@
 						disabled={loading}
 						class="w-full rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-60 dark:shadow-blue-950/40"
 					>
-						{loading ? 'Logging in...' : 'Log in'}
+						{loading ? i18n.t('logging_in') : i18n.t('login_title')}
 					</button>
 				</form>
 
 				<p class="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
-					Don’t have an account?
+					{i18n.t('dont_have_account')}
 					<a
 						href="/register"
 						class="font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
 					>
-						Create one
+						{i18n.t('create_one')}
 					</a>
 				</p>
 			</div>
@@ -241,9 +263,9 @@
 			<button
 				type="button"
 				onclick={() => goBack('/')}
-				class="mt-6 block text-center text-sm font-semibold text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400"
+				class="mt-6 hidden text-center text-sm font-semibold text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 lg:block"
 			>
-				← Back to home
+				← {i18n.t('home')}
 			</button>
 		</div>
 	</section>

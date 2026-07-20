@@ -6,9 +6,15 @@
 	import GoogleSignInButton from '$lib/components/GoogleSignInButton.svelte';
 	import { authService } from '$lib/services/auth.service';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
-	import { goBack } from '$lib/utils/navigation';
 	import { themeState } from '$lib/theme.svelte';
 	import { i18n } from '$lib/services/i18n.svelte';
+	import { page } from '$app/state';
+	import type { OrganizationType } from '$lib/schema';
+
+	type RegistrationType = 'personal' | 'organization';
+	let accountType = $state<RegistrationType>(
+		page.url.searchParams.get('type') === 'organization' ? 'organization' : 'personal'
+	);
 
 	let displayName = $state('');
 	let email = $state('');
@@ -18,34 +24,77 @@
 	let error = $state('');
 	let showPassword = $state(false);
 	let registerLanguage = $state(i18n.currentLang);
+	let organizationName = $state('');
+	let organizationType = $state<OrganizationType>('company');
+	let description = $state('');
+	let contactEmail = $state('');
+	let phone = $state('');
+	let website = $state('');
+	let address = $state('');
+	let city = $state('');
+	let nif = $state('');
+
+	const organizationTypes: { value: OrganizationType; labelKey: string }[] = [
+		{ value: 'company', labelKey: 'organization_type_company' },
+		{ value: 'sports_club', labelKey: 'organization_type_sports_club' },
+		{ value: 'venue', labelKey: 'organization_type_venue' },
+		{ value: 'gym', labelKey: 'organization_type_gym' },
+		{ value: 'event_organizer', labelKey: 'organization_type_event_organizer' },
+		{ value: 'university', labelKey: 'organization_type_university' },
+		{ value: 'community_group', labelKey: 'organization_type_community' },
+		{ value: 'other', labelKey: 'other' }
+	];
 
 	async function handleRegister() {
 		error = '';
 
-		if (!displayName || !email || !password || !confirmPassword) {
-			error = 'Please fill in all fields.';
+		if (
+			(accountType === 'personal' && !displayName) ||
+			(accountType === 'organization' && !organizationName.trim()) ||
+			!email ||
+			!password ||
+			!confirmPassword
+		) {
+			error = i18n.t('required_fields_error');
 			return;
 		}
 
 		if (password !== confirmPassword) {
-			error = 'Passwords do not match.';
+			error = i18n.t('passwords_mismatch_error');
 			return;
 		}
 
 		if (password.length < 6) {
-			error = 'Password must be at least 6 characters.';
+			error = i18n.t('password_length_error');
 			return;
 		}
 
 		loading = true;
 
 		try {
-			await authService.register(email, password, displayName, registerLanguage);
+			if (accountType === 'organization') {
+				await authService.registerOrganization({
+					email,
+					password,
+					organizationName,
+					organizationType,
+					description,
+					contactEmail: contactEmail || email,
+					phone,
+					website,
+					address,
+					city,
+					nif,
+					language: registerLanguage
+				});
+			} else {
+				await authService.register(email, password, displayName, registerLanguage);
+			}
 			i18n.setLanguage(registerLanguage as any);
 			await goto(resolve('/dashboard'));
 		} catch (err) {
 			console.error('Register error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not create account.');
+			error = getFriendlyErrorMessage(err, i18n.t('create_account_error'));
 		} finally {
 			loading = false;
 		}
@@ -65,69 +114,69 @@
 				class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 			>
 				<p class="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
-					Choose account type
+					{i18n.t('choose_account_type')}
 				</p>
 
 				<h1 class="mt-3 text-3xl font-black tracking-tight text-slate-950 dark:text-slate-50">
-					Join Rally
+					{i18n.t('join_rally')}
 				</h1>
 
 				<p class="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-					Create a personal account to join events, or register an organization to host official
-					activities.
+					{i18n.t('account_type_intro')}
 				</p>
 
 				<div class="mt-6 space-y-3">
-					<div
-						class="rounded-3xl border-2 border-blue-500 bg-blue-50 p-5 dark:border-blue-500 dark:bg-blue-950/40"
+					<button
+						type="button"
+						onclick={() => (accountType = 'personal')}
+						aria-pressed={accountType === 'personal'}
+						class={`w-full rounded-3xl p-5 text-left transition ${accountType === 'personal' ? 'border-2 border-blue-500 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/40' : 'border border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-500 dark:hover:bg-slate-800'}`}
 					>
 						<div class="flex items-start gap-4">
 							<div
-								class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-xl font-black text-white"
+								class={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-xl font-black ${accountType === 'personal' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'}`}
 							>
 								☻
 							</div>
 
 							<div>
 								<h2 class="font-black text-slate-950 dark:text-slate-50">
-									Personal account
+									{i18n.t('personal_account')}
 								</h2>
 								<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-									For people who want to join events, make friends and organize casual games.
+									{i18n.t('personal_account_help')}
 								</p>
 							</div>
 						</div>
-					</div>
+					</button>
 
-					<a
-						href={resolve('/register/organization')}
-						class="block rounded-3xl border border-slate-200 bg-white p-5 transition hover:border-blue-300 hover:bg-blue-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-500 dark:hover:bg-slate-800"
+					<button
+						type="button"
+						onclick={() => (accountType = 'organization')}
+						aria-pressed={accountType === 'organization'}
+						class={`block w-full rounded-3xl p-5 text-left transition ${accountType === 'organization' ? 'border-2 border-blue-500 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/40' : 'border border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-500 dark:hover:bg-slate-800'}`}
 					>
 						<div class="flex items-start gap-4">
 							<div
-								class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-xl font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+								class={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-xl font-black ${accountType === 'organization' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'}`}
 							>
 								✓
 							</div>
 
 							<div>
 								<h2 class="font-black text-slate-950 dark:text-slate-50">
-									Organization account
+									{i18n.t('organization_account')}
 								</h2>
 								<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-									For companies, clubs, gyms, venues or brands that want to host official events.
-								</p>
-
-								<p class="mt-3 text-sm font-black text-blue-600 dark:text-blue-400">
-									Register organization →
+									{i18n.t('organization_account_help')}
 								</p>
 							</div>
 						</div>
-					</a>
+					</button>
 				</div>
 
 				<p class="mt-6 text-xs leading-relaxed text-slate-400 dark:text-slate-500">
-					Organizations can later request verification before creating official paid events.
+					{i18n.t('organization_verification_help')}
 				</p>
 			</section>
 
@@ -135,11 +184,15 @@
 				class="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 			>
 				<h2 class="text-2xl font-black text-slate-950 dark:text-slate-50">
-					Create personal account
+					{accountType === 'organization'
+						? i18n.t('create_organization_account')
+						: i18n.t('create_personal_account')}
 				</h2>
 
 				<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-					Start joining events and connecting with people nearby.
+					{accountType === 'organization'
+						? i18n.t('organization_register_sub')
+						: i18n.t('personal_register_sub')}
 				</p>
 
 				{#if error}
@@ -157,18 +210,77 @@
 						handleRegister();
 					}}
 				>
-					<div>
-						<label for="displayName" class="text-sm font-bold text-slate-700 dark:text-slate-300">
-							Name
-						</label>
+					{#if accountType === 'personal'}
+						<div>
+							<label for="displayName" class="text-sm font-bold text-slate-700 dark:text-slate-300">
+								{i18n.t('name')}
+							</label>
 
-						<input
-							id="displayName"
-							bind:value={displayName}
-							placeholder="Your name"
-							class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
-						/>
-					</div>
+							<input
+								id="displayName"
+								bind:value={displayName}
+								placeholder={i18n.t('name_placeholder')}
+								class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+							/>
+						</div>
+					{:else}
+						<div class="grid gap-4 sm:grid-cols-2">
+							<div class="sm:col-span-2">
+								<label
+									for="organizationName"
+									class="text-sm font-bold text-slate-700 dark:text-slate-300"
+									>{i18n.t('organization_name')}</label
+								>
+								<input
+									id="organizationName"
+									bind:value={organizationName}
+									placeholder={i18n.t('organization_name_placeholder')}
+									class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:ring-blue-950"
+								/>
+							</div>
+							<div>
+								<label
+									for="organizationType"
+									class="text-sm font-bold text-slate-700 dark:text-slate-300"
+									>{i18n.t('organization_type')}</label
+								>
+								<select
+									id="organizationType"
+									bind:value={organizationType}
+									class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+								>
+									{#each organizationTypes as type (type.value)}<option value={type.value}
+											>{i18n.t(type.labelKey)}</option
+										>{/each}
+								</select>
+							</div>
+							<div>
+								<label for="nif" class="text-sm font-bold text-slate-700 dark:text-slate-300"
+									>{i18n.t('nif_vat_optional')}</label
+								>
+								<input
+									id="nif"
+									bind:value={nif}
+									placeholder={i18n.t('optional')}
+									class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+								/>
+							</div>
+						</div>
+						<div>
+							<label
+								for="organizationDescription"
+								class="text-sm font-bold text-slate-700 dark:text-slate-300"
+								>{i18n.t('description')}</label
+							>
+							<textarea
+								id="organizationDescription"
+								bind:value={description}
+								rows="2"
+								placeholder={i18n.t('organization_description_placeholder')}
+								class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+							></textarea>
+						</div>
+					{/if}
 
 					<div>
 						<label for="language" class="text-sm font-bold text-slate-700 dark:text-slate-300">
@@ -201,10 +313,41 @@
 						/>
 					</div>
 
+					{#if accountType === 'organization'}
+						<div class="grid gap-4 sm:grid-cols-2">
+							<input
+								type="email"
+								bind:value={contactEmail}
+								placeholder={i18n.t('public_contact_email_optional')}
+								class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+							/>
+							<input
+								bind:value={phone}
+								placeholder={i18n.t('phone_optional')}
+								class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+							/>
+							<input
+								bind:value={website}
+								placeholder={i18n.t('website_optional')}
+								class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+							/>
+							<input
+								bind:value={city}
+								placeholder={i18n.t('city_optional')}
+								class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+							/>
+							<input
+								bind:value={address}
+								placeholder={i18n.t('address_optional')}
+								class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 sm:col-span-2"
+							/>
+						</div>
+					{/if}
+
 					<div class="grid gap-4 sm:grid-cols-2">
 						<div>
 							<label for="password" class="text-sm font-bold text-slate-700 dark:text-slate-300">
-								Password
+								{i18n.t('password')}
 							</label>
 
 							<div class="relative mt-2">
@@ -221,9 +364,19 @@
 									class="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition"
 								>
 									{#if showPassword}
-										<img src="/eye_open.png" alt="Show password" class="h-5 w-5 object-contain" class:invert={$themeState} />
+										<img
+											src="/eye_open.png"
+											alt={i18n.t('show_password')}
+											class="h-5 w-5 object-contain"
+											class:invert={$themeState}
+										/>
 									{:else}
-										<img src="/eye_closed.png" alt="Hide password" class="h-5 w-5 object-contain" class:invert={$themeState} />
+										<img
+											src="/eye_closed.png"
+											alt={i18n.t('hide_password')}
+											class="h-5 w-5 object-contain"
+											class:invert={$themeState}
+										/>
 									{/if}
 								</button>
 							</div>
@@ -234,7 +387,7 @@
 								for="confirmPassword"
 								class="text-sm font-bold text-slate-700 dark:text-slate-300"
 							>
-								Confirm password
+								{i18n.t('confirm_password')}
 							</label>
 
 							<div class="relative mt-2">
@@ -251,9 +404,19 @@
 									class="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition"
 								>
 									{#if showPassword}
-										<img src="/eye_open.png" alt="Show password" class="h-5 w-5 object-contain" class:invert={$themeState} />
+										<img
+											src="/eye_open.png"
+											alt={i18n.t('show_password')}
+											class="h-5 w-5 object-contain"
+											class:invert={$themeState}
+										/>
 									{:else}
-										<img src="/eye_closed.png" alt="Hide password" class="h-5 w-5 object-contain" class:invert={$themeState} />
+										<img
+											src="/eye_closed.png"
+											alt={i18n.t('hide_password')}
+											class="h-5 w-5 object-contain"
+											class:invert={$themeState}
+										/>
 									{/if}
 								</button>
 							</div>
@@ -265,37 +428,36 @@
 						disabled={loading}
 						class="w-full rounded-2xl bg-blue-600 px-5 py-3 font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-60"
 					>
-						{loading ? 'Creating account...' : 'Create personal account'}
+						{loading
+							? i18n.t('creating_account')
+							: accountType === 'organization'
+								? i18n.t('create_organization_account')
+								: i18n.t('create_personal_account')}
 					</button>
 				</form>
 
-				<div class="my-6 flex items-center gap-4">
-					<div class="h-px flex-1 bg-slate-200 dark:bg-slate-800"></div>
-					<span class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
-						or
-					</span>
-					<div class="h-px flex-1 bg-slate-200 dark:bg-slate-800"></div>
-				</div>
+				{#if accountType === 'personal'}
+					<div class="my-6 flex items-center gap-4">
+						<div class="h-px flex-1 bg-slate-200 dark:bg-slate-800"></div>
+						<span class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
+							{i18n.t('or')}
+						</span>
+						<div class="h-px flex-1 bg-slate-200 dark:bg-slate-800"></div>
+					</div>
 
-				<GoogleSignInButton />
+					<GoogleSignInButton />
+				{/if}
 
 				<p class="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
-					Already have an account?
+					{i18n.t('already_have_account')}
 					<a
 						href={resolve('/login')}
 						class="font-black text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
 					>
-						Sign in
+						{i18n.t('login_title')}
 					</a>
 				</p>
 			</section>
 		</div>
-		<button
-			type="button"
-			onclick={() => goBack('/')}
-			class="mt-6 block text-center text-sm font-semibold text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400"
-		>
-			← Back to home
-		</button>
 	</div>
 </main>

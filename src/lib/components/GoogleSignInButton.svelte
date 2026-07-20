@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { authService } from '$lib/services/auth.service';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
+	import { i18n } from '$lib/services/i18n.svelte';
 	import {
 		shouldRequireTwoFactor,
 		startEmailTwoFactorChallenge
@@ -32,7 +33,7 @@
 			await goto(safeReturnTo);
 		} catch (err) {
 			console.error('Google sign-in error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not continue with Google.');
+			error = getFriendlyErrorMessage(err, i18n.t('google_sign_in_error'));
 		} finally {
 			loading = false;
 		}
@@ -46,14 +47,10 @@
 		disabled={loading}
 		class="flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3 font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
 	>
-		<img
-			src="/google-logo.png"
-			alt="Google"
-			class="h-5 w-5 object-contain"
-		/>
+		<img src="/google-logo.png" alt="Google" class="h-5 w-5 object-contain" />
 
 		<span>
-			{loading ? 'Continuing...' : 'Continue with Google'}
+			{loading ? i18n.t('continuing') : i18n.t('sign_in_google')}
 		</span>
 	</button>
 

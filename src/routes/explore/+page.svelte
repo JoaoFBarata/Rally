@@ -469,7 +469,7 @@
 			promotedRotationSeed += 1;
 			setPromotedPage(promotedPage + 1);
 		}, 9000);
-		const lifecycleTimer = window.setInterval(() => (nowMs = Date.now()), 30_000);
+		const lifecycleTimer = window.setInterval(() => (nowMs = Date.now()), 10_000);
 		void (async () => {
 			const currentUser = auth.currentUser;
 			if (!currentUser) {
@@ -620,7 +620,14 @@
 									aria-label={i18n.t('dismiss')}
 									title={i18n.t('dismiss')}
 								>
-									<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" class="h-4 w-4">
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="2.4"
+										class="h-4 w-4"
+									>
 										<path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
 									</svg>
 								</button>
@@ -694,7 +701,14 @@
 							aria-label={i18n.t('dismiss')}
 							title={i18n.t('dismiss')}
 						>
-							<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" class="h-4 w-4">
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2.4"
+								class="h-4 w-4"
+							>
 								<path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
 							</svg>
 						</button>

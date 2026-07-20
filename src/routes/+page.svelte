@@ -159,7 +159,7 @@
 	];
 </script>
 
-<main class="min-h-screen bg-white dark:bg-slate-950">
+<main class="hidden min-h-screen bg-white dark:bg-slate-950 md:block">
 	<!-- ─── HERO ─────────────────────────────────────────────────────────── -->
 	<section class="relative h-screen min-h-[600px] overflow-hidden">
 		<video

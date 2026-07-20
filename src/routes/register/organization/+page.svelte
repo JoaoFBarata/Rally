@@ -5,10 +5,14 @@
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import { authService } from '$lib/services/auth.service';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
-	import { goBack } from '$lib/utils/navigation';
 	import type { OrganizationType } from '$lib/schema';
 	import { themeState } from '$lib/theme.svelte';
 	import { i18n } from '$lib/services/i18n.svelte';
+	import { onMount } from 'svelte';
+
+	onMount(() => {
+		void goto('/register?type=organization', { replaceState: true });
+	});
 
 	let organizationName = $state('');
 	let organizationType = $state<OrganizationType>('company');
@@ -80,7 +84,7 @@
 	}
 </script>
 
-<main class="min-h-screen bg-slate-50 dark:bg-slate-950">
+<main class="hidden min-h-screen bg-slate-50 dark:bg-slate-950">
 	<section class="mx-auto grid min-h-screen max-w-6xl items-center gap-10 px-6 py-8 lg:grid-cols-2">
 		<div class="hidden lg:block">
 			<div class="flex items-center justify-between gap-3">
@@ -88,13 +92,15 @@
 				<ThemeToggle />
 			</div>
 
-			<h1 class="mt-8 text-6xl font-black leading-tight tracking-tight text-slate-950 dark:text-slate-50">
+			<h1
+				class="mt-8 text-6xl font-black leading-tight tracking-tight text-slate-950 dark:text-slate-50"
+			>
 				Create events as an organization.
 			</h1>
 
 			<p class="mt-5 max-w-lg text-lg leading-8 text-slate-600 dark:text-slate-400">
-				For companies, clubs, venues and communities that organize real sports events.
-				Official paid events require verification before payments can be enabled.
+				For companies, clubs, venues and communities that organize real sports events. Official paid
+				events require verification before payments can be enabled.
 			</p>
 
 			<div class="mt-8 grid max-w-lg gap-3">
@@ -103,7 +109,8 @@
 						Trust first
 					</p>
 					<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-						Organizations start unverified. Verified badges and official paid events are only unlocked after review.
+						Organizations start unverified. Verified badges and official paid events are only
+						unlocked after review.
 					</p>
 				</div>
 			</div>
@@ -118,9 +125,7 @@
 			<div
 				class="rounded-4xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
 			>
-				<h1 class="text-3xl font-black text-slate-950 dark:text-slate-50">
-					Organization account
-				</h1>
+				<h1 class="text-3xl font-black text-slate-950 dark:text-slate-50">Organization account</h1>
 
 				<p class="mt-2 text-slate-500 dark:text-slate-400">
 					Create a Rally account for a company, club, venue or organizer.
@@ -143,7 +148,10 @@
 				>
 					<div class="grid gap-4 sm:grid-cols-2">
 						<div class="sm:col-span-2">
-							<label for="organizationName" class="text-sm font-semibold text-slate-700 dark:text-slate-300">
+							<label
+								for="organizationName"
+								class="text-sm font-semibold text-slate-700 dark:text-slate-300"
+							>
 								Organization name
 							</label>
 							<input
@@ -155,7 +163,10 @@
 						</div>
 
 						<div>
-							<label for="organizationType" class="text-sm font-semibold text-slate-700 dark:text-slate-300">
+							<label
+								for="organizationType"
+								class="text-sm font-semibold text-slate-700 dark:text-slate-300"
+							>
 								Type
 							</label>
 							<select
@@ -183,7 +194,10 @@
 					</div>
 
 					<div>
-						<label for="description" class="text-sm font-semibold text-slate-700 dark:text-slate-300">
+						<label
+							for="description"
+							class="text-sm font-semibold text-slate-700 dark:text-slate-300"
+						>
 							Description
 						</label>
 						<textarea
@@ -197,7 +211,10 @@
 
 					<div class="grid gap-4 sm:grid-cols-2">
 						<div>
-							<label for="language" class="text-sm font-semibold text-slate-700 dark:text-slate-300">
+							<label
+								for="language"
+								class="text-sm font-semibold text-slate-700 dark:text-slate-300"
+							>
 								{i18n.t('select_language')}
 							</label>
 							<select
@@ -228,7 +245,10 @@
 						</div>
 
 						<div>
-							<label for="contactEmail" class="text-sm font-semibold text-slate-700 dark:text-slate-300">
+							<label
+								for="contactEmail"
+								class="text-sm font-semibold text-slate-700 dark:text-slate-300"
+							>
 								Public contact email
 							</label>
 							<input
@@ -243,7 +263,10 @@
 
 					<div class="grid gap-4 sm:grid-cols-2">
 						<div>
-							<label for="password" class="text-sm font-semibold text-slate-700 dark:text-slate-300">
+							<label
+								for="password"
+								class="text-sm font-semibold text-slate-700 dark:text-slate-300"
+							>
 								Password
 							</label>
 							<div class="relative mt-2">
@@ -260,16 +283,29 @@
 									class="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition"
 								>
 									{#if showPassword}
-										<img src="/eye_open.png" alt="Show password" class="h-5 w-5 object-contain" class:invert={$themeState} />
+										<img
+											src="/eye_open.png"
+											alt="Show password"
+											class="h-5 w-5 object-contain"
+											class:invert={$themeState}
+										/>
 									{:else}
-										<img src="/eye_closed.png" alt="Hide password" class="h-5 w-5 object-contain" class:invert={$themeState} />
+										<img
+											src="/eye_closed.png"
+											alt="Hide password"
+											class="h-5 w-5 object-contain"
+											class:invert={$themeState}
+										/>
 									{/if}
 								</button>
 							</div>
 						</div>
 
 						<div>
-							<label for="confirmPassword" class="text-sm font-semibold text-slate-700 dark:text-slate-300">
+							<label
+								for="confirmPassword"
+								class="text-sm font-semibold text-slate-700 dark:text-slate-300"
+							>
 								Confirm password
 							</label>
 							<div class="relative mt-2">
@@ -286,9 +322,19 @@
 									class="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition"
 								>
 									{#if showPassword}
-										<img src="/eye_open.png" alt="Show password" class="h-5 w-5 object-contain" class:invert={$themeState} />
+										<img
+											src="/eye_open.png"
+											alt="Show password"
+											class="h-5 w-5 object-contain"
+											class:invert={$themeState}
+										/>
 									{:else}
-										<img src="/eye_closed.png" alt="Hide password" class="h-5 w-5 object-contain" class:invert={$themeState} />
+										<img
+											src="/eye_closed.png"
+											alt="Hide password"
+											class="h-5 w-5 object-contain"
+											class:invert={$themeState}
+										/>
 									{/if}
 								</button>
 							</div>
@@ -296,10 +342,26 @@
 					</div>
 
 					<div class="grid gap-4 sm:grid-cols-2">
-						<input bind:value={phone} class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950" placeholder="Phone" />
-						<input bind:value={website} class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950" placeholder="Website" />
-						<input bind:value={address} class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950" placeholder="Address" />
-						<input bind:value={city} class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950" placeholder="City" />
+						<input
+							bind:value={phone}
+							class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+							placeholder="Phone"
+						/>
+						<input
+							bind:value={website}
+							class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+							placeholder="Website"
+						/>
+						<input
+							bind:value={address}
+							class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+							placeholder="Address"
+						/>
+						<input
+							bind:value={city}
+							class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
+							placeholder="City"
+						/>
 					</div>
 
 					<button
@@ -313,18 +375,14 @@
 
 				<p class="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
 					Want a personal account?
-					<a href="/register" class="font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
+					<a
+						href="/register"
+						class="font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+					>
 						Create personal account
 					</a>
 				</p>
 			</div>
-			<button
-				type="button"
-				onclick={() => goBack('/')}
-				class="mt-6 block text-center text-sm font-semibold text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400"
-			>
-				← Back to home
-			</button>
 		</div>
 	</section>
 </main>
