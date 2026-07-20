@@ -11,11 +11,9 @@
 		getEventsForUser,
 		getUpcomingEvents,
 		sortEventsByStartDate,
-		isEventFinished,
 		getEffectiveEventStatus,
 		isPromotionActive,
 		getEventById,
-		notifyEventFinished,
 		getTournamentEntries,
 		getTournamentMatches
 	} from '$lib/services/event.service';
@@ -26,7 +24,11 @@
 		getUserProfilesByIds
 	} from '$lib/services/user.service';
 	import { i18n } from '$lib/services/i18n.svelte';
-	import { getFriendsForUser } from '$lib/services/social.service';
+	import {
+		getFriendRequestsForUser,
+		getFriendsForUser,
+		respondToFriendRequest
+	} from '$lib/services/social.service';
 	import {
 		getVisibleEventsForUser,
 		subscribeToPromotedEventsForUser
@@ -38,6 +40,7 @@
 	} from '$lib/services/organization.service';
 	import type {
 		EventInvite,
+		FriendRequest,
 		Organization,
 		SportEvent,
 		TournamentEntry,
@@ -83,6 +86,9 @@
 	let invitePreviewUser = $state<UserProfile | null>(null);
 	let error = $state('');
 	let inviteActionLoading = $state('');
+	let pendingFriendRequests = $state<FriendRequest[]>([]);
+	let friendRequestPreviewUser = $state<UserProfile | null>(null);
+	let friendRequestActionLoading = $state('');
 	let activeTab = $state<'hosting' | 'joined'>('hosting');
 	let showPastEvents = $state(false);
 	let showCancelledEvents = $state(false);
@@ -170,8 +176,6 @@
 	let primarySpotlightRally = $derived(spotlightRallies[0] ?? null);
 	let compactSpotlightRallies = $derived(spotlightRallies.slice(1, 5));
 	let recentlyFinishedRallies = $derived.by(() => {
-		if (spotlightRallies.length > 0) return [];
-
 		const finished = allUserEvents
 			.filter((event) => event.status !== 'cancelled')
 			.filter((event) => getEventTemporalState(event, nowMs) === 'finished')
@@ -180,7 +184,7 @@
 		return finished
 			.filter((event) => {
 				const elapsedSinceEnd = nowMs - getEventFinishedSortMs(event);
-				return elapsedSinceEnd >= 0 && elapsedSinceEnd <= RECENT_FINISHED_MS;
+				return elapsedSinceEnd >= 0 && elapsedSinceEnd < RECENT_FINISHED_MS;
 			})
 			.slice(0, 1);
 	});
@@ -541,6 +545,24 @@
 		}
 	}
 
+	async function handleFriendRequestResponse(status: 'accepted' | 'declined') {
+		const currentUser = auth.currentUser;
+		const request = pendingFriendRequests[0];
+		if (!currentUser || !request) return;
+
+		friendRequestActionLoading = status;
+		error = '';
+		try {
+			await respondToFriendRequest({ requestId: request.id, status });
+			await refreshDashboardData(currentUser.uid);
+		} catch (err) {
+			console.error('Dashboard friend request response error:', err);
+			error = getFriendlyErrorMessage(err, i18n.t('could_not_update_friend_request'));
+		} finally {
+			friendRequestActionLoading = '';
+		}
+	}
+
 	function changeRadius(radius: number) {
 		radiusKm = radius;
 	}
@@ -553,7 +575,8 @@
 			loadedPublicEvents,
 			loadedFriends,
 			followedOrganizations,
-			loadedOrganizations
+			loadedOrganizations,
+			loadedFriendRequests
 		] = await Promise.all([
 			getEventsCreatedByUser(userId),
 			getEventsForUser(userId),
@@ -561,7 +584,8 @@
 			getVisibleEventsForUser(userId),
 			getFriendsForUser(userId),
 			getOrganizationsFollowedByUser(userId),
-			getPublicOrganizations()
+			getPublicOrganizations(),
+			getFriendRequestsForUser(userId)
 		]);
 		const eventsById = new SvelteMap<string, SportEvent>();
 		for (const event of createdEvents) eventsById.set(event.id, event);
@@ -607,13 +631,6 @@
 			tournamentProfilesByUserId = {};
 		}
 
-		// Auto-detect and notify/mark finished events
-		for (const event of allUserEvents) {
-			if (isEventFinished(event) && event.status !== 'finished' && event.status !== 'cancelled') {
-				void notifyEventFinished(event);
-			}
-		}
-
 		events = allUserEvents.filter((event) => event.creatorId === userId);
 		joinedEvents = allUserEvents.filter(
 			(event) => event.creatorId !== userId && event.participantIds.includes(userId)
@@ -625,6 +642,10 @@
 		publicOrganizations = loadedOrganizations;
 		followedOrganizationIds = followedOrganizations.map((organization) => organization.id);
 		friends = loadedFriends;
+		pendingFriendRequests = loadedFriendRequests.filter((request) => request.status === 'pending');
+		friendRequestPreviewUser = pendingFriendRequests[0]
+			? await getUserProfile(pendingFriendRequests[0].fromUserId)
+			: null;
 		await loadInvitePreview(activeInvites.filter((invite) => invite.status === 'pending'));
 	}
 
@@ -1075,6 +1096,58 @@
 								<path d="m20 6-11 11-5-5" />
 							</svg>
 						{/if}
+					</button>
+				</div>
+			</div>
+		{/if}
+
+		{#if pendingFriendRequests.length > 0}
+			<div
+				class="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm dark:border-blue-950/60 dark:bg-slate-900 sm:mb-7"
+			>
+				<a
+					href={resolve(
+						friendRequestPreviewUser ? `/users/${friendRequestPreviewUser.id}` : '/messages'
+					)}
+					class="flex min-w-0 flex-1 items-center gap-3 rounded-2xl transition hover:opacity-80"
+				>
+					<UserAvatar
+						photoURL={friendRequestPreviewUser?.photoURL}
+						displayName={friendRequestPreviewUser?.displayName ?? i18n.t('rally_user')}
+						email={friendRequestPreviewUser?.email}
+						size="sm"
+					/>
+					<div class="min-w-0 flex-1">
+						<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">
+							{friendRequestPreviewUser?.displayName ?? i18n.t('someone')}
+						</p>
+						<p class="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
+							{i18n.t('sent_friend_request')}
+							{#if pendingFriendRequests.length > 1}
+								· +{pendingFriendRequests.length - 1} {i18n.t('more')}
+							{/if}
+						</p>
+					</div>
+				</a>
+
+				<div class="flex shrink-0 gap-2">
+					<button
+						type="button"
+						onclick={() => handleFriendRequestResponse('declined')}
+						disabled={Boolean(friendRequestActionLoading)}
+						class="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-500 transition hover:bg-slate-200 disabled:opacity-60 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+						aria-label={i18n.t('decline')}
+					>
+						{friendRequestActionLoading === 'declined' ? '...' : '×'}
+					</button>
+					<button
+						type="button"
+						onclick={() => handleFriendRequestResponse('accepted')}
+						disabled={Boolean(friendRequestActionLoading)}
+						class="grid h-9 w-9 place-items-center rounded-xl bg-blue-600 font-black text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700 disabled:opacity-60"
+						aria-label={i18n.t('accept')}
+					>
+						{friendRequestActionLoading === 'accepted' ? '...' : '✓'}
 					</button>
 				</div>
 			</div>

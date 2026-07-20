@@ -337,8 +337,10 @@
 	}
 
 	function getFriendInviteLink() {
-		if (!profile?.rallyTag) return '';
-		return createAppUrl(`/friends/add?tag=${encodeURIComponent(profile.rallyTag)}`);
+		if (!profile?.id || !profile.rallyTag) return '';
+		return createAppUrl(
+			`/friends/add?source=link&user=${encodeURIComponent(profile.id)}&tag=${encodeURIComponent(profile.rallyTag)}`
+		);
 	}
 
 	async function copyFriendInviteLink() {
@@ -363,7 +365,7 @@
 	async function generateProfileQrCode(userId: string) {
 		if (!browser || !profile?.rallyTag) return;
 
-		const link = createAppUrl(`/friends/add?tag=${encodeURIComponent(profile.rallyTag)}`);
+		const link = createAppUrl(`/friends/add?source=qr&user=${encodeURIComponent(userId)}`);
 
 		qrCodeLink = link;
 		qrCodeDataUrl = await QRCode.toDataURL(link, {

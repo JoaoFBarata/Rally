@@ -80,12 +80,10 @@ service cloud.firestore {
     // (tracked in `connections`, kept in sync by the onEventUpdated function)
     // can read it. Only the owner can write their own profile.
     match /users/{userId} {
-      allow read:   if isAuth() && (
-        request.auth.uid == userId
-        || areFriends(userId)
-        || resource.data.get('isPrivate', false) != true
-        || request.auth.uid in resource.data.get('connections', [])
-      );
+      // Profile discovery, Rally Tags and friendship links must remain usable
+      // for every authenticated account. Sensitive authentication data is not
+      // stored in this document.
+      allow read: if isAuth();
       allow create: if isMe(userId) && request.resource.data.id == userId;
       allow update: if isMe(userId);
       allow delete: if false;
@@ -308,20 +306,27 @@ service cloud.firestore {
     // ── Friend Requests ──────────────────────────────────────────────────────
     // Only the two parties involved can see a request.
     // Only sender can create. Recipient can accept/decline. Sender can re-send
-    // a previously rejected request (reset to pending).
+    // a previously declined request (reset to pending).
     match /friendRequests/{requestId} {
       allow read: if isAuth() && (
         resource.data.fromUserId == request.auth.uid ||
         resource.data.toUserId == request.auth.uid
       );
-      allow create: if isAuth() && request.resource.data.fromUserId == request.auth.uid;
+      allow create: if isAuth()
+        && request.resource.data.fromUserId == request.auth.uid
+        && request.resource.data.toUserId != request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.keys().hasOnly([
+          'id', 'fromUserId', 'toUserId', 'status', 'createdAt', 'updatedAt'
+        ]);
       allow update: if isAuth() && (
-        resource.data.toUserId == request.auth.uid ||
+        (resource.data.toUserId == request.auth.uid
+          && request.resource.data.status in ['accepted', 'declined']
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])) ||
         (resource.data.fromUserId == request.auth.uid
-          && resource.data.status in ['rejected', 'accepted']
+          && resource.data.status in ['declined', 'accepted']
           && request.resource.data.status == 'pending'
-          && request.resource.data.fromUserId == resource.data.fromUserId
-          && request.resource.data.toUserId == resource.data.toUserId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']))
       );
       allow delete: if false;
     }

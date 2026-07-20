@@ -14,6 +14,8 @@ import {
 	type Unsubscribe
 } from 'firebase/firestore';
 import { db } from '$lib/firebase';
+import { functions } from '$lib/firebase';
+import { httpsCallable } from 'firebase/functions';
 import type { FriendRequest, FriendRequestStatus, UserProfile } from '$lib/schema';
 import { getUserProfile, searchUsersByRallyTag } from '$lib/services/user.service';
 
@@ -27,6 +29,65 @@ function friendRequestIdFor(fromUserId: string, toUserId: string) {
 	return `${fromUserId}_to_${toUserId}`;
 }
 
+async function createOrRenewFriendRequest(fromUserId: string, toUserId: string) {
+	const friendshipsQuery = query(
+		collection(db, 'friendships'),
+		where('memberIds', 'array-contains', fromUserId)
+	);
+	const sentRequestsQuery = query(
+		collection(db, 'friendRequests'),
+		where('fromUserId', '==', fromUserId)
+	);
+	const receivedRequestsQuery = query(
+		collection(db, 'friendRequests'),
+		where('toUserId', '==', fromUserId)
+	);
+
+	const [friendshipsSnap, sentSnap, receivedSnap] = await Promise.all([
+		getDocs(friendshipsQuery),
+		getDocs(sentRequestsQuery),
+		getDocs(receivedRequestsQuery)
+	]);
+
+	const alreadyFriends = friendshipsSnap.docs.some((friendshipDoc) =>
+		(friendshipDoc.data().memberIds as string[] | undefined)?.includes(toUserId)
+	);
+	if (alreadyFriends) throw new Error('You are already friends with this user.');
+
+	const previousSentRequest = sentSnap.docs.find(
+		(requestDoc) => requestDoc.data().toUserId === toUserId
+	);
+	if (previousSentRequest?.data().status === 'pending') {
+		throw new Error('Friend request already sent.');
+	}
+
+	const pendingReceivedRequest = receivedSnap.docs.some((requestDoc) => {
+		const request = requestDoc.data();
+		return request.fromUserId === toUserId && request.status === 'pending';
+	});
+	if (pendingReceivedRequest) {
+		throw new Error('This user has already sent you a friend request. Check your messages.');
+	}
+
+	if (previousSentRequest) {
+		await updateDoc(previousSentRequest.ref, {
+			status: 'pending',
+			updatedAt: serverTimestamp()
+		});
+		return;
+	}
+
+	const requestRef = doc(db, 'friendRequests', friendRequestIdFor(fromUserId, toUserId));
+	await setDoc(requestRef, {
+		id: requestRef.id,
+		fromUserId,
+		toUserId,
+		status: 'pending',
+		createdAt: serverTimestamp(),
+		updatedAt: serverTimestamp()
+	});
+}
+
 export async function sendFriendRequestById(params: { fromUserId: string; toUserId: string }) {
 	if (params.fromUserId === params.toUserId) {
 		throw new Error('You cannot add yourself as a friend.');
@@ -37,30 +98,11 @@ export async function sendFriendRequestById(params: { fromUserId: string; toUser
 		throw new Error('Organizations cannot send friend requests.');
 	}
 
-	const relationship = await getRelationshipStatus({
-		currentUserId: params.fromUserId,
-		targetUserId: params.toUserId
-	});
-
-	if (relationship === 'friends') throw new Error('You are already friends with this user.');
-	if (relationship === 'request_sent') throw new Error('Friend request already sent.');
-	if (relationship === 'request_received') {
-		throw new Error('This user has already sent you a friend request. Check your messages.');
-	}
-
-	const requestRef = doc(
-		db,
-		'friendRequests',
-		friendRequestIdFor(params.fromUserId, params.toUserId)
+	const sendRequest = httpsCallable<{ toUserId: string }, { status: string }>(
+		functions,
+		'sendFriendRequest'
 	);
-	await setDoc(requestRef, {
-		id: requestRef.id,
-		fromUserId: params.fromUserId,
-		toUserId: params.toUserId,
-		status: 'pending',
-		createdAt: serverTimestamp(),
-		updatedAt: serverTimestamp()
-	});
+	await sendRequest({ toUserId: params.toUserId });
 }
 
 export async function sendFriendRequestByTag(params: { fromUserId: string; rallyTag: string }) {
@@ -85,35 +127,7 @@ export async function sendFriendRequestByTag(params: { fromUserId: string; rally
 		throw new Error('You cannot add yourself as a friend.');
 	}
 
-	const relationship = await getRelationshipStatus({
-		currentUserId: params.fromUserId,
-		targetUserId: targetUser.id
-	});
-
-	if (relationship === 'friends') {
-		throw new Error('You are already friends with this user.');
-	}
-	if (relationship === 'request_sent') {
-		throw new Error('Friend request already sent.');
-	}
-	if (relationship === 'request_received') {
-		throw new Error('This user has already sent you a friend request. Check your messages.');
-	}
-
-	const requestRef = doc(
-		db,
-		'friendRequests',
-		friendRequestIdFor(params.fromUserId, targetUser.id)
-	);
-
-	await setDoc(requestRef, {
-		id: requestRef.id,
-		fromUserId: params.fromUserId,
-		toUserId: targetUser.id,
-		status: 'pending',
-		createdAt: serverTimestamp(),
-		updatedAt: serverTimestamp()
-	});
+	await createOrRenewFriendRequest(params.fromUserId, targetUser.id);
 
 	return targetUser;
 }
@@ -231,29 +245,11 @@ export async function addFriendByQrCode(params: { fromUserId: string; toUserId: 
 		throw new Error('You cannot add yourself as a friend.');
 	}
 
-	const fromUser = await getUserProfile(params.fromUserId);
-
-	if (fromUser?.accountType === 'organization') {
-		throw new Error('Organizations cannot add friends.');
-	}
-
-	const friendshipRef = doc(db, 'friendships', friendshipIdFor(params.fromUserId, params.toUserId));
-	const existingFriendshipsQuery = query(
-		collection(db, 'friendships'),
-		where('memberIds', 'array-contains', params.fromUserId)
+	const addByQr = httpsCallable<{ toUserId: string }, { status: string }>(
+		functions,
+		'addFriendByQrCode'
 	);
-	const existingFriendships = await getDocs(existingFriendshipsQuery);
-	const alreadyFriends = existingFriendships.docs.some((friendshipDoc) =>
-		(friendshipDoc.data().memberIds as string[] | undefined)?.includes(params.toUserId)
-	);
-	if (alreadyFriends) return;
-
-	await setDoc(friendshipRef, {
-		id: friendshipRef.id,
-		memberIds: [params.fromUserId, params.toUserId],
-		createdAt: serverTimestamp(),
-		updatedAt: serverTimestamp()
-	});
+	await addByQr({ toUserId: params.toUserId });
 }
 
 export async function getRelationshipStatus(params: {
