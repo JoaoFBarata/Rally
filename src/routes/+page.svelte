@@ -1,21 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
-	import MobileLanding from '$lib/components/MobileLanding.svelte';
 	import { authState } from '$lib/auth.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
-	import { Capacitor } from '@capacitor/core';
-	import { goto } from '$app/navigation';
 
 	let contentVisible = $state(false);
 	let activePersona = $state(0);
 	let activeStep = $state(0);
-
-	$effect(() => {
-		if (!authState.loading && authState.user && Capacitor.isNativePlatform()) {
-			goto('/dashboard', { replaceState: true });
-		}
-	});
 
 	onMount(() => {
 		const t = setTimeout(() => (contentVisible = true), 1000);
@@ -179,9 +170,7 @@
 	];
 </script>
 
-<MobileLanding user={authState.user} loading={authState.loading} />
-
-<main class="hidden min-h-screen bg-white dark:bg-slate-950 md:block">
+<main class="min-h-screen bg-white dark:bg-slate-950">
 	<!-- ─── HERO ─────────────────────────────────────────────────────────── -->
 	<section class="relative h-screen min-h-[600px] overflow-hidden">
 		<video

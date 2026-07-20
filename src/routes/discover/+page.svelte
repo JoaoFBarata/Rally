@@ -146,7 +146,7 @@
 			<ExploreMap
 				{events}
 				onFilteredCountChange={(n) => (filteredCount = n)}
-				getEventHref={() => '/register'}
+				getEventHref={(event) => (authState.user ? `/events/${event.id}` : '/register')}
 			/>
 
 			<p class="mt-3 text-sm text-slate-400 dark:text-slate-500">
