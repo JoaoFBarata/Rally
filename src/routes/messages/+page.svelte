@@ -300,7 +300,8 @@
 						otherUser: null,
 						unreadCount,
 						lastInteractionAtMs: getConversationLastInteraction(conversation),
-						displayName: conversation.organizationName ?? conversation.title ?? i18n.t('organization'),
+						displayName:
+							conversation.organizationName ?? conversation.title ?? i18n.t('organization'),
 						displaySubtitle: isCleared ? i18n.t('no_messages_yet') : i18n.t('org_chat_subtitle'),
 						lastMessage: isCleared ? '' : conversation.lastMessage,
 						displayPhotoURL: conversation.organizationLogoURL ?? conversation.photoURL ?? null,
@@ -613,11 +614,8 @@
 	});
 </script>
 
-<main
-	class="min-h-screen"
-	onpointerdown={closeConversationMenuOnOutsidePress}
->
-	<div class="mx-auto max-w-6xl px-4 py-4 sm:px-5 sm:py-6">
+<main class="min-h-screen" onpointerdown={closeConversationMenuOnOutsidePress}>
+	<div class="mx-auto w-full max-w-[1500px] px-4 py-4 sm:px-5 sm:py-6">
 		<header class="mb-4 sm:mb-6">
 			<div class="hidden sm:block">
 				<RallyWordmark size="sm" />
@@ -644,9 +642,15 @@
 			{#if invites.length > 0}
 				<section class="mb-6 sm:mb-8">
 					<div class="mb-3 flex items-center justify-between">
-						<h2 class="text-sm font-black uppercase tracking-[0.16em] text-slate-400 sm:text-base sm:normal-case sm:tracking-normal sm:text-slate-950 sm:dark:text-white">Event invitations</h2>
+						<h2
+							class="text-sm font-black uppercase tracking-[0.16em] text-slate-400 sm:text-base sm:normal-case sm:tracking-normal sm:text-slate-950 sm:dark:text-white"
+						>
+							Event invitations
+						</h2>
 						<span class="text-sm font-bold text-blue-600 dark:text-blue-400">
-							{i18n.t('pending_count', { count: invites.filter((invite) => invite.status === 'pending').length })}
+							{i18n.t('pending_count', {
+								count: invites.filter((invite) => invite.status === 'pending').length
+							})}
 						</span>
 					</div>
 
@@ -666,7 +670,9 @@
 										{invite.event.title}
 									</h3>
 
-									<p class="mt-1 truncate text-xs text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-sm">
+									<p
+										class="mt-1 truncate text-xs text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-sm"
+									>
 										📍 {invite.event.location.name}
 									</p>
 
@@ -712,7 +718,9 @@
 					<div class="mb-3 flex items-center justify-between">
 						<h2 class="text-base font-black">{i18n.t('friend_requests')}</h2>
 						<span class="text-sm font-bold text-blue-600 dark:text-blue-400">
-							{i18n.t('pending_count', { count: friendRequests.filter((request) => request.status === 'pending').length })}
+							{i18n.t('pending_count', {
+								count: friendRequests.filter((request) => request.status === 'pending').length
+							})}
 						</span>
 					</div>
 
@@ -776,7 +784,11 @@
 			{/if}
 
 			<section class="mb-6 sm:mb-8">
-				<h2 class="mb-3 text-sm font-black uppercase tracking-[0.16em] text-slate-400 sm:text-base sm:normal-case sm:tracking-normal sm:text-slate-950 sm:dark:text-white">Chats</h2>
+				<h2
+					class="mb-3 text-sm font-black uppercase tracking-[0.16em] text-slate-400 sm:text-base sm:normal-case sm:tracking-normal sm:text-slate-950 sm:dark:text-white"
+				>
+					Chats
+				</h2>
 
 				{#if conversations.length === 0}
 					<p class="text-sm text-slate-500 dark:text-slate-400">
@@ -861,7 +873,8 @@
 										</div>
 
 										<p class="truncate text-xs text-slate-500 dark:text-slate-400">
-											{translateSystemPreview(conversation.lastMessage, conversation.type) || conversation.displaySubtitle}
+											{translateSystemPreview(conversation.lastMessage, conversation.type) ||
+												conversation.displaySubtitle}
 										</p>
 									</div>
 
@@ -1005,7 +1018,8 @@
 													{conversation.displayName}
 												</p>
 												<p class="truncate text-xs text-slate-500 dark:text-slate-400">
-													{translateSystemPreview(conversation.lastMessage, conversation.type) || conversation.displaySubtitle}
+													{translateSystemPreview(conversation.lastMessage, conversation.type) ||
+														conversation.displaySubtitle}
 												</p>
 											</div>
 
@@ -1084,42 +1098,46 @@
 			</section>
 
 			{#if !isOrganizationAccount}
-			<section>
-				<h2 class="mb-3 text-sm font-black uppercase tracking-[0.16em] text-slate-400 sm:text-base sm:normal-case sm:tracking-normal sm:text-slate-950 sm:dark:text-white">{i18n.t('rally_friends')}</h2>
+				<section>
+					<h2
+						class="mb-3 text-sm font-black uppercase tracking-[0.16em] text-slate-400 sm:text-base sm:normal-case sm:tracking-normal sm:text-slate-950 sm:dark:text-white"
+					>
+						{i18n.t('rally_friends')}
+					</h2>
 
-				{#if friends.length === 0}
-					<p class="text-sm text-slate-500 dark:text-slate-400">
-						{i18n.t('no_friends_sub')}
-					</p>
-				{:else}
-					<div class="divide-y divide-slate-100 dark:divide-slate-800">
-						{#each friends as friend (friend.id)}
-							<div class="flex items-center gap-3 py-4">
-								<UserAvatar
-									displayName={friend.displayName}
-									email={friend.email}
-									photoURL={friend.photoURL}
-									size="md"
-								/>
+					{#if friends.length === 0}
+						<p class="text-sm text-slate-500 dark:text-slate-400">
+							{i18n.t('no_friends_sub')}
+						</p>
+					{:else}
+						<div class="divide-y divide-slate-100 dark:divide-slate-800">
+							{#each friends as friend (friend.id)}
+								<div class="flex items-center gap-3 py-4">
+									<UserAvatar
+										displayName={friend.displayName}
+										email={friend.email}
+										photoURL={friend.photoURL}
+										size="md"
+									/>
 
-								<div class="min-w-0 flex-1">
-									<p class="truncate font-black">{friend.displayName}</p>
-									<p class="truncate text-sm text-slate-500 dark:text-slate-400">
-										@{friend.rallyTag}
-									</p>
+									<div class="min-w-0 flex-1">
+										<p class="truncate font-black">{friend.displayName}</p>
+										<p class="truncate text-sm text-slate-500 dark:text-slate-400">
+											@{friend.rallyTag}
+										</p>
+									</div>
+
+									<button
+										onclick={() => startConversation(friend.id)}
+										class="shrink-0 rounded-full bg-slate-100 px-4 py-2 text-sm font-bold text-blue-600 transition hover:bg-blue-600 hover:text-white dark:bg-slate-900 dark:text-blue-400 dark:hover:bg-blue-600 dark:hover:text-white"
+									>
+										Message
+									</button>
 								</div>
-
-								<button
-									onclick={() => startConversation(friend.id)}
-									class="shrink-0 rounded-full bg-slate-100 px-4 py-2 text-sm font-bold text-blue-600 transition hover:bg-blue-600 hover:text-white dark:bg-slate-900 dark:text-blue-400 dark:hover:bg-blue-600 dark:hover:text-white"
-								>
-									Message
-								</button>
-							</div>
-						{/each}
-					</div>
-				{/if}
-			</section>
+							{/each}
+						</div>
+					{/if}
+				</section>
 			{/if}
 		{/if}
 	</div>

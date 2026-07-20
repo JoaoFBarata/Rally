@@ -686,7 +686,7 @@
 </script>
 
 {#if loading}
-	<div class="mx-auto max-w-6xl animate-pulse px-4 py-5 sm:px-5 sm:py-8">
+	<div class="mx-auto w-full max-w-[1500px] animate-pulse px-4 py-5 sm:px-5 sm:py-8">
 		<!-- Header -->
 		<div class="mb-7 flex items-start justify-between">
 			<div>
@@ -782,7 +782,7 @@
 		</div>
 	</div>
 {:else}
-	<div class="mx-auto max-w-7xl px-4 py-5 sm:px-5 sm:py-8">
+	<div class="mx-auto w-full max-w-[1500px] px-4 py-5 sm:px-5 sm:py-8">
 		<header class="mb-5 flex items-center justify-between gap-4 sm:mb-7">
 			<div class="min-w-0">
 				<p class="text-sm font-black text-blue-600 dark:text-blue-400">Rally</p>

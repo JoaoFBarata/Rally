@@ -8,7 +8,11 @@
 	import { Capacitor } from '@capacitor/core';
 	import { Share } from '@capacitor/share';
 	import { authState } from '$lib/auth.svelte';
-	import { addFriendByQrCode, sendFriendRequestByTag } from '$lib/services/social.service';
+	import {
+		addFriendByQrCode,
+		sendFriendRequestById,
+		sendFriendRequestByTag
+	} from '$lib/services/social.service';
 	import { getUserProfile } from '$lib/services/user.service';
 	import type { UserProfile } from '$lib/schema';
 	import { createAppUrl } from '$lib/utils/app-url';
@@ -22,6 +26,7 @@
 	let tag = $state('');
 	let sourceTag = $state('');
 	let sourceQrUserId = $state('');
+	let sourceLinkUserId = $state('');
 	let qrFriendProcessed = $state(false);
 	let currentProfile = $state<UserProfile | null>(null);
 	let qrCodeDataUrl = $state('');
@@ -98,12 +103,19 @@
 		success = '';
 
 		try {
-			const target = await sendFriendRequestByTag({
-				fromUserId: currentUser.uid,
-				rallyTag: cleanTag
-			});
-
-			success = i18n.t('friend_request_sent_to', { name: target.displayName });
+			if (sourceLinkUserId) {
+				await sendFriendRequestById({
+					fromUserId: currentUser.uid,
+					toUserId: sourceLinkUserId
+				});
+				success = i18n.t('friend_request_sent');
+			} else {
+				const target = await sendFriendRequestByTag({
+					fromUserId: currentUser.uid,
+					rallyTag: cleanTag
+				});
+				success = i18n.t('friend_request_sent_to', { name: target.displayName });
+			}
 			tag = '';
 		} catch (err) {
 			console.error('Friend request error:', err);
@@ -123,7 +135,7 @@
 
 			if (browser && currentProfile?.rallyTag) {
 				friendShareLink = createAppUrl(
-					`/friends/add?tag=${encodeURIComponent(currentProfile.rallyTag)}`
+					`/friends/add?source=link&user=${encodeURIComponent(currentProfile.id)}&tag=${encodeURIComponent(currentProfile.rallyTag)}`
 				);
 				qrCodeLink = createAppUrl(
 					`/friends/add?source=qr&user=${encodeURIComponent(currentProfile.id)}`
@@ -149,6 +161,10 @@
 		sourceTag = page.url.searchParams.get('tag')?.trim().replace(/^@/, '') ?? '';
 		sourceQrUserId =
 			page.url.searchParams.get('source') === 'qr'
+				? (page.url.searchParams.get('user')?.trim() ?? '')
+				: '';
+		sourceLinkUserId =
+			page.url.searchParams.get('source') === 'link'
 				? (page.url.searchParams.get('user')?.trim() ?? '')
 				: '';
 		tag = sourceTag;

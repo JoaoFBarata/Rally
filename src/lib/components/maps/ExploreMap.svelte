@@ -881,7 +881,7 @@
 	>
 		{#if viewMode === 'map'}
 			<div
-				class="absolute inset-x-3 top-3 z-20 flex items-center justify-between gap-2 md:hidden fullscreen-force-show"
+				class="absolute inset-x-3 top-3 z-20 flex items-center gap-2 md:hidden fullscreen-force-show"
 			>
 				<button
 					type="button"
@@ -912,12 +912,6 @@
 						</span>
 					{/if}
 				</button>
-
-				<span
-					class="shrink-0 rounded-full border border-blue-100 bg-white/95 px-3 py-2 text-[11px] font-black uppercase tracking-wide text-blue-700 shadow-md backdrop-blur dark:border-blue-900/70 dark:bg-slate-900/95 dark:text-blue-300"
-				>
-					{formatShowingEvents(events.length)}
-				</span>
 			</div>
 
 			<div
@@ -944,6 +938,13 @@
 			</div>
 		{/if}
 	</div>
+	{#if viewMode === 'map'}
+		<div
+			class="border-t border-slate-200 bg-white px-4 py-2.5 text-center text-[11px] font-black uppercase tracking-wide text-blue-700 dark:border-slate-800 dark:bg-slate-900 dark:text-blue-300 md:hidden"
+		>
+			{formatShowingEvents(events.length)}
+		</div>
+	{/if}
 	<!-- Floating Filters Modal Card (Mobile Only) -->
 	{#if showFilters}
 		<div

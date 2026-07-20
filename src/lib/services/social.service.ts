@@ -27,6 +27,42 @@ function friendRequestIdFor(fromUserId: string, toUserId: string) {
 	return `${fromUserId}_to_${toUserId}`;
 }
 
+export async function sendFriendRequestById(params: { fromUserId: string; toUserId: string }) {
+	if (params.fromUserId === params.toUserId) {
+		throw new Error('You cannot add yourself as a friend.');
+	}
+
+	const fromUser = await getUserProfile(params.fromUserId);
+	if (fromUser?.accountType === 'organization') {
+		throw new Error('Organizations cannot send friend requests.');
+	}
+
+	const relationship = await getRelationshipStatus({
+		currentUserId: params.fromUserId,
+		targetUserId: params.toUserId
+	});
+
+	if (relationship === 'friends') throw new Error('You are already friends with this user.');
+	if (relationship === 'request_sent') throw new Error('Friend request already sent.');
+	if (relationship === 'request_received') {
+		throw new Error('This user has already sent you a friend request. Check your messages.');
+	}
+
+	const requestRef = doc(
+		db,
+		'friendRequests',
+		friendRequestIdFor(params.fromUserId, params.toUserId)
+	);
+	await setDoc(requestRef, {
+		id: requestRef.id,
+		fromUserId: params.fromUserId,
+		toUserId: params.toUserId,
+		status: 'pending',
+		createdAt: serverTimestamp(),
+		updatedAt: serverTimestamp()
+	});
+}
+
 export async function sendFriendRequestByTag(params: { fromUserId: string; rallyTag: string }) {
 	const fromUser = await getUserProfile(params.fromUserId);
 

@@ -390,12 +390,17 @@
 					>
 						<RallyLogo size="md" href={organizationManageHref ?? '/'} />
 					</div>
+					<div
+						class={`absolute left-0.5 top-5 transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'translate-x-0 opacity-100' : 'pointer-events-none translate-x-3 opacity-0'}`}
+					>
+						<RallyLogo size="compact" mark href={organizationManageHref ?? '/'} />
+					</div>
 					<button
 						type="button"
 						onclick={toggleSidebar}
 						title={sidebarCollapsed ? i18n.t('expand_sidebar') : i18n.t('collapse_sidebar')}
 						aria-label={sidebarCollapsed ? i18n.t('expand_sidebar') : i18n.t('collapse_sidebar')}
-						class="absolute top-7.5 right-6 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors duration-300 ease-in-out hover:bg-slate-200 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+						class={`absolute top-7.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-[right,color,background-color] duration-300 ease-in-out hover:bg-slate-200 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white ${sidebarCollapsed ? 'right-1.5' : 'right-6'}`}
 					>
 						<PanelLeft class="h-5 w-5" />
 					</button>
@@ -484,9 +489,7 @@
 				</div>
 			</aside>
 			<div class="flex min-w-0 flex-1 flex-col overflow-x-clip">
-				<main
-					class={`min-h-screen min-w-0 overflow-x-clip pb-28 ${pathname === '/explore' || pathname === '/profile' ? '' : 'md:px-28'}`}
-				>
+				<main class="min-h-screen min-w-0 overflow-x-clip pb-28 md:px-8 lg:px-12 xl:px-16">
 					{@render children()}
 				</main>
 			</div>
