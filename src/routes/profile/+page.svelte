@@ -333,12 +333,26 @@
 		if (!profile?.rallyTag) return;
 
 		await navigator.clipboard.writeText(profile.rallyTag);
-		success = 'Rally tag copied.';
+		success = i18n.t('rally_tag_copied');
+	}
+
+	function getFriendInviteLink() {
+		if (!profile?.rallyTag) return '';
+		return createAppUrl(`/friends/add?tag=${encodeURIComponent(profile.rallyTag)}`);
+	}
+
+	async function copyFriendInviteLink() {
+		const link = getFriendInviteLink();
+		if (!link) return;
+		await navigator.clipboard.writeText(link);
+		success = i18n.t('friend_link_copied');
 	}
 
 	function formatCountryName(countryCode?: string | null) {
 		if (!countryCode) return '';
-		return PROMOTION_COUNTRIES.find((country) => country.code === countryCode)?.label ?? countryCode;
+		return (
+			PROMOTION_COUNTRIES.find((country) => country.code === countryCode)?.label ?? countryCode
+		);
 	}
 
 	function formatProfileLocation(profile: UserProfile) {
@@ -379,7 +393,9 @@
 	<header class="mb-4 md:mb-6">
 		<div class="hidden md:block">
 			<RallyWordmark size="sm" />
-			<h1 class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">{i18n.t('profile')}</h1>
+			<h1 class="mt-2 text-3xl font-black text-slate-950 dark:text-slate-50">
+				{i18n.t('profile')}
+			</h1>
 			<p class="mt-1 text-slate-500 dark:text-slate-400">
 				{i18n.t('profile_sub')}
 			</p>
@@ -422,11 +438,17 @@
 
 		<section class="space-y-5 pb-6 md:hidden">
 			{#if editMode}
-				<div class="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+				<div
+					class="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+				>
 					<div class="flex items-center justify-between gap-3">
 						<div>
-							<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">{i18n.t('edit_profile')}</h2>
-							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{i18n.t('profile_fresh_sub')}</p>
+							<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">
+								{i18n.t('edit_profile')}
+							</h2>
+							<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+								{i18n.t('profile_fresh_sub')}
+							</p>
 						</div>
 						<button
 							type="button"
@@ -439,7 +461,9 @@
 
 					<div class="mt-5 grid gap-4">
 						<div>
-							<label for="mobile-name" class="text-sm font-bold text-slate-700 dark:text-slate-300">{i18n.t('name')}</label>
+							<label for="mobile-name" class="text-sm font-bold text-slate-700 dark:text-slate-300"
+								>{i18n.t('name')}</label
+							>
 							<input
 								id="mobile-name"
 								bind:value={displayName}
@@ -450,7 +474,11 @@
 
 						<div class="grid grid-cols-2 gap-3">
 							<div>
-								<label for="mobile-city" class="text-sm font-bold text-slate-700 dark:text-slate-300">{i18n.t('city')}</label>
+								<label
+									for="mobile-city"
+									class="text-sm font-bold text-slate-700 dark:text-slate-300"
+									>{i18n.t('city')}</label
+								>
 								<input
 									id="mobile-city"
 									bind:value={city}
@@ -459,7 +487,11 @@
 								/>
 							</div>
 							<div>
-								<label for="mobile-country" class="text-sm font-bold text-slate-700 dark:text-slate-300">{i18n.t('country')}</label>
+								<label
+									for="mobile-country"
+									class="text-sm font-bold text-slate-700 dark:text-slate-300"
+									>{i18n.t('country')}</label
+								>
 								<select
 									id="mobile-country"
 									bind:value={country}
@@ -474,7 +506,9 @@
 						</div>
 
 						<div>
-							<label for="mobile-age" class="text-sm font-bold text-slate-700 dark:text-slate-300">{i18n.t('age')}</label>
+							<label for="mobile-age" class="text-sm font-bold text-slate-700 dark:text-slate-300"
+								>{i18n.t('age')}</label
+							>
 							<input
 								id="mobile-age"
 								type="number"
@@ -486,7 +520,9 @@
 						</div>
 
 						<div>
-							<label for="mobile-bio" class="text-sm font-bold text-slate-700 dark:text-slate-300">{i18n.t('bio')}</label>
+							<label for="mobile-bio" class="text-sm font-bold text-slate-700 dark:text-slate-300"
+								>{i18n.t('bio')}</label
+							>
 							<textarea
 								id="mobile-bio"
 								bind:value={bio}
@@ -526,225 +562,317 @@
 					</div>
 				</div>
 			{:else}
-			    <div class="px-2">
-			        <div class="flex items-center gap-4">
+				<div class="px-2">
+					<div class="flex items-center gap-4">
 						<div class="relative h-20 w-20 shrink-0">
-						    <UserAvatar
-						        photoURL={profile.photoURL ?? auth.currentUser?.photoURL ?? null}
-						        displayName={profile.displayName}
-						        email={profile.email}
-						        size="xl"
-						    />
-						    <button
-						        type="button"
-						        onclick={() => (showPhotoModal = true)}
-						        class="absolute -bottom-1 -right-1 flex h-9 w-9 items-center justify-center rounded-full bg-white text-blue-600 shadow-lg ring-2 ring-white transition active:scale-95 dark:bg-slate-900 dark:text-blue-400 dark:ring-slate-950"
-						        aria-label={i18n.t('edit_profile_photo')}
-						    >
-						        {#if photoSaving}
-						            <span class="text-sm font-black">…</span>
-						        {:else}
-						            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" class="h-4 w-4">
-						                <path stroke-linecap="round" stroke-linejoin="round" d="M6.8 6.2A2.3 2.3 0 0 1 5.2 7.2c-.38.05-.76.11-1.14.18A2.25 2.25 0 0 0 2.25 9.6V18A2.25 2.25 0 0 0 4.5 20.25h15A2.25 2.25 0 0 0 21.75 18V9.6a2.25 2.25 0 0 0-1.81-2.21c-.38-.07-.76-.13-1.14-.18a2.3 2.3 0 0 1-1.6-1l-.82-1.32a2.2 2.2 0 0 0-1.74-1.04 49 49 0 0 0-5.28 0 2.2 2.2 0 0 0-1.74 1.04L6.8 6.2Z" />
-						                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 13a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
-						            </svg>
-						        {/if}
-						    </button>
-						    <input bind:this={fileInput} type="file" accept="image/*" class="hidden" onchange={handleProfilePhotoFileChange} />
+							<UserAvatar
+								photoURL={profile.photoURL ?? auth.currentUser?.photoURL ?? null}
+								displayName={profile.displayName}
+								email={profile.email}
+								size="xl"
+							/>
+							<button
+								type="button"
+								onclick={() => (showPhotoModal = true)}
+								class="absolute -bottom-1 -right-1 flex h-9 w-9 items-center justify-center rounded-full bg-white text-blue-600 shadow-lg ring-2 ring-white transition active:scale-95 dark:bg-slate-900 dark:text-blue-400 dark:ring-slate-950"
+								aria-label={i18n.t('edit_profile_photo')}
+							>
+								{#if photoSaving}
+									<span class="text-sm font-black">…</span>
+								{:else}
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="2.4"
+										class="h-4 w-4"
+									>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											d="M6.8 6.2A2.3 2.3 0 0 1 5.2 7.2c-.38.05-.76.11-1.14.18A2.25 2.25 0 0 0 2.25 9.6V18A2.25 2.25 0 0 0 4.5 20.25h15A2.25 2.25 0 0 0 21.75 18V9.6a2.25 2.25 0 0 0-1.81-2.21c-.38-.07-.76-.13-1.14-.18a2.3 2.3 0 0 1-1.6-1l-.82-1.32a2.2 2.2 0 0 0-1.74-1.04 49 49 0 0 0-5.28 0 2.2 2.2 0 0 0-1.74 1.04L6.8 6.2Z"
+										/>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											d="M15.75 13a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z"
+										/>
+									</svg>
+								{/if}
+							</button>
+							<input
+								bind:this={fileInput}
+								type="file"
+								accept="image/*"
+								class="hidden"
+								onchange={handleProfilePhotoFileChange}
+							/>
 						</div>
 
 						<div class="min-w-0 flex-1">
-						    <div class="flex items-start justify-between gap-3">
-						        <div class="min-w-0">
-									<h2 class="truncate text-2xl font-black leading-tight text-slate-950 dark:text-slate-50">
-									    {profile.displayName}
+							<div class="flex items-start justify-between gap-3">
+								<div class="min-w-0">
+									<h2
+										class="truncate text-2xl font-black leading-tight text-slate-950 dark:text-slate-50"
+									>
+										{profile.displayName}
 									</h2>
 									<button
-									    type="button"
-									    onclick={copyTag}
-									    class="mt-1 inline-flex max-w-full items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-left text-xs font-black text-blue-700 ring-1 ring-blue-100 transition hover:bg-blue-100 dark:bg-blue-950/50 dark:text-blue-200 dark:ring-blue-900/60 dark:hover:bg-blue-900/50"
+										type="button"
+										onclick={copyTag}
+										class="mt-1 inline-flex max-w-full items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-left text-xs font-black text-blue-700 ring-1 ring-blue-100 transition hover:bg-blue-100 dark:bg-blue-950/50 dark:text-blue-200 dark:ring-blue-900/60 dark:hover:bg-blue-900/50"
 									>
-									    <span class="truncate">@{profile.rallyTag ?? 'creating-tag'}</span>
-										<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+										<span class="truncate">@{profile.rallyTag ?? 'creating-tag'}</span>
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											class="h-3.5 w-3.5 shrink-0"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2.3"
+										>
 											<rect x="9" y="9" width="13" height="13" rx="2" />
 											<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
 										</svg>
 									</button>
-						        </div>
+								</div>
 
-						        <button
+								<button
 									type="button"
 									onclick={() => (editMode = true)}
 									class="shrink-0 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200"
-						        >
+								>
 									{i18n.t('edit_profile')}
-						        </button>
-						    </div>
+								</button>
+							</div>
 
-						    {#if profile.city || profile.country || profile.age}
-						        <p class="mt-2 flex items-center gap-1.5 truncate text-sm text-slate-500 dark:text-slate-400">
+							{#if profile.city || profile.country || profile.age}
+								<p
+									class="mt-2 flex items-center gap-1.5 truncate text-sm text-slate-500 dark:text-slate-400"
+								>
 									{#if profile.city || profile.country}
-										<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-											<path stroke-linecap="round" stroke-linejoin="round" d="M12 21s7-4.35 7-11a7 7 0 1 0-14 0c0 6.65 7 11 7 11Z" />
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											class="h-4 w-4 shrink-0"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												d="M12 21s7-4.35 7-11a7 7 0 1 0-14 0c0 6.65 7 11 7 11Z"
+											/>
 											<circle cx="12" cy="10" r="2.5" />
 										</svg>
 										<span class="truncate">{formatProfileLocation(profile)}</span>
 									{/if}
 									{#if profile.age}
-										<span class="shrink-0">{profile.city || profile.country ? `· ${profile.age} ${i18n.t('years_old')}` : `${profile.age} ${i18n.t('years_old')}`}</span>
+										<span class="shrink-0"
+											>{profile.city || profile.country
+												? `· ${profile.age} ${i18n.t('years_old')}`
+												: `${profile.age} ${i18n.t('years_old')}`}</span
+										>
 									{/if}
-						        </p>
-						    {/if}
+								</p>
+							{/if}
 						</div>
-			        </div>
+					</div>
 
-			        <div class="-mx-1 mt-5 flex flex-wrap gap-2 px-1 py-1">
+					<div class="-mx-1 mt-5 flex flex-wrap gap-2 px-1 py-1">
 						{#if profile.sports?.length}
-						    {#each profile.sports as sport (sport)}
-						        <span class="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-700 ring-1 ring-blue-100 dark:bg-blue-950/50 dark:text-blue-200 dark:ring-blue-900/60">{formatSport(sport)}</span>
-						    {/each}
+							{#each profile.sports as sport (sport)}
+								<span
+									class="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-700 ring-1 ring-blue-100 dark:bg-blue-950/50 dark:text-blue-200 dark:ring-blue-900/60"
+									>{formatSport(sport)}</span
+								>
+							{/each}
 						{:else}
-						    <span class="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">{i18n.t('no_sports_yet')}</span>
+							<span
+								class="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+								>{i18n.t('no_sports_yet')}</span
+							>
 						{/if}
-			        </div>
+					</div>
 
-			        <div class="mt-5 grid grid-cols-2 divide-x divide-slate-200 rounded-[1.5rem] bg-slate-50 p-4 dark:divide-slate-700 dark:bg-slate-800/70">
+					<div
+						class="mt-5 grid grid-cols-2 divide-x divide-slate-200 rounded-[1.5rem] bg-slate-50 p-4 dark:divide-slate-700 dark:bg-slate-800/70"
+					>
 						<div class="text-center">
-						    <p class="text-2xl font-black text-slate-950 dark:text-slate-50">{friends.length}</p>
-						    <p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">{i18n.t('friends')}</p>
+							<p class="text-2xl font-black text-slate-950 dark:text-slate-50">{friends.length}</p>
+							<p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+								{i18n.t('friends')}
+							</p>
 						</div>
 						<div class="text-center">
-						    <p class="text-2xl font-black text-slate-950 dark:text-slate-50">{(profile.rallyPointsTotal ?? 0).toLocaleString()}</p>
-						    <p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">{i18n.t('points_label')}</p>
+							<p class="text-2xl font-black text-slate-950 dark:text-slate-50">
+								{(profile.rallyPointsTotal ?? 0).toLocaleString()}
+							</p>
+							<p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+								{i18n.t('points_label')}
+							</p>
 						</div>
-			        </div>
+					</div>
 
-			        {#if profile.bio}
+					{#if profile.bio}
 						<div class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-800">
-							<p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">{i18n.t('bio')}</p>
+							<p
+								class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500"
+							>
+								{i18n.t('bio')}
+							</p>
 							<p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{profile.bio}</p>
 						</div>
-			        {/if}
-			    </div>
-
+					{/if}
+				</div>
 			{/if}
 
-			<section class="overflow-hidden rounded-[1.7rem] bg-white shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
-			    <div class="bg-gradient-to-r from-slate-950 to-slate-800 p-4">
-			        <div class="flex items-center justify-between gap-3">
+			<section
+				class="overflow-hidden rounded-[1.7rem] bg-white shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800"
+			>
+				<div class="bg-gradient-to-r from-slate-950 to-slate-800 p-4">
+					<div class="flex items-center justify-between gap-3">
 						<div class="flex items-center gap-2.5">
-						    <svg viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5 text-yellow-400" aria-hidden="true">
-						        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-						    </svg>
-						    <h2 class="text-lg font-black text-white">{i18n.t('rally_points_title')}</h2>
+							<svg
+								viewBox="0 0 24 24"
+								fill="currentColor"
+								class="h-5 w-5 text-yellow-400"
+								aria-hidden="true"
+							>
+								<polygon
+									points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
+								/>
+							</svg>
+							<h2 class="text-lg font-black text-white">{i18n.t('rally_points_title')}</h2>
 						</div>
 
 						<button
-						    type="button"
-						    onclick={() => (showPointsBreakdown = !showPointsBreakdown)}
-						    class="rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/70"
+							type="button"
+							onclick={() => (showPointsBreakdown = !showPointsBreakdown)}
+							class="rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/70"
 						>
-						    {showPointsBreakdown ? i18n.t('hide') : i18n.t('how_it_works')}
+							{showPointsBreakdown ? i18n.t('hide') : i18n.t('how_it_works')}
 						</button>
-			        </div>
+					</div>
 
-			        <p class="mt-3 text-4xl font-black text-white">
+					<p class="mt-3 text-4xl font-black text-white">
 						{(profile.rallyPointsTotal ?? 0).toLocaleString()}
 						<span class="text-base font-semibold text-white/50">pts</span>
-			        </p>
+					</p>
 
-			        <p class="mt-1 text-sm text-white/50">
-						{(profile.rallyPointsTotal ?? 0) === 0 ? i18n.t('points_start_earning_msg') : i18n.t('points_balance_msg')}
-			        </p>
-			    </div>
+					<p class="mt-1 text-sm text-white/50">
+						{(profile.rallyPointsTotal ?? 0) === 0
+							? i18n.t('points_start_earning_msg')
+							: i18n.t('points_balance_msg')}
+					</p>
+				</div>
 
-			    {#if showPointsBreakdown}
-			        <div class="border-b border-slate-100 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/60">
-						<p class="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-						    {i18n.t('earn_verified_venue')}
+				{#if showPointsBreakdown}
+					<div
+						class="border-b border-slate-100 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/60"
+					>
+						<p
+							class="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400"
+						>
+							{i18n.t('earn_verified_venue')}
 						</p>
 						<div class="space-y-2 text-sm">
-						    {#each [{ label: 'Participating', pts: RALLY_POINTS_CONFIG.BASE_PARTICIPATION }, { label: 'First visit to venue', pts: RALLY_POINTS_CONFIG.FIRST_VENUE_BONUS }, { label: `Per other player (max ${RALLY_POINTS_CONFIG.PER_PARTICIPANT_CAP})`, pts: RALLY_POINTS_CONFIG.PER_PARTICIPANT }, { label: 'Organising the event', pts: RALLY_POINTS_CONFIG.ORGANIZER_BONUS }, { label: 'Event at full capacity', pts: RALLY_POINTS_CONFIG.FULL_EVENT_BONUS }] as row}
-						        <div class="flex items-center justify-between gap-3">
+							{#each [{ label: 'Participating', pts: RALLY_POINTS_CONFIG.BASE_PARTICIPATION }, { label: 'First visit to venue', pts: RALLY_POINTS_CONFIG.FIRST_VENUE_BONUS }, { label: `Per other player (max ${RALLY_POINTS_CONFIG.PER_PARTICIPANT_CAP})`, pts: RALLY_POINTS_CONFIG.PER_PARTICIPANT }, { label: 'Organising the event', pts: RALLY_POINTS_CONFIG.ORGANIZER_BONUS }, { label: 'Event at full capacity', pts: RALLY_POINTS_CONFIG.FULL_EVENT_BONUS }] as row}
+								<div class="flex items-center justify-between gap-3">
 									<span class="text-slate-600 dark:text-slate-400">
-										{row.label === 'Participating' ? i18n.t('points_participating') : row.label === 'First visit to venue' ? i18n.t('points_first_visit') : row.label.startsWith('Per other player') ? i18n.t('points_per_player', { max: RALLY_POINTS_CONFIG.PER_PARTICIPANT_CAP }) : row.label === 'Organising the event' ? i18n.t('points_organizing') : row.label === 'Event at full capacity' ? i18n.t('points_full_event') : row.label}
+										{row.label === 'Participating'
+											? i18n.t('points_participating')
+											: row.label === 'First visit to venue'
+												? i18n.t('points_first_visit')
+												: row.label.startsWith('Per other player')
+													? i18n.t('points_per_player', {
+															max: RALLY_POINTS_CONFIG.PER_PARTICIPANT_CAP
+														})
+													: row.label === 'Organising the event'
+														? i18n.t('points_organizing')
+														: row.label === 'Event at full capacity'
+															? i18n.t('points_full_event')
+															: row.label}
 									</span>
 									<span class="font-bold text-slate-900 dark:text-slate-50">+{row.pts} pts</span>
-						        </div>
-						    {/each}
+								</div>
+							{/each}
 						</div>
-			        </div>
-			    {/if}
+					</div>
+				{/if}
 
-			    {#if pointTransactions.length > 0}
-			        <div class="p-4">
-						<p class="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">{i18n.t('recent_activity')}</p>
+				{#if pointTransactions.length > 0}
+					<div class="p-4">
+						<p
+							class="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400"
+						>
+							{i18n.t('recent_activity')}
+						</p>
 						<div class="space-y-2">
-						    {#each pointTransactions as tx (tx.id)}
-						        <div class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800">
+							{#each pointTransactions as tx (tx.id)}
+								<div
+									class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800"
+								>
 									<div class="min-w-0">
-									    <p class="truncate text-sm font-bold text-slate-900 dark:text-slate-50">{tx.eventTitle}</p>
-									    <p class="truncate text-xs text-slate-500 dark:text-slate-400">{tx.venueName}</p>
+										<p class="truncate text-sm font-bold text-slate-900 dark:text-slate-50">
+											{tx.eventTitle}
+										</p>
+										<p class="truncate text-xs text-slate-500 dark:text-slate-400">
+											{tx.venueName}
+										</p>
 									</div>
 									<span class="ml-3 shrink-0 font-black text-yellow-500">+{tx.amount}</span>
-						        </div>
-						    {/each}
+								</div>
+							{/each}
 						</div>
-			        </div>
-			    {/if}
+					</div>
+				{/if}
 			</section>
 
 			<div class="px-2">
-			    <div class="flex items-center justify-between gap-3">
-			        <h2 class="text-lg font-black text-slate-950 dark:text-slate-50">{i18n.t('friends')}</h2>
-			        <span class="text-xs font-black text-blue-600 dark:text-blue-400">{friends.length}</span>
-			    </div>
+				<div class="flex items-center justify-between gap-3">
+					<h2 class="text-lg font-black text-slate-950 dark:text-slate-50">{i18n.t('friends')}</h2>
+					<span class="text-xs font-black text-blue-600 dark:text-blue-400">{friends.length}</span>
+				</div>
 
-			    {#if friends.length === 0}
-			        <p class="mt-3 text-sm text-slate-500 dark:text-slate-400">{i18n.t('no_friends_sub')}</p>
-			    {:else}
-			        <div class="mt-4 flex gap-3 overflow-x-auto pb-4">
+				{#if friends.length === 0}
+					<p class="mt-3 text-sm text-slate-500 dark:text-slate-400">{i18n.t('no_friends_sub')}</p>
+				{:else}
+					<div class="mt-4 flex gap-3 overflow-x-auto pb-4">
 						{#each friends as friend (friend.id)}
-						    <a href={resolve(`/users/${friend.id}`)} class="w-16 shrink-0 text-center">
-						        <div class="mx-auto h-12 w-12">
-									<UserAvatar photoURL={friend.photoURL} displayName={friend.displayName} email={friend.email} size="md" />
-						        </div>
-						        <p class="mt-2 truncate text-xs font-bold text-slate-700 dark:text-slate-300">{friend.displayName}</p>
-						    </a>
+							<a href={resolve(`/users/${friend.id}`)} class="w-16 shrink-0 text-center">
+								<div class="mx-auto h-12 w-12">
+									<UserAvatar
+										photoURL={friend.photoURL}
+										displayName={friend.displayName}
+										email={friend.email}
+										size="md"
+									/>
+								</div>
+								<p class="mt-2 truncate text-xs font-bold text-slate-700 dark:text-slate-300">
+									{friend.displayName}
+								</p>
+							</a>
 						{/each}
-			        </div>
-			    {/if}
+					</div>
+				{/if}
 			</div>
 
 			<div class="mt-6 px-2 pb-6">
-			    <h2 class="text-lg font-black text-slate-950 dark:text-slate-50">{i18n.t('add_friend')}</h2>
-			    <div class="mt-3 flex gap-2">
-			        <input
-						bind:value={friendTag}
-						placeholder="rally-tag"
-						class="min-w-0 flex-1 rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-950 placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-			        />
-			        <button
-						onclick={handleAddFriend}
-						disabled={friendLoading || !friendTag}
-						class="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
-			        >
-						{friendLoading ? '...' : i18n.t('add')}
-			        </button>
-			    </div>
-				<button
-					type="button"
-					onclick={() => (showQrModal = true)}
-					class="mt-4 flex w-full items-center justify-between rounded-[1.6rem] bg-blue-600 p-4 text-left text-white shadow-lg shadow-blue-600/20 active:scale-[0.99]"
+				<a
+					href={resolve('/friends/add')}
+					class="flex w-full items-center justify-between rounded-[1.6rem] bg-blue-600 p-4 text-left text-white shadow-lg shadow-blue-600/20 active:scale-[0.99]"
 				>
 					<span>
-						<span class="block text-sm font-black">Rally QR</span>
+						<span class="block text-sm font-black">{i18n.t('add_friend')}</span>
 						<span class="block text-xs text-blue-100">{i18n.t('add_friend_sub')}</span>
 					</span>
 					<span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white">
 						<img src="/qr-code.png" alt="QR code" class="h-6 w-6 object-contain" />
 					</span>
-				</button>
+				</a>
 			</div>
 		</section>
 
@@ -790,7 +918,14 @@
 									title={i18n.t('cancel')}
 									aria-label={i18n.t('cancel')}
 								>
-									<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" class="h-4 w-4">
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="2.4"
+										class="h-4 w-4"
+									>
 										<path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
 									</svg>
 								</button>
@@ -802,9 +937,24 @@
 									title={i18n.t('edit_profile')}
 									aria-label={i18n.t('edit_profile')}
 								>
-									<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" class="h-4 w-4">
-										<path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
-										<path stroke-linecap="round" stroke-linejoin="round" d="M19.5 13.5v4.875c0 .621-.504 1.125-1.125 1.125H5.625a1.125 1.125 0 0 1-1.125-1.125V6.375c0-.621.504-1.125 1.125-1.125h4.875" />
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="2.4"
+										class="h-4 w-4"
+									>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"
+										/>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											d="M19.5 13.5v4.875c0 .621-.504 1.125-1.125 1.125H5.625a1.125 1.125 0 0 1-1.125-1.125V6.375c0-.621.504-1.125 1.125-1.125h4.875"
+										/>
 									</svg>
 								</button>
 							{/if}
@@ -828,9 +978,24 @@
 							{#if photoSaving}
 								<span class="text-sm font-black">…</span>
 							{:else}
-								<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" class="h-4 w-4">
-									<path stroke-linecap="round" stroke-linejoin="round" d="M6.8 6.2A2.3 2.3 0 0 1 5.2 7.2c-.38.05-.76.11-1.14.18A2.25 2.25 0 0 0 2.25 9.6V18A2.25 2.25 0 0 0 4.5 20.25h15A2.25 2.25 0 0 0 21.75 18V9.6a2.25 2.25 0 0 0-1.81-2.21c-.38-.07-.76-.13-1.14-.18a2.3 2.3 0 0 1-1.6-1l-.82-1.32a2.2 2.2 0 0 0-1.74-1.04 49 49 0 0 0-5.28 0 2.2 2.2 0 0 0-1.74 1.04L6.8 6.2Z" />
-									<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 13a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2.4"
+									class="h-4 w-4"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										d="M6.8 6.2A2.3 2.3 0 0 1 5.2 7.2c-.38.05-.76.11-1.14.18A2.25 2.25 0 0 0 2.25 9.6V18A2.25 2.25 0 0 0 4.5 20.25h15A2.25 2.25 0 0 0 21.75 18V9.6a2.25 2.25 0 0 0-1.81-2.21c-.38-.07-.76-.13-1.14-.18a2.3 2.3 0 0 1-1.6-1l-.82-1.32a2.2 2.2 0 0 0-1.74-1.04 49 49 0 0 0-5.28 0 2.2 2.2 0 0 0-1.74 1.04L6.8 6.2Z"
+									/>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										d="M15.75 13a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z"
+									/>
 								</svg>
 							{/if}
 						</button>
@@ -849,7 +1014,9 @@
 				<section
 					class="min-w-0 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:rounded-4xl sm:p-6"
 				>
-					<h2 class="text-lg font-black text-slate-950 dark:text-slate-50">{i18n.t('bio_details_title')}</h2>
+					<h2 class="text-lg font-black text-slate-950 dark:text-slate-50">
+						{i18n.t('bio_details_title')}
+					</h2>
 
 					{#if editMode}
 						<div class="mt-5 grid gap-4">
@@ -926,7 +1093,9 @@
 							</div>
 
 							<div>
-								<p class="text-sm font-bold text-slate-700 dark:text-slate-300">{i18n.t('sports')}</p>
+								<p class="text-sm font-bold text-slate-700 dark:text-slate-300">
+									{i18n.t('sports')}
+								</p>
 
 								<div class="mt-3 flex flex-wrap gap-2">
 									{#each availableSports as sport (sport)}
@@ -959,30 +1128,48 @@
 						>
 							<div class="grid grid-cols-2 gap-4 px-4 py-3.5">
 								<div class="min-w-0">
-									<p class="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">{i18n.t('location')}</p>
+									<p
+										class="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500"
+									>
+										{i18n.t('location')}
+									</p>
 									<p class="mt-1 truncate text-sm font-black text-slate-950 dark:text-slate-50">
 										{formatProfileLocation(profile) || i18n.t('not_added_yet')}
 									</p>
 								</div>
 
 								<div class="min-w-0">
-									<p class="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">{i18n.t('age')}</p>
+									<p
+										class="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500"
+									>
+										{i18n.t('age')}
+									</p>
 									<p class="mt-1 text-sm font-black text-slate-950 dark:text-slate-50">
-										{profile.age ? `${profile.age} ${i18n.t('years_old')}` : i18n.t('not_added_yet')}
+										{profile.age
+											? `${profile.age} ${i18n.t('years_old')}`
+											: i18n.t('not_added_yet')}
 									</p>
 								</div>
 							</div>
 
 							<div class="grid grid-cols-2 gap-4 px-4 py-3.5">
 								<div class="min-w-0">
-									<p class="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">{i18n.t('friends')}</p>
+									<p
+										class="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500"
+									>
+										{i18n.t('friends')}
+									</p>
 									<p class="mt-1 text-sm font-black text-slate-950 dark:text-slate-50">
 										{friends.length}
 									</p>
 								</div>
 
 								<div class="min-w-0">
-									<p class="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">{i18n.t('sports')}</p>
+									<p
+										class="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500"
+									>
+										{i18n.t('sports')}
+									</p>
 									{#if profile.sports?.length}
 										<div class="mt-1.5 flex flex-wrap gap-1.5">
 											{#each profile.sports as sport (sport)}
@@ -994,14 +1181,20 @@
 											{/each}
 										</div>
 									{:else}
-										<p class="mt-1 text-sm font-bold text-slate-400 dark:text-slate-500">{i18n.t('no_sports_yet')}</p>
+										<p class="mt-1 text-sm font-bold text-slate-400 dark:text-slate-500">
+											{i18n.t('no_sports_yet')}
+										</p>
 									{/if}
 								</div>
 							</div>
 
 							{#if profile.bio}
 								<div class="px-4 py-3.5">
-									<p class="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">{i18n.t('bio')}</p>
+									<p
+										class="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500"
+									>
+										{i18n.t('bio')}
+									</p>
 									<p class="mt-1.5 text-sm leading-6 text-slate-600 dark:text-slate-300">
 										{profile.bio}
 									</p>
@@ -1018,7 +1211,9 @@
 			>
 				<div class="flex items-start justify-between gap-4">
 					<div>
-						<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">{i18n.t('add_friend')}</h2>
+						<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">
+							{i18n.t('add_friend')}
+						</h2>
 						<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
 							{i18n.t('add_friend_sub')}
 						</p>
@@ -1050,6 +1245,14 @@
 						{friendLoading ? i18n.t('sending') : i18n.t('add')}
 					</button>
 				</div>
+
+				<button
+					type="button"
+					onclick={copyFriendInviteLink}
+					class="mt-3 inline-flex items-center gap-2 rounded-2xl bg-blue-50 px-4 py-2.5 text-sm font-black text-blue-700 ring-1 ring-blue-100 transition hover:bg-blue-100 dark:bg-blue-950/50 dark:text-blue-200 dark:ring-blue-900/60"
+				>
+					{i18n.t('copy_friend_link')}
+				</button>
 			</section>
 
 			<!-- Friends (full width, row-list) -->
@@ -1070,7 +1273,9 @@
 						class="mt-4 rounded-3xl border border-dashed border-slate-300 p-5 text-center dark:border-slate-700"
 					>
 						<p class="text-3xl">👥</p>
-						<p class="mt-2 font-bold text-slate-700 dark:text-slate-300">{i18n.t('no_friends_yet')}</p>
+						<p class="mt-2 font-bold text-slate-700 dark:text-slate-300">
+							{i18n.t('no_friends_yet')}
+						</p>
 						<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
 							{i18n.t('no_friends_sub')}
 						</p>
@@ -1116,8 +1321,19 @@
 										title={i18n.t('remove_friend')}
 										aria-label={i18n.t('remove_friend')}
 									>
-										<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-4 w-4">
-											<path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											fill="none"
+											viewBox="0 0 24 24"
+											stroke-width="2"
+											stroke="currentColor"
+											class="h-4 w-4"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
+											/>
 										</svg>
 									</button>
 								</div>
@@ -1185,7 +1401,19 @@
 							{#each [{ label: 'Participating', pts: RALLY_POINTS_CONFIG.BASE_PARTICIPATION }, { label: 'First visit to venue', pts: RALLY_POINTS_CONFIG.FIRST_VENUE_BONUS }, { label: `Per other player (max ${RALLY_POINTS_CONFIG.PER_PARTICIPANT_CAP})`, pts: RALLY_POINTS_CONFIG.PER_PARTICIPANT }, { label: 'Organising the event', pts: RALLY_POINTS_CONFIG.ORGANIZER_BONUS }, { label: 'Event at full capacity', pts: RALLY_POINTS_CONFIG.FULL_EVENT_BONUS }] as row}
 								<div class="flex items-center justify-between">
 									<span class="text-slate-600 dark:text-slate-400">
-										{row.label === 'Participating' ? i18n.t('points_participating') : row.label === 'First visit to venue' ? i18n.t('points_first_visit') : row.label.startsWith('Per other player') ? i18n.t('points_per_player', { max: RALLY_POINTS_CONFIG.PER_PARTICIPANT_CAP }) : row.label === 'Organising the event' ? i18n.t('points_organizing') : row.label === 'Event at full capacity' ? i18n.t('points_full_event') : row.label}
+										{row.label === 'Participating'
+											? i18n.t('points_participating')
+											: row.label === 'First visit to venue'
+												? i18n.t('points_first_visit')
+												: row.label.startsWith('Per other player')
+													? i18n.t('points_per_player', {
+															max: RALLY_POINTS_CONFIG.PER_PARTICIPANT_CAP
+														})
+													: row.label === 'Organising the event'
+														? i18n.t('points_organizing')
+														: row.label === 'Event at full capacity'
+															? i18n.t('points_full_event')
+															: row.label}
 									</span>
 									<span class="font-bold text-slate-900 dark:text-slate-50">+{row.pts} pts</span>
 								</div>
@@ -1299,11 +1527,16 @@
 			>
 				<div class="flex items-start justify-between gap-4">
 					<div class="text-left">
-						<h2 id="profile-photo-title" class="text-2xl font-black text-slate-950 dark:text-slate-50">
+						<h2
+							id="profile-photo-title"
+							class="text-2xl font-black text-slate-950 dark:text-slate-50"
+						>
 							{avatarSelectionMode ? i18n.t('choose_app_avatar') : i18n.t('edit_profile_photo')}
 						</h2>
 						<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-							{avatarSelectionMode ? i18n.t('select_sports_avatar') : i18n.t('select_profile_photo_update')}
+							{avatarSelectionMode
+								? i18n.t('select_sports_avatar')
+								: i18n.t('select_profile_photo_update')}
 						</p>
 					</div>
 
@@ -1330,15 +1563,36 @@
 							}}
 							class="flex w-full items-center gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left transition hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/50 dark:hover:bg-slate-800"
 						>
-							<div class="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
-								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="h-6 w-6">
-									<path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
-									<path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
+							<div
+								class="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400"
+							>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke-width="2.5"
+									stroke="currentColor"
+									class="h-6 w-6"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z"
+									/>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z"
+									/>
 								</svg>
 							</div>
 							<div>
-								<p class="font-bold text-slate-900 dark:text-slate-50">{i18n.t('upload_camera_gallery')}</p>
-								<p class="text-xs text-slate-500 dark:text-slate-400">{i18n.t('take_photo_or_choose_file')}</p>
+								<p class="font-bold text-slate-900 dark:text-slate-50">
+									{i18n.t('upload_camera_gallery')}
+								</p>
+								<p class="text-xs text-slate-500 dark:text-slate-400">
+									{i18n.t('take_photo_or_choose_file')}
+								</p>
 							</div>
 						</button>
 
@@ -1347,14 +1601,31 @@
 							onclick={() => (avatarSelectionMode = true)}
 							class="flex w-full items-center gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left transition hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/50 dark:hover:bg-slate-800"
 						>
-							<div class="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
-								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="h-6 w-6">
-									<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+							<div
+								class="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400"
+							>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke-width="2.5"
+									stroke="currentColor"
+									class="h-6 w-6"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"
+									/>
 								</svg>
 							</div>
 							<div>
-								<p class="font-bold text-slate-900 dark:text-slate-50">{i18n.t('choose_app_avatar')}</p>
-								<p class="text-xs text-slate-500 dark:text-slate-400">{i18n.t('select_sports_avatar')}</p>
+								<p class="font-bold text-slate-900 dark:text-slate-50">
+									{i18n.t('choose_app_avatar')}
+								</p>
+								<p class="text-xs text-slate-500 dark:text-slate-400">
+									{i18n.t('select_sports_avatar')}
+								</p>
 							</div>
 						</button>
 					</div>
@@ -1398,13 +1669,29 @@
 				class="max-h-[92dvh] w-full max-w-sm overflow-y-auto rounded-t-[2rem] bg-white p-5 text-center shadow-2xl dark:bg-slate-900 sm:rounded-[2rem] sm:p-6"
 			>
 				<div class="flex flex-col items-center">
-					<div class="flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400">
-						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-7 w-7">
-							<path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+					<div
+						class="flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400"
+					>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke-width="2"
+							stroke="currentColor"
+							class="h-7 w-7"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
+							/>
 						</svg>
 					</div>
 
-					<h2 id="confirm-remove-title" class="mt-4 text-xl font-black text-slate-950 dark:text-slate-50">
+					<h2
+						id="confirm-remove-title"
+						class="mt-4 text-xl font-black text-slate-950 dark:text-slate-50"
+					>
 						{i18n.t('remove_friend_title')}
 					</h2>
 					<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">

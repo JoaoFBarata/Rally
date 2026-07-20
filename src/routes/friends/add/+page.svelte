@@ -26,7 +26,33 @@
 	let showQr = $state(false);
 
 	async function goBack() {
-		await goto(resolve('/dashboard'));
+		await goto(resolve('/profile'));
+	}
+
+	async function copyFriendLink() {
+		if (!qrCodeLink) return;
+		await navigator.clipboard.writeText(qrCodeLink);
+		success = i18n.t('friend_link_copied');
+	}
+
+	async function shareFriendLink() {
+		if (!qrCodeLink) return;
+		if (!navigator.share) {
+			await copyFriendLink();
+			return;
+		}
+
+		try {
+			await navigator.share({
+				title: 'Rally',
+				text: i18n.t('friend_link_share_text'),
+				url: qrCodeLink
+			});
+		} catch (err) {
+			if ((err as DOMException)?.name !== 'AbortError') {
+				console.error('Friend link share error:', err);
+			}
+		}
 	}
 
 	async function sendInvite(targetTag = tag.trim(), automatic = false) {
@@ -66,7 +92,9 @@
 			currentProfile = await getUserProfile(userId);
 
 			if (browser && currentProfile?.rallyTag) {
-				const link = createAppUrl(`/friends/add?tag=${encodeURIComponent(currentProfile.rallyTag)}`);
+				const link = createAppUrl(
+					`/friends/add?tag=${encodeURIComponent(currentProfile.rallyTag)}`
+				);
 				qrCodeLink = link;
 				qrCodeDataUrl = await QRCode.toDataURL(link, {
 					width: 320,
@@ -108,12 +136,16 @@
 	});
 </script>
 
-<main class="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-100 px-4 py-8 text-slate-950 dark:bg-slate-950 dark:text-slate-50 sm:px-6">
+<main
+	class="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-100 px-4 py-8 text-slate-950 dark:bg-slate-950 dark:text-slate-50 sm:px-6"
+>
 	<div class="pointer-events-none absolute inset-0 opacity-80 blur-[1px]">
 		<div class="mx-auto grid h-full max-w-7xl grid-cols-[1fr_360px] gap-5 px-4 py-8">
 			<div class="space-y-6">
 				<div class="h-20 max-w-xl rounded-[2rem] bg-white/70 shadow-sm dark:bg-slate-900/70"></div>
-				<div class="h-72 max-w-2xl rounded-[2rem] bg-blue-100/70 shadow-sm dark:bg-blue-950/30"></div>
+				<div
+					class="h-72 max-w-2xl rounded-[2rem] bg-blue-100/70 shadow-sm dark:bg-blue-950/30"
+				></div>
 				<div class="grid max-w-2xl grid-cols-3 gap-4">
 					<div class="h-24 rounded-[1.5rem] bg-white/70 dark:bg-slate-900/70"></div>
 					<div class="h-24 rounded-[1.5rem] bg-white/70 dark:bg-slate-900/70"></div>
@@ -126,7 +158,9 @@
 			</div>
 		</div>
 	</div>
-	<div class="pointer-events-none absolute inset-0 bg-slate-100/60 backdrop-blur-sm dark:bg-slate-950/70"></div>
+	<div
+		class="pointer-events-none absolute inset-0 bg-slate-100/60 backdrop-blur-sm dark:bg-slate-950/70"
+	></div>
 
 	<section class="relative z-10 mx-auto w-full max-w-xl">
 		<button
@@ -138,10 +172,14 @@
 			×
 		</button>
 
-		<div class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-2xl shadow-slate-300/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
+		<div
+			class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-2xl shadow-slate-300/70 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+		>
 			<div class="flex items-start justify-between gap-4">
 				<div>
-					<h1 class="text-2xl font-black text-slate-950 dark:text-slate-50">{i18n.t('add_friend')}</h1>
+					<h1 class="text-2xl font-black text-slate-950 dark:text-slate-50">
+						{i18n.t('add_friend')}
+					</h1>
 					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
 						{i18n.t('add_friend_sub')}
 					</p>
@@ -158,7 +196,9 @@
 			</div>
 
 			{#if sourceTag}
-				<div class="mt-5 rounded-2xl bg-blue-50 p-4 text-sm font-semibold text-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+				<div
+					class="mt-5 rounded-2xl bg-blue-50 p-4 text-sm font-semibold text-blue-800 dark:bg-blue-950/40 dark:text-blue-200"
+				>
 					{i18n.t('qr_detected_sending', { tag: sourceTag })}
 				</div>
 			{/if}
@@ -171,7 +211,9 @@
 				}}
 			>
 				<div class="flex gap-2">
-					<div class="flex min-w-0 flex-1 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500 focus-within:border-blue-300 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-100 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400 dark:focus-within:border-blue-800 dark:focus-within:ring-blue-950/40">
+					<div
+						class="flex min-w-0 flex-1 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500 focus-within:border-blue-300 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-100 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400 dark:focus-within:border-blue-800 dark:focus-within:ring-blue-950/40"
+					>
 						<input
 							id="friend-tag"
 							bind:value={tag}
@@ -190,14 +232,54 @@
 				</div>
 			</form>
 
+			{#if qrCodeDataUrl}
+				<div class="mt-6 sm:hidden">
+					<div
+						class="mx-auto w-fit rounded-[2rem] border border-blue-100 bg-white p-3 shadow-inner dark:border-blue-900/60"
+					>
+						<img
+							src={qrCodeDataUrl}
+							alt={i18n.t('rally_friend_qr_code')}
+							class="h-52 w-52 rounded-2xl"
+						/>
+					</div>
+					<p class="mt-3 text-center text-sm font-black text-slate-700 dark:text-slate-200">
+						@{currentProfile?.rallyTag ?? i18n.t('your_tag')}
+					</p>
+				</div>
+			{/if}
+
+			<div class="mt-5 grid grid-cols-2 gap-2">
+				<button
+					type="button"
+					onclick={shareFriendLink}
+					disabled={!qrCodeLink}
+					class="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:opacity-50"
+				>
+					{i18n.t('share_friend_link')}
+				</button>
+				<button
+					type="button"
+					onclick={copyFriendLink}
+					disabled={!qrCodeLink}
+					class="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-200 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700"
+				>
+					{i18n.t('copy_friend_link')}
+				</button>
+			</div>
+
 			{#if success}
-				<div class="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+				<div
+					class="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300"
+				>
 					{success}
 				</div>
 			{/if}
 
 			{#if error}
-				<div class="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+				<div
+					class="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
+				>
 					{error}
 				</div>
 			{/if}
@@ -214,10 +296,14 @@
 		}}
 		aria-labelledby="friend-qr-title"
 	>
-		<div class="max-h-[92dvh] w-full max-w-sm overflow-y-auto rounded-t-[2rem] bg-white p-5 text-center shadow-2xl dark:bg-slate-900 sm:rounded-[2rem]">
+		<div
+			class="max-h-[92dvh] w-full max-w-sm overflow-y-auto rounded-t-[2rem] bg-white p-5 text-center shadow-2xl dark:bg-slate-900 sm:rounded-[2rem]"
+		>
 			<div class="flex items-start justify-between gap-4 text-left">
 				<div>
-					<h2 id="friend-qr-title" class="text-2xl font-black text-slate-950 dark:text-slate-50">{i18n.t('my_qr_code')}</h2>
+					<h2 id="friend-qr-title" class="text-2xl font-black text-slate-950 dark:text-slate-50">
+						{i18n.t('my_qr_code')}
+					</h2>
 					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{i18n.t('show_qr_add_you')}</p>
 				</div>
 				<button
@@ -233,9 +319,15 @@
 			<div class="mt-6 flex justify-center">
 				<div class="rounded-[2rem] border border-slate-200 bg-white p-3 shadow-inner">
 					{#if qrCodeDataUrl}
-						<img src={qrCodeDataUrl} alt={i18n.t('rally_friend_qr_code')} class="h-56 w-56 rounded-2xl sm:h-64 sm:w-64" />
+						<img
+							src={qrCodeDataUrl}
+							alt={i18n.t('rally_friend_qr_code')}
+							class="h-56 w-56 rounded-2xl sm:h-64 sm:w-64"
+						/>
 					{:else}
-						<div class="grid h-56 w-56 place-items-center rounded-2xl bg-slate-100 text-sm font-bold text-slate-500 sm:h-64 sm:w-64">
+						<div
+							class="grid h-56 w-56 place-items-center rounded-2xl bg-slate-100 text-sm font-bold text-slate-500 sm:h-64 sm:w-64"
+						>
 							{i18n.t('generating_qr')}
 						</div>
 					{/if}
