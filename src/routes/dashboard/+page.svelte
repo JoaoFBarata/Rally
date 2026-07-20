@@ -16,18 +16,23 @@
 		isPromotionActive,
 		getEventById,
 		notifyEventFinished,
+		getTournamentEntries,
 		getTournamentMatches
 	} from '$lib/services/event.service';
 	import { getInvitesForUser, respondToInvite } from '$lib/services/invite.service';
-	import { ensureUserProfile, getUserProfile } from '$lib/services/user.service';
+	import { ensureUserProfile, getUserProfile, getUserProfilesByIds } from '$lib/services/user.service';
 	import { i18n } from '$lib/services/i18n.svelte';
 	import { getFriendsForUser } from '$lib/services/social.service';
 	import {
 		getVisibleEventsForUser,
 		subscribeToPromotedEventsForUser
 	} from '$lib/services/explore.service';
-	import { getOrganizationsFollowedByUser } from '$lib/services/organization.service';
-	import type { EventInvite, SportEvent, TournamentMatch, UserProfile } from '$lib/schema';
+	import {
+		getOrganizationLogo,
+		getOrganizationsFollowedByUser,
+		getPublicOrganizations
+	} from '$lib/services/organization.service';
+	import type { EventInvite, Organization, SportEvent, TournamentEntry, TournamentMatch, UserProfile } from '$lib/schema';
 	import EventCard from '$lib/components/EventCard.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import PromotedEventCarousel from '$lib/components/PromotedEventCarousel.svelte';
@@ -37,11 +42,14 @@
 		subscribeToUserActivityChanges
 	} from '$lib/services/realtime.service';
 	import { notificationState } from '$lib/notifications.svelte';
-	import { formatDate } from '$lib/utils/format.utils';
+	import { formatDate, formatSport } from '$lib/utils/format.utils';
 	import {
+		getEventEndMs,
 		getEventTemporalState,
 		timestampToMillis
 	} from '$lib/utils/event-lifecycle.utils';
+
+	const RECENT_FINISHED_MS = 12 * 60 * 60 * 1000;
 
 	let user = $state<User | null>(null);
 	let profile = $state<UserProfile | null>(null);
@@ -53,7 +61,10 @@
 	let inviteEventsById = $state<Record<string, SportEvent>>({});
 	let promotedEvents = $state<SportEvent[]>([]);
 	let publicEvents = $state<SportEvent[]>([]);
+	let publicOrganizations = $state<Organization[]>([]);
+	let tournamentEntriesByEventId = $state<Record<string, TournamentEntry[]>>({});
 	let tournamentMatchesByEventId = $state<Record<string, TournamentMatch[]>>({});
+	let tournamentProfilesByUserId = $state<Record<string, UserProfile>>({});
 	let followedOrganizationIds = $state<string[]>([]);
 	let friends = $state<UserProfile[]>([]);
 	let invitePreviewEvent = $state<SportEvent | null>(null);
@@ -65,6 +76,7 @@
 	let showCancelledEvents = $state(false);
 	let showUpcomingRallies = $state(false);
 	let showNotifications = $state(false);
+	let dashboardSearch = $state('');
 	let radiusKm = $state(20);
 	let discoverTab = $state<'nearby' | 'recommended' | 'following'>('nearby');
 	let userDeviceLocation = $state<{ lat: number; lng: number } | null>(null);
@@ -75,14 +87,22 @@
 	let hostingEvents = $derived(
 		events.filter((event) => !isEventFinished(event) && event.status !== 'cancelled')
 	);
-	let pastHostingEvents = $derived(events.filter((event) => isEventFinished(event)));
+	let pastHostingEvents = $derived(
+		events
+			.filter((event) => isEventFinished(event))
+			.sort((a, b) => getEventFinishedSortMs(b) - getEventFinishedSortMs(a))
+	);
 	let cancelledHostingEvents = $derived(events.filter((event) => event.status === 'cancelled'));
 	let currentHostingEvents = $derived(showPastEvents ? pastHostingEvents : hostingEvents);
 
 	let participantEvents = $derived(
 		joinedEvents.filter((event) => !isEventFinished(event) && event.status !== 'cancelled')
 	);
-	let pastParticipantEvents = $derived(joinedEvents.filter((event) => isEventFinished(event)));
+	let pastParticipantEvents = $derived(
+		joinedEvents
+			.filter((event) => isEventFinished(event))
+			.sort((a, b) => getEventFinishedSortMs(b) - getEventFinishedSortMs(a))
+	);
 	let cancelledJoinedEvents = $derived(
 		joinedEvents.filter((event) => event.status === 'cancelled')
 	);
@@ -133,6 +153,19 @@
 		)
 	);
 	let nextEvent = $derived(upcomingRallies[0] ?? null);
+	let primarySpotlightRally = $derived(spotlightRallies[0] ?? null);
+	let compactSpotlightRallies = $derived(spotlightRallies.slice(1, 5));
+	let recentlyFinishedRallies = $derived.by(() => {
+		const finished = allUserEvents
+			.filter((event) => event.status !== 'cancelled')
+			.filter((event) => getEventTemporalState(event, nowMs) === 'finished')
+			.sort((a, b) => getEventFinishedSortMs(b) - getEventFinishedSortMs(a));
+
+		const recent = finished.filter((event) => nowMs - getEventFinishedSortMs(event) <= RECENT_FINISHED_MS);
+		if (spotlightRallies.length > 0) return recent.slice(0, 1);
+		if (finished.length > 0 && nextEvent) return finished.slice(0, 1);
+		return [];
+	});
 	let userEventIds = $derived(new Set(allUserEvents.map((event) => event.id)));
 	let userLocationAnchor = $derived(userDeviceLocation);
 	let nearbyEvents = $derived.by(() => {
@@ -193,6 +226,46 @@
 			.slice(0, 8);
 	});
 	let hasFavoriteSports = $derived((profile?.sports?.length ?? 0) > 0);
+	let dashboardSearchResults = $derived.by(() => {
+		const term = dashboardSearch.trim().toLocaleLowerCase('pt-PT');
+		if (!term) return { events: [] as SportEvent[], organizations: [] as Organization[] };
+
+		const matches = (value: unknown) =>
+			String(value ?? '').toLocaleLowerCase('pt-PT').includes(term);
+
+		return {
+			organizations: publicOrganizations
+				.filter(
+					(organization) =>
+						matches(organization.name) ||
+						matches(organization.city) ||
+						matches(organization.type) ||
+						matches(organization.description)
+				)
+				.slice(0, 4),
+			events: [...allUserEvents, ...publicEvents]
+				.filter((event, index, list) => list.findIndex((item) => item.id === event.id) === index)
+				.filter(
+					(event) => {
+						const temporalState = getEventTemporalState(event, nowMs);
+						return (
+							event.status !== 'cancelled' &&
+							(temporalState === 'upcoming' || temporalState === 'starting_soon') &&
+							(matches(event.title) ||
+							matches(event.sport) ||
+							matches(event.customSport) ||
+							matches(event.location?.name) ||
+							matches(event.location?.address) ||
+								matches(event.organizationName))
+						);
+					}
+				)
+				.slice(0, 4)
+		};
+	});
+	let hasDashboardSearchResults = $derived(
+		dashboardSearchResults.events.length > 0 || dashboardSearchResults.organizations.length > 0
+	);
 
 	function greeting() {
 		const h = new Date().getHours();
@@ -203,6 +276,23 @@
 
 	function formatCompactDate(dateValue: unknown) {
 		return formatDate(dateValue, true);
+	}
+
+	function getEventFinishedSortMs(event: SportEvent) {
+		return getEventEndMs(event) || timestampToMillis(event.updatedAt) || timestampToMillis(event.startAt);
+	}
+
+	function formatTimeUntil(event: SportEvent) {
+		const startMs = timestampToMillis(event.startAt);
+		if (!startMs) return formatCompactDate(event.startAt);
+
+		const diffMinutes = Math.max(1, Math.ceil((startMs - nowMs) / 60000));
+		if (diffMinutes < 60) return i18n.t('starts_in_minutes', { count: diffMinutes });
+
+		const diffHours = Math.ceil(diffMinutes / 60);
+		if (diffHours < 48) return i18n.t('starts_in_hours', { count: diffHours });
+
+		return i18n.t('starts_in_days', { count: Math.ceil(diffHours / 24) });
 	}
 
 	function formatMatchDate(dateValue: unknown) {
@@ -246,7 +336,7 @@
 			return i18n.t('starts_in_minutes', { count: minutes });
 		}
 
-		return formatCompactDate(event.startAt);
+		return formatTimeUntil(event);
 	}
 
 	function getMatchSortMs(match: TournamentMatch) {
@@ -284,6 +374,21 @@
 	function formatMatchLine(match: TournamentMatch) {
 		const score = formatMatchScore(match);
 		return `${match.homeName} ${score || i18n.t('vs')} ${match.awayName}`;
+	}
+
+	function getTournamentWinner(event: SportEvent) {
+		if (event.eventKind !== 'tournament') return null;
+		return (
+			(tournamentEntriesByEventId[event.id] ?? []).find((entry) => entry.status === 'winner') ??
+			null
+		);
+	}
+
+	function getTournamentWinnerProfile(event: SportEvent) {
+		const winner = getTournamentWinner(event);
+		if (!winner) return null;
+		const profileId = winner.captainId ?? winner.memberIds[0];
+		return profileId ? (tournamentProfilesByUserId[profileId] ?? null) : null;
 	}
 
 	function getDistanceKm(anchor: { lat: number; lng: number } | null, event: SportEvent) {
@@ -425,14 +530,16 @@
 				loadedInvites,
 				loadedPublicEvents,
 				loadedFriends,
-				followedOrganizations
+				followedOrganizations,
+				loadedOrganizations
 			] = await Promise.all([
 				getEventsCreatedByUser(userId),
 				getEventsForUser(userId),
 				getInvitesForUser(userId),
 				getVisibleEventsForUser(userId),
 				getFriendsForUser(userId),
-				getOrganizationsFollowedByUser(userId)
+				getOrganizationsFollowedByUser(userId),
+				getPublicOrganizations()
 			]);
 		const eventsById = new SvelteMap<string, SportEvent>();
 		for (const event of createdEvents) eventsById.set(event.id, event);
@@ -441,19 +548,41 @@
 
 		const tournamentEvents = allUserEvents.filter((event) => event.eventKind === 'tournament');
 		if (tournamentEvents.length > 0) {
-			const matchEntries = await Promise.all(
-				tournamentEvents.map(async (event) => {
-					try {
-						return [event.id, await getTournamentMatches(event.id)] as const;
-					} catch (err) {
-						console.error('Tournament matches load error:', err);
-						return [event.id, []] as const;
-					}
-				})
-			);
+			const [matchEntries, tournamentEntries] = await Promise.all([
+				Promise.all(
+					tournamentEvents.map(async (event) => {
+						try {
+							return [event.id, await getTournamentMatches(event.id)] as const;
+						} catch (err) {
+							console.error('Tournament matches load error:', err);
+							return [event.id, []] as const;
+						}
+					})
+				),
+				Promise.all(
+					tournamentEvents.map(async (event) => {
+						try {
+							return [event.id, await getTournamentEntries(event.id)] as const;
+						} catch (err) {
+							console.error('Tournament entries load error:', err);
+							return [event.id, []] as const;
+						}
+					})
+				)
+			]);
 			tournamentMatchesByEventId = Object.fromEntries(matchEntries);
+			tournamentEntriesByEventId = Object.fromEntries(tournamentEntries);
+			const tournamentUserIds = tournamentEntries
+				.flatMap(([, entries]) => entries)
+				.flatMap((entry) => [entry.captainId, ...entry.memberIds])
+				.filter((id): id is string => Boolean(id));
+			tournamentProfilesByUserId = Object.fromEntries(
+				(await getUserProfilesByIds(tournamentUserIds)).map((profile) => [profile.id, profile])
+			);
 		} else {
 			tournamentMatchesByEventId = {};
+			tournamentEntriesByEventId = {};
+			tournamentProfilesByUserId = {};
 		}
 
 		// Auto-detect and notify/mark finished events
@@ -471,6 +600,7 @@
 		inviteEventsById = activeInviteEvents;
 			invites = activeInvites;
 			publicEvents = loadedPublicEvents;
+			publicOrganizations = loadedOrganizations;
 			followedOrganizationIds = followedOrganizations.map((organization) => organization.id);
 			friends = loadedFriends;
 		await loadInvitePreview(activeInvites.filter((invite) => invite.status === 'pending'));
@@ -823,6 +953,84 @@
 				</div>
 			{/if}
 
+			<section class="mb-4 sm:mb-5">
+				<div class="relative">
+					<div class="flex min-h-14 items-center gap-3 rounded-[1.35rem] border border-slate-200 bg-white px-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5 shrink-0 text-slate-400" aria-hidden="true">
+							<circle cx="11" cy="11" r="8" />
+							<path d="m21 21-4.35-4.35" />
+						</svg>
+						<input
+							bind:value={dashboardSearch}
+							type="search"
+							placeholder={i18n.t('dashboard_search_placeholder')}
+							class="min-w-0 flex-1 border-0 bg-transparent px-0 py-3 text-sm font-bold text-slate-950 outline-none placeholder:text-slate-400 focus:ring-0 dark:text-slate-50"
+						/>
+						{#if dashboardSearch.trim()}
+							<button
+								type="button"
+								onclick={() => (dashboardSearch = '')}
+								class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+								aria-label={i18n.t('clear')}
+							>
+								×
+							</button>
+						{/if}
+					</div>
+
+					{#if dashboardSearch.trim()}
+						<div class="absolute inset-x-0 top-[calc(100%+0.5rem)] z-30 overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white p-2 shadow-2xl shadow-slate-300/50 dark:border-slate-800 dark:bg-slate-950 dark:shadow-black/30">
+							{#if hasDashboardSearchResults}
+								{#if dashboardSearchResults.organizations.length > 0}
+									<p class="px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{i18n.t('organizations')}</p>
+									<div class="space-y-1">
+										{#each dashboardSearchResults.organizations as organization (organization.id)}
+											<a
+												href={resolve(`/organizations/${organization.id}`)}
+												onclick={() => (dashboardSearch = '')}
+												class="flex min-w-0 items-center gap-3 rounded-2xl px-3 py-2 transition hover:bg-blue-50 dark:hover:bg-blue-950/30"
+											>
+												<img src={getOrganizationLogo(organization.logoURL)} alt="" class="h-10 w-10 shrink-0 rounded-2xl object-cover ring-1 ring-slate-200 dark:ring-slate-800" />
+												<div class="min-w-0 flex-1">
+													<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">{organization.name}</p>
+													<p class="truncate text-xs font-bold text-slate-500 dark:text-slate-400">{organization.city || organization.address || i18n.t('organization_label')}</p>
+												</div>
+												<span class="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500 dark:bg-slate-900 dark:text-slate-400">{i18n.t('follow')}</span>
+											</a>
+										{/each}
+									</div>
+								{/if}
+
+								{#if dashboardSearchResults.events.length > 0}
+									<p class="px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{i18n.t('events')}</p>
+									<div class="space-y-1">
+										{#each dashboardSearchResults.events as event (event.id)}
+											<a
+												href={resolve(`/events/${event.id}`)}
+												onclick={() => (dashboardSearch = '')}
+												class="flex min-w-0 items-center gap-3 rounded-2xl px-3 py-2 transition hover:bg-blue-50 dark:hover:bg-blue-950/30"
+											>
+												<div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-blue-50 text-xs font-black text-blue-600 dark:bg-blue-950 dark:text-blue-300">
+													{formatSport(event.sport).slice(0, 2).toUpperCase()}
+												</div>
+												<div class="min-w-0 flex-1">
+													<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">{event.title}</p>
+													<p class="truncate text-xs font-bold text-slate-500 dark:text-slate-400">{formatCompactDate(event.startAt)} · {event.location?.name || event.location?.address || i18n.t('location')}</p>
+												</div>
+											</a>
+										{/each}
+									</div>
+								{/if}
+							{:else}
+								<div class="rounded-2xl bg-slate-50 p-4 text-sm font-bold text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+									{i18n.t('no_search_results')}
+								</div>
+							{/if}
+						</div>
+					{/if}
+				</div>
+			</section>
+
 			<nav class="flex gap-2 overflow-x-auto pb-5 sm:pb-3">
 				<a href={resolve('/explore')} class="inline-flex shrink-0 items-center gap-2 rounded-full bg-blue-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700">
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
@@ -861,19 +1069,19 @@
 					</div>
 
 					<div class="grid max-w-2xl gap-3">
-						{#each spotlightRallies.slice(0, 3) as event (event.id)}
-							{@const tournamentTimeline = getTournamentTimeline(event)}
+						{#if primarySpotlightRally}
+							{@const tournamentTimeline = getTournamentTimeline(primarySpotlightRally)}
 							<div class="overflow-hidden rounded-[1.9rem] border border-emerald-100 bg-white p-2 shadow-sm shadow-emerald-100/70 dark:border-emerald-900/60 dark:bg-slate-900 dark:shadow-none">
 								<div class="mb-2 flex flex-wrap items-center justify-between gap-2 px-2 pt-1">
 									<div class="min-w-0">
 										<p class="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
-											{getTemporalLabel(event)}
+											{getTemporalLabel(primarySpotlightRally)}
 										</p>
 										<p class="truncate text-xs font-bold text-slate-500 dark:text-slate-400">
-											{getTemporalDescription(event)}
+											{getTemporalDescription(primarySpotlightRally)}
 										</p>
 									</div>
-									{#if event.eventKind === 'tournament'}
+									{#if primarySpotlightRally.eventKind === 'tournament'}
 										<span class="shrink-0 rounded-full bg-purple-50 px-3 py-1 text-xs font-black text-purple-700 dark:bg-purple-950 dark:text-purple-300">
 											{i18n.t('status_tournament')}
 										</span>
@@ -881,7 +1089,7 @@
 								</div>
 
 								<EventCard
-									{event}
+									event={primarySpotlightRally}
 									variant="hero"
 									compactHero
 									heroCtaLabel=""
@@ -920,6 +1128,94 @@
 									</div>
 								{/if}
 							</div>
+						{/if}
+
+						{#if compactSpotlightRallies.length > 0}
+							<div class="rounded-[1.5rem] border border-emerald-100 bg-emerald-50/60 p-2 dark:border-emerald-900/60 dark:bg-emerald-950/20">
+								<p class="px-2 pb-1 text-xs font-black text-emerald-700 dark:text-emerald-300">
+									{i18n.t('more_happening_now', { count: compactSpotlightRallies.length })}
+								</p>
+								<div class="space-y-1">
+									{#each compactSpotlightRallies as event (event.id)}
+										<a
+											href={resolve(`/events/${event.id}`)}
+											class="flex min-w-0 items-center justify-between gap-3 rounded-2xl bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+										>
+											<span class="min-w-0 truncate">{event.title}</span>
+											<span class="shrink-0 rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-black uppercase text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-200">
+												{event.eventKind === 'tournament' ? i18n.t('status_tournament') : i18n.t('happening_now')}
+											</span>
+										</a>
+									{/each}
+								</div>
+							</div>
+						{/if}
+					</div>
+				</section>
+			{/if}
+
+			{#if recentlyFinishedRallies.length > 0}
+				<section class="mt-5 space-y-3">
+					<div>
+						<p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
+							{i18n.t('recently_finished')}
+						</p>
+						<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">
+							{i18n.t('finished_recently')}
+						</h2>
+					</div>
+					<div class="grid max-w-2xl gap-3">
+						{#each recentlyFinishedRallies as event (event.id)}
+							{@const winner = getTournamentWinner(event)}
+							{@const winnerProfile = getTournamentWinnerProfile(event)}
+							<div class="overflow-hidden rounded-[1.9rem] border border-amber-100 bg-white p-2 shadow-sm shadow-amber-100/70 dark:border-amber-900/60 dark:bg-slate-900 dark:shadow-none">
+								<div class="mb-2 flex flex-wrap items-center justify-between gap-2 px-2 pt-1">
+									<div class="min-w-0">
+										<p class="text-[11px] font-black uppercase tracking-[0.18em] text-amber-600 dark:text-amber-300">
+											{i18n.t('recently_finished')}
+										</p>
+										<p class="truncate text-xs font-bold text-slate-500 dark:text-slate-400">
+											{formatCompactDate(event.startAt)}
+										</p>
+									</div>
+									<span class="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+										{i18n.t('status_finished')}
+									</span>
+								</div>
+
+								<EventCard
+									{event}
+									variant="hero"
+									compactHero
+									heroCtaLabel=""
+									heroCtaTone="muted"
+								/>
+
+								{#if winner}
+									<div class="mt-2 flex min-w-0 items-center gap-3 rounded-2xl bg-amber-50 px-3 py-2 ring-1 ring-amber-100 dark:bg-amber-950/30 dark:ring-amber-900/60">
+										<div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-amber-400 text-white shadow-lg shadow-amber-300/40">
+											<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6" aria-hidden="true">
+												<path d="M8 4h8v4a4 4 0 0 1-8 0V4Z" />
+												<path d="M8 6H5v1a4 4 0 0 0 4 4M16 6h3v1a4 4 0 0 1-4 4M12 12v4M8 20h8M9 16h6v4H9z" />
+											</svg>
+										</div>
+										<UserAvatar
+											photoURL={winnerProfile?.photoURL}
+											displayName={winner.name}
+											size="sm"
+											plain
+										/>
+										<div class="min-w-0">
+											<p class="text-[10px] font-black uppercase tracking-[0.16em] text-amber-600 dark:text-amber-300">
+												{i18n.t('winner')}
+											</p>
+											<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">
+												{winner.name}
+											</p>
+										</div>
+									</div>
+								{/if}
+							</div>
 						{/each}
 					</div>
 				</section>
@@ -946,11 +1242,9 @@
 
 				{#if nextEvent}
 					<div class="max-w-2xl">
-						{#if getEventTemporalState(nextEvent, nowMs) === 'starting_soon'}
-							<p class="mb-2 inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700 ring-1 ring-amber-100 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-900/60">
-								{getTemporalDescription(nextEvent)}
-							</p>
-						{/if}
+						<p class="mb-2 inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700 ring-1 ring-amber-100 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-900/60">
+							{getTemporalDescription(nextEvent)}
+						</p>
 						<EventCard
 							event={nextEvent}
 							variant="hero"

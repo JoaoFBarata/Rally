@@ -10,6 +10,7 @@
 		subscribeToPromotedEventsForUser
 	} from '$lib/services/explore.service';
 	import { getFriendsForUser } from '$lib/services/social.service';
+	import { getOrganizationsFollowedByUser } from '$lib/services/organization.service';
 	import { ensureUserProfile } from '$lib/services/user.service';
 	import type { Sport, SportEvent, SportLevel, UserProfile } from '$lib/schema';
 	import ExploreMap from '$lib/components/maps/ExploreMap.svelte';
@@ -21,7 +22,7 @@
 
 	type DateFilter = 'today' | '7' | '14' | '30' | 'all';
 	type PriceFilter = 'all' | 'free' | 'paid';
-	type AudienceFilter = 'all' | 'mine' | 'friends' | 'public' | 'joined';
+	type AudienceFilter = 'all' | 'mine' | 'friends' | 'public' | 'joined' | 'following_orgs';
 
 	const defaultDateFilter: DateFilter = '7';
 	const defaultPriceFilter: PriceFilter = 'all';
@@ -29,7 +30,7 @@
 	const availableLevels: SportLevel[] = ['beginner', 'casual', 'intermediate', 'advanced'];
 	const validDateFilters: DateFilter[] = ['today', '7', '14', '30', 'all'];
 	const validPriceFilters: PriceFilter[] = ['all', 'free', 'paid'];
-	const validAudienceFilters: AudienceFilter[] = ['all', 'mine', 'friends', 'public', 'joined'];
+	const validAudienceFilters: AudienceFilter[] = ['all', 'mine', 'friends', 'public', 'joined', 'following_orgs'];
 
 	function getValidParam<T extends string>(key: string, validValues: T[], fallback: T) {
 		const value = page.url.searchParams.get(key) as T | null;
@@ -52,6 +53,7 @@
 	let error = $state('');
 	let currentUserId = $state('');
 	let friendIds = $state<string[]>([]);
+	let followedOrganizationIds = $state<string[]>([]);
 	let filteredEventCount = $state(0);
 	let selectedMapEventId = $state<string | null>(null);
 	let viewMode = $state<'map' | 'feed'>((page.url.searchParams.get('view') as 'map' | 'feed') || 'map');
@@ -93,7 +95,8 @@
 		{ value: 'mine' as const, label: i18n.t('my_events') },
 		{ value: 'friends' as const, label: i18n.t('friends') },
 		{ value: 'public' as const, label: i18n.t('public_events') },
-		{ value: 'joined' as const, label: i18n.t('joined') }
+		{ value: 'joined' as const, label: i18n.t('joined') },
+		{ value: 'following_orgs' as const, label: i18n.t('following_orgs') }
 	]);
 
 	let allExploreEvents = $derived.by(() => {
@@ -177,6 +180,9 @@
 		}
 		if (audienceFilter === 'public') return event.visibility === 'public';
 		if (audienceFilter === 'joined') return event.participantIds.includes(currentUserId);
+		if (audienceFilter === 'following_orgs') {
+			return Boolean(event.organizationId && followedOrganizationIds.includes(event.organizationId));
+		}
 		return true;
 	}
 
@@ -291,8 +297,12 @@
 		try {
 			events = await getVisibleEventsForUser(userId, { windowDays: getWindowDays(dateFilter) });
 			filteredEventCount = filteredEvents.length;
-			const friends = await getFriendsForUser(userId);
+			const [friends, followedOrganizations] = await Promise.all([
+				getFriendsForUser(userId),
+				getOrganizationsFollowedByUser(userId)
+			]);
 			friendIds = friends.map((friend) => friend.id).filter(Boolean);
+			followedOrganizationIds = followedOrganizations.map((organization) => organization.id);
 		} finally {
 			refreshing = false;
 		}

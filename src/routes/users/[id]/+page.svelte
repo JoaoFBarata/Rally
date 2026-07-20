@@ -10,6 +10,7 @@
 	import { auth, db } from '$lib/firebase';
 	import type { SportEvent, UserProfile } from '$lib/schema';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
+	import PublicProfileEventCard from '$lib/components/PublicProfileEventCard.svelte';
 	import { getUserProfile } from '$lib/services/user.service';
 	import {
 		getFriendsForUser,
@@ -38,6 +39,7 @@
 		getSportBackgroundImage
 	} from '$lib/utils/format.utils';
 	import { i18n } from '$lib/services/i18n.svelte';
+	import { getEventTemporalState } from '$lib/utils/event-lifecycle.utils';
 
 	let targetProfile = $state<UserProfile | null>(null);
 	let currentProfile = $state<UserProfile | null>(null);
@@ -77,9 +79,20 @@
 		return [...eventMap.values()];
 	});
 
+	let liveProfileEvents = $derived.by(() =>
+		sortEventsByStatusThenDate(
+			allPublicEvents.filter((event) => getEventTemporalState(event) === 'live')
+		)
+	);
+
 	let allUpcomingProfileEvents = $derived.by(() =>
 		sortEventsByStatusThenDate(
-			allPublicEvents.filter((event) => !isEventFinished(event) && event.status !== 'cancelled')
+			allPublicEvents.filter(
+				(event) =>
+					!isEventFinished(event) &&
+					event.status !== 'cancelled' &&
+					getEventTemporalState(event) !== 'live'
+			)
 		)
 	);
 
@@ -660,6 +673,20 @@
 							<p class="min-w-0 text-sm font-bold text-slate-500 dark:text-slate-400">
 								{i18n.t('mutual_friends_summary', { name: targetProfile.displayName, count: mutualFriends.length, friends: i18n.t(mutualFriends.length === 1 ? 'mutual_friend' : 'mutual_friends_plural') })}
 							</p>
+						</div>
+					</section>
+				{/if}
+
+				{#if liveProfileEvents.length > 0}
+					<section>
+						<div class="mb-3">
+							<p class="text-xs font-black uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400">{i18n.t('live_and_soon')}</p>
+							<h2 class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{i18n.t('happening_around_you')}</h2>
+						</div>
+						<div class="-mx-1 space-y-3 px-1">
+							{#each liveProfileEvents.slice(0, 2) as event (event.id)}
+								<PublicProfileEventCard {event} />
+							{/each}
 						</div>
 					</section>
 				{/if}

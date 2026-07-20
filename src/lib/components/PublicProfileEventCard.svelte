@@ -9,6 +9,7 @@
 		getCurrentLocale,
 		getSportBackgroundImage
 	} from '$lib/utils/format.utils';
+	import { getEventTemporalState } from '$lib/utils/event-lifecycle.utils';
 
 	let {
 		event,
@@ -78,6 +79,20 @@
 			currency: event.currency
 		});
 	}
+
+	function getStatusLabel() {
+		const temporalState = getEventTemporalState(event);
+		if (temporalState === 'live') return i18n.t('happening_now');
+		if (temporalState === 'starting_soon') return i18n.t('starting_soon');
+		return i18n.t('status_' + event.status);
+	}
+
+	function getStatusClasses() {
+		const temporalState = getEventTemporalState(event);
+		if (temporalState === 'live') return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300';
+		if (temporalState === 'starting_soon') return 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300';
+		return 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300';
+	}
 </script>
 
 {#if variant === 'compact'}
@@ -122,8 +137,8 @@
 					{formatSport(event.sport)}
 				</p>
 				{#if event.status}
-					<span class="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-black capitalize text-slate-500 dark:bg-slate-800 dark:text-slate-300">
-						{i18n.t('status_' + event.status)}
+					<span class={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-black capitalize ${getStatusClasses()}`}>
+						{getStatusLabel()}
 					</span>
 				{/if}
 			</div>
