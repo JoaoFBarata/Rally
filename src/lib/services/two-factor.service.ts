@@ -1,4 +1,5 @@
 import { auth } from '$lib/firebase';
+import { FirebaseError } from 'firebase/app';
 import {
 	isSignInWithEmailLink,
 	sendSignInLinkToEmail,
@@ -22,6 +23,18 @@ export interface PendingTwoFactorChallenge {
 
 function isBrowser() {
 	return typeof window !== 'undefined';
+}
+
+export function normalizeTwoFactorReturnTo(returnTo?: string | null) {
+	return returnTo?.startsWith('/') && returnTo !== '/' ? returnTo : '/dashboard';
+}
+
+function recordCompletedChallenge(returnTo: string) {
+	clearPendingTwoFactorChallenge();
+	localStorage.setItem(
+		TWO_FACTOR_COMPLETED_KEY,
+		JSON.stringify({ returnTo, completedAt: Date.now() })
+	);
 }
 
 export function getEnabledTwoFactorMethods(profile: UserProfile | null | undefined) {
@@ -68,7 +81,7 @@ export async function startEmailTwoFactorChallenge(params: {
 	if (!isBrowser()) return;
 
 	const email = params.email.trim();
-	const returnTo = params.returnTo?.startsWith('/') ? params.returnTo : '/dashboard';
+	const returnTo = normalizeTwoFactorReturnTo(params.returnTo);
 	const verifyPath = `/verify-2fa?returnTo=${encodeURIComponent(returnTo)}`;
 	localStorage.removeItem(TWO_FACTOR_COMPLETED_KEY);
 
@@ -98,30 +111,47 @@ export function currentUrlIsEmailTwoFactorLink() {
 	return isBrowser() && isSignInWithEmailLink(auth, window.location.href);
 }
 
-export async function completeEmailTwoFactorChallenge() {
+export async function completeEmailTwoFactorChallenge(params?: {
+	email?: string;
+	returnTo?: string | null;
+}) {
 	if (!isBrowser()) {
 		throw new Error('Two-factor verification can only be completed in the browser.');
 	}
 
 	const pending = getPendingTwoFactorChallenge();
-	if (!pending) {
-		throw new Error('This verification link expired. Log in again to receive a new one.');
-	}
+	const email = pending?.email ?? params?.email?.trim() ?? '';
+	const requestedReturnTo = pending?.returnTo ?? params?.returnTo;
+	const returnTo = normalizeTwoFactorReturnTo(requestedReturnTo);
+	if (!email) throw new Error('Enter the account email to verify this secure link.');
 
 	if (!isSignInWithEmailLink(auth, window.location.href)) {
 		throw new Error('This is not a valid verification link.');
 	}
 
-	const credential = await signInWithEmailLink(auth, pending.email, window.location.href);
-	await ensureUserProfile(credential.user);
-	clearPendingTwoFactorChallenge();
-	localStorage.setItem(
-		TWO_FACTOR_COMPLETED_KEY,
-		JSON.stringify({ returnTo: pending.returnTo, completedAt: Date.now() })
-	);
+	let user;
+	try {
+		const credential = await signInWithEmailLink(auth, email, window.location.href);
+		user = credential.user;
+	} catch (error) {
+		// A restored Firebase session means this one-time code was already
+		// consumed successfully by this same login, so completing is idempotent.
+		await auth.authStateReady();
+		if (
+			!(error instanceof FirebaseError && error.code === 'auth/invalid-action-code') ||
+			!auth.currentUser ||
+			auth.currentUser.email?.toLowerCase() !== email.toLowerCase()
+		) {
+			throw error;
+		}
+		user = auth.currentUser;
+	}
+
+	await ensureUserProfile(user);
+	recordCompletedChallenge(returnTo);
 
 	return {
-		user: credential.user,
-		returnTo: pending.returnTo
+		user,
+		returnTo
 	};
 }

@@ -912,7 +912,7 @@
 
 		<div class="hidden min-w-0 space-y-4 md:block">
 			<!-- Top row: Avatar card + Bio & other details card -->
-			<div class="grid min-w-0 items-stretch gap-4 lg:grid-cols-[1fr_1.3fr]">
+			<div class="grid min-w-0 items-start gap-4 lg:grid-cols-[1fr_1.3fr]">
 				<section
 					class="flex min-w-0 flex-col items-center rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:rounded-4xl"
 				>

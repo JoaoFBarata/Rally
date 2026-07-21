@@ -5,10 +5,14 @@
 	import RallyLogo from '$lib/components/RallyLogo.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
+	import { i18n } from '$lib/services/i18n.svelte';
+	import { getPublicAppBaseUrl } from '$lib/utils/app-url';
+	import { authState } from '$lib/auth.svelte';
 	import {
 		completeEmailTwoFactorChallenge,
 		currentUrlIsEmailTwoFactorLink,
 		getPendingTwoFactorChallenge,
+		normalizeTwoFactorReturnTo,
 		startEmailTwoFactorChallenge,
 		TWO_FACTOR_COMPLETED_KEY
 	} from '$lib/services/two-factor.service';
@@ -18,21 +22,50 @@
 	let error = $state('');
 	let success = $state('');
 	let pendingEmail = $state('');
+	let confirmationEmail = $state('');
+	let needsEmailConfirmation = $state(false);
 	let verifiedReturnTo = $state('');
 
-	const returnTo = $derived(
-		page.url.searchParams.get('returnTo')?.startsWith('/')
-			? page.url.searchParams.get('returnTo')!
-			: '/dashboard'
-	);
+	function removeConsumedCodeFromAddressBar() {
+		const cleanUrl = new URL('/verify-2fa', window.location.origin);
+		cleanUrl.searchParams.set('verified', '1');
+		cleanUrl.searchParams.set('returnTo', verifiedReturnTo || '/dashboard');
+		window.history.replaceState(window.history.state, '', cleanUrl);
+	}
+
+	const returnTo = $derived(normalizeTwoFactorReturnTo(page.url.searchParams.get('returnTo')));
+
+	$effect(() => {
+		if (
+			!authState.loading &&
+			authState.user &&
+			!verifiedReturnTo &&
+			!currentUrlIsEmailTwoFactorLink()
+		) {
+			void goto(returnTo, { replaceState: true });
+		}
+	});
 
 	onMount(() => {
+		const publicAppUrl = new URL(getPublicAppBaseUrl());
+		if (
+			currentUrlIsEmailTwoFactorLink() &&
+			window.location.origin !== publicAppUrl.origin
+		) {
+			const canonicalUrl = new URL(
+				`${window.location.pathname}${window.location.search}${window.location.hash}`,
+				publicAppUrl
+			);
+			window.location.replace(canonicalUrl.toString());
+			return;
+		}
+
 		function handleCompletedChallenge(event: StorageEvent) {
 			if (event.key !== TWO_FACTOR_COMPLETED_KEY || !event.newValue) return;
 
 			try {
 				const completed = JSON.parse(event.newValue) as { returnTo?: string };
-				const destination = completed.returnTo?.startsWith('/') ? completed.returnTo : returnTo;
+				const destination = normalizeTwoFactorReturnTo(completed.returnTo);
 				void goto(destination);
 			} catch {
 				void goto(returnTo);
@@ -50,11 +83,14 @@
 				pendingEmail = pending?.email ?? '';
 
 				if (currentUrlIsEmailTwoFactorLink()) {
+					if (!pending) {
+						needsEmailConfirmation = true;
+						return;
+					}
 					const result = await completeEmailTwoFactorChallenge();
 					verifiedReturnTo = result.returnTo || returnTo;
-					success = 'Login verified. You can return to the Rally tab you already had open.';
-
-					window.setTimeout(() => window.close(), 500);
+					success = 'Login verified. You can close this page and return to the other Rally page.';
+					removeConsumedCodeFromAddressBar();
 					return;
 				}
 
@@ -73,6 +109,29 @@
 
 		return () => window.removeEventListener('storage', handleCompletedChallenge);
 	});
+
+	async function handleEmailConfirmation() {
+		const email = confirmationEmail.trim();
+		if (!email) {
+			error = 'Enter the same email address used to log in.';
+			return;
+		}
+
+		loading = true;
+		error = '';
+		try {
+			const result = await completeEmailTwoFactorChallenge({ email, returnTo });
+			verifiedReturnTo = result.returnTo || returnTo;
+			success = 'Login verified. You can close this page and return to the other Rally page.';
+			needsEmailConfirmation = false;
+			removeConsumedCodeFromAddressBar();
+		} catch (err) {
+			console.error('Two-factor email confirmation error:', err);
+			error = getFriendlyErrorMessage(err, 'Could not verify this login. Check the email and try again.');
+		} finally {
+			loading = false;
+		}
+	}
 
 	async function handleResend() {
 		const pending = getPendingTwoFactorChallenge();
@@ -118,6 +177,9 @@
 				Open the secure link we sent to your email. This proves it is really you before Rally
 				opens your account.
 			</p>
+			<p class="mt-2 text-sm font-bold text-amber-700 dark:text-amber-300">
+				{i18n.t('check_spam_folder')}
+			</p>
 
 			{#if loading}
 				<div class="mt-8 flex items-center gap-3 text-sm font-bold text-slate-500">
@@ -125,6 +187,32 @@
 					Checking verification...
 				</div>
 			{:else}
+				{#if needsEmailConfirmation}
+					<div class="mt-6 rounded-3xl border border-blue-200 bg-blue-50 p-4 text-left dark:border-blue-900/60 dark:bg-blue-950/40">
+						<label for="two-factor-email" class="text-sm font-black text-slate-950 dark:text-slate-50">
+							Confirm your account email
+						</label>
+						<p class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+							The link opened in a different browser or app. Enter the same email used to log in.
+						</p>
+						<input
+							id="two-factor-email"
+							type="email"
+							bind:value={confirmationEmail}
+							autocomplete="email"
+							class="mt-3 w-full rounded-2xl border border-blue-200 bg-white px-4 py-3 text-sm font-bold text-slate-950 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-blue-900 dark:bg-slate-900 dark:text-slate-50"
+							placeholder="you@example.com"
+						/>
+						<button
+							type="button"
+							onclick={handleEmailConfirmation}
+							class="mt-3 w-full rounded-2xl bg-blue-600 px-5 py-3 font-black text-white transition hover:bg-blue-700"
+						>
+							Verify login
+						</button>
+					</div>
+				{/if}
+
 				{#if success}
 					<div
 						class="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300"

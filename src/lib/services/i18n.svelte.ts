@@ -2,6 +2,13 @@ import { browser } from '$app/environment';
 
 export type Language = 'en' | 'pt' | 'es' | 'fr';
 
+const emailDeliveryTranslations: Record<Language, Record<string, string>> = {
+	en: { check_spam_folder: 'Check your spam folder.' },
+	pt: { check_spam_folder: 'Verifica a tua caixa de spam.' },
+	es: { check_spam_folder: 'Revisa tu carpeta de spam.' },
+	fr: { check_spam_folder: 'Vérifiez votre dossier de courriers indésirables.' }
+};
+
 const detailPageTranslations: Record<Language, Record<string, string>> = {
 	en: {
 		back_aria: 'Back',
@@ -5629,9 +5636,11 @@ class I18nService {
 			detailPageSupplement[this.currentLang]?.[key] ||
 			missingUiTranslations[this.currentLang]?.[key] ||
 			routeAndTournamentTranslations[this.currentLang]?.[key] ||
+			emailDeliveryTranslations[this.currentLang]?.[key] ||
 			this.translations['en']?.[key] ||
 			detailPageTranslations.en[key] ||
 			missingUiTranslations.en[key] ||
+			emailDeliveryTranslations.en[key] ||
 			routeAndTournamentTranslations.en[key] ||
 			key;
 		if (replacements) {

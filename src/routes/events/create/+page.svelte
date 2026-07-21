@@ -80,6 +80,30 @@
 	let isRecurring = $state(false);
 	let recurringFrequency = $state<RecurringFrequency>('weekly');
 	let recurringOccurrences = $state(4);
+	let canCreateEvent = $derived.by(() => {
+		const startAt = startDate && startTime ? new Date(`${startDate}T${startTime}`) : null;
+		const hasValidStart = Boolean(
+			startAt && !Number.isNaN(startAt.getTime()) && startAt.getTime() > Date.now()
+		);
+		const hasValidMinimum =
+			!enableMinParticipants ||
+			Boolean(minParticipants && minParticipants >= 1 && minParticipants <= maxParticipants);
+		const hasValidPrice =
+			priceMode === 'free' || Boolean(priceValue !== null && priceValue > 0);
+
+		return Boolean(
+			title.trim() &&
+				(sport !== 'other' || customSport.trim()) &&
+				address.trim() &&
+				lat !== null &&
+				lng !== null &&
+				hasValidStart &&
+				durationMinutes >= 15 &&
+				maxParticipants >= 2 &&
+				hasValidMinimum &&
+				hasValidPrice
+		);
+	});
 
 	let recurringEndDateLabel = $derived.by(() => {
 		if (!isRecurring || !startDate) return '';
@@ -937,8 +961,8 @@
 					{/if}
 					<button
 						type="submit"
-						disabled={loading || groupPhotoUploading}
-						class="mt-3 w-full rounded-2xl bg-blue-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:shadow-blue-950/40 sm:py-4 sm:text-base"
+						disabled={loading || groupPhotoUploading || !canCreateEvent}
+						class="mt-3 w-full rounded-2xl bg-red-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-red-600/25 transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-45 dark:shadow-red-950/40 sm:py-4 sm:text-base"
 					>
 						{loading
 							? i18n.t('creating_btn')

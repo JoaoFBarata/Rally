@@ -11,6 +11,7 @@
 	import { themeState } from '$lib/theme.svelte';
 	import { i18n } from '$lib/services/i18n.svelte';
 	import {
+		normalizeTwoFactorReturnTo,
 		shouldRequireTwoFactor,
 		startEmailTwoFactorChallenge
 	} from '$lib/services/two-factor.service';
@@ -32,7 +33,7 @@
 
 		try {
 			const returnTo = page.url.searchParams.get('returnTo');
-			const safeReturnTo = returnTo?.startsWith('/') ? returnTo : '/dashboard';
+			const safeReturnTo = normalizeTwoFactorReturnTo(returnTo);
 			const result = await authService.login(email, password);
 
 			if (shouldRequireTwoFactor(result.profile)) {

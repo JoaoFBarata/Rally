@@ -130,6 +130,37 @@
 
 		return total / participants;
 	});
+	let canCreateEvent = $derived.by(() => {
+		const start = date && startTime ? new Date(`${date}T${startTime}`) : null;
+		const end = date && endTime ? new Date(`${date}T${endTime}`) : null;
+		const participants = Number(maxParticipants);
+		const minimum = Number(minParticipants);
+		const hasValidStart = Boolean(
+			start && !Number.isNaN(start.getTime()) && start.getTime() > Date.now()
+		);
+		const hasValidEnd = !endTime || Boolean(end && start && end.getTime() > start.getTime());
+		const hasValidMinimum =
+			!enableMinParticipants ||
+			(Number.isInteger(minimum) && minimum >= 1 && minimum <= participants);
+
+		return Boolean(
+			organization &&
+				title.trim() &&
+				(sport !== 'other' || customSport.trim()) &&
+				address.trim() &&
+				lat !== null &&
+				lng !== null &&
+				hasValidStart &&
+				hasValidEnd &&
+				Number.isInteger(participants) &&
+				participants >= 2 &&
+				participants <= 500 &&
+				hasValidMinimum &&
+				(paymentMode === 'none' || Number(priceTotal) > 0) &&
+				(paymentMode !== 'official' || isVerified) &&
+				(!promote || (isVerified && promotionTargetCountry))
+		);
+	});
 
 	function verificationLabel() {
 		if (!organization) return i18n.t('not_verified');
@@ -1034,8 +1065,8 @@
 
 					<button
 						type="submit"
-						disabled={creating}
-						class="w-full rounded-2xl bg-blue-600 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-60 sm:col-span-2 sm:py-4 sm:text-base"
+						disabled={creating || !canCreateEvent}
+						class="w-full rounded-2xl bg-red-600 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-red-600/25 transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-45 sm:col-span-2 sm:py-4 sm:text-base"
 					>
 					{creating ? i18n.t('creating_event') : i18n.t('create_organization_event')}
 				</button>

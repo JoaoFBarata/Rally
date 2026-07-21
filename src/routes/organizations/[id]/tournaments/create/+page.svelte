@@ -121,6 +121,42 @@
 	];
 
 	let isVerified = $derived(organization ? canCreateOfficialPaidEvents(organization) : false);
+	let canCreateTournament = $derived.by(() => {
+		const start = date && startTime ? new Date(`${date}T${startTime}`) : null;
+		const end = date && endTime ? new Date(`${date}T${endTime}`) : null;
+		const entries = Number(maxEntries);
+		const groups = Number(groupCount);
+		const minimumTeamSize = Number(minTeamSize);
+		const maximumTeamSize = Number(maxTeamSize);
+		const deadlineIsComplete =
+			(!registrationDeadlineDate && !registrationDeadlineTime) ||
+			Boolean(registrationDeadlineDate && registrationDeadlineTime);
+
+		return Boolean(
+			organization &&
+				title.trim() &&
+				address.trim() &&
+				lat !== null &&
+				lng !== null &&
+				start &&
+				!Number.isNaN(start.getTime()) &&
+				start.getTime() > Date.now() &&
+				(!endTime || (end && end.getTime() > start.getTime())) &&
+				Number.isInteger(entries) &&
+				entries >= 2 &&
+				entries <= 64 &&
+				(format !== 'groups_playoff' ||
+					(Number.isInteger(groups) && groups >= 2 && groups <= 8)) &&
+				(registrationType !== 'team' ||
+					(Number.isInteger(minimumTeamSize) &&
+						minimumTeamSize >= 1 &&
+						Number.isInteger(maximumTeamSize) &&
+						maximumTeamSize >= minimumTeamSize)) &&
+				deadlineIsComplete &&
+				(entryFeeType === 'free' || Number(entryFeeAmount) > 0) &&
+				((entryFeeType !== 'paid' && prizeType !== 'cash') || isVerified)
+		);
+	});
 
 	function getLocationName() {
 		if (!address.trim()) return i18n.t('tournament_location');
@@ -814,8 +850,8 @@
 
 				<button
 					type="submit"
-					disabled={creating}
-					class="w-full rounded-2xl bg-blue-600 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-60 sm:py-4 sm:text-base"
+					disabled={creating || !canCreateTournament}
+					class="w-full rounded-2xl bg-red-600 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-red-600/25 transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-45 sm:py-4 sm:text-base"
 				>
 					{creating ? i18n.t('creating_tournament') : i18n.t('create_tournament')}
 				</button>
