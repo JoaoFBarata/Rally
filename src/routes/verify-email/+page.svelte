@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { authState } from '$lib/auth.svelte';
 	import RallyLogo from '$lib/components/RallyLogo.svelte';
@@ -9,6 +10,12 @@
 	let resending = $state(false);
 	let error = $state('');
 	let success = $state('');
+
+	onMount(() => {
+		if (sessionStorage.getItem('rally:verification-email-send-failed') === '1') {
+			error = i18n.t('verification_email_error');
+		}
+	});
 
 	async function checkVerification() {
 		error = '';

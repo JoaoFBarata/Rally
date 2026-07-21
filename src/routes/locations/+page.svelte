@@ -9,6 +9,7 @@
 	import { getVenues, getVenueReviews, getRatingSummary } from '$lib/services/venue.service';
 	import { formatSport, getSportBackgroundImage } from '$lib/utils/format.utils';
 	import { i18n } from '$lib/services/i18n.svelte';
+	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 
 	let venues = $state<Venue[]>([]);
 	let ratings = $state<Record<string, { average: number; count: number }>>({});
@@ -37,14 +38,19 @@
 
 			const ratingEntries = await Promise.all(
 				venues.map(async (venue) => {
-					const reviews = await getVenueReviews(venue.id);
-					return [venue.id, getRatingSummary(reviews)] as [string, { average: number; count: number }];
+					try {
+						const reviews = await getVenueReviews(venue.id);
+						return [venue.id, getRatingSummary(reviews)] as [string, { average: number; count: number }];
+					} catch (err) {
+						console.error(`Load reviews for venue ${venue.id} error:`, err);
+						return [venue.id, { average: 0, count: 0 }] as [string, { average: number; count: number }];
+					}
 				})
 			);
 			ratings = Object.fromEntries(ratingEntries);
 		} catch (err) {
 			console.error('Load venues error:', err);
-			error = i18n.t('venue_not_found');
+			error = getFriendlyErrorMessage(err, i18n.t('no_locations_found'));
 		} finally {
 			loading = false;
 		}

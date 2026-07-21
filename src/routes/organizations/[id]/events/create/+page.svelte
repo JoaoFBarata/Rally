@@ -34,6 +34,7 @@
 	import { TEXT_LIMITS } from '$lib/constants/text-limits';
 	import { i18n } from '$lib/services/i18n.svelte';
 	import VoiceRecordButton from '$lib/components/VoiceRecordButton.svelte';
+	import CreationTypeSwitch from '$lib/components/CreationTypeSwitch.svelte';
 	import type { VoiceExtractedFields } from '$lib/services/voice-event.service';
 
 	let organization = $state<Organization | null>(null);
@@ -425,6 +426,10 @@
 				</div>
 			</div>
 
+			<div class="mt-5">
+				<CreationTypeSwitch organizationId={organization.id} active="event" />
+			</div>
+
 		{#if error}
 			<div
 				class="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
@@ -662,7 +667,11 @@
 
 						<LocationPickerMap bind:lat bind:lng bind:address {autofillAddress} />
 						{#if (sport === 'running' || sport === 'cycling' || sport === 'hiking') && lat !== null && lng !== null}
-							<div class="mt-4"><RouteEditorMap bind:points={route} center={lat !== null && lng !== null ? { lat, lng } : null} /></div>
+							<div class="mt-5 border-t border-slate-100 pt-5 dark:border-slate-800">
+								<h3 class="font-black text-slate-950 dark:text-slate-50">{i18n.t('route')}</h3>
+								<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{i18n.t('route_editor_sub')}</p>
+								<div class="mt-3"><RouteEditorMap bind:points={route} center={{ lat, lng }} /></div>
+							</div>
 						{/if}
 					</div>
 				</section>

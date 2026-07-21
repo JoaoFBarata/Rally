@@ -524,10 +524,10 @@
 				{searchTerm ? i18n.t('showing_results', { searchTerm }) : i18n.t('explore_subtitle')}
 			</p>
 		</div>
-		<div class="relative grid h-13 w-[19rem] max-w-full grid-cols-2 self-start rounded-2xl border border-slate-200 bg-slate-100 p-1 shadow-inner shadow-slate-200/70 sm:self-center dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/20">
+		<div class="relative grid h-11 w-[17rem] max-w-full grid-cols-2 self-start rounded-xl border border-slate-200 bg-slate-100 p-1 shadow-inner shadow-slate-200/70 sm:h-13 sm:w-[19rem] sm:self-center sm:rounded-2xl dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/20">
 			<span
 				aria-hidden="true"
-				class={`pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-xl bg-white shadow-[0_4px_14px_rgba(15,23,42,0.12)] ring-1 ring-slate-200/80 transition-transform duration-300 ease-out dark:bg-slate-700 dark:ring-slate-600 ${viewMode === 'feed' ? 'translate-x-full' : 'translate-x-0'}`}
+				class={`pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-lg bg-white shadow-[0_4px_14px_rgba(15,23,42,0.12)] ring-1 ring-slate-200/80 transition-transform duration-300 ease-out sm:rounded-xl dark:bg-slate-700 dark:ring-slate-600 ${viewMode === 'feed' ? 'translate-x-full' : 'translate-x-0'}`}
 			></span>
 			<button
 				type="button"
@@ -536,11 +536,11 @@
 					viewMode = 'map';
 					syncExploreQuery();
 				}}
-				class="relative z-10 flex min-w-0 items-center justify-center gap-2 rounded-xl px-4 text-sm font-black transition-colors duration-300 {viewMode === 'map'
+				class="relative z-10 flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-black transition-colors duration-300 sm:gap-2 sm:rounded-xl sm:px-4 sm:text-sm {viewMode === 'map'
 					? 'text-slate-950 dark:text-white'
 					: 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'}"
 			>
-				<MapIcon class="h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" strokeWidth={2.4} />
+				<MapIcon class="h-4.5 w-4.5 shrink-0 text-blue-600 sm:h-5 sm:w-5 dark:text-blue-400" strokeWidth={2.4} />
 				<span class="truncate">{i18n.t('map_view')}</span>
 			</button>
 			<button
@@ -550,12 +550,12 @@
 					viewMode = 'feed';
 					syncExploreQuery();
 				}}
-				class="relative z-10 flex min-w-0 items-center justify-center gap-2 rounded-xl px-4 text-sm font-black transition-colors duration-300 {viewMode ===
+				class="relative z-10 flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-black transition-colors duration-300 sm:gap-2 sm:rounded-xl sm:px-4 sm:text-sm {viewMode ===
 				'feed'
 					? 'text-slate-950 dark:text-white'
 					: 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'}"
 			>
-				<LayoutList class="h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" strokeWidth={2.4} />
+				<LayoutList class="h-4.5 w-4.5 shrink-0 text-blue-600 sm:h-5 sm:w-5 dark:text-blue-400" strokeWidth={2.4} />
 				<span class="truncate">{i18n.t('feed_view')}</span>
 			</button>
 		</div>
