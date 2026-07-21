@@ -11,9 +11,9 @@
 		getPendingVerificationRequests,
 		rejectOrganizationVerification
 	} from '$lib/services/organization.service';
-	import type { Organization, OrganizationVerificationRequest } from '$lib/schema';
+	import type { Organization, OrganizationVerificationRequest, Venue } from '$lib/schema';
 	import { isPlatformAdminEmail } from '$lib/admin';
-	import { seedVenues } from '$lib/services/venue.service';
+	import { seedVenues, getVenueById, setVenueVerification, venueIdFor } from '$lib/services/venue.service';
 	import { venueSeeds } from '$lib/data/venues.seed';
 
 	type RequestWithOrg = OrganizationVerificationRequest & { organization: Organization | null };
@@ -32,6 +32,11 @@
 
 	let seedingVenues = $state(false);
 	let seedVenuesMessage = $state('');
+
+	const RALLY_VERIFIED_VENUE_NAMES = ['Amplify - Marquês', 'Lisboa Racket Centre'];
+	let rallyVerifiedVenues = $state<Venue[]>([]);
+	let rallyVerifiedVenuesLoading = $state(false);
+	let togglingVenueId = $state('');
 
 	let verificationRequests = $state<RequestWithOrg[]>([]);
 	let loadingRequests = $state(false);
@@ -114,6 +119,31 @@
 			seedVenuesMessage = `Failed: ${(e as Error).message}`;
 		} finally {
 			seedingVenues = false;
+		}
+	}
+
+	async function loadRallyVerifiedVenues() {
+		rallyVerifiedVenuesLoading = true;
+		try {
+			const venues = await Promise.all(
+				RALLY_VERIFIED_VENUE_NAMES.map((name) => getVenueById(venueIdFor(name)))
+			);
+			rallyVerifiedVenues = venues.filter((v): v is Venue => v !== null);
+		} finally {
+			rallyVerifiedVenuesLoading = false;
+		}
+	}
+
+	async function toggleVenueVerification(venue: Venue) {
+		togglingVenueId = venue.id;
+		try {
+			const nextStatus = venue.verificationStatus === 'verified' ? 'unverified' : 'verified';
+			await setVenueVerification(venue.id, nextStatus);
+			rallyVerifiedVenues = rallyVerifiedVenues.map((v) =>
+				v.id === venue.id ? { ...v, verificationStatus: nextStatus } : v
+			);
+		} finally {
+			togglingVenueId = '';
 		}
 	}
 
@@ -200,6 +230,7 @@
 			}
 			try {
 				await loadStats();
+				void loadRallyVerifiedVenues();
 				if (stats.pendingVerifications > 0) activeTab = 'verifications';
 				let initialized = false;
 				unsubscribeRequests = onSnapshot(
@@ -393,6 +424,59 @@
 						<p class="mt-3 text-xs font-medium text-slate-600 dark:text-slate-400">
 							{seedVenuesMessage}
 						</p>
+					{/if}
+				</div>
+
+				<!-- Rally Verified venues (drives Rally Points earning) -->
+				<div
+					class="mt-6 rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"
+				>
+					<h2 class="text-sm font-semibold text-slate-700 dark:text-slate-300">
+						Rally Verified venues
+					</h2>
+					<p class="mt-1 text-xs text-slate-500">
+						Users earn Rally Points for events that finish near one of these venues. Run "Seed /
+						update venues" above at least once first.
+					</p>
+
+					{#if rallyVerifiedVenuesLoading}
+						<p class="mt-3 text-xs text-slate-500">Loading…</p>
+					{:else if rallyVerifiedVenues.length === 0}
+						<p class="mt-3 text-xs text-slate-500">
+							None of the target venues were found — seed the venues directory first.
+						</p>
+					{:else}
+						<div class="mt-3 divide-y divide-slate-100 dark:divide-slate-800">
+							{#each rallyVerifiedVenues as venue (venue.id)}
+								<div class="flex items-center justify-between gap-4 py-3">
+									<div class="min-w-0">
+										<p class="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">
+											{venue.name}
+										</p>
+										<p class="text-xs text-slate-500">
+											{venue.verificationStatus === 'verified'
+												? 'Rally Verified'
+												: 'Not verified'}
+										</p>
+									</div>
+									<button
+										onclick={() => toggleVenueVerification(venue)}
+										disabled={togglingVenueId === venue.id}
+										class={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-60 ${
+											venue.verificationStatus === 'verified'
+												? 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+												: 'bg-emerald-600 text-white hover:bg-emerald-700'
+										}`}
+									>
+										{togglingVenueId === venue.id
+											? 'Saving…'
+											: venue.verificationStatus === 'verified'
+												? 'Unverify'
+												: 'Mark verified'}
+									</button>
+								</div>
+							{/each}
+						</div>
 					{/if}
 				</div>
 			{/if}

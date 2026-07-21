@@ -316,6 +316,10 @@
 			organizationEvents = loadedEvents;
 			followerIds = loadedFollowerIds;
 			resetForm(loadedOrganization);
+			const currentDeviceProfile = getCurrentOrganizationDeviceProfile();
+			if (currentDeviceProfile) {
+				deviceAccounts = rememberDeviceAccount(currentDeviceProfile, auth.currentUser);
+			}
 		} catch (err) {
 			console.error('Organization manage error:', err);
 			error = getFriendlyErrorMessage(err, 'Could not load organization.');
@@ -552,7 +556,18 @@
 					return;
 				}
 
-				deviceAccounts = rememberDeviceAccount(switchedProfile, switchedUser);
+				const accountProfile =
+					account.accountType === 'organization'
+						? {
+								...switchedProfile,
+								displayName: account.displayName,
+								photoURL: account.photoURL ?? null,
+								rallyTag: account.rallyTag,
+								accountType: account.accountType,
+								activeOrganizationId: account.activeOrganizationId ?? null
+							}
+						: switchedProfile;
+				deviceAccounts = rememberDeviceAccount(accountProfile, switchedUser);
 				showSettingsModal = false;
 				showAccountSwitcher = false;
 				await goto(getPostSwitchHref(deviceAccounts.find((item) => item.id === switchedUser.uid) ?? account));

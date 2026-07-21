@@ -130,6 +130,17 @@ export interface RallyPointTransaction {
 	createdAt: Timestamp;
 }
 
+export interface PointRedemption {
+	id: string;
+	userId: string;
+	venueId: string;
+	venueName: string;
+	pointsSpent: number;
+	discountPercent: number;
+	code: string;
+	createdAt: Timestamp;
+}
+
 export interface Organization {
 	id: string;
 	name: string;

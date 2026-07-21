@@ -8,10 +8,11 @@ import {
 	query,
 	serverTimestamp,
 	setDoc,
+	updateDoc,
 	where
 } from 'firebase/firestore';
 import { db } from '$lib/firebase';
-import type { Sport, SportEvent, Venue, VenueReview, VenueReviewSource } from '$lib/schema';
+import type { Sport, SportEvent, Venue, VenueReview, VenueReviewSource, VerificationStatus } from '$lib/schema';
 import { getEffectiveEventStatus } from '$lib/services/event.service';
 import { calculateRouteDistanceKm } from '$lib/utils/route.utils';
 import type { VenueSeed } from '$lib/data/venues.seed';
@@ -126,6 +127,14 @@ export async function getVenueById(venueId: string) {
 	const snap = await getDoc(doc(db, 'venues', venueId));
 	if (!snap.exists()) return null;
 	return { ...snap.data(), id: snap.id } as Venue;
+}
+
+/** Platform-admin-only per firestore.rules — flips a venue's Rally Verified status. */
+export async function setVenueVerification(venueId: string, status: VerificationStatus) {
+	await updateDoc(doc(db, 'venues', venueId), {
+		verificationStatus: status,
+		updatedAt: serverTimestamp()
+	});
 }
 
 export async function getVenueReviews(venueId: string, source?: VenueReviewSource) {

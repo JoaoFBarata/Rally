@@ -62,16 +62,23 @@
 	let friends = $state<UserProfile[]>([]);
 	let currentProfile = $state<UserProfile | null>(null);
 	let showFinishedChats = $state(false);
+	let friendsOnlyChats = $state(false);
 	let openConversationMenuId = $state('');
 	let pinnedConversationIds = $state<string[]>([]);
 	let mutedConversationIds = $state<string[]>([]);
 
 	let activeConversations = $derived(
-		sortConversationPins(conversations.filter((c) => !c.isFinishedEvent))
+		sortConversationPins(
+			conversations.filter(
+				(c) => !c.isFinishedEvent && (!friendsOnlyChats || c.type === 'direct')
+			)
+		)
 	);
 	let isOrganizationAccount = $derived(currentProfile?.accountType === 'organization');
 	let finishedEventConversations = $derived(
-		sortConversationPins(conversations.filter((c) => c.isFinishedEvent))
+		sortConversationPins(
+			conversations.filter((c) => c.isFinishedEvent && (!friendsOnlyChats || c.type === 'direct'))
+		)
 	);
 
 	let loading = $state(true);
@@ -784,15 +791,32 @@
 			{/if}
 
 			<section class="mb-6 sm:mb-8">
-				<h2
-					class="mb-3 text-sm font-black uppercase tracking-[0.16em] text-slate-400 sm:text-base sm:normal-case sm:tracking-normal sm:text-slate-950 sm:dark:text-white"
-				>
-					Chats
-				</h2>
+				<div class="mb-3 flex items-center justify-between gap-3">
+					<h2
+						class="text-sm font-black uppercase tracking-[0.16em] text-slate-400 sm:text-base sm:normal-case sm:tracking-normal sm:text-slate-950 sm:dark:text-white"
+					>
+						Chats
+					</h2>
+
+					<button
+						type="button"
+						aria-pressed={friendsOnlyChats}
+						onclick={() => (friendsOnlyChats = !friendsOnlyChats)}
+						class="shrink-0 rounded-full px-3 py-1.5 text-xs font-bold transition {friendsOnlyChats
+							? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
+							: 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'}"
+					>
+						{i18n.t('friends_only_chats')}
+					</button>
+				</div>
 
 				{#if conversations.length === 0}
 					<p class="text-sm text-slate-500 dark:text-slate-400">
 						No conversations yet. Start a chat from your friends below.
+					</p>
+				{:else if friendsOnlyChats && activeConversations.length === 0 && finishedEventConversations.length === 0}
+					<p class="text-sm text-slate-500 dark:text-slate-400">
+						No friend chats yet.
 					</p>
 				{:else}
 					<div class="divide-y divide-slate-100 dark:divide-slate-800">

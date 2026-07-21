@@ -1894,6 +1894,9 @@ const RALLY_POINTS_CONFIG = {
 };
 
 // Helper: Secure Points Awarding via Server-side Transaction
+// `venueOrganizationId` is just "the id of whatever earned these points" — it's
+// either an Organization id (org-hosted events, below) or a Venue directory id
+// (see findNearbyVerifiedVenue) — both are valid, unrelated document spaces.
 async function awardPoints(
 	userId,
 	eventId,
@@ -1955,6 +1958,42 @@ async function awardPoints(
 			createdAt: FieldValue.serverTimestamp()
 		});
 	});
+}
+
+// Distance in km between two lat/lng points (haversine), mirrors
+// calculateRouteDistanceKm in src/lib/utils/route.utils.ts — duplicated here
+// since Cloud Functions is a separate CommonJS codebase without $lib access.
+function haversineKm(a, b) {
+	const earthRadiusKm = 6371;
+	const toRad = (value) => (value * Math.PI) / 180;
+	const latDelta = toRad(b.lat - a.lat);
+	const lngDelta = toRad(b.lng - a.lng);
+	const h =
+		Math.sin(latDelta / 2) ** 2 +
+		Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(lngDelta / 2) ** 2;
+	return 2 * earthRadiusKm * Math.asin(Math.sqrt(h));
+}
+
+// Finds the closest Rally Verified venue (from the `venues` directory
+// collection) within ~300m of a given point, or null if none qualify. The
+// directory is tiny (a handful of curated venues), so fetching all verified
+// docs and comparing distances client-side is simpler than a geo index.
+const NEARBY_VENUE_RADIUS_KM = 0.3;
+async function findNearbyVerifiedVenue(lat, lng) {
+	const snap = await db.collection('venues').where('verificationStatus', '==', 'verified').get();
+
+	let closest = null;
+	let closestDistanceKm = Infinity;
+	for (const venueDoc of snap.docs) {
+		const data = venueDoc.data();
+		if (typeof data.lat !== 'number' || typeof data.lng !== 'number') continue;
+		const distanceKm = haversineKm({ lat, lng }, { lat: data.lat, lng: data.lng });
+		if (distanceKm <= NEARBY_VENUE_RADIUS_KM && distanceKm < closestDistanceKm) {
+			closest = { id: venueDoc.id, name: data.name || 'Rally Verified venue' };
+			closestDistanceKm = distanceKm;
+		}
+	}
+	return closest;
 }
 
 // Trigger: Event updated (Completion / Cancellation)
@@ -2127,6 +2166,45 @@ exports.onEventUpdated = onDocumentUpdated('events/{eventId}', async (event) => 
 							err
 						);
 					}
+				}
+			}
+
+			// Award Rally Points if the event took place near a Rally Verified venue
+			// directory entry (independent of the organization-hosted path above;
+			// awardPoints() is idempotent per event, so an event that somehow
+			// matches both paths still only gets awarded once per participant).
+			const eventLat = after.location && after.location.lat;
+			const eventLng = after.location && after.location.lng;
+			if (typeof eventLat === 'number' && typeof eventLng === 'number') {
+				try {
+					const venue = await findNearbyVerifiedVenue(eventLat, eventLng);
+					if (venue) {
+						const maxParticipants = after.maxParticipants || 0;
+						const participantCount = participantIds.length;
+
+						for (const participantId of participantIds) {
+							try {
+								const isOrganizer = participantId === creatorId;
+								await awardPoints(
+									participantId,
+									eventId,
+									venue.id,
+									venue.name,
+									eventTitle,
+									participantCount,
+									maxParticipants,
+									isOrganizer
+								);
+							} catch (err) {
+								console.error(
+									`Error awarding venue points to user ${participantId} for event ${eventId}:`,
+									err
+								);
+							}
+						}
+					}
+				} catch (err) {
+					console.error(`Error finding nearby verified venue for event ${eventId}:`, err);
 				}
 			}
 		}

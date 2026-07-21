@@ -1189,7 +1189,9 @@
 </script>
 
 <section
-	class="relative flex min-w-0 w-full max-w-full flex-col overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900 md:min-h-0 md:flex-1"
+	class="relative flex min-w-0 w-full max-w-full flex-col md:min-h-0 md:flex-1 {viewMode === 'map'
+		? 'overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900'
+		: ''}"
 >
 	<div
 		bind:this={mapContainer}
