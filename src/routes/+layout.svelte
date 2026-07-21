@@ -155,7 +155,7 @@
 	<title>{pageTitle}</title>
 </svelte:head>
 
-{#if !authState.loading && !(shouldBypassLanding && page.url.pathname === '/')}
+{#if !authState.loading && !(shouldBypassLanding && page.url.pathname === '/' && !authState.user)}
 	<AppShell>
 		{@render children()}
 	</AppShell>
