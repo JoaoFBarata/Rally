@@ -147,7 +147,7 @@
 	let unsubscribeMyJoinRequest: Unsubscribe | null = null;
 	let unsubscribeJoinRequests: Unsubscribe | null = null;
 	let organizationReviews = $state<OrganizationReview[]>([]);
-	let activeEventTab = $state<'overview' | 'players' | 'chat' | 'location' | 'tournament'>('overview');
+	let activeEventTab = $state<'overview' | 'players' | 'chat' | 'tournament'>('overview');
 	let isSavedEvent = $state(false);
 	let currentUserProfile = $state<UserProfile | null>(null);
 	let paymentConfirming = $state(false);
@@ -1329,7 +1329,7 @@
 	});
 </script>
 
-<div class="min-h-screen bg-white text-black dark:bg-[#161616] dark:text-white pb-36">
+<div class="min-h-screen bg-white text-black dark:bg-[#161616] dark:text-white pb-32 md:pb-36">
 	{#if loading}
 		<div class="mx-auto max-w-5xl px-4 pt-12">
 			<div class="relative overflow-hidden rounded-3xl bg-slate-50 p-12 text-center shadow-sm dark:bg-[#242424]">
@@ -1353,10 +1353,177 @@
 			</div>
 		</div>
 	{:else if event}
-		<!-- Main Header Hero Banner (Full width of content area up to sidebar) -->
-		<div class="relative w-auto mx-0 md:-mx-8 lg:-mx-12 xl:-mx-16 mt-0 mb-6 bg-slate-900 dark:bg-[#161616]">
+		<!-- MOBILE-FIRST HERO HEADER (< md) -->
+		<div class="block md:hidden mb-4">
+			<!-- Hero Image Cover Container -->
+			<div class="relative h-[230px] w-full overflow-hidden rounded-3xl bg-slate-900 dark:bg-[#242424] shadow-md">
+				<img
+					src={getEventHeroImage(event)}
+					alt={event.title}
+					class="h-full w-full object-cover object-center"
+					loading="eager"
+				/>
+				<div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent"></div>
+
+				<!-- Mobile Glass Top Controls -->
+				<div class="absolute top-3 inset-x-3 flex items-center justify-between z-10">
+					<button
+						type="button"
+						onclick={() => goBack(resolve('/dashboard'))}
+						class="flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-slate-900 shadow-md backdrop-blur-md active:scale-95 dark:bg-slate-900/90 dark:text-white"
+						aria-label={i18n.t('back_aria')}
+					>
+						<ArrowLeft class="h-4 w-4 text-blue-600 dark:text-blue-400" />
+					</button>
+
+					<div class="flex items-center gap-2">
+						{#if isCreator || isParticipant}
+							<label class="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-white/90 text-slate-900 shadow-md backdrop-blur-md active:scale-95 dark:bg-slate-900/90 dark:text-white">
+								<Camera class="h-4 w-4 text-blue-600 dark:text-blue-400" />
+								<input type="file" accept="image/*" class="hidden" onchange={handleGroupPhotoFileChange} disabled={groupPhotoSaving} />
+							</label>
+						{/if}
+						<button
+							type="button"
+							onclick={shareEvent}
+							class="flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-slate-900 shadow-md backdrop-blur-md active:scale-95 dark:bg-slate-900/90 dark:text-white"
+							aria-label={i18n.t('share_event_aria')}
+						>
+							<Share2 class="h-4 w-4 text-blue-600 dark:text-blue-400" />
+						</button>
+						<button
+							type="button"
+							onclick={toggleSavedEvent}
+							class={`flex h-9 w-9 items-center justify-center rounded-full shadow-md backdrop-blur-md active:scale-95 ${
+								isSavedEvent
+									? 'bg-amber-500 text-white'
+									: 'bg-white/90 text-slate-900 dark:bg-slate-900/90 dark:text-white'
+							}`}
+							aria-label={isSavedEvent ? i18n.t('unsave_event_aria') : i18n.t('save_event_aria')}
+						>
+							<Bookmark class="h-4 w-4" fill={isSavedEvent ? 'currentColor' : 'none'} />
+						</button>
+					</div>
+				</div>
+
+				<!-- Mobile Title & Badges Overlay -->
+				<div class="absolute bottom-3 inset-x-4 flex flex-col gap-1.5 z-10">
+					<div class="flex flex-wrap items-center gap-1.5">
+						<span class="inline-flex items-center gap-1 rounded-full bg-blue-600 px-2.5 py-0.5 text-[11px] font-black uppercase text-white shadow-sm">
+							<Flame class="h-3 w-3" />
+							{event.eventKind === 'tournament' ? i18n.t('status_tournament') : formatSport(event.sport)}
+						</span>
+						<span class={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold capitalize ${
+							effectiveStatus === 'cancelled'
+								? 'bg-red-600 text-white'
+								: effectiveStatus === 'finished'
+									? 'bg-slate-700 text-white'
+									: effectiveStatus === 'full'
+										? 'bg-purple-600 text-white'
+										: 'bg-emerald-600 text-white'
+						}`}>
+							{effectiveStatus}
+						</span>
+					</div>
+					<h1 class="text-xl font-extrabold text-white tracking-tight leading-snug drop-shadow-sm">
+						{event.title}
+					</h1>
+				</div>
+			</div>
+
+			<!-- Mobile Header Inline Actions Bar (Replaces Bottom Floating Bar on Mobile) -->
+			<div class="mt-3 rounded-2xl bg-slate-50 border border-slate-200/80 p-4 dark:bg-[#242424] dark:border-slate-800 space-y-3">
+				<div class="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+					<div class="flex items-center gap-1.5">
+						<Calendar class="h-4 w-4 text-blue-600 dark:text-blue-400" />
+						<span>{formatShortDate(event.startAt)} · {formatShortTime(event.startAt)}</span>
+					</div>
+					<div class="flex items-center gap-1">
+						<Users class="h-4 w-4 text-blue-600 dark:text-blue-400" />
+						<span>{participants.length}/{event.maxParticipants}</span>
+					</div>
+				</div>
+
+				<!-- Mobile Direct Action CTAs -->
+				<div class="flex flex-col gap-2 pt-1">
+					{#if canJoin}
+						<button
+							type="button"
+							onclick={handleJoinEvent}
+							disabled={actionLoading}
+							class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/30 active:scale-95 disabled:opacity-60"
+						>
+							<UserPlus class="h-4 w-4" />
+							<span>{actionLoading ? i18n.t('joining') : (paymentSummary?.isUpfront && paymentSummary?.splitAmount != null ? `Pay & Join (${formatPaymentAmount(paymentSummary.splitAmount)})` : i18n.t('join_event'))}</span>
+						</button>
+					{:else if canRequestJoin}
+						<button
+							type="button"
+							onclick={handleRequestToJoin}
+							disabled={actionLoading}
+							class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/30 active:scale-95 disabled:opacity-60"
+						>
+							<UserPlus class="h-4 w-4" />
+							<span>{actionLoading ? i18n.t('requesting') : i18n.t('request_to_join')}</span>
+						</button>
+					{:else if hasPendingJoinRequest}
+						<button disabled class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-slate-200 py-3 text-sm font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+							<Clock class="h-4 w-4" />
+							<span>{i18n.t('request_pending')}</span>
+						</button>
+					{/if}
+
+					<div class="flex items-center gap-2">
+						{#if isParticipant && !isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
+							<button
+								type="button"
+								onclick={handleLeaveEvent}
+								disabled={actionLoading}
+								class="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-2.5 text-xs font-bold text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
+							>
+								<LogOut class="h-4 w-4" />
+								<span>{i18n.t('leave_event')}</span>
+							</button>
+						{/if}
+
+						{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
+							<a
+								href={resolve(`/events/${event.id}/edit`)}
+								class="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-slate-100 py-2.5 text-xs font-bold text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+							>
+								<Edit3 class="h-4 w-4" />
+								<span>{i18n.t('edit_event')}</span>
+							</a>
+
+							<button
+								type="button"
+								onclick={handleFinishEvent}
+								disabled={actionLoading}
+								class="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 py-2.5 text-xs font-bold text-white shadow-md hover:bg-blue-700"
+							>
+								<CheckCircle2 class="h-4 w-4" />
+								<span>{i18n.t('finish_event')}</span>
+							</button>
+
+							<button
+								type="button"
+								onclick={handleCancelEvent}
+								disabled={actionLoading}
+								class="inline-flex items-center justify-center rounded-xl border border-red-200 bg-red-50 p-2.5 text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
+								aria-label={i18n.t('cancel_event')}
+							>
+								<X class="h-4 w-4" />
+							</button>
+						{/if}
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- DESKTOP HERO BANNER (hidden md:block) -->
+		<div class="hidden md:block relative w-auto -mx-8 lg:-mx-12 xl:-mx-16 mt-0 mb-6 bg-slate-900 dark:bg-[#161616]">
 			<!-- Hero Cover Image -->
-			<div class="relative h-[260px] sm:h-[360px] w-full overflow-hidden">
+			<div class="relative h-[340px] w-full overflow-hidden">
 				<img
 					src={getEventHeroImage(event)}
 					alt={event.title}
@@ -1367,7 +1534,7 @@
 				<div class="absolute inset-0 bg-gradient-to-t from-white via-white/60 to-transparent dark:from-[#161616] dark:via-[#161616]/60 dark:to-transparent"></div>
 
 				<!-- Top Floating Glass Navigation Controls -->
-				<div class="absolute top-4 inset-x-4 sm:inset-x-8 max-w-6xl mx-auto flex items-center justify-between z-10">
+				<div class="absolute top-4 inset-x-8 max-w-6xl mx-auto flex items-center justify-between z-10">
 					<button
 						type="button"
 						onclick={() => goBack(resolve('/dashboard'))}
@@ -1375,7 +1542,7 @@
 						aria-label={i18n.t('back_aria')}
 					>
 						<ArrowLeft class="h-4 w-4 text-blue-600 dark:text-blue-400 group-hover:text-inherit" />
-						<span class="hidden sm:inline">{i18n.t('back')}</span>
+						<span>{i18n.t('back')}</span>
 					</button>
 
 					<div class="flex items-center gap-2">
@@ -1409,7 +1576,7 @@
 				</div>
 
 				<!-- Hero Badges & Title Overlay -->
-				<div class="absolute bottom-4 inset-x-4 sm:inset-x-8 max-w-6xl mx-auto flex flex-col gap-2 z-10">
+				<div class="absolute bottom-4 inset-x-8 max-w-6xl mx-auto flex flex-col gap-2 z-10">
 					<div class="flex flex-wrap items-center gap-2">
 						<span class="inline-flex items-center gap-1.5 rounded-full bg-blue-600 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-white shadow-md">
 							<Flame class="h-3.5 w-3.5" />
@@ -1440,14 +1607,14 @@
 						{/if}
 					</div>
 
-					<h1 class="text-2xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
+					<h1 class="text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
 						{event.title}
 					</h1>
 				</div>
 			</div>
 		</div>
 
-		<!-- Container -->
+		<!-- Main Container -->
 		<div class="mx-auto max-w-6xl px-4 sm:px-6 md:px-0 space-y-6">
 
 			<!-- Global Alerts -->
@@ -1471,20 +1638,19 @@
 				</div>
 			{/if}
 
-			<!-- Navigation Tabs Bar -->
-			<div class="sticky top-4 z-30">
-				<div class="flex items-center gap-1 overflow-x-auto rounded-2xl bg-slate-100 p-1.5 shadow-sm dark:bg-[#242424] no-scrollbar">
+			<!-- Navigation Sections Menu (Sleek Segmented Pill Menu) -->
+			<div class="sticky top-2 z-30 mb-6">
+				<div class="flex items-center gap-1.5 overflow-x-auto rounded-2xl bg-slate-100/90 p-1.5 shadow-sm backdrop-blur-md dark:bg-[#242424]/90 no-scrollbar">
 					{#each [
 						{ id: 'overview', label: i18n.t('overview'), icon: Compass },
 						{ id: 'players', label: i18n.t('players'), icon: Users, badge: pendingJoinRequests.length },
 						...(isTournament ? [{ id: 'tournament', label: 'Tournament', icon: Trophy }] : []),
-						...(canAccessGroupChat ? [{ id: 'chat', label: i18n.t('chat'), icon: MessageSquare }] : []),
-						{ id: 'location', label: i18n.t('location'), icon: MapPin }
+						...(canAccessGroupChat ? [{ id: 'chat', label: i18n.t('chat'), icon: MessageSquare }] : [])
 					] as tab}
 						<button
 							type="button"
 							onclick={() => (activeEventTab = tab.id as typeof activeEventTab)}
-							class={`flex flex-1 items-center justify-center gap-2 min-w-[110px] rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold transition-all ${
+							class={`flex flex-1 items-center justify-center gap-2 min-w-[95px] sm:min-w-[110px] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-bold transition-all ${
 								activeEventTab === tab.id
 									? 'bg-blue-600 text-white shadow-md shadow-blue-600/25 scale-[1.02]'
 									: 'text-slate-700 hover:bg-blue-600 hover:text-white dark:text-slate-300 dark:hover:bg-blue-600 dark:hover:text-white'
@@ -1493,7 +1659,7 @@
 							<tab.icon class="h-4 w-4 shrink-0" />
 							<span class="truncate">{tab.label}</span>
 							{#if tab.badge}
-								<span class="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-black text-white">
+								<span class="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black text-white">
 									{tab.badge}
 								</span>
 							{/if}
@@ -1618,6 +1784,48 @@
 									</p>
 								</div>
 							{/if}
+						</div>
+
+						<!-- EMBEDDED LOCATION & WEATHER SECTION (Integrated in Overview) -->
+						<div class="space-y-4 rounded-2xl bg-slate-50 border border-slate-200/80 p-6 dark:bg-[#242424] dark:border-slate-800">
+							<div class="flex items-center justify-between border-b border-slate-200 pb-3 dark:border-slate-800">
+								<div class="flex items-center gap-2">
+									<MapPin class="h-5 w-5 text-blue-600 dark:text-blue-400" />
+									<h3 class="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">{i18n.t('location')} & {i18n.t('weather')}</h3>
+								</div>
+								{#if event.location.lat && event.location.lng}
+									<a
+										href={`https://www.google.com/maps/dir/?api=1&destination=${event.location.lat},${event.location.lng}`}
+										target="_blank"
+										rel="noopener noreferrer"
+										class="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:underline dark:text-blue-400"
+									>
+										<Compass class="h-3.5 w-3.5" />
+										<span>{i18n.t('get_directions')}</span>
+									</a>
+								{/if}
+							</div>
+
+							<div>
+								<h4 class="text-base font-bold text-slate-900 dark:text-white">{event.location.name}</h4>
+								{#if event.location.address}
+									<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{event.location.address}</p>
+								{/if}
+							</div>
+
+							<!-- Mapbox Map Component -->
+							<div class="h-[280px] overflow-hidden rounded-xl bg-slate-200 dark:bg-slate-800">
+								<EventMap lat={event.location.lat ?? null} lng={event.location.lng ?? null} name={event.location.name} address={event.location.address ?? ''} />
+							</div>
+
+							<!-- Weather Widget -->
+							<div class="pt-2 border-t border-slate-200 dark:border-slate-800">
+								<div class="flex items-center gap-2 mb-2 text-slate-400">
+									<SunMedium class="h-4 w-4 text-amber-500" />
+									<h5 class="text-xs font-black uppercase tracking-wider">{i18n.t('weather')}</h5>
+								</div>
+								<EventWeather lat={event.location.lat} lng={event.location.lng} startAt={event.startAt} size="md" />
+							</div>
 						</div>
 
 						<!-- Quick Actions & Links Bar -->
@@ -2003,60 +2211,13 @@
 					</form>
 				</div>
 			{/if}
-
-			<!-- LOCATION & WEATHER TAB -->
-			{#if activeEventTab === 'location'}
-				<div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-					<div class="lg:col-span-2 space-y-6">
-						<div class="h-[400px] overflow-hidden rounded-2xl bg-slate-50 border border-slate-200/80 dark:bg-[#242424] dark:border-slate-800">
-							<EventMap lat={event.location.lat ?? null} lng={event.location.lng ?? null} name={event.location.name} address={event.location.address ?? ''} />
-						</div>
-					</div>
-
-					<div class="space-y-6">
-						<!-- Venue details card -->
-						<div class="rounded-2xl bg-slate-50 border border-slate-200/80 p-5 dark:bg-[#242424] dark:border-slate-800 space-y-3">
-							<div class="flex items-center gap-2 text-slate-400">
-								<MapPin class="h-4 w-4 text-blue-600 dark:text-blue-400" />
-								<h4 class="text-xs font-black uppercase tracking-wider">{i18n.t('location')}</h4>
-							</div>
-							<h3 class="text-base font-bold text-slate-900 dark:text-white">{event.location.name}</h3>
-							{#if event.location.address}
-								<p class="text-xs text-slate-500 dark:text-slate-400">{event.location.address}</p>
-							{/if}
-
-							{#if event.location.lat && event.location.lng}
-								<a
-									href={`https://www.google.com/maps/dir/?api=1&destination=${event.location.lat},${event.location.lng}`}
-									target="_blank"
-									rel="noopener noreferrer"
-									class="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-2.5 text-xs font-bold text-white shadow transition hover:bg-blue-700"
-								>
-									<Compass class="h-4 w-4" />
-									<span>{i18n.t('get_directions')}</span>
-								</a>
-							{/if}
-						</div>
-
-						<!-- Weather Card -->
-						<div class="rounded-2xl bg-slate-50 border border-slate-200/80 p-5 dark:bg-[#242424] dark:border-slate-800 space-y-3">
-							<div class="flex items-center gap-2 text-slate-400">
-								<SunMedium class="h-4 w-4 text-amber-500" />
-								<h4 class="text-xs font-black uppercase tracking-wider">{i18n.t('weather')}</h4>
-							</div>
-							<EventWeather lat={event.location.lat} lng={event.location.lng} startAt={event.startAt} size="md" />
-						</div>
-					</div>
-				</div>
-			{/if}
-
 		</div>
 
-		<!-- FLOATING BOTTOM ACTION BAR (Floating at screen bottom, responsive to sidebar) -->
-		<div class="fixed bottom-20 inset-x-4 md:bottom-6 md:left-[calc(17.75rem+2rem)] md:right-8 lg:right-12 xl:right-16 z-40 rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-2xl backdrop-blur-xl dark:border-slate-800 dark:bg-[#161616]/95">
+		<!-- DESKTOP FLOATING BOTTOM ACTION BAR (hidden md:block) -->
+		<div class="hidden md:block fixed bottom-6 md:left-[calc(17.75rem+2rem)] md:right-8 lg:right-12 xl:right-16 z-40 rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-2xl backdrop-blur-xl dark:border-slate-800 dark:bg-[#161616]/95">
 			<div class="mx-auto max-w-6xl flex items-center justify-between gap-4">
 				<!-- Left info summary -->
-				<div class="hidden sm:block">
+				<div>
 					<p class="text-xs font-bold uppercase tracking-wider text-slate-400">{event.title}</p>
 					<p class="text-sm font-black text-slate-900 dark:text-white">
 						{formatPriceLabel(event)} · {participants.length}/{event.maxParticipants} players
@@ -2064,13 +2225,13 @@
 				</div>
 
 				<!-- Right Action Buttons -->
-				<div class="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+				<div class="flex items-center gap-2.5 justify-end">
 					{#if canJoin}
 						<button
 							type="button"
 							onclick={handleJoinEvent}
 							disabled={actionLoading}
-							class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/30 transition hover:bg-blue-700 active:scale-95 disabled:opacity-60"
+							class="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/30 transition hover:bg-blue-700 active:scale-95 disabled:opacity-60"
 						>
 							<UserPlus class="h-4 w-4" />
 							<span>{actionLoading ? i18n.t('joining') : (paymentSummary?.isUpfront && paymentSummary?.splitAmount != null ? `Pay & Join (${formatPaymentAmount(paymentSummary.splitAmount)})` : i18n.t('join_event'))}</span>
@@ -2080,13 +2241,13 @@
 							type="button"
 							onclick={handleRequestToJoin}
 							disabled={actionLoading}
-							class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/30 transition hover:bg-blue-700 active:scale-95 disabled:opacity-60"
+							class="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/30 transition hover:bg-blue-700 active:scale-95 disabled:opacity-60"
 						>
 							<UserPlus class="h-4 w-4" />
 							<span>{actionLoading ? i18n.t('requesting') : i18n.t('request_to_join')}</span>
 						</button>
 					{:else if hasPendingJoinRequest}
-						<button disabled class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-xl bg-slate-100 px-6 py-3 text-sm font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+						<button disabled class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-100 px-6 py-3 text-sm font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
 							<Clock class="h-4 w-4" />
 							<span>{i18n.t('request_pending')}</span>
 						</button>
@@ -2100,7 +2261,7 @@
 							class="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 transition hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
 						>
 							<LogOut class="h-4 w-4" />
-							<span class="hidden sm:inline">{i18n.t('leave_event')}</span>
+							<span>{i18n.t('leave_event')}</span>
 						</button>
 					{/if}
 
@@ -2110,7 +2271,7 @@
 							class="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-slate-100 px-4 py-3 text-sm font-bold text-slate-900 transition hover:bg-slate-900 hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:hover:bg-white dark:hover:text-slate-900"
 						>
 							<Edit3 class="h-4 w-4" />
-							<span class="hidden sm:inline">{i18n.t('edit_event')}</span>
+							<span>{i18n.t('edit_event')}</span>
 						</a>
 
 						<button
@@ -2130,7 +2291,7 @@
 							class="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 transition hover:bg-red-100 disabled:opacity-60 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
 						>
 							<X class="h-4 w-4" />
-							<span class="hidden sm:inline">{i18n.t('cancel_event')}</span>
+							<span>{i18n.t('cancel_event')}</span>
 						</button>
 					{/if}
 				</div>
