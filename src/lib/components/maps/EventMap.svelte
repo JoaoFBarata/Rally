@@ -102,10 +102,8 @@
 <div
 	class={`overflow-hidden bg-white dark:bg-slate-900 ${
 		showHeader
-			? `border border-slate-200 dark:border-slate-800 ${compact ? 'rounded-[1.5rem] shadow-sm shadow-slate-200/50 dark:shadow-none' : 'rounded-3xl shadow-sm'}`
-			: compact
-				? 'rounded-[1.5rem]'
-				: 'rounded-3xl'
+			? `border border-slate-200 dark:border-slate-800 ${compact ? 'rounded-[0.5rem] shadow-sm shadow-slate-200/50 dark:shadow-none' : 'rounded-[0.5rem] shadow-sm'}`
+			: 'rounded-[0.5rem]'
 	}`}
 >
 	{#if showHeader}

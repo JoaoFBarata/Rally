@@ -22,6 +22,27 @@
 			(shouldBypassLanding && page.url.pathname === '/') ||
 			(Capacitor.isNativePlatform() && nativeStartupPending)
 	);
+	let pageTitle = $derived.by(() => {
+		const pathname = page.url.pathname;
+
+		if (pathname === '/') return 'Rally';
+		if (pathname.startsWith('/dashboard')) return 'Dashboard | Rally';
+		if (pathname.startsWith('/explore')) return 'Explore | Rally';
+		if (pathname.startsWith('/payments')) return 'Payments | Rally';
+		if (pathname.startsWith('/messages')) return 'Messages | Rally';
+		if (pathname.startsWith('/profile')) return 'Profile | Rally';
+		if (pathname.startsWith('/users')) return 'User profile | Rally';
+		if (pathname.startsWith('/organizations')) return 'Organizations | Rally';
+		if (pathname.startsWith('/locations')) return 'Locations | Rally';
+		if (pathname.startsWith('/events/create')) return 'Create event | Rally';
+		if (pathname.includes('/edit')) return 'Edit event | Rally';
+		if (pathname.startsWith('/events')) return 'Event | Rally';
+		if (pathname.startsWith('/login')) return 'Log in | Rally';
+		if (pathname.startsWith('/register')) return 'Create account | Rally';
+		if (pathname.startsWith('/verify-email')) return 'Verify email | Rally';
+
+		return 'Rally';
+	});
 
 	onMount(() => {
 		initTheme();
@@ -129,6 +150,10 @@
 		void StatusBar.setStyle({ style: useDarkStatusBar ? Style.Dark : Style.Light });
 	});
 </script>
+
+<svelte:head>
+	<title>{pageTitle}</title>
+</svelte:head>
 
 {#if !authState.loading && !(shouldBypassLanding && page.url.pathname === '/')}
 	<AppShell>

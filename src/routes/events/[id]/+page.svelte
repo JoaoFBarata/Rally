@@ -1354,9 +1354,9 @@
 		</div>
 	{:else if event}
 		<!-- MOBILE-FIRST HERO HEADER (< md) -->
-		<div class="block md:hidden mb-4">
+		<div class="mb-4 block md:hidden">
 			<!-- Hero Image Cover Container -->
-			<div class="relative h-[230px] w-full overflow-hidden rounded-3xl bg-slate-900 dark:bg-[#242424] shadow-md">
+			<div class="relative h-[230px] w-full overflow-hidden bg-slate-900 shadow-md dark:bg-[#242424]">
 				<img
 					src={getEventHeroImage(event)}
 					alt={event.title}
@@ -1428,94 +1428,6 @@
 					<h1 class="text-xl font-extrabold text-white tracking-tight leading-snug drop-shadow-sm">
 						{event.title}
 					</h1>
-				</div>
-			</div>
-
-			<!-- Mobile Header Inline Actions Bar (Replaces Bottom Floating Bar on Mobile) -->
-			<div class="mt-3 rounded-2xl bg-slate-50 border border-slate-200/80 p-4 dark:bg-[#242424] dark:border-slate-800 space-y-3">
-				<div class="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
-					<div class="flex items-center gap-1.5">
-						<Calendar class="h-4 w-4 text-blue-600 dark:text-blue-400" />
-						<span>{formatShortDate(event.startAt)} · {formatShortTime(event.startAt)}</span>
-					</div>
-					<div class="flex items-center gap-1">
-						<Users class="h-4 w-4 text-blue-600 dark:text-blue-400" />
-						<span>{participants.length}/{event.maxParticipants}</span>
-					</div>
-				</div>
-
-				<!-- Mobile Direct Action CTAs -->
-				<div class="flex flex-col gap-2 pt-1">
-					{#if canJoin}
-						<button
-							type="button"
-							onclick={handleJoinEvent}
-							disabled={actionLoading}
-							class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/30 active:scale-95 disabled:opacity-60"
-						>
-							<UserPlus class="h-4 w-4" />
-							<span>{actionLoading ? i18n.t('joining') : (paymentSummary?.isUpfront && paymentSummary?.splitAmount != null ? `Pay & Join (${formatPaymentAmount(paymentSummary.splitAmount)})` : i18n.t('join_event'))}</span>
-						</button>
-					{:else if canRequestJoin}
-						<button
-							type="button"
-							onclick={handleRequestToJoin}
-							disabled={actionLoading}
-							class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/30 active:scale-95 disabled:opacity-60"
-						>
-							<UserPlus class="h-4 w-4" />
-							<span>{actionLoading ? i18n.t('requesting') : i18n.t('request_to_join')}</span>
-						</button>
-					{:else if hasPendingJoinRequest}
-						<button disabled class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-slate-200 py-3 text-sm font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-							<Clock class="h-4 w-4" />
-							<span>{i18n.t('request_pending')}</span>
-						</button>
-					{/if}
-
-					<div class="flex items-center gap-2">
-						{#if isParticipant && !isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
-							<button
-								type="button"
-								onclick={handleLeaveEvent}
-								disabled={actionLoading}
-								class="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-2.5 text-xs font-bold text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
-							>
-								<LogOut class="h-4 w-4" />
-								<span>{i18n.t('leave_event')}</span>
-							</button>
-						{/if}
-
-						{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
-							<a
-								href={resolve(`/events/${event.id}/edit`)}
-								class="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-slate-100 py-2.5 text-xs font-bold text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-							>
-								<Edit3 class="h-4 w-4" />
-								<span>{i18n.t('edit_event')}</span>
-							</a>
-
-							<button
-								type="button"
-								onclick={handleFinishEvent}
-								disabled={actionLoading}
-								class="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 py-2.5 text-xs font-bold text-white shadow-md hover:bg-blue-700"
-							>
-								<CheckCircle2 class="h-4 w-4" />
-								<span>{i18n.t('finish_event')}</span>
-							</button>
-
-							<button
-								type="button"
-								onclick={handleCancelEvent}
-								disabled={actionLoading}
-								class="inline-flex items-center justify-center rounded-xl border border-red-200 bg-red-50 p-2.5 text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
-								aria-label={i18n.t('cancel_event')}
-							>
-								<X class="h-4 w-4" />
-							</button>
-						{/if}
-					</div>
 				</div>
 			</div>
 		</div>
@@ -1668,6 +1580,104 @@
 				</div>
 			</div>
 
+			<!-- Mobile Header Inline Actions Bar (Replaces Bottom Floating Bar on Mobile) -->
+			<div class="mt-3 space-y-3 rounded-2xl md:hidden">
+				<div class="flex items-center justify-between text-xs px-1 font-bold text-slate-700 dark:text-slate-300">
+					<div class="flex items-center gap-1.5">
+						<Calendar class="h-4 w-4 text-blue-600 dark:text-blue-400" />
+						<span>{formatShortDate(event.startAt)} · {formatShortTime(event.startAt)}</span>
+					</div>
+					<div class="flex items-center gap-1">
+						<Users class="h-4 w-4 text-blue-600 dark:text-blue-400" />
+						<span>{participants.length}/{event.maxParticipants}</span>
+					</div>
+				</div>
+				<!-- Mobile Direct Action CTAs -->
+				<div class="flex flex-col gap-2 pt-1">
+					{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
+						<!-- Compact host controls stay distinct from player actions without taking over the header. -->
+						<section class="rounded-xl border border-blue-200/80 p-2.5 dark:border-blue-900/60">
+							<div class="mb-2 flex items-center justify-between px-0.5">
+								<p class="text-[10px] font-black uppercase tracking-wider text-blue-700 dark:text-blue-300">Event controls</p>
+								<span class="inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+									<ShieldCheck class="h-3 w-3 text-blue-600 dark:text-blue-400" />
+									HOST
+								</span>
+							</div>
+	
+							<div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2.75rem] gap-2">
+								<a
+									href={resolve(`/events/${event.id}/edit`)}
+									class="inline-flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 text-xs font-bold text-slate-800 shadow-sm transition active:scale-[0.98] dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+								>
+									<Edit3 class="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+									<span class="truncate">{i18n.t('edit_event')}</span>
+								</a>
+	
+								<button
+									type="button"
+									onclick={handleFinishEvent}
+									disabled={actionLoading}
+									class="inline-flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-2 text-xs font-bold text-white shadow-sm shadow-blue-600/25 transition active:scale-[0.98] disabled:opacity-60"
+								>
+									<CheckCircle2 class="h-4 w-4 shrink-0" />
+									<span class="truncate">{i18n.t('finish_event')}</span>
+								</button>
+	
+								<button
+									type="button"
+									onclick={handleCancelEvent}
+									disabled={actionLoading}
+									class="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 transition active:scale-[0.98] disabled:opacity-60 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
+									aria-label={i18n.t('cancel_event')}
+								>
+									<X class="h-4 w-4" />
+								</button>
+							</div>
+						</section>
+					{/if}
+	
+					{#if canJoin}
+						<button
+							type="button"
+							onclick={handleJoinEvent}
+							disabled={actionLoading}
+							class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/30 active:scale-95 disabled:opacity-60"
+						>
+							<UserPlus class="h-4 w-4" />
+							<span>{actionLoading ? i18n.t('joining') : (paymentSummary?.isUpfront && paymentSummary?.splitAmount != null ? `Pay & Join (${formatPaymentAmount(paymentSummary.splitAmount)})` : i18n.t('join_event'))}</span>
+						</button>
+					{:else if canRequestJoin}
+						<button
+							type="button"
+							onclick={handleRequestToJoin}
+							disabled={actionLoading}
+							class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/30 active:scale-95 disabled:opacity-60"
+						>
+							<UserPlus class="h-4 w-4" />
+							<span>{actionLoading ? i18n.t('requesting') : i18n.t('request_to_join')}</span>
+						</button>
+					{:else if hasPendingJoinRequest}
+						<button disabled class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-slate-200 py-3 text-sm font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+							<Clock class="h-4 w-4" />
+							<span>{i18n.t('request_pending')}</span>
+						</button>
+					{/if}
+	
+					{#if isParticipant && !isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
+						<button
+							type="button"
+							onclick={handleLeaveEvent}
+							disabled={actionLoading}
+							class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-2.5 text-xs font-bold text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
+						>
+							<LogOut class="h-4 w-4" />
+							<span>{i18n.t('leave_event')}</span>
+						</button>
+					{/if}
+				</div>
+			</div>
+
 			<!-- TAB CONTENTS -->
 			{#if activeEventTab === 'overview'}
 				<div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -1676,7 +1686,7 @@
 						<!-- Key Details Grid -->
 						<div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
 							<!-- Date Card -->
-							<div class="flex items-center gap-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 p-4 dark:bg-[#242424] dark:border-slate-800">
+							<div class="md:flex items-center hidden gap-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 p-4 dark:bg-[#242424] dark:border-slate-800">
 								<div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
 									<Calendar class="h-5 w-5" />
 								</div>
@@ -1688,7 +1698,7 @@
 							</div>
 
 							<!-- Duration Card -->
-							<div class="flex items-center gap-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 p-4 dark:bg-[#242424] dark:border-slate-800">
+							<div class="col-span-2 flex items-center gap-3.5 rounded-2xl border border-slate-200/80 bg-slate-50 p-4 sm:col-span-3 md:col-span-1 dark:bg-[#242424] dark:border-slate-800">
 								<div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
 									<Clock class="h-5 w-5" />
 								</div>
@@ -1707,9 +1717,6 @@
 								<div class="min-w-0">
 									<p class="text-[10px] font-black uppercase tracking-wider text-slate-400">{priceTitleLabel}</p>
 									<p class="truncate text-sm font-bold text-slate-900 dark:text-white">{formatPriceLabel(event)}</p>
-									<span class="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-										{effectiveStatus === 'full' ? i18n.t('event_full_msg') : i18n.t('spots_available')}
-									</span>
 								</div>
 							</div>
 						</div>
@@ -1767,6 +1774,21 @@
 							</div>
 						{/if}
 
+						<!-- Quick Actions & Links Bar -->
+						<div class="w-full">
+							{#if canAddToGoogleCalendar}
+								<a
+									href={googleCalendarUrl}
+									target="_blank"
+									rel="noopener noreferrer"
+									class="flex items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700 transition hover:bg-blue-600 hover:text-white hover:border-blue-600 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-600 dark:hover:text-white"
+								>
+									<Calendar class="h-4 w-4" />
+									<span>{i18n.t('add_to_google_calendar')}</span>
+								</a>
+							{/if}
+						</div>
+
 						<!-- Description & Requirements Card -->
 						<div class="space-y-4 rounded-2xl bg-slate-50 border border-slate-200/80 p-6 dark:bg-[#242424] dark:border-slate-800">
 							<div>
@@ -1787,11 +1809,11 @@
 						</div>
 
 						<!-- EMBEDDED LOCATION & WEATHER SECTION (Integrated in Overview) -->
-						<div class="space-y-4 rounded-2xl bg-slate-50 border border-slate-200/80 p-6 dark:bg-[#242424] dark:border-slate-800">
+						<div class="space-y-5 rounded-2xl bg-slate-50 border border-slate-200/80 p-6 dark:bg-[#242424] dark:border-slate-800">
 							<div class="flex items-center justify-between border-b border-slate-200 pb-3 dark:border-slate-800">
 								<div class="flex items-center gap-2">
 									<MapPin class="h-5 w-5 text-blue-600 dark:text-blue-400" />
-									<h3 class="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">{i18n.t('location')} & {i18n.t('weather')}</h3>
+									<h3 class="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">{i18n.t('location')}</h3>
 								</div>
 								{#if event.location.lat && event.location.lng}
 									<a
@@ -1814,8 +1836,8 @@
 							</div>
 
 							<!-- Mapbox Map Component -->
-							<div class="h-[280px] overflow-hidden rounded-xl bg-slate-200 dark:bg-slate-800">
-								<EventMap lat={event.location.lat ?? null} lng={event.location.lng ?? null} name={event.location.name} address={event.location.address ?? ''} />
+							<div class="my-1 h-[280px] overflow-hidden border border-slate-200 bg-slate-200 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+								<EventMap lat={event.location.lat ?? null} lng={event.location.lng ?? null} name={event.location.name} address={event.location.address ?? ''} showHeader={false} />
 							</div>
 
 							<!-- Weather Widget -->
@@ -1827,39 +1849,12 @@
 								<EventWeather lat={event.location.lat} lng={event.location.lng} startAt={event.startAt} size="md" />
 							</div>
 						</div>
-
-						<!-- Quick Actions & Links Bar -->
-						<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-							{#if canAddToGoogleCalendar}
-								<a
-									href={googleCalendarUrl}
-									target="_blank"
-									rel="noopener noreferrer"
-									class="flex items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700 transition hover:bg-blue-600 hover:text-white hover:border-blue-600 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-600 dark:hover:text-white"
-								>
-									<Calendar class="h-4 w-4" />
-									<span>{i18n.t('add_to_google_calendar')}</span>
-								</a>
-							{/if}
-
-							{#if event.location.lat && event.location.lng}
-								<a
-									href={`https://www.google.com/maps/dir/?api=1&destination=${event.location.lat},${event.location.lng}`}
-									target="_blank"
-									rel="noopener noreferrer"
-									class="flex items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700 transition hover:bg-blue-600 hover:text-white hover:border-blue-600 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-600 dark:hover:text-white"
-								>
-									<Compass class="h-4 w-4" />
-									<span>{i18n.t('get_directions')}</span>
-								</a>
-							{/if}
-						</div>
 					</div>
 
 					<!-- Sidebar Column (Host, Roster Preview, Promotion) -->
-					<div class="space-y-6">
+					<div class="flex flex-col gap-6">
 						<!-- Organizer Card -->
-						<div class="rounded-2xl bg-slate-50 border border-slate-200/80 p-5 dark:bg-[#242424] dark:border-slate-800 space-y-4">
+						<div class="order-2 rounded-2xl bg-slate-50 border border-slate-200/80 p-5 dark:bg-[#242424] dark:border-slate-800 space-y-4 lg:order-1">
 							<p class="text-xs font-black uppercase tracking-widest text-slate-400">{i18n.t('host')}</p>
 
 							{#if event.hostType === 'organization'}
@@ -1948,19 +1943,28 @@
 						</div>
 
 						<!-- Participant Roster Preview Card -->
-						<div class="rounded-2xl bg-slate-50 border border-slate-200/80 p-5 dark:bg-[#242424] dark:border-slate-800 space-y-4">
-							<div class="flex items-center justify-between">
+						<div class="order-3 rounded-2xl bg-slate-50 border border-slate-200/80 p-5 dark:bg-[#242424] dark:border-slate-800 space-y-4 lg:order-2">
+							<div class="flex items-start justify-between gap-3">
 								<div>
 									<h4 class="text-sm font-bold text-slate-900 dark:text-white">{i18n.t('players')}</h4>
 									<p class="text-xs font-medium text-slate-500 dark:text-slate-400">{participants.length}/{event.maxParticipants} {i18n.t('confirmed')}</p>
 								</div>
-								<button
-									type="button"
-									onclick={() => (activeEventTab = 'players')}
-									class="text-xs font-bold text-blue-600 hover:underline dark:text-blue-400"
-								>
-									View All
-								</button>
+								<div class="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
+									<span class={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold ${
+										effectiveStatus === 'full'
+											? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300'
+											: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+									}`}>
+										{effectiveStatus === 'full' ? i18n.t('event_full_msg') : i18n.t('spots_available')}
+									</span>
+									<button
+										type="button"
+										onclick={() => (activeEventTab = 'players')}
+										class="text-xs font-bold text-blue-600 hover:underline dark:text-blue-400"
+									>
+										View All
+									</button>
+								</div>
 							</div>
 
 							<!-- Avatar Stack -->
@@ -1975,6 +1979,40 @@
 								{/if}
 							</div>
 						</div>
+
+						<!-- Payment Summary -->
+						{#if paymentSummary?.splitAmount != null && (effectiveStatus === 'finished' || paymentSummary.isUpfront || paymentSummary.isPricePerPerson)}
+							<button
+								type="button"
+								onclick={() => (activeEventTab = 'players')}
+								class="order-1 w-full rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5 text-left transition hover:border-emerald-300 hover:bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:hover:border-emerald-800 dark:hover:bg-emerald-950/50 lg:order-3"
+							>
+								<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+									<div class="flex items-start gap-3">
+										<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
+											<CreditCard class="h-5 w-5" />
+										</div>
+										<div>
+											<p class="text-xs font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-400">{i18n.t('payments')}</p>
+											<p class="mt-1 text-lg font-black text-slate-900 dark:text-white">
+												{formatPaymentAmount(paymentSummary.splitAmount)} <span class="text-xs font-semibold text-slate-600 dark:text-slate-400">/ player</span>
+											</p>
+										</div>
+									</div>
+
+									<div class="flex items-center gap-2 self-start sm:self-auto">
+										<span class="rounded-full bg-white/80 px-2.5 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200 dark:bg-slate-900/70 dark:text-emerald-300 dark:ring-emerald-900">
+											{paymentSummary.paidCount}/{paymentSummary.payerIds.length} {i18n.t('paid')}
+										</span>
+										<ChevronRight class="h-4 w-4 text-emerald-700 dark:text-emerald-300" />
+									</div>
+								</div>
+
+								{#if paymentSummary.pendingCount > 0}
+									<p class="mt-3 text-xs font-medium text-slate-600 dark:text-slate-300">{paymentSummary.pendingCount} payment{paymentSummary.pendingCount === 1 ? '' : 's'} pending</p>
+								{/if}
+							</button>
+						{/if}
 					</div>
 				</div>
 			{/if}
@@ -2060,21 +2098,31 @@
 
 					<!-- Roster List -->
 					<div class="rounded-2xl bg-slate-50 border border-slate-200/80 p-6 dark:bg-[#242424] dark:border-slate-800 space-y-4">
-						<div class="flex items-center justify-between border-b border-slate-200 pb-4 dark:border-slate-800">
+						<div class="flex items-center justify-between gap-3 border-b border-slate-200 pb-4 dark:border-slate-800">
 							<div>
 								<h3 class="text-base font-bold text-slate-900 dark:text-white">{i18n.t('players')}</h3>
 								<p class="text-xs font-medium text-slate-500 dark:text-slate-400">{participants.length} of {event.maxParticipants} confirmed participants</p>
 							</div>
 
-							{#if canInvite}
-								<a
-									href={resolve(`/events/${event.id}/invite`)}
-									class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md transition hover:bg-blue-700"
-								>
-									<UserPlus class="h-4 w-4" />
-									<span>{i18n.t('invite_people')}</span>
-								</a>
-							{/if}
+							<div class="flex items-center gap-2">
+								<span class={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold ${
+									effectiveStatus === 'full'
+										? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300'
+										: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+								}`}>
+									{effectiveStatus === 'full' ? i18n.t('event_full_msg') : i18n.t('spots_available')}
+								</span>
+
+								{#if canInvite}
+									<a
+										href={resolve(`/events/${event.id}/invite`)}
+										class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md transition hover:bg-blue-700"
+									>
+										<UserPlus class="h-4 w-4" />
+										<span>{i18n.t('invite_people')}</span>
+									</a>
+								{/if}
+							</div>
 						</div>
 
 						<div class="divide-y divide-slate-200 dark:divide-slate-800">

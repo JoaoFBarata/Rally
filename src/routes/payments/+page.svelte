@@ -230,10 +230,6 @@
 	});
 </script>
 
-<svelte:head>
-	<title>{i18n.t('payments')} | Rally</title>
-</svelte:head>
-
 <div class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
 	<!-- Page Title Header -->
 	<div class="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
