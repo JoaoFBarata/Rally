@@ -2211,30 +2211,6 @@
 					{/if}
 				</div>
 				<div class="flex shrink-0 items-center gap-1.5">
-					{#if selectedVenueGroup.length > 1}
-						<div class="flex items-center gap-1 rounded-full bg-slate-50 p-1 ring-1 ring-slate-200 dark:bg-slate-950/60 dark:ring-slate-800 md:hidden">
-							<button
-								type="button"
-								onclick={() => moveSelectedVenue(-1)}
-								class="grid h-6 w-6 place-items-center rounded-full bg-white text-sm font-black text-slate-700 shadow-sm transition active:scale-95 dark:bg-slate-900 dark:text-slate-200"
-								aria-label={i18n.t('previous_nearby_event')}
-							>
-								‹
-							</button>
-							<span class="min-w-8 text-center text-[11px] font-black text-slate-500 dark:text-slate-300">
-								{selectedVenueIndex + 1}/{selectedVenueGroup.length}
-							</span>
-							<button
-								type="button"
-								onclick={() => moveSelectedVenue(1)}
-								class="grid h-6 w-6 place-items-center rounded-full bg-white text-sm font-black text-slate-700 shadow-sm transition active:scale-95 dark:bg-slate-900 dark:text-slate-200"
-								aria-label={i18n.t('next_nearby_event')}
-							>
-								›
-							</button>
-						</div>
-					{/if}
-
 					<button
 						type="button"
 						onclick={clearSelectedVenue}
@@ -2245,38 +2221,6 @@
 					</button>
 				</div>
 			</div>
-
-			{#if selectedVenueGroup.length > 1}
-				<div
-					class="mt-3 hidden items-center justify-between rounded-2xl bg-slate-50 px-3 py-2 dark:bg-slate-950/60 md:flex"
-				>
-					<p class="min-w-0 truncate text-xs font-black text-slate-700 dark:text-slate-200">
-						{selectedVenueGroup.length} {i18n.t('locations').toLowerCase()} {i18n.t('nearby_lowercase')}
-					</p>
-
-					<div class="ml-3 flex shrink-0 items-center gap-2">
-						<button
-							type="button"
-							onclick={() => moveSelectedVenue(-1)}
-							class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white text-base font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-blue-950 md:h-8 md:w-8 md:text-lg"
-							aria-label={i18n.t('previous_nearby_event')}
-						>
-							‹
-						</button>
-						<span class="min-w-10 text-center text-xs font-black text-slate-500 dark:text-slate-300">
-							{selectedVenueIndex + 1}/{selectedVenueGroup.length}
-						</span>
-						<button
-							type="button"
-							onclick={() => moveSelectedVenue(1)}
-							class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white text-base font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-blue-950 md:h-8 md:w-8 md:text-lg"
-							aria-label={i18n.t('next_nearby_event')}
-						>
-							›
-						</button>
-					</div>
-				</div>
-			{/if}
 
 			<div class="mt-2.5 flex gap-2.5 md:mt-3 md:gap-3">
 				<div
