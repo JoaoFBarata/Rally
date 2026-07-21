@@ -1,9 +1,180 @@
+<!-- C:\Users\henri\Fct3Ano\ADC\Rally\src\routes\+layout.svelte -->
 <script lang="ts">
+	import { authState } from '$lib/auth.svelte';
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import './layout.css';
-	import favicon from '$lib/assets/favicon.svg';
+	import '../app.css';
+	import 'mapbox-gl/dist/mapbox-gl.css';
+	import AppShell from '$lib/components/AppShell.svelte';
+	import { App as CapacitorApp } from '@capacitor/app';
+	import { Capacitor } from '@capacitor/core';
+	import { StatusBar, Style } from '@capacitor/status-bar';
+	import { initTheme, themeState } from '$lib/theme.svelte';
+	import { onMount } from 'svelte';
 
 	let { children } = $props();
+	let shouldBypassLanding = $state(Capacitor.isNativePlatform());
+	let nativeStartupPending = $state(Capacitor.isNativePlatform());
+	let showStartupLoader = $derived(
+		authState.loading ||
+			(shouldBypassLanding && page.url.pathname === '/' && !authState.user) ||
+			(Capacitor.isNativePlatform() && nativeStartupPending)
+	);
+	let pageTitle = $derived.by(() => {
+		const pathname = page.url.pathname;
+
+		if (pathname === '/') return 'Rally';
+		if (pathname.startsWith('/dashboard')) return 'Dashboard | Rally';
+		if (pathname.startsWith('/explore')) return 'Explore | Rally';
+		if (pathname.startsWith('/payments')) return 'Payments | Rally';
+		if (pathname.startsWith('/messages')) return 'Messages | Rally';
+		if (pathname.startsWith('/profile')) return 'Profile | Rally';
+		if (pathname.startsWith('/users')) return 'User profile | Rally';
+		if (pathname.startsWith('/organizations')) return 'Organizations | Rally';
+		if (pathname.startsWith('/locations')) return 'Locations | Rally';
+		if (pathname.startsWith('/events/create')) return 'Create event | Rally';
+		if (pathname.includes('/edit')) return 'Edit event | Rally';
+		if (pathname.startsWith('/events')) return 'Event | Rally';
+		if (pathname.startsWith('/login')) return 'Log in | Rally';
+		if (pathname.startsWith('/register')) return 'Create account | Rally';
+		if (pathname.startsWith('/verify-email')) return 'Verify email | Rally';
+
+		return 'Rally';
+	});
+
+	onMount(() => {
+		initTheme();
+		shouldBypassLanding =
+			Capacitor.isNativePlatform() || window.matchMedia('(max-width: 767px)').matches;
+
+		const backButtonListener = CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+			if (window.history.state !== null || canGoBack) {
+				window.history.back();
+			} else {
+				CapacitorApp.exitApp();
+			}
+		});
+		const openAppUrl = (url: string) => {
+			try {
+				const appUrl = new URL(url);
+				if (appUrl.hostname !== 'synqo-rally.web.app') return;
+				void goto(`${appUrl.pathname}${appUrl.search}${appUrl.hash}`);
+			} catch (error) {
+				console.error('Invalid Rally app link:', error);
+			}
+		};
+		const appUrlListener = CapacitorApp.addListener('appUrlOpen', ({ url }) => openAppUrl(url));
+		void CapacitorApp.getLaunchUrl().then((launch) => {
+			if (launch?.url) openAppUrl(launch.url);
+		});
+		const handleDashboardReady = () => (nativeStartupPending = false);
+		window.addEventListener('rally:dashboard-ready', handleDashboardReady);
+		const startupSafetyTimeout = window.setTimeout(() => (nativeStartupPending = false), 15_000);
+
+		return () => {
+			window.removeEventListener('rally:dashboard-ready', handleDashboardReady);
+			window.clearTimeout(startupSafetyTimeout);
+			void backButtonListener.then((listener) => listener.remove());
+			void appUrlListener.then((listener) => listener.remove());
+		};
+	});
+
+	// Proteção de rota simples no cliente
+	$effect(() => {
+		if (!authState.loading) {
+			const isPasswordAccount = Boolean(
+				authState.user?.providerData.some((provider) => provider.providerId === 'password')
+			);
+			const isUnverifiedPasswordAccount =
+				Boolean(authState.user) && isPasswordAccount && !authState.user?.emailVerified;
+			const requiresEmailVerification =
+				isUnverifiedPasswordAccount &&
+				authState.requiresEmailVerification &&
+				!authState.user?.emailVerified;
+			const emailVerificationAllowedRoute =
+				page.url.pathname === '/' ||
+				page.url.pathname === '/login' ||
+				page.url.pathname === '/verify-email' ||
+				page.url.pathname.startsWith('/register');
+
+			if (!authState.user || (page.url.pathname !== '/' && page.url.pathname !== '/dashboard')) {
+				nativeStartupPending = false;
+			}
+
+			if (shouldBypassLanding && page.url.pathname === '/' && !authState.user) {
+				void goto(resolve('/login'), { replaceState: true });
+				return;
+			}
+
+			const protectedRoutes =
+				page.url.pathname.startsWith('/dashboard') ||
+				page.url.pathname.startsWith('/events') ||
+				page.url.pathname.startsWith('/messages') ||
+				page.url.pathname.startsWith('/profile');
+
+			if (protectedRoutes && !authState.user) {
+				goto(resolve('/login'));
+				return;
+			}
+
+			if (page.url.pathname === '/verify-email' && !authState.user) {
+				goto(resolve('/login'));
+				return;
+			}
+
+			if (requiresEmailVerification && !emailVerificationAllowedRoute) {
+				goto(resolve('/verify-email'));
+				return;
+			}
+
+			if (
+				page.url.pathname === '/verify-email' &&
+				authState.user &&
+				(!isPasswordAccount || authState.user.emailVerified)
+			) {
+				goto(resolve('/dashboard'));
+			}
+		}
+	});
+
+	$effect(() => {
+		if (!Capacitor.isNativePlatform()) return;
+
+		const useDarkStatusBar = $themeState;
+		const statusBarColor = useDarkStatusBar ? '#161616' : '#FFFFFF';
+		document.documentElement.style.backgroundColor = statusBarColor;
+		document.body.style.backgroundColor = statusBarColor;
+		void StatusBar.setBackgroundColor({ color: statusBarColor });
+		void StatusBar.setStyle({ style: useDarkStatusBar ? Style.Dark : Style.Light });
+	});
 </script>
 
-<svelte:head><link rel="icon" href={favicon} /></svelte:head>
-{@render children()}
+<svelte:head>
+	<title>{pageTitle}</title>
+</svelte:head>
+
+{#if !authState.loading && !(shouldBypassLanding && page.url.pathname === '/' && !authState.user)}
+	<AppShell>
+		{@render children()}
+	</AppShell>
+{/if}
+
+{#if showStartupLoader}
+	<div
+		class="fixed inset-0 z-[9999] flex min-h-dvh items-center justify-center bg-white dark:bg-[#161616]"
+	>
+		<div class="flex flex-col items-center gap-6 px-6">
+			<img
+				src={$themeState ? '/rally-logo-white.png' : '/rally-logo-black.png'}
+				alt="Rally"
+				class="h-14 w-auto object-contain"
+			/>
+			<div
+				class="h-10 w-10 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600 dark:border-slate-700 dark:border-t-blue-400"
+				aria-hidden="true"
+			></div>
+		</div>
+	</div>
+{/if}

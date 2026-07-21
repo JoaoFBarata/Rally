@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "906417673342",
+    "project_id": "rally-5ddd6",
+    "storage_bucket": "rally-5ddd6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:906417673342:android:018515a314501e27c7b42f",
+        "android_client_info": {
+          "package_name": "adc.fct.rally"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "906417673342-m5sqdvar26pvo85ld97sk84bdg0l7ei0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD7F5QFDnLH3_1gaMTGawM37t2hkuTSwqA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "906417673342-m5sqdvar26pvo85ld97sk84bdg0l7ei0.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

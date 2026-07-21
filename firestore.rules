@@ -1,0 +1,508 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isMe(userId) {
+      return isAuth() && request.auth.uid == userId;
+    }
+
+    function isPersonalFriendPair(memberIds) {
+      return get(/databases/$(database)/documents/users/$(memberIds[0])).data.get('accountType', 'personal') != 'organization'
+        && get(/databases/$(database)/documents/users/$(memberIds[1])).data.get('accountType', 'personal') != 'organization';
+    }
+
+    // Temporary platform-admin authorization shared with the admin dashboard.
+    // Move this allowlist to Firebase Auth custom claims when Cloud Functions
+    // are introduced, so adding/removing admins does not require a rules deploy.
+    function isPlatformAdmin() {
+      return isAuth()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in [
+          'duarte.v.ayres@gmail.com',
+          'guilherme.martins.e.silva@gmail.com'
+        ];
+    }
+
+    // Reads the organization document to check admin membership.
+    // Counts as one extra document read per evaluation (within the 10-read limit).
+    function isOrgAdmin(orgId) {
+      let org = get(/databases/$(database)/documents/organizations/$(orgId));
+      return org.data.ownerId == request.auth.uid
+          || request.auth.uid in org.data.adminIds;
+    }
+
+    // Reads the organization document to check its verification status —
+    // used to gate creation of official/payment-protected events.
+    function isOrgVerified(orgId) {
+      let org = get(/databases/$(database)/documents/organizations/$(orgId));
+      return org.data.get('verificationStatus', 'unverified') == 'verified';
+    }
+
+		function eventData(eventId) {
+			return get(/databases/$(database)/documents/events/$(eventId)).data;
+		}
+
+		function isEventManager(eventId) {
+			let event = eventData(eventId);
+			return isAuth() && (
+				event.creatorId == request.auth.uid
+				|| (event.hostType == 'organization'
+						&& event.organizationId is string
+						&& isOrgAdmin(event.organizationId))
+			);
+		}
+
+    function convData(conversationId) {
+      return get(/databases/$(database)/documents/conversations/$(conversationId)).data;
+    }
+
+    function isConvMember(conversationId) {
+      return isAuth() && request.auth.uid in convData(conversationId).memberIds;
+    }
+
+
+    // ── Users ────────────────────────────────────────────────────────────────
+    // Any signed-in user can read a profile unless its owner made it private —
+    // in that case only the owner and users who share an event with them
+    // (tracked in `connections`, kept in sync by the onEventUpdated function)
+    // can read it. Only the owner can write their own profile.
+    match /users/{userId} {
+      // Profile discovery, Rally Tags and friendship links must remain usable
+      // for every authenticated account. Sensitive authentication data is not
+      // stored in this document.
+      allow read: if isAuth();
+      allow create: if isMe(userId) && request.resource.data.id == userId;
+      allow update: if isMe(userId);
+      allow delete: if false;
+
+      match /pointTransactions/{transactionId} {
+        allow read: if isMe(userId);
+        allow create: if isMe(userId);
+        allow update: if false;
+        allow delete: if false;
+      }
+
+      match /pointRedemptions/{redemptionId} {
+        allow read: if isMe(userId);
+        allow create: if isMe(userId);
+        allow update: if false;
+        allow delete: if false;
+      }
+    }
+
+
+    // ── Organizations ────────────────────────────────────────────────────────
+    // Readable by any signed-in user (org pages, event host display).
+    // Org admins manage the profile. Platform admins can only update the
+    // verification fields used by the review dashboard.
+    match /organizations/{orgId} {
+      allow read:   if isAuth();
+      allow create: if isAuth() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isAuth() && (
+        isOrgAdmin(orgId)
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'followersCount',
+              'updatedAt'
+            ])
+            && (
+              request.resource.data.followersCount == resource.data.followersCount + 1 ||
+              request.resource.data.followersCount == resource.data.followersCount - 1
+            )
+            && request.resource.data.followersCount >= 0)
+        || (isPlatformAdmin()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'verificationStatus',
+            'verificationLevel',
+            'verificationNote',
+            'verifiedAt',
+            'verifiedBy',
+            'hasPublicVenue',
+            'publicLocation',
+            'updatedAt'
+          ]))
+      );
+      allow delete: if false;
+    }
+
+
+    // ── Organization Followers ───────────────────────────────────────────────
+    // Users can only follow/unfollow on their own behalf.
+    match /organizationFollowers/{followId} {
+      allow read:   if isAuth();
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      allow delete: if isAuth() && resource.data.userId == request.auth.uid;
+      allow update: if false;
+    }
+
+
+    // ── Organization Reviews ────────────────────────────────────────────────
+    // Users can review an organization once, and can edit/delete only their own review.
+    match /organizationReviews/{reviewId} {
+      allow read: if isAuth();
+      allow create: if isAuth()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5;
+      allow update: if isAuth()
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.organizationId == resource.data.organizationId
+        && (
+          (
+            (resource.data.userId == request.auth.uid || isOrgAdmin(resource.data.organizationId))
+            && request.resource.data.rating >= 1
+            && request.resource.data.rating <= 5
+          )
+          ||
+          (
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replies', 'updatedAt'])
+            && request.resource.data.rating == resource.data.rating
+            && request.resource.data.comment == resource.data.comment
+            && request.resource.data.replies.size() == resource.data.replies.size() + 1
+            // Only a real org admin may tag their reply as an official organization reply.
+            && (
+              request.resource.data.replies[request.resource.data.replies.size() - 1].authorRole != 'organization'
+              || isOrgAdmin(resource.data.organizationId)
+            )
+          )
+        );
+      allow delete: if isAuth() && resource.data.userId == request.auth.uid;
+    }
+
+
+    // ── Organization Verification Requests ──────────────────────────────────
+    // Submitters, organization admins and platform admins can read requests.
+    // Platform admins may only record a review decision and its audit fields.
+    match /organizationVerificationRequests/{requestId} {
+      allow read: if isAuth() && (
+        resource.data.submittedBy == request.auth.uid ||
+        isOrgAdmin(resource.data.organizationId) ||
+        isPlatformAdmin()
+      );
+      allow create: if isAuth()
+        && request.resource.data.submittedBy == request.auth.uid
+        && isOrgAdmin(request.resource.data.organizationId);
+      allow update: if isPlatformAdmin()
+        && request.resource.data.status in ['approved', 'rejected']
+        && request.resource.data.reviewedBy == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'adminNote',
+          'reviewedAt',
+          'reviewedBy',
+          'updatedAt'
+        ]);
+      allow delete: if false;
+    }
+
+
+    // ── Events ───────────────────────────────────────────────────────────────
+    // All signed-in users can read events (explore / discover).
+    // Write rules enforce who can do what:
+    //   - Creator or org admin: full control.
+    //   - Any user: join (add themselves) or leave (remove themselves) only,
+    //     touching only participantIds + status + updatedAt.
+    //   - Any user: increment promotion view/click counters (analytics tracking).
+    match /events/{eventId} {
+      allow read: if isAuth();
+
+      allow create: if isAuth() && request.resource.data.creatorId == request.auth.uid
+        // Org-hosted events require the creator to actually admin that org.
+        && (
+          request.resource.data.get('hostType', 'user') != 'organization'
+          || (request.resource.data.organizationId is string
+              && isOrgAdmin(request.resource.data.organizationId))
+        )
+        // Official/payment-protected events require the org to be verified.
+        && (
+          request.resource.data.get('paymentMode', 'none') != 'official'
+          || (request.resource.data.get('hostType', 'user') == 'organization'
+              && request.resource.data.organizationId is string
+              && isOrgVerified(request.resource.data.organizationId))
+        );
+
+      allow update: if isAuth() && (
+        // Full control for creator
+        resource.data.creatorId == request.auth.uid
+
+        // Full control for org admin on org-hosted events
+        || (resource.data.hostType == 'organization'
+            && resource.data.organizationId is string
+            && isOrgAdmin(resource.data.organizationId))
+
+        // Join: add self to participantIds — only those three fields may change
+        || (request.auth.uid in request.resource.data.participantIds
+            && !(request.auth.uid in resource.data.participantIds)
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['participantIds', 'status', 'updatedAt']))
+
+        // Leave: remove self from participantIds — only those three fields may change
+        || (!(request.auth.uid in request.resource.data.participantIds)
+            && request.auth.uid in resource.data.participantIds
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['participantIds', 'status', 'updatedAt']))
+
+        // Promotion view tracking (ExploreMap impression counter)
+        || (request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['promotionViews', 'updatedAt'])
+            && ((!('promotionViews' in resource.data)
+                  && request.resource.data.promotionViews == 1)
+                || request.resource.data.promotionViews == resource.data.promotionViews + 1))
+
+        // Promotion click tracking
+        || (request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['promotionClicks', 'updatedAt'])
+            && ((!('promotionClicks' in resource.data)
+                  && request.resource.data.promotionClicks == 1)
+                || request.resource.data.promotionClicks == resource.data.promotionClicks + 1))
+      );
+
+      allow delete: if false;
+    }
+
+
+    // ── Event Invites ────────────────────────────────────────────────────────
+    // Only sender and recipient can see an invite.
+    // Only sender can create. Only recipient can update (accept/decline).
+    match /eventInvites/{inviteId} {
+      allow read: if isAuth() && (
+        resource.data.fromUserId == request.auth.uid ||
+        resource.data.toUserId == request.auth.uid
+      );
+      allow create: if isAuth()
+        && request.resource.data.fromUserId == request.auth.uid
+        && request.resource.data.toUserId != request.auth.uid
+        && isPersonalFriendPair([
+          request.resource.data.fromUserId,
+          request.resource.data.toUserId
+        ]);
+      allow update: if isAuth() && resource.data.toUserId == request.auth.uid;
+      allow delete: if false;
+    }
+
+
+    // ── Event Join Requests ──────────────────────────────────────────────────
+    // Used when an event's joinPolicy is 'approval'. Only the requester and
+    // the event's manager (creator or org admin) can see a request. Only the
+    // requester can create it. Only the event manager can update it (approve
+    // or decline), and only the status/updatedAt fields.
+    match /eventJoinRequests/{requestId} {
+      allow read: if isAuth() && (
+        resource.data.userId == request.auth.uid ||
+        isEventManager(resource.data.eventId)
+      );
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuth() && isEventManager(resource.data.eventId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']);
+      allow delete: if false;
+    }
+
+
+    // ── Friend Requests ──────────────────────────────────────────────────────
+    // Only the two parties involved can see a request.
+    // Only sender can create. Recipient can accept/decline. Sender can re-send
+    // a previously declined request (reset to pending).
+    match /friendRequests/{requestId} {
+      allow read: if isAuth() && (
+        resource.data.fromUserId == request.auth.uid ||
+        resource.data.toUserId == request.auth.uid
+      );
+      allow create: if isAuth()
+        && request.resource.data.fromUserId == request.auth.uid
+        && request.resource.data.toUserId != request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.keys().hasOnly([
+          'id', 'fromUserId', 'toUserId', 'status', 'createdAt', 'updatedAt'
+        ]);
+      allow update: if isAuth() && (
+        (resource.data.toUserId == request.auth.uid
+          && request.resource.data.status in ['accepted', 'declined']
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])) ||
+        (resource.data.fromUserId == request.auth.uid
+          && resource.data.status in ['declined', 'accepted']
+          && request.resource.data.status == 'pending'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']))
+      );
+      allow delete: if false;
+    }
+
+
+    // ── Friendships ──────────────────────────────────────────────────────────
+    // Only the two members can read their friendship document.
+    // Created by the accepting user (their uid must be one of the members).
+    match /friendships/{friendshipId} {
+      allow read:   if isAuth() && request.auth.uid in resource.data.memberIds;
+      allow create: if isAuth()
+        && request.resource.data.memberIds is list
+        && request.resource.data.memberIds.size() == 2
+        && request.resource.data.memberIds[0] != request.resource.data.memberIds[1]
+        && request.auth.uid in request.resource.data.memberIds
+        && isPersonalFriendPair(request.resource.data.memberIds)
+        && request.resource.data.keys().hasOnly(['id', 'memberIds', 'createdAt', 'updatedAt']);
+      allow update: if false;
+      allow delete: if isAuth() && request.auth.uid in resource.data.memberIds;
+    }
+
+
+    // ── Conversations ────────────────────────────────────────────────────────
+    // General rule: only memberIds can read/update a conversation.
+    //
+    // Exceptions for rally_system conversations:
+    //   cancelEvent and notifyEventFinished write system messages into OTHER users'
+    //   rally_system chats from client-side code (sendRallySystemMessage). This means
+    //   the caller's uid is not in the target conversation's memberIds.
+    //   Allowing this here is a known limitation — the proper fix is to move
+    //   sendRallySystemMessage into a Firebase Function that uses the admin SDK.
+    //   It is acceptable for beta because:
+    //     (a) rally_system conversations are display-only for users,
+    //     (b) no sensitive data is exposed beyond what the system writes.
+    //
+    // Exception for group (event) conversations:
+    //   ensureEventGroupConversation is called when joining/leaving an event.
+    //   At the moment of the call the joining user is not yet in memberIds,
+    //   so we allow update when the caller's uid will be in the new memberIds.
+    match /conversations/{conversationId} {
+      allow read: if isAuth() && request.auth.uid in resource.data.memberIds;
+
+      allow create: if isAuth() && (
+        request.auth.uid in request.resource.data.memberIds
+        || request.resource.data.type == 'rally_system'
+      );
+
+      allow update: if isAuth() && (
+		request.auth.uid in resource.data.memberIds
+		|| resource.data.type == 'rally_system'
+		|| (resource.data.type == 'group'
+			&& request.auth.uid in request.resource.data.memberIds)
+		|| (resource.data.type == 'tournament_team'
+			&& (request.auth.uid in request.resource.data.memberIds
+				|| isEventManager(resource.data.eventId)))
+      );
+
+      allow delete: if false;
+
+
+      // ── Messages ────────────────────────────────────────────────────────
+      // Only conversation members can read messages.
+      // Sender must be the authenticated user — except for rally_system chats
+      // where the senderId is the 'rally-system' constant (same cross-user
+      // limitation as the conversation-level exception above).
+      match /messages/{messageId} {
+        allow read: if isConvMember(conversationId);
+
+        allow create: if isAuth() && (
+          (isConvMember(conversationId)
+           && request.resource.data.senderId == request.auth.uid)
+          || convData(conversationId).type == 'rally_system'
+        );
+
+        allow update: if isAuth()
+          && isConvMember(conversationId)
+          && resource.data.senderId == request.auth.uid
+          && request.resource.data.senderId == resource.data.senderId
+          && request.resource.data.conversationId == resource.data.conversationId
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'text',
+            'imageURL',
+            'imagePath',
+            'imageName',
+            'imageContentType',
+            'attachmentURL',
+            'attachmentPath',
+            'attachmentName',
+            'attachmentContentType',
+            'editedAt',
+            'deletedAt',
+            'deletedBy'
+          ]);
+        allow delete: if false;
+      }
+    }
+
+
+    // ── Tournament Entries ───────────────────────────────────────────────────
+    // Any signed-in user can read (needed to display bracket/standings).
+    // Users can create an entry only if their uid is in memberIds (individual
+    // registration) or they are the team captain.
+    // Captains can update their team; open teams allow new members to join.
+    match /tournamentEntries/{entryId} {
+      allow read: if isAuth();
+      allow create: if isAuth() && (
+        request.auth.uid in request.resource.data.memberIds
+        || request.resource.data.captainId == request.auth.uid
+      );
+      allow update: if isAuth() && (
+		resource.data.captainId == request.auth.uid
+		|| (request.auth.uid in request.resource.data.memberIds
+			&& !(request.auth.uid in resource.data.memberIds)
+			&& request.resource.data.diff(resource.data).affectedKeys()
+				.hasOnly(['memberIds', 'updatedAt']))
+		|| (!(request.auth.uid in request.resource.data.memberIds)
+			&& request.auth.uid in resource.data.memberIds
+			&& request.resource.data.diff(resource.data).affectedKeys()
+				.hasOnly(['memberIds', 'updatedAt']))
+		|| isEventManager(resource.data.eventId)
+      );
+	  allow delete: if isAuth() && (
+		isEventManager(resource.data.eventId)
+		|| resource.data.captainId == request.auth.uid
+	  );
+    }
+
+
+    // ── Tournament Matches ───────────────────────────────────────────────────
+    // Enforcing (match → event → org admin) would require two extra document
+    // reads and is deferred to Firebase Functions post-beta.
+    // Writes are currently gated only by client-side assertCanManageEvent.
+    // TODO: move generateTournamentMatches and updateTournamentMatchResult
+    //       to callable Firebase Functions.
+    match /tournamentMatches/{matchId} {
+      allow read:   if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth();
+      allow delete: if false;
+    }
+
+
+    // ── Venues ───────────────────────────────────────────────────────────────
+    // A curated directory of real-world sports venues, added/maintained by
+    // Rally platform admins (not self-registered like Organizations). Any
+    // signed-in user can read; only platform admins can write.
+    match /venues/{venueId} {
+      allow read:   if isAuth();
+      allow create: if isPlatformAdmin();
+      allow update: if isPlatformAdmin();
+      allow delete: if isPlatformAdmin();
+    }
+
+
+    // ── Venue Reviews ────────────────────────────────────────────────────────
+    // 'official' reviews are curated by Rally platform admins. 'rally_user'
+    // reviews are written by real users about a venue they've actually been
+    // to, and can only be authored/edited/removed as themselves (platform
+    // admins can also moderate any review).
+    match /venueReviews/{reviewId} {
+      allow read: if isAuth();
+      allow create: if isAuth() && (
+        (request.resource.data.source == 'official' && isPlatformAdmin())
+        || (request.resource.data.source == 'rally_user'
+            && request.resource.data.userId == request.auth.uid)
+      );
+      allow update: if isAuth() && (
+        isPlatformAdmin()
+        || (resource.data.source == 'rally_user' && resource.data.userId == request.auth.uid)
+      );
+      allow delete: if isAuth() && (
+        isPlatformAdmin()
+        || (resource.data.source == 'rally_user' && resource.data.userId == request.auth.uid)
+      );
+    }
+
+  }
+}

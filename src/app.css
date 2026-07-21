@@ -1,0 +1,195 @@
+@import url('https://googleapis.com');
+@import 'tailwindcss';
+
+@theme {
+	--font-montserrat: 'Montserrat', sans-serif;
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+html,
+body {
+	background-color: #ffffff;
+}
+
+html.dark,
+html.dark body {
+	background-color: #161616;
+}
+
+.rally-event-popup .mapboxgl-popup-content {
+	padding: 0;
+	border-radius: 18px;
+	overflow: hidden;
+	box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
+	border: 1px solid #dbeafe;
+	min-width: 220px;
+}
+
+.rally-event-popup .mapboxgl-popup-close-button {
+	color: white;
+	font-size: 18px;
+	padding: 6px 9px;
+}
+
+.rally-popup {
+	background: white;
+	color: #0f172a;
+	font-family: inherit;
+}
+
+.rally-popup-header {
+	background: #2563eb;
+	color: white;
+	font-weight: 800;
+	font-size: 15px;
+	line-height: 1.25;
+	padding: 12px 34px 12px 14px;
+}
+
+.rally-popup-body {
+	padding: 14px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.rally-popup-row {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.rally-popup-label {
+	font-size: 11px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: #94a3b8;
+}
+
+.rally-popup-value {
+	font-size: 14px;
+	font-weight: 700;
+	color: #0f172a;
+}
+
+.rally-popup-players {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	border-radius: 14px;
+	background: #eff6ff;
+	padding: 10px 12px;
+}
+
+.rally-popup-players-number {
+	font-size: 18px;
+	font-weight: 900;
+	color: #2563eb;
+}
+
+.rally-popup-players-label {
+	font-size: 12px;
+	font-weight: 700;
+	color: #64748b;
+}
+
+.rally-popup-link {
+	display: block;
+	margin-top: 2px;
+	border-radius: 14px;
+	background: #2563eb;
+	padding: 10px 12px;
+	text-align: center;
+	font-size: 14px;
+	font-weight: 800;
+	color: white;
+	text-decoration: none;
+}
+
+.rally-popup-link:hover {
+	background: #1d4ed8;
+}
+/* Mapbox controls - dark mode */
+.dark .mapboxgl-ctrl-group {
+	background: #0f172a !important;
+	border: 1px solid #334155 !important;
+	box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35) !important;
+}
+
+.dark .mapboxgl-ctrl-group button {
+	background-color: #0f172a !important;
+	border-color: #334155 !important;
+}
+
+.dark .mapboxgl-ctrl-group button:hover {
+	background-color: #1e293b !important;
+}
+
+.dark .mapboxgl-ctrl-group button + button {
+	border-top: 1px solid #334155 !important;
+}
+
+.dark .mapboxgl-ctrl-icon {
+	filter: invert(1) brightness(1.6);
+}
+
+.dark .mapboxgl-ctrl-compass .mapboxgl-ctrl-icon {
+	filter: invert(1) brightness(1.6);
+}
+
+/* Prevent autofill from styling background to white */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+	-webkit-text-fill-color: #0f172a !important; /* text-slate-900 */
+	-webkit-box-shadow: 0 0 0px 1000px #f8fafc inset !important; /* bg-slate-50 */
+	transition: background-color 5000s ease-in-out 0s;
+}
+
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:focus,
+.dark textarea:-webkit-autofill,
+.dark textarea:-webkit-autofill:hover,
+.dark textarea:-webkit-autofill:focus,
+.dark select:-webkit-autofill,
+.dark select:-webkit-autofill:hover,
+.dark select:-webkit-autofill:focus {
+	-webkit-text-fill-color: #f8fafc !important; /* text-slate-50 */
+	-webkit-box-shadow: 0 0 0px 1000px #1e293b inset !important; /* bg-slate-800 */
+	transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Horizontal carousels remain touch-scrollable with a compact Rally-blue scrollbar. */
+.rally-scrollbar {
+	-webkit-overflow-scrolling: touch;
+	scrollbar-width: thin;
+	scrollbar-color: #2563eb rgba(37, 99, 235, 0.12);
+}
+
+.rally-scrollbar::-webkit-scrollbar {
+	height: 6px;
+}
+
+.rally-scrollbar::-webkit-scrollbar-track {
+	border-radius: 999px;
+	background: rgba(37, 99, 235, 0.12);
+}
+
+.rally-scrollbar::-webkit-scrollbar-thumb {
+	border-radius: 999px;
+	background: linear-gradient(90deg, #3b82f6, #2563eb);
+}
+
+.rally-scrollbar::-webkit-scrollbar-thumb:hover {
+	background: #1d4ed8;
+}

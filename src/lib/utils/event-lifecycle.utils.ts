@@ -1,0 +1,98 @@
+import type { SportEvent } from '$lib/schema';
+
+export type EventTemporalState = 'cancelled' | 'finished' | 'live' | 'starting_soon' | 'upcoming';
+
+export const DEFAULT_EVENT_DURATION_MS = 2 * 60 * 60 * 1000;
+export const STARTING_SOON_MS = 60 * 60 * 1000;
+
+export function timestampToMillis(value: unknown): number {
+	try {
+		const timestamp = value as { toMillis?: () => number; toDate?: () => Date } | null;
+		if (timestamp?.toMillis) return timestamp.toMillis();
+		if (timestamp?.toDate) return timestamp.toDate().getTime();
+		if (value instanceof Date) return value.getTime();
+		if (typeof value === 'number') return value;
+		if (typeof value === 'string') {
+			const parsed = new Date(value).getTime();
+			return Number.isNaN(parsed) ? 0 : parsed;
+		}
+		return 0;
+	} catch {
+		return 0;
+	}
+}
+
+export function getEventStartMs(event: SportEvent): number {
+	return timestampToMillis(event.startAt);
+}
+
+export function getEventEndMs(event: SportEvent): number {
+	const explicitEndMs = timestampToMillis(event.endAt);
+	if (explicitEndMs) return explicitEndMs;
+
+	const startMs = getEventStartMs(event);
+	if (!startMs) return 0;
+
+	if (event.eventKind === 'tournament' || event.tournamentStatus) return 0;
+	return startMs + DEFAULT_EVENT_DURATION_MS;
+}
+
+export const DEFAULT_MIN_PARTICIPANTS_DEADLINE_HOURS = 8;
+
+export function getMinParticipantsDeadlineMs(event: SportEvent): number | null {
+	if (!event.minParticipants || event.minParticipants <= 0) return null;
+	const startMs = getEventStartMs(event);
+	if (!startMs) return null;
+	const deadlineHours = event.minParticipantsDeadlineHours ?? DEFAULT_MIN_PARTICIPANTS_DEADLINE_HOURS;
+	return startMs - deadlineHours * 60 * 60 * 1000;
+}
+
+export function isMinParticipantsRequirementMet(event: SportEvent): boolean {
+	if (!event.minParticipants || event.minParticipants <= 0) return true;
+	const count = Array.isArray(event.participantIds) ? event.participantIds.length : 0;
+	return count >= event.minParticipants;
+}
+
+export function isMinParticipantsDeadlinePassed(event: SportEvent, nowMs = Date.now()): boolean {
+	const deadlineMs = getMinParticipantsDeadlineMs(event);
+	if (!deadlineMs) return false;
+	return nowMs >= deadlineMs;
+}
+
+export function getEventTemporalState(
+	event: SportEvent,
+	nowMs = Date.now()
+): EventTemporalState {
+	if (event.status === 'cancelled') return 'cancelled';
+	if (event.status === 'finished' || event.tournamentStatus === 'finished') return 'finished';
+	if (
+		event.minParticipants &&
+		event.minParticipants > 0 &&
+		isMinParticipantsDeadlinePassed(event, nowMs) &&
+		!isMinParticipantsRequirementMet(event)
+	) {
+		return 'cancelled';
+	}
+
+	const startMs = getEventStartMs(event);
+	const endMs = getEventEndMs(event);
+	const isTournament = event.eventKind === 'tournament' || Boolean(event.tournamentStatus);
+
+	if (isTournament) {
+		if (startMs && nowMs >= startMs) return 'live';
+		if (startMs && startMs - nowMs <= STARTING_SOON_MS) return 'starting_soon';
+		return 'upcoming';
+	}
+
+	if (endMs && nowMs >= endMs) return 'finished';
+	if (startMs && nowMs >= startMs) return 'live';
+	if (startMs && startMs - nowMs <= STARTING_SOON_MS) return 'starting_soon';
+
+	return 'upcoming';
+}
+
+export function isEventLiveOrStartingSoon(event: SportEvent, nowMs = Date.now()) {
+	const state = getEventTemporalState(event, nowMs);
+	return state === 'live' || state === 'starting_soon';
+}
+
