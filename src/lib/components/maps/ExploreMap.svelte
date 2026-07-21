@@ -143,6 +143,8 @@
 	let routeEndpointMarkers: mapboxgl.Marker[] = [];
 	let svelteMarkers: any[] = [];
 	let showFilters = $state(false);
+	let venueFilterCount = $derived((selectedVenueSport ? 1 : 0) + (selectedVenueCity ? 1 : 0));
+	let displayedFilterCount = $derived(mode === 'venues' ? venueFilterCount : activeFilterCount);
 	const routeSourceId = 'selected-event-route';
 	let mapResizeFrame: number | null = null;
 	let mapResizeSettleTimer: number | null = null;
@@ -465,26 +467,54 @@
 		onSelectedVenueChange?.(null);
 	}
 
-	function selectVenue(venue: Venue, group: Venue[] = [venue]) {
-		const venueGroup = group.length ? group : [venue];
-		const venueIndex = Math.max(0, venueGroup.findIndex((item) => item.id === venue.id));
-		selectedVenueGroup = venueGroup;
-		selectedVenueIndex = venueIndex;
-		selectedVenue = venueGroup[venueIndex] ?? venue;
-		onSelectedVenueChange?.(selectedVenue.id);
-		queueMicrotask(() => renderMarkers());
+	function sortVenueGroup(group: Venue[]) {
+		return group.slice().sort((a, b) => {
+			const selectedDiff = (a.id === selectedVenue?.id ? 0 : 1) - (b.id === selectedVenue?.id ? 0 : 1);
+			if (selectedDiff !== 0) return selectedDiff;
+			return a.name.localeCompare(b.name);
+		});
 	}
 
-	function moveSelectedVenue(direction: number) {
-		if (!selectedVenueGroup.length) return;
-		const nextIndex =
-			(selectedVenueIndex + direction + selectedVenueGroup.length) % selectedVenueGroup.length;
+	function getNearbyVenueGroup(venue: Venue) {
+		return sortVenueGroup(
+			venues.filter((candidate: Venue) => getDistanceMeters(venue, candidate) <= 45)
+		);
+	}
+
+	function selectVenue(venue: Venue, group: Venue[] = [venue], shouldFly = false) {
+		const sortedGroup = sortVenueGroup(group.length ? group : [venue]);
+		const venueIndex = Math.max(
+			0,
+			sortedGroup.findIndex((groupVenue) => groupVenue.id === venue.id)
+		);
+
+		selectedVenueGroup = sortedGroup;
+		selectedVenueIndex = venueIndex;
+		selectedVenue = sortedGroup[venueIndex] ?? venue;
+		onSelectedVenueChange?.(selectedVenue.id);
+		queueMicrotask(() => renderMarkers());
+
+		if (!shouldFly || !map) return;
+		map.easeTo({
+			center: [selectedVenue.lng, selectedVenue.lat],
+			duration: 450
+		});
+	}
+
+	function selectVenueInGroup(index: number) {
+		if (selectedVenueGroup.length === 0) return;
+		const nextIndex = (index + selectedVenueGroup.length) % selectedVenueGroup.length;
 		const nextVenue = selectedVenueGroup[nextIndex];
 		selectedVenueIndex = nextIndex;
 		selectedVenue = nextVenue;
 		onSelectedVenueChange?.(nextVenue.id);
 		queueMicrotask(() => renderMarkers());
-		map?.easeTo({ center: [nextVenue.lng, nextVenue.lat], duration: 450 });
+
+		if (!map) return;
+		map.easeTo({
+			center: [nextVenue.lng, nextVenue.lat],
+			duration: 450
+		});
 	}
 
 	function clearSelectedEvent() {
@@ -513,6 +543,12 @@
 	function clearAllFilters() {
 		onClearFilters?.();
 		clearSelectedEvent();
+	}
+
+	function clearVenueFilters() {
+		if (selectedVenueSport) onToggleVenueSport?.(selectedVenueSport);
+		if (selectedVenueCity) onVenueCityChange?.(selectedVenueCity);
+		clearSelectedVenue();
 	}
 
 	function toggleSportFilter(sport: Sport) {
@@ -743,6 +779,10 @@
 
 	function moveSelectedEvent(direction: number) {
 		selectEventInGroup(selectedEventIndex + direction);
+	}
+
+	function moveSelectedVenue(direction: number) {
+		selectVenueInGroup(selectedVenueIndex + direction);
 	}
 
 	function getMarkerColor(event: SportEvent) {
@@ -1038,7 +1078,7 @@
 				svelteMarkers.push(markerComponent);
 
 				el.addEventListener('click', () => {
-					selectVenue(venue);
+					selectVenue(venue, getNearbyVenueGroup(venue), true);
 				});
 
 				const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
@@ -1157,41 +1197,39 @@
 		class:hidden={viewMode !== 'map'}
 	>
 		{#if viewMode === 'map'}
-			{#if mode === 'events'}
-				<div
-					class="absolute inset-x-3 top-3 z-20 flex items-center gap-2 md:hidden fullscreen-force-show"
+			<div
+				class="absolute inset-x-3 top-3 z-20 flex items-center gap-2 md:hidden fullscreen-force-show"
+			>
+				<button
+					type="button"
+					onclick={() => (showFilters = !showFilters)}
+					class="flex min-w-0 items-center gap-2 rounded-full border border-slate-200/60 bg-white/95 px-3 py-2 text-sm font-black text-slate-700 shadow-md backdrop-blur transition active:scale-95 dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-200"
 				>
-					<button
-						type="button"
-						onclick={() => (showFilters = !showFilters)}
-						class="flex min-w-0 items-center gap-2 rounded-full border border-slate-200/60 bg-white/95 px-3 py-2 text-sm font-black text-slate-700 shadow-md backdrop-blur transition active:scale-95 dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-200"
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400"
 					>
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2.5"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							class="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400"
+						<path d="M3 5h18" />
+						<path d="M7 12h10" />
+						<path d="M10 19h4" />
+					</svg>
+
+					<span class="truncate">{i18n.t('filters_label')}</span>
+
+					{#if displayedFilterCount > 0}
+						<span
+							class="shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white"
 						>
-							<path d="M3 5h18" />
-							<path d="M7 12h10" />
-							<path d="M10 19h4" />
-						</svg>
-
-						<span class="truncate">{i18n.t('filters_label')}</span>
-
-						{#if activeFilterCount > 0}
-							<span
-								class="shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white"
-							>
-								{activeFilterCount}
-							</span>
-						{/if}
-					</button>
-				</div>
-			{/if}
+							{displayedFilterCount}
+						</span>
+					{/if}
+				</button>
+			</div>
 
 			<div
 				class="absolute right-2 bottom-2 z-10 flex flex-row flex-wrap items-center gap-3 rounded-xl bg-white/95 p-2 shadow-md backdrop-blur dark:bg-slate-900/95 text-xs md:right-4 md:bottom-4 md:flex-col md:items-start md:gap-2 md:rounded-2xl md:p-4 md:shadow-lg md:text-sm"
@@ -1247,10 +1285,10 @@
 					{i18n.t('filters_label')}
 				</h3>
 				<div class="flex items-center gap-3">
-					{#if activeFilterCount > 0}
+					{#if displayedFilterCount > 0}
 						<button
 							type="button"
-							onclick={clearAllFilters}
+							onclick={() => (mode === 'venues' ? clearVenueFilters() : clearAllFilters())}
 							class="text-xs font-bold text-red-500 hover:text-red-600 transition"
 						>
 							{i18n.t('clear_all_filters')}
@@ -1267,6 +1305,63 @@
 				</div>
 			</div>
 
+			{#if mode === 'venues'}
+				<div class="mt-4">
+					<p class="text-xs font-black uppercase tracking-wider text-slate-400">
+						{i18n.t('sport_label')}
+					</p>
+					{#if venueSportOptions.length === 0}
+						<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+							{i18n.t('no_sports_available')}
+						</p>
+					{:else}
+						<div class="mt-2.5 flex flex-wrap gap-1.5">
+							{#each venueSportOptions as sport (sport)}
+								<button
+									type="button"
+									onclick={() => {
+										onToggleVenueSport?.(sport);
+										clearSelectedVenue();
+									}}
+									class={`rounded-full px-3 py-1.5 text-xs font-bold capitalize transition ${
+										selectedVenueSport === sport
+											? 'bg-blue-600 text-white shadow-sm'
+											: 'border border-slate-100 bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
+									}`}
+								>
+									{formatSport(sport)}
+								</button>
+							{/each}
+						</div>
+					{/if}
+				</div>
+
+				{#if venueCities.length > 1}
+					<div class="mt-5 border-t border-slate-100 pt-4 dark:border-slate-800">
+						<p class="text-xs font-black uppercase tracking-wider text-slate-400">
+							{i18n.t('city')}
+						</p>
+						<div class="mt-2.5 flex flex-wrap gap-1.5">
+							{#each venueCities as city (city)}
+								<button
+									type="button"
+									onclick={() => {
+										onVenueCityChange?.(city);
+										clearSelectedVenue();
+									}}
+									class={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+										selectedVenueCity === city
+											? 'bg-slate-950 text-white shadow-sm dark:bg-white dark:text-slate-950'
+											: 'border border-slate-100 bg-slate-50 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
+									}`}
+								>
+									{city}
+								</button>
+							{/each}
+						</div>
+					</div>
+				{/if}
+			{:else}
 			<div class="mt-4">
 				<label class="sr-only" for="mobile-explore-search">Search events</label>
 				<div
@@ -1539,6 +1634,7 @@
 					{/each}
 				</div>
 			</div>
+			{/if}
 		</div>
 	{/if}
 
@@ -1882,7 +1978,7 @@
 
 	{#if mode === 'venues'}
 		<div
-			class="shrink-0 border-t border-slate-200 bg-white px-5 pb-3 pt-4 dark:border-slate-800 dark:bg-slate-900"
+			class="{viewMode === 'map' ? 'hidden md:block' : 'block'} shrink-0 border-t border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900"
 		>
 			<div class="flex items-center justify-between gap-3">
 				<span class="text-xs font-black uppercase tracking-wider text-slate-400">
@@ -1926,7 +2022,7 @@
 
 	{#if viewMode === 'map' && mode === 'events' && selectedEvent}
 		<aside
-			class="absolute inset-x-3 bottom-3 z-20 max-h-[42dvh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2.5 shadow-xl shadow-slate-300/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none md:inset-x-auto md:bottom-auto md:left-5 md:top-5 md:m-0 md:max-h-[70dvh] md:w-[24rem] md:rounded-[1.75rem] md:p-4 md:shadow-2xl md:shadow-slate-300/70"
+			class="absolute inset-x-3 bottom-[8.75rem] z-20 max-h-[34dvh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2.5 shadow-xl shadow-slate-300/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none md:inset-x-auto md:bottom-auto md:left-5 md:top-5 md:m-0 md:max-h-[70dvh] md:w-[24rem] md:rounded-[1.75rem] md:p-4 md:shadow-2xl md:shadow-slate-300/70"
 		>
 			<div class="flex items-center justify-between gap-3">
 				<div class="flex min-w-0 flex-wrap items-center gap-2">
@@ -2086,7 +2182,7 @@
 
 	{#if viewMode === 'map' && mode === 'venues' && selectedVenue}
 		<aside
-			class="absolute inset-x-3 bottom-3 z-20 max-h-[42dvh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2.5 shadow-xl shadow-slate-300/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none md:inset-x-auto md:bottom-auto md:left-5 md:top-5 md:m-0 md:max-h-[70dvh] md:w-[24rem] md:rounded-[1.75rem] md:p-4 md:shadow-2xl md:shadow-slate-300/70"
+			class="absolute inset-x-3 bottom-[8.75rem] z-20 max-h-[34dvh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2.5 shadow-xl shadow-slate-300/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none md:inset-x-auto md:bottom-auto md:left-5 md:top-5 md:m-0 md:max-h-[70dvh] md:w-[24rem] md:rounded-[1.75rem] md:p-4 md:shadow-2xl md:shadow-slate-300/70"
 		>
 			<div class="flex items-center justify-between gap-3">
 				<div class="flex min-w-0 flex-wrap items-center gap-2">
@@ -2112,15 +2208,73 @@
 						</span>
 					{/if}
 				</div>
-				<button
-					type="button"
-					onclick={clearSelectedVenue}
-					class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-lg font-black text-slate-500 transition hover:bg-slate-200 hover:text-slate-900 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100 md:h-8 md:w-8 md:text-xl"
-					aria-label="Close venue preview"
-				>
-					×
-				</button>
+				<div class="flex shrink-0 items-center gap-1.5">
+					{#if selectedVenueGroup.length > 1}
+						<div class="flex items-center gap-1 rounded-full bg-slate-50 p-1 ring-1 ring-slate-200 dark:bg-slate-950/60 dark:ring-slate-800 md:hidden">
+							<button
+								type="button"
+								onclick={() => moveSelectedVenue(-1)}
+								class="grid h-6 w-6 place-items-center rounded-full bg-white text-sm font-black text-slate-700 shadow-sm transition active:scale-95 dark:bg-slate-900 dark:text-slate-200"
+								aria-label={i18n.t('previous_nearby_event')}
+							>
+								‹
+							</button>
+							<span class="min-w-8 text-center text-[11px] font-black text-slate-500 dark:text-slate-300">
+								{selectedVenueIndex + 1}/{selectedVenueGroup.length}
+							</span>
+							<button
+								type="button"
+								onclick={() => moveSelectedVenue(1)}
+								class="grid h-6 w-6 place-items-center rounded-full bg-white text-sm font-black text-slate-700 shadow-sm transition active:scale-95 dark:bg-slate-900 dark:text-slate-200"
+								aria-label={i18n.t('next_nearby_event')}
+							>
+								›
+							</button>
+						</div>
+					{/if}
+
+					<button
+						type="button"
+						onclick={clearSelectedVenue}
+						class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-lg font-black text-slate-500 transition hover:bg-slate-200 hover:text-slate-900 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100 md:h-8 md:w-8 md:text-xl"
+						aria-label="Close venue preview"
+					>
+						×
+					</button>
+				</div>
 			</div>
+
+			{#if selectedVenueGroup.length > 1}
+				<div
+					class="mt-3 hidden items-center justify-between rounded-2xl bg-slate-50 px-3 py-2 dark:bg-slate-950/60 md:flex"
+				>
+					<p class="min-w-0 truncate text-xs font-black text-slate-700 dark:text-slate-200">
+						{selectedVenueGroup.length} {i18n.t('locations').toLowerCase()} {i18n.t('nearby_lowercase')}
+					</p>
+
+					<div class="ml-3 flex shrink-0 items-center gap-2">
+						<button
+							type="button"
+							onclick={() => moveSelectedVenue(-1)}
+							class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white text-base font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-blue-950 md:h-8 md:w-8 md:text-lg"
+							aria-label={i18n.t('previous_nearby_event')}
+						>
+							‹
+						</button>
+						<span class="min-w-10 text-center text-xs font-black text-slate-500 dark:text-slate-300">
+							{selectedVenueIndex + 1}/{selectedVenueGroup.length}
+						</span>
+						<button
+							type="button"
+							onclick={() => moveSelectedVenue(1)}
+							class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white text-base font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-blue-950 md:h-8 md:w-8 md:text-lg"
+							aria-label={i18n.t('next_nearby_event')}
+						>
+							›
+						</button>
+					</div>
+				</div>
+			{/if}
 
 			<div class="mt-2.5 flex gap-2.5 md:mt-3 md:gap-3">
 				<div
