@@ -63,6 +63,9 @@
 	let hidesEventActivity = $derived(
 		targetProfile?.isPrivate === true && relationship !== 'friends'
 	);
+	let hidesPrivateDetails = $derived(
+		targetProfile?.isPrivate === true && relationship !== 'friends'
+	);
 
 	let visibleSports = $derived.by(() => {
 		if (!targetProfile?.sports?.length) return [];
@@ -557,7 +560,7 @@
 						</h1>
 					</div>
 
-					{#if targetProfile.rallyTag}
+					{#if !hidesPrivateDetails && targetProfile.rallyTag}
 						<button
 							type="button"
 							onclick={copyRallyTag}
@@ -577,7 +580,7 @@
 								<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
 							</svg>
 						</button>
-					{:else if targetProfile.email}
+					{:else if !hidesPrivateDetails && targetProfile.email}
 						<p class="mt-1 truncate text-xs font-black text-blue-600 dark:text-blue-300 sm:text-sm">
 							{targetProfile.email}
 						</p>
@@ -598,7 +601,7 @@
 						</div>
 					{/if}
 
-					{#if targetProfile.city || targetProfile.country}
+					{#if !hidesPrivateDetails && (targetProfile.city || targetProfile.country)}
 						<p
 							class="mt-2 flex items-center gap-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm"
 						>
@@ -804,7 +807,7 @@
 
 		<div class="mt-5 min-w-0 max-w-full">
 			<section class="min-w-0 max-w-full space-y-5 overflow-visible">
-				{#if mutualFriends.length > 0}
+				{#if !hidesPrivateDetails && mutualFriends.length > 0}
 					<section
 						class="rounded-[2rem] bg-white p-4 shadow-sm shadow-slate-200/70 ring-1 ring-slate-200/70 dark:bg-slate-900 dark:shadow-none dark:ring-slate-800 sm:p-5"
 					>
