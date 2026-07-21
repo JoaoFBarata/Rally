@@ -1836,12 +1836,12 @@
 							</div>
 
 							<!-- Mapbox Map Component -->
-							<div class="my-1 h-[280px] overflow-hidden border border-slate-200 bg-slate-200 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+							<div class="mb-8 my-4 h-[280px] overflow-hidden border border-slate-200 bg-slate-200 shadow-sm dark:border-slate-700 dark:bg-slate-800">
 								<EventMap lat={event.location.lat ?? null} lng={event.location.lng ?? null} name={event.location.name} address={event.location.address ?? ''} showHeader={false} />
 							</div>
 
 							<!-- Weather Widget -->
-							<div class="pt-2 border-t border-slate-200 dark:border-slate-800">
+							<div class="mb-3 border-t border-slate-200 dark:border-slate-800">
 								<div class="flex items-center gap-2 mb-2 text-slate-400">
 									<SunMedium class="h-4 w-4 text-amber-500" />
 									<h5 class="text-xs font-black uppercase tracking-wider">{i18n.t('weather')}</h5>
