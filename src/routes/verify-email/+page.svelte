@@ -100,6 +100,9 @@
 		<p class="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">
 			{i18n.t('verify_email_sub')}
 		</p>
+		<p class="mt-2 text-sm font-bold text-amber-700 dark:text-amber-300">
+			{i18n.t('check_spam_folder')}
+		</p>
 
 		{#if authState.user?.email}
 			<p class="mt-3 rounded-full bg-slate-100 px-4 py-2 text-sm font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">

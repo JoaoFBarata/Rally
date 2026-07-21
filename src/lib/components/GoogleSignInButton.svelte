@@ -5,6 +5,7 @@
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { i18n } from '$lib/services/i18n.svelte';
 	import {
+		normalizeTwoFactorReturnTo,
 		shouldRequireTwoFactor,
 		startEmailTwoFactorChallenge
 	} from '$lib/services/two-factor.service';
@@ -18,7 +19,7 @@
 
 		try {
 			const returnTo = page.url.searchParams.get('returnTo');
-			const safeReturnTo = returnTo?.startsWith('/') ? returnTo : '/dashboard';
+			const safeReturnTo = normalizeTwoFactorReturnTo(returnTo);
 			const { user, profile } = await authService.signInWithGoogle();
 
 			if (shouldRequireTwoFactor(profile)) {

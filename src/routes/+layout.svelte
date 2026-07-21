@@ -19,7 +19,7 @@
 	let nativeStartupPending = $state(Capacitor.isNativePlatform());
 	let showStartupLoader = $derived(
 		authState.loading ||
-			(shouldBypassLanding && page.url.pathname === '/') ||
+			(shouldBypassLanding && page.url.pathname === '/' && !authState.user) ||
 			(Capacitor.isNativePlatform() && nativeStartupPending)
 	);
 	let pageTitle = $derived.by(() => {
@@ -103,8 +103,8 @@
 				nativeStartupPending = false;
 			}
 
-			if (shouldBypassLanding && page.url.pathname === '/') {
-				void goto(resolve(authState.user ? '/dashboard' : '/login'), { replaceState: true });
+			if (shouldBypassLanding && page.url.pathname === '/' && !authState.user) {
+				void goto(resolve('/login'), { replaceState: true });
 				return;
 			}
 
@@ -155,7 +155,7 @@
 	<title>{pageTitle}</title>
 </svelte:head>
 
-{#if !authState.loading && !(shouldBypassLanding && page.url.pathname === '/')}
+{#if !authState.loading && !(shouldBypassLanding && page.url.pathname === '/' && !authState.user)}
 	<AppShell>
 		{@render children()}
 	</AppShell>
