@@ -95,18 +95,21 @@ describe('event-lifecycle minParticipants utils', () => {
 	});
 
 	describe('getEventPaymentSummary on cancelled / under-subscribed events', () => {
-		it('removes payment requirement (pendingCount = 0, splitAmount = null, statuses = not_required) for cancelled events', () => {
+		it('preserves paid status for users who already paid, and sets not_required for unpaid participants on cancelled events', () => {
 			const paidEvent = {
 				...baseEvent,
 				priceTotal: 40,
 				status: 'cancelled',
-				participantIds: ['user-1', 'user-2', 'user-3']
+				participantIds: ['user-1', 'user-2', 'user-3'],
+				paymentStatuses: {
+					'user-2': 'paid'
+				}
 			} as unknown as SportEvent;
 
 			const summary = getEventPaymentSummary(paidEvent);
 			expect(summary.pendingCount).toBe(0);
 			expect(summary.splitAmount).toBeNull();
-			expect(summary.statuses['user-2']).toBe('not_required');
+			expect(summary.statuses['user-2']).toBe('paid');
 			expect(summary.statuses['user-3']).toBe('not_required');
 		});
 	});
