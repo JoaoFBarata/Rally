@@ -185,9 +185,6 @@ export const authService = {
 			isPasswordUser(credential.user) &&
 			!credential.user.emailVerified
 		) {
-			await sendAccountVerificationEmail().catch((err) =>
-				console.error('Verification email resend error:', err)
-			);
 			throw new Error('auth/email-not-verified');
 		}
 

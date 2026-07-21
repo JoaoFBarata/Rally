@@ -10,11 +10,28 @@
 	let resending = $state(false);
 	let error = $state('');
 	let success = $state('');
+	let resendCooldown = $state(0);
+	let cooldownTimer: ReturnType<typeof setInterval> | null = null;
+
+	function cooldownKey() {
+		return `rally:verification-resend-after:${authState.user?.uid ?? 'unknown'}`;
+	}
+
+	function updateCooldown() {
+		const resendAfter = Number(localStorage.getItem(cooldownKey()) ?? 0);
+		resendCooldown = Math.max(0, Math.ceil((resendAfter - Date.now()) / 1000));
+		if (resendCooldown === 0) localStorage.removeItem(cooldownKey());
+	}
 
 	onMount(() => {
 		if (sessionStorage.getItem('rally:verification-email-send-failed') === '1') {
 			error = i18n.t('verification_email_error');
 		}
+		updateCooldown();
+		cooldownTimer = setInterval(updateCooldown, 1000);
+		return () => {
+			if (cooldownTimer) clearInterval(cooldownTimer);
+		};
 	});
 
 	async function checkVerification() {
@@ -35,16 +52,26 @@
 	}
 
 	async function resendVerification() {
+		if (resendCooldown > 0) return;
 		error = '';
 		success = '';
 		resending = true;
 
 		try {
 			await authService.sendVerificationEmail();
+			localStorage.setItem(cooldownKey(), String(Date.now() + 60_000));
+			updateCooldown();
 			success = i18n.t('verification_email_sent');
 		} catch (err) {
 			console.error('Verification email resend error:', err);
-			error = i18n.t('verification_email_error');
+			const code = (err as { code?: string })?.code ?? '';
+			if (code === 'auth/too-many-requests') {
+				error = i18n.t('verification_email_too_many_requests');
+			} else if (code === 'auth/network-request-failed') {
+				error = i18n.t('verification_email_network_error');
+			} else {
+				error = i18n.t('verification_email_error');
+			}
 		} finally {
 			resending = false;
 		}
@@ -105,10 +132,14 @@
 			<button
 				type="button"
 				onclick={resendVerification}
-				disabled={resending}
+				disabled={resending || resendCooldown > 0}
 				class="rounded-2xl bg-slate-100 px-5 py-3 font-black text-slate-700 transition hover:bg-slate-200 disabled:opacity-60 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
 			>
-				{resending ? i18n.t('sending') : i18n.t('resend_verification_email')}
+				{resending
+					? i18n.t('sending')
+					: resendCooldown > 0
+						? i18n.t('resend_email_in', { seconds: resendCooldown })
+						: i18n.t('resend_verification_email')}
 			</button>
 
 			<button
