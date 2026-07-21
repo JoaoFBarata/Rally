@@ -67,6 +67,10 @@
 	import { formatSport, getCurrencySymbol, getSportBackgroundImage } from '$lib/utils/format.utils';
 	import { getEventEndMs, getEventStartMs, getEventTemporalState } from '$lib/utils/event-lifecycle.utils';
 	import { getOrCreateOrganizationConversation } from '$lib/services/chat.service';
+	import {
+		confirmEventPayment,
+		createEventPaymentCheckout
+	} from '$lib/services/event-payment.service';
 	import TournamentPanel from '$lib/components/tournaments/TournamentPanel.svelte';
 	import { getOrganizationReviews } from '$lib/services/organization.service';
 	import { TEXT_LIMITS } from '$lib/constants/text-limits';
@@ -100,6 +104,8 @@
 	let activeEventTab = $state<'overview' | 'players' | 'chat' | 'location'>('overview');
 	let isSavedEvent = $state(false);
 	let currentUserProfile = $state<UserProfile | null>(null);
+	let paymentConfirming = $state(false);
+	let lastConfirmedPaymentSessionId = '';
 
 	type ConfirmDialogConfig = {
 		title: string;
@@ -656,6 +662,32 @@
 			}
 		}
 
+	async function syncPaymentReturn(currentEvent: SportEvent) {
+		const paymentSessionId = page.url.searchParams.get('paymentSessionId');
+
+		if (!paymentSessionId || paymentSessionId === lastConfirmedPaymentSessionId) return;
+
+		lastConfirmedPaymentSessionId = paymentSessionId;
+		paymentConfirming = true;
+		error = '';
+
+		try {
+			await confirmEventPayment({
+				eventId: currentEvent.id,
+				sessionId: paymentSessionId
+			});
+
+			await reloadEvent();
+			await goto(resolve(`/events/${currentEvent.id}`), { replaceState: true, noScroll: true });
+		} catch (err) {
+			lastConfirmedPaymentSessionId = '';
+			console.error('Confirm event payment error:', err);
+			error = getFriendlyErrorMessage(err, 'Could not confirm the payment yet.');
+		} finally {
+			paymentConfirming = false;
+		}
+	}
+
 	async function loadEventPage() {
 		const currentUser = auth.currentUser;
 
@@ -703,6 +735,8 @@
 			) {
 				await loadGroupMessages(loadedEvent);
 			}
+
+			await syncPaymentReturn(loadedEvent);
 		} catch (err) {
 			console.error('Event detail error:', err);
 			error = getFriendlyErrorMessage(err, i18n.t('could_not_load_event'));
@@ -921,7 +955,7 @@
 	async function handleToggleParticipantPayment(participantId: string, currentStatus: 'paid' | 'pending') {
 		const currentUser = auth.currentUser;
 
-		if (!currentUser || !event || !paymentSummary?.splitAmount) return;
+		if (!currentUser || !event || !isCreator || !paymentSummary?.splitAmount) return;
 
 		paymentActionLoading = true;
 		error = '';
@@ -938,6 +972,26 @@
 			console.error('Update participant payment error:', err);
 			error = getFriendlyErrorMessage(err, 'Could not update participant payment status.');
 		} finally {
+			paymentActionLoading = false;
+		}
+	}
+
+	async function handlePayForCurrentUser(participantId: string) {
+		const currentUser = auth.currentUser;
+
+		if (!currentUser || !event || participantId !== currentUser.uid || !paymentSummary?.splitAmount) {
+			return;
+		}
+
+		paymentActionLoading = true;
+		error = '';
+
+		try {
+			const { checkoutUrl } = await createEventPaymentCheckout({ eventId: event.id });
+			window.location.assign(checkoutUrl);
+		} catch (err) {
+			console.error('Create event payment checkout error:', err);
+			error = getFriendlyErrorMessage(err, 'Could not start the payment flow.');
 			paymentActionLoading = false;
 		}
 	}
@@ -1500,6 +1554,7 @@
 												{#each paymentSummary.payerIds as participantId}
 													{@const participant = participantById[participantId]}
 													{@const currentStatus = paymentSummary.statuses[participantId] === 'paid' ? 'paid' : 'pending'}
+													{@const isCurrentUserPayment = auth.currentUser?.uid === participantId}
 													<div class="flex items-center justify-between gap-3 rounded-2xl bg-white px-3 py-2.5 shadow-sm dark:bg-slate-900">
 														<div class="flex min-w-0 items-center gap-2.5">
 															<UserAvatar
@@ -1516,18 +1571,48 @@
 															</div>
 														</div>
 
-														<button
-															type="button"
-															onclick={() => handleToggleParticipantPayment(participantId, currentStatus)}
-															disabled={paymentActionLoading}
-															class={`rounded-full px-3 py-1.5 text-xs font-black transition disabled:opacity-60 ${currentStatus === 'paid'
-																? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300'
-																: 'bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300'}`}
-														>
-															{currentStatus === 'paid' ? 'Paid' : 'Pending'}
-														</button>
+														{#if currentStatus === 'paid'}
+															<span class="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-black text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">Paid</span>
+														{:else if isCurrentUserPayment}
+															<button
+																type="button"
+																onclick={() => handlePayForCurrentUser(participantId)}
+																disabled={paymentActionLoading || paymentConfirming}
+																class="rounded-full bg-blue-600 px-3 py-1.5 text-xs font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
+															>
+																{paymentActionLoading || paymentConfirming ? 'Opening...' : 'Pay'}
+															</button>
+														{:else if isCreator}
+															<button
+																type="button"
+																onclick={() => handleToggleParticipantPayment(participantId, currentStatus)}
+																disabled={paymentActionLoading}
+																class="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-black text-amber-700 transition hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300"
+															>
+																Pending
+															</button>
+														{:else}
+															<span class="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-black text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">Pending</span>
+														{/if}
 													</div>
 												{/each}
+											</div>
+
+											<div class="mt-4 grid gap-2 sm:grid-cols-3">
+												<div class="rounded-2xl bg-white px-3 py-2 shadow-sm dark:bg-slate-900">
+													<p class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Paid</p>
+													<p class="mt-1 text-sm font-black text-emerald-700 dark:text-emerald-300">{paymentSummary.paidCount}</p>
+												</div>
+												<div class="rounded-2xl bg-white px-3 py-2 shadow-sm dark:bg-slate-900">
+													<p class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Pending</p>
+													<p class="mt-1 text-sm font-black text-amber-700 dark:text-amber-300">{paymentSummary.pendingCount}</p>
+												</div>
+												<div class="rounded-2xl bg-white px-3 py-2 shadow-sm dark:bg-slate-900">
+													<p class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Remaining</p>
+													<p class="mt-1 text-sm font-black text-slate-950 dark:text-slate-50">
+														{formatPaymentAmount((paymentSummary.splitAmount ?? 0) * paymentSummary.pendingCount)}
+													</p>
+												</div>
 											</div>
 										</div>
 									{/if}
@@ -1794,6 +1879,7 @@
 									{#each paymentSummary.payerIds as participantId}
 										{@const participant = participantById[participantId]}
 										{@const currentStatus = paymentSummary.statuses[participantId] === 'paid' ? 'paid' : 'pending'}
+										{@const isCurrentUserPayment = auth.currentUser?.uid === participantId}
 										<div class="flex items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm dark:bg-slate-900">
 											<div class="flex min-w-0 items-center gap-3">
 												<UserAvatar
@@ -1812,16 +1898,29 @@
 												</div>
 											</div>
 
-											<button
-												type="button"
-												onclick={() => handleToggleParticipantPayment(participantId, currentStatus)}
-												disabled={paymentActionLoading}
-												class={`rounded-full px-3 py-1.5 text-xs font-black transition disabled:opacity-60 ${currentStatus === 'paid'
-													? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300'
-													: 'bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300'}`}
-											>
-												{currentStatus === 'paid' ? 'Paid' : 'Pending'}
-											</button>
+											{#if currentStatus === 'paid'}
+												<span class="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-black text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">Paid</span>
+											{:else if isCurrentUserPayment}
+												<button
+													type="button"
+													onclick={() => handlePayForCurrentUser(participantId)}
+													disabled={paymentActionLoading || paymentConfirming}
+													class="rounded-full bg-blue-600 px-3 py-1.5 text-xs font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
+												>
+													{paymentActionLoading || paymentConfirming ? 'Opening...' : 'Pay'}
+												</button>
+											{:else if isCreator}
+												<button
+													type="button"
+													onclick={() => handleToggleParticipantPayment(participantId, currentStatus)}
+													disabled={paymentActionLoading}
+													class="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-black text-amber-700 transition hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300"
+												>
+													Pending
+												</button>
+											{:else}
+												<span class="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-black text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">Pending</span>
+											{/if}
 										</div>
 									{/each}
 								</div>
