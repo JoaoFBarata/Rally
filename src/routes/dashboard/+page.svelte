@@ -50,6 +50,7 @@
 		UserProfile
 	} from '$lib/schema';
 	import EventCard from '$lib/components/EventCard.svelte';
+	import DiscoverEventCarousel from '$lib/components/DiscoverEventCarousel.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import PromotedEventCarousel from '$lib/components/PromotedEventCarousel.svelte';
 	import RallyLogo from '$lib/components/RallyLogo.svelte';
@@ -1853,11 +1854,7 @@
 					</p>
 
 					{#if nearbyEvents.length > 0}
-						<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-							{#each nearbyEvents.slice(0, 3) as event (event.id)}
-								<EventCard {event} variant="vertical" />
-							{/each}
-						</div>
+						<DiscoverEventCarousel events={nearbyEvents.slice(0, 3)} />
 					{:else}
 						<div
 							class="rounded-[1.5rem] border border-dashed border-slate-200 bg-white/70 p-5 text-sm dark:border-slate-800 dark:bg-slate-900/70"
@@ -1876,11 +1873,7 @@
 					{/if}
 				{:else if discoverTab === 'recommended'}
 					{#if recommendedEvents.length > 0}
-						<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-							{#each recommendedEvents.slice(0, 3) as event (event.id)}
-								<EventCard {event} variant="vertical" />
-							{/each}
-						</div>
+						<DiscoverEventCarousel events={recommendedEvents.slice(0, 3)} />
 					{:else}
 						<div
 							class="rounded-[1.5rem] border border-dashed border-slate-200 bg-white/70 p-5 text-sm dark:border-slate-800 dark:bg-slate-900/70"
@@ -1905,11 +1898,7 @@
 					{/if}
 				{:else}
 					{#if followingEvents.length > 0}
-						<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-							{#each followingEvents.slice(0, 3) as event (event.id)}
-								<EventCard {event} variant="vertical" />
-							{/each}
-						</div>
+						<DiscoverEventCarousel events={followingEvents.slice(0, 3)} />
 					{:else}
 						<div
 							class="rounded-[1.5rem] border border-dashed border-slate-200 bg-white/70 p-5 text-sm dark:border-slate-800 dark:bg-slate-900/70"

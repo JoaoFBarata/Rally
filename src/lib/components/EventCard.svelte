@@ -30,6 +30,7 @@
 		variant = 'default',
 		compactHero = false,
 		miniHero = false,
+		discoverMobile = false,
 		heroCtaLabel = 'Join game',
 		heroCtaTone = 'primary'
 	} = $props<{
@@ -38,6 +39,7 @@
 		variant?: 'default' | 'profile' | 'hero' | 'vertical';
 		compactHero?: boolean;
 		miniHero?: boolean;
+		discoverMobile?: boolean;
 		heroCtaLabel?: string;
 		heroCtaTone?: 'primary' | 'muted';
 	}>();
@@ -404,7 +406,7 @@
 		>
 			{#if showImage}
 				<div
-					class="relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-slate-100 dark:bg-slate-800"
+					class={`relative w-full shrink-0 overflow-hidden bg-slate-100 dark:bg-slate-800 ${discoverMobile ? 'aspect-video sm:aspect-[4/3]' : 'aspect-[4/3]'}`}
 				>
 					{#if event.groupPhotoURL}
 						<img
@@ -445,7 +447,7 @@
 						<!-- Creator avatar bubble -->
 						{#if creatorPhotoURL}
 							<div
-								class="h-8 w-8 shrink-0 overflow-hidden rounded-full border-2 border-white shadow-md dark:border-slate-900"
+								class={`shrink-0 overflow-hidden rounded-full border-2 border-white shadow-md dark:border-slate-900 ${discoverMobile ? 'h-[2.4rem] w-[2.4rem] sm:h-8 sm:w-8' : 'h-8 w-8'}`}
 							>
 								<img
 									src={creatorPhotoURL}
@@ -456,7 +458,7 @@
 							</div>
 						{:else if creatorName}
 							<div
-								class="grid h-8 w-8 shrink-0 place-items-center rounded-full border-2 border-white bg-blue-500 text-xs font-black text-white shadow-md dark:border-slate-900"
+								class={`grid shrink-0 place-items-center rounded-full border-2 border-white bg-blue-500 text-xs font-black text-white shadow-md dark:border-slate-900 ${discoverMobile ? 'h-[2.4rem] w-[2.4rem] sm:h-8 sm:w-8' : 'h-8 w-8'}`}
 							>
 								{creatorName.charAt(0).toUpperCase()}
 							</div>

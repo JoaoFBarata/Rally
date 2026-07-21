@@ -1268,7 +1268,7 @@
 			</div>
 		{/if}
 	</div>
-	{#if viewMode === 'map'}
+	{#if viewMode === 'map' && !selectedEvent && !selectedVenue}
 		<div
 			class="border-t border-slate-200 bg-white px-4 py-2.5 text-center text-[11px] font-black uppercase tracking-wide text-blue-700 dark:border-slate-800 dark:bg-slate-900 dark:text-blue-300 md:hidden"
 		>
@@ -2024,7 +2024,7 @@
 
 	{#if viewMode === 'map' && mode === 'events' && selectedEvent}
 		<aside
-			class="absolute inset-x-3 bottom-[8.75rem] z-20 max-h-[34dvh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2.5 shadow-xl shadow-slate-300/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none md:inset-x-auto md:bottom-auto md:left-5 md:top-5 md:m-0 md:max-h-[70dvh] md:w-[24rem] md:rounded-[1.75rem] md:p-4 md:shadow-2xl md:shadow-slate-300/70"
+			class="absolute inset-x-3 bottom-0 z-[100] max-h-[34dvh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2.5 shadow-xl shadow-slate-300/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none md:inset-x-auto md:bottom-auto md:left-5 md:top-5 md:m-0 md:max-h-[70dvh] md:w-[24rem] md:rounded-[1.75rem] md:p-4 md:shadow-2xl md:shadow-slate-300/70"
 		>
 			<div class="flex items-center justify-between gap-3">
 				<div class="flex min-w-0 flex-wrap items-center gap-2">
@@ -2184,7 +2184,7 @@
 
 	{#if viewMode === 'map' && mode === 'venues' && selectedVenue}
 		<aside
-			class="absolute inset-x-3 bottom-[8.75rem] z-20 max-h-[34dvh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2.5 shadow-xl shadow-slate-300/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none md:inset-x-auto md:bottom-auto md:left-5 md:top-5 md:m-0 md:max-h-[70dvh] md:w-[24rem] md:rounded-[1.75rem] md:p-4 md:shadow-2xl md:shadow-slate-300/70"
+			class="absolute inset-x-3 bottom-0 z-[100] max-h-[34dvh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2.5 shadow-xl shadow-slate-300/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none md:inset-x-auto md:bottom-auto md:left-5 md:top-5 md:m-0 md:max-h-[70dvh] md:w-[24rem] md:rounded-[1.75rem] md:p-4 md:shadow-2xl md:shadow-slate-300/70"
 		>
 			<div class="flex items-center justify-between gap-3">
 				<div class="flex min-w-0 flex-wrap items-center gap-2">
