@@ -1853,14 +1853,10 @@
 					</p>
 
 					{#if nearbyEvents.length > 0}
-						<div class="space-y-3">
-							<PromotedEventCarousel
-								events={nearbyEvents}
-								cardVariant="hero"
-								compactHero
-								heroCtaLabel={i18n.t('view_event')}
-								ariaLabel="Nearby events"
-							/>
+						<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+							{#each nearbyEvents.slice(0, 3) as event (event.id)}
+								<EventCard {event} variant="vertical" />
+							{/each}
 						</div>
 					{:else}
 						<div
@@ -1880,13 +1876,11 @@
 					{/if}
 				{:else if discoverTab === 'recommended'}
 					{#if recommendedEvents.length > 0}
-						<PromotedEventCarousel
-							events={recommendedEvents}
-							cardVariant="hero"
-							compactHero
-							heroCtaLabel="View event"
-							ariaLabel="Recommended events"
-						/>
+						<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+							{#each recommendedEvents.slice(0, 3) as event (event.id)}
+								<EventCard {event} variant="vertical" />
+							{/each}
+						</div>
 					{:else}
 						<div
 							class="rounded-[1.5rem] border border-dashed border-slate-200 bg-white/70 p-5 text-sm dark:border-slate-800 dark:bg-slate-900/70"
@@ -1911,13 +1905,11 @@
 					{/if}
 				{:else}
 					{#if followingEvents.length > 0}
-						<PromotedEventCarousel
-							events={followingEvents}
-							cardVariant="hero"
-							compactHero
-							heroCtaLabel={i18n.t('view_event')}
-							ariaLabel="Events from followed organizations"
-						/>
+						<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+							{#each followingEvents.slice(0, 3) as event (event.id)}
+								<EventCard {event} variant="vertical" />
+							{/each}
+						</div>
 					{:else}
 						<div
 							class="rounded-[1.5rem] border border-dashed border-slate-200 bg-white/70 p-5 text-sm dark:border-slate-800 dark:bg-slate-900/70"
