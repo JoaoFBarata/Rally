@@ -12,8 +12,7 @@
 		formatDate,
 		formatSport,
 		getCurrencySymbol,
-		getSportBackgroundImage,
-		getSportEmoji
+		getSportBackgroundImage
 	} from '$lib/utils/format.utils';
 	import { i18n } from '$lib/services/i18n.svelte';
 	import { getEventTemporalState } from '$lib/utils/event-lifecycle.utils';
@@ -137,6 +136,8 @@
 	let selectedEventGroup = $state<SportEvent[]>([]);
 	let selectedEventIndex = $state(0);
 	let selectedVenue = $state<Venue | null>(null);
+	let selectedVenueGroup = $state<Venue[]>([]);
+	let selectedVenueIndex = $state(0);
 	let localSearchTerm = $state('');
 	let markers: mapboxgl.Marker[] = [];
 	let routeEndpointMarkers: mapboxgl.Marker[] = [];
@@ -459,12 +460,31 @@
 
 	function clearSelectedVenue() {
 		selectedVenue = null;
+		selectedVenueGroup = [];
+		selectedVenueIndex = 0;
 		onSelectedVenueChange?.(null);
 	}
 
-	function selectVenue(venue: Venue) {
-		selectedVenue = venue;
-		onSelectedVenueChange?.(venue.id);
+	function selectVenue(venue: Venue, group: Venue[] = [venue]) {
+		const venueGroup = group.length ? group : [venue];
+		const venueIndex = Math.max(0, venueGroup.findIndex((item) => item.id === venue.id));
+		selectedVenueGroup = venueGroup;
+		selectedVenueIndex = venueIndex;
+		selectedVenue = venueGroup[venueIndex] ?? venue;
+		onSelectedVenueChange?.(selectedVenue.id);
+		queueMicrotask(() => renderMarkers());
+	}
+
+	function moveSelectedVenue(direction: number) {
+		if (!selectedVenueGroup.length) return;
+		const nextIndex =
+			(selectedVenueIndex + direction + selectedVenueGroup.length) % selectedVenueGroup.length;
+		const nextVenue = selectedVenueGroup[nextIndex];
+		selectedVenueIndex = nextIndex;
+		selectedVenue = nextVenue;
+		onSelectedVenueChange?.(nextVenue.id);
+		queueMicrotask(() => renderMarkers());
+		map?.easeTo({ center: [nextVenue.lng, nextVenue.lat], duration: 450 });
 	}
 
 	function clearSelectedEvent() {
@@ -964,8 +984,8 @@
 					target: el,
 					props: {
 						kind: 'venue',
-						profile_url: priorityVenue.photoURL || '',
-						name_letter: getSportEmoji(priorityVenue.sports[0]),
+						profile_url: priorityVenue.photoURL || `/${priorityVenue.sports[0] || 'other'}_icon.png`,
+						name_letter: '',
 						sport: priorityVenue.sports[0],
 						rating_label: getVenueRatingLabel(priorityVenue),
 						marker_color: getVenueMarkerColor(priorityVenue),
@@ -976,7 +996,7 @@
 				svelteMarkers.push(markerComponent);
 
 				el.addEventListener('click', () => {
-					selectVenue(priorityVenue);
+					selectVenue(priorityVenue, clusterVenues);
 					try {
 						const expansionZoom = venueClusterIndex.getClusterExpansionZoom(clusterId);
 						const currentZoom = currentMap.getZoom();
@@ -1007,8 +1027,8 @@
 					target: el,
 					props: {
 						kind: 'venue',
-						profile_url: venue.photoURL || '',
-						name_letter: getSportEmoji(venue.sports[0]),
+						profile_url: venue.photoURL || `/${venue.sports[0] || 'other'}_icon.png`,
+						name_letter: '',
 						sport: venue.sports[0],
 						rating_label: getVenueRatingLabel(venue),
 						marker_color: getVenueMarkerColor(venue),
@@ -1862,14 +1882,14 @@
 
 	{#if mode === 'venues'}
 		<div
-			class="border-t border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900 shrink-0"
+			class="shrink-0 border-t border-slate-200 bg-white px-5 pb-3 pt-4 dark:border-slate-800 dark:bg-slate-900"
 		>
 			<div class="flex items-center justify-between gap-3">
 				<span class="text-xs font-black uppercase tracking-wider text-slate-400">
 					{formatShowingLocations(venues.length)}
 				</span>
 			</div>
-			<div class="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+			<div class="mt-3 flex gap-2 overflow-x-auto px-0.5 pt-0.5 pb-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
 				{#each venueSportOptions as sport (sport)}
 					<button
 						type="button"
@@ -1885,7 +1905,7 @@
 				{/each}
 			</div>
 			{#if venueCities.length > 1}
-				<div class="mt-2 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+				<div class="mt-2 flex gap-2 overflow-x-auto px-0.5 pt-0.5 pb-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
 					{#each venueCities as city (city)}
 						<button
 							type="button"
@@ -2083,6 +2103,14 @@
 							{i18n.t('not_verified')}
 						</span>
 					{/if}
+					{#if selectedVenueGroup.length > 1}
+						<span
+							class="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300 md:px-3 md:py-1 md:text-xs"
+						>
+							{selectedVenueIndex + 1}/{selectedVenueGroup.length}
+							{i18n.t('nearby_lowercase')}
+						</span>
+					{/if}
 				</div>
 				<button
 					type="button"
@@ -2122,6 +2150,42 @@
 					{/if}
 				</div>
 			</div>
+
+			{#if selectedVenueGroup.length > 1}
+				<div
+					class="mt-2.5 flex items-center justify-between rounded-2xl bg-slate-50 px-2.5 py-1.5 dark:bg-slate-950/60 md:mt-3 md:px-3 md:py-2"
+				>
+					<div class="min-w-0">
+						<p class="text-xs font-black text-slate-700 dark:text-slate-200">
+							{formatShowingLocations(selectedVenueGroup.length)}
+						</p>
+						<p class="hidden truncate text-[11px] font-bold text-slate-400 dark:text-slate-500 sm:block">
+							{i18n.t('use_arrows_preview_msg')}
+						</p>
+					</div>
+					<div class="ml-3 flex shrink-0 items-center gap-2">
+						<button
+							type="button"
+							onclick={() => moveSelectedVenue(-1)}
+							class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white text-base font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-blue-950 md:h-8 md:w-8 md:text-lg"
+							aria-label="Localização anterior"
+						>
+							‹
+						</button>
+						<span class="min-w-10 text-center text-xs font-black text-slate-500 dark:text-slate-300">
+							{selectedVenueIndex + 1}/{selectedVenueGroup.length}
+						</span>
+						<button
+							type="button"
+							onclick={() => moveSelectedVenue(1)}
+							class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white text-base font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-blue-950 md:h-8 md:w-8 md:text-lg"
+							aria-label="Localização seguinte"
+						>
+							›
+						</button>
+					</div>
+				</div>
+			{/if}
 
 			<a
 				href={getVenueHref(selectedVenue)}

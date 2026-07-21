@@ -7,6 +7,7 @@ const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
 const { getAuth } = require('firebase-admin/auth');
 const { getMessaging } = require('firebase-admin/messaging');
+const { getStorage } = require('firebase-admin/storage');
 const { GoogleGenAI, Type } = require('@google/genai');
 const Stripe = require('stripe');
 
@@ -17,6 +18,90 @@ const messaging = getMessaging();
 const openaiApiKey = defineSecret('OPENAI_API_KEY');
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
 const stripeApiKey = defineSecret('STRIPE_API_KEY');
+
+async function deleteQueryDocuments(query) {
+	const snapshot = await query.get();
+	if (snapshot.empty) return;
+	const writer = db.bulkWriter();
+	for (const item of snapshot.docs) writer.delete(item.ref);
+	await writer.close();
+}
+
+async function deleteEventAndRelatedData(eventDoc) {
+	const eventId = eventDoc.id;
+	const eventData = eventDoc.data();
+	await Promise.all([
+		deleteQueryDocuments(db.collection('eventInvites').where('eventId', '==', eventId)),
+		deleteQueryDocuments(db.collection('eventJoinRequests').where('eventId', '==', eventId)),
+		deleteQueryDocuments(db.collection('tournamentEntries').where('eventId', '==', eventId)),
+		deleteQueryDocuments(db.collection('tournamentMatches').where('eventId', '==', eventId))
+	]);
+	if (eventData.groupPhotoPath) {
+		await getStorage().bucket().file(eventData.groupPhotoPath).delete({ ignoreNotFound: true }).catch(() => {});
+	}
+	await db.recursiveDelete(eventDoc.ref);
+}
+
+exports.deleteMyAccount = onCall(async (request) => {
+	if (!request.auth) throw new HttpsError('unauthenticated', 'Authentication is required.');
+	const userId = request.auth.uid;
+	const userRef = db.collection('users').doc(userId);
+	const userDoc = await userRef.get();
+
+	const [hostedEvents, joinedEvents] = await Promise.all([
+		db.collection('events').where('creatorId', '==', userId).get(),
+		db.collection('events').where('participantIds', 'array-contains', userId).get()
+	]);
+
+	for (const eventDoc of hostedEvents.docs) await deleteEventAndRelatedData(eventDoc);
+	const hostedIds = new Set(hostedEvents.docs.map((item) => item.id));
+	const participationWriter = db.bulkWriter();
+	for (const eventDoc of joinedEvents.docs) {
+		if (!hostedIds.has(eventDoc.id)) {
+			participationWriter.update(eventDoc.ref, {
+				participantIds: FieldValue.arrayRemove(userId),
+				updatedAt: FieldValue.serverTimestamp()
+			});
+		}
+	}
+	await participationWriter.close();
+
+	await Promise.all([
+		deleteQueryDocuments(db.collection('eventInvites').where('toUserId', '==', userId)),
+		deleteQueryDocuments(db.collection('eventInvites').where('fromUserId', '==', userId)),
+		deleteQueryDocuments(db.collection('eventJoinRequests').where('userId', '==', userId)),
+		deleteQueryDocuments(db.collection('friendRequests').where('toUserId', '==', userId)),
+		deleteQueryDocuments(db.collection('friendRequests').where('fromUserId', '==', userId)),
+		deleteQueryDocuments(db.collection('friendships').where('memberIds', 'array-contains', userId)),
+		deleteQueryDocuments(db.collection('organizationFollowers').where('userId', '==', userId)),
+		deleteQueryDocuments(db.collection('organizationReviews').where('userId', '==', userId))
+	]);
+
+	const connectedProfiles = await db.collection('users').where('connections', 'array-contains', userId).get();
+	const connectionWriter = db.bulkWriter();
+	for (const profile of connectedProfiles.docs) {
+		connectionWriter.update(profile.ref, { connections: FieldValue.arrayRemove(userId) });
+	}
+	await connectionWriter.close();
+
+	const conversations = await db.collection('conversations').where('memberIds', 'array-contains', userId).get();
+	const conversationWriter = db.bulkWriter();
+	for (const conversation of conversations.docs) {
+		conversationWriter.update(conversation.ref, {
+			memberIds: FieldValue.arrayRemove(userId),
+			updatedAt: FieldValue.serverTimestamp()
+		});
+	}
+	await conversationWriter.close();
+
+	const profilePhotoPath = userDoc.data()?.profilePhotoPath;
+	if (profilePhotoPath) {
+		await getStorage().bucket().file(profilePhotoPath).delete({ ignoreNotFound: true }).catch(() => {});
+	}
+	await db.recursiveDelete(userRef);
+	await getAuth().deleteUser(userId);
+	return { deleted: true };
+});
 
 const PUSH_TEXT = {
 	en: {

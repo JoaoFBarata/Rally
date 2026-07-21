@@ -60,6 +60,9 @@
 	let success = $state('');
 	let showRemoveConfirmModal = $state(false);
 	let isOrganizationViewer = $derived(currentProfile?.accountType === 'organization');
+	let hidesEventActivity = $derived(
+		targetProfile?.isPrivate === true && relationship !== 'friends'
+	);
 
 	let visibleSports = $derived.by(() => {
 		if (!targetProfile?.sports?.length) return [];
@@ -219,6 +222,8 @@
 		error = '';
 		success = '';
 		isPrivateProfile = false;
+		allHostedEvents = [];
+		allParticipatedEvents = [];
 
 		try {
 			const targetUserId = page.params.id;
@@ -425,6 +430,10 @@
 			});
 
 			relationship = 'none';
+			if (targetProfile.isPrivate) {
+				allHostedEvents = [];
+				allParticipatedEvents = [];
+			}
 			success = i18n.t('friend_removed', { name: targetProfile.displayName });
 		} catch (err) {
 			console.error('Remove friend from public profile error:', err);
@@ -642,6 +651,15 @@
 				{/if}
 			</div>
 
+			{#if hidesEventActivity}
+				<div class="mt-4 flex max-w-xl items-start gap-3 rounded-[1.5rem] bg-slate-50 px-4 py-4 ring-1 ring-slate-200 dark:bg-slate-950/60 dark:ring-slate-800 sm:mt-5">
+					<span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-slate-200 text-base dark:bg-slate-800">🔒</span>
+					<div>
+						<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('private_profile_title')}</p>
+						<p class="mt-0.5 text-sm font-semibold text-slate-500 dark:text-slate-400">{i18n.t('private_profile_events_hidden')}</p>
+					</div>
+				</div>
+			{:else}
 			<div
 				class="mt-4 grid grid-cols-3 divide-x divide-slate-200 rounded-[1.5rem] bg-slate-50 px-2 py-3 text-center dark:divide-slate-800 dark:bg-slate-950/60 sm:mt-5 sm:max-w-xl sm:px-4 sm:py-4"
 			>
@@ -676,6 +694,7 @@
 					</p>
 				</div>
 			</div>
+			{/if}
 
 			<div class="mt-4 grid grid-cols-2 gap-2 sm:mt-5 sm:flex sm:flex-wrap">
 				{#if isOrganizationViewer}
@@ -838,7 +857,7 @@
 					</section>
 				{/if}
 
-				{#if liveProfileEvents.length > 0}
+				{#if !hidesEventActivity && liveProfileEvents.length > 0}
 					<section>
 						<div class="mb-3">
 							<p
@@ -868,7 +887,7 @@
 					</section>
 				{/if}
 
-				{#if upcomingProfileEvents.length > 0}
+				{#if !hidesEventActivity && upcomingProfileEvents.length > 0}
 					<section>
 						<div class="flex items-end justify-between gap-3">
 							<div>
@@ -983,7 +1002,7 @@
 					</section>
 				{/if}
 
-				{#if recentProfileEvents.length > 0}
+				{#if !hidesEventActivity && recentProfileEvents.length > 0}
 					<section>
 						<div class="flex items-center justify-between gap-3">
 							<div>
@@ -1039,7 +1058,7 @@
 					</section>
 				{/if}
 
-				{#if upcomingProfileEvents.length === 0 && recentProfileEvents.length === 0}
+				{#if !hidesEventActivity && upcomingProfileEvents.length === 0 && recentProfileEvents.length === 0}
 					<section class="rounded-[2rem] bg-white p-8 text-center shadow-sm dark:bg-slate-900">
 						<p class="text-4xl">🏟️</p>
 						<p class="mt-3 font-black text-slate-950 dark:text-slate-50">

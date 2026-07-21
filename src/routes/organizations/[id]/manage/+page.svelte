@@ -659,12 +659,12 @@
 		<section class="relative flex flex-col gap-3 pr-12 md:flex-row md:items-center md:justify-between md:pr-0">
 			<div class="flex min-w-0 items-center gap-3 sm:gap-4">
 				<div
-					class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[1.35rem] bg-slate-100 text-xl font-black text-blue-600 shadow-sm dark:bg-slate-800 dark:text-blue-300 sm:h-20 sm:w-20 sm:rounded-[1.8rem] sm:text-3xl"
+					class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-xl font-black text-blue-600 shadow-sm dark:bg-slate-800 dark:text-blue-300 sm:h-20 sm:w-20 sm:text-3xl"
 				>
 					<img
 						src={getOrganizationLogo(organization.logoURL)}
 						alt={organization.name}
-						class="h-full w-full object-cover"
+						class="h-full w-full rounded-full object-cover"
 					/>
 				</div>
 

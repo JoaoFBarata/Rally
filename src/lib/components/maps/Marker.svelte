@@ -96,12 +96,14 @@
 						</div>
 					</div>
 				{/if}
-				<div
-					id="marker-sport-wrapper"
-					class="absolute bottom-0 right-0 w-[calc(var(--marker-scale)*2.8125rem)] h-[calc(var(--marker-scale)*2.8125rem)] rounded-full border-[calc(var(--marker-scale)*0.25rem)] border-solid border-[#0065fdFF] bg-[#fdfdfdFF] dark:bg-[#242424] flex justify-center items-center"
-				>
-					<img src="{sport}_icon.png" alt="" class="p-[calc(var(--marker-scale)*0.375rem)]" />
-				</div>
+				{#if kind !== 'venue'}
+					<div
+						id="marker-sport-wrapper"
+						class="absolute bottom-0 right-0 w-[calc(var(--marker-scale)*2.8125rem)] h-[calc(var(--marker-scale)*2.8125rem)] rounded-full border-[calc(var(--marker-scale)*0.25rem)] border-solid border-[#0065fdFF] bg-[#fdfdfdFF] dark:bg-[#242424] flex justify-center items-center"
+					>
+						<img src="/{sport}_icon.png" alt="" class="p-[calc(var(--marker-scale)*0.375rem)]" />
+					</div>
+				{/if}
 			{/if}
 		</div>
 	</div>

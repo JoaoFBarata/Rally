@@ -60,6 +60,7 @@
 	let level = $state<SportLevel>('casual');
 	let loading = $state(false);
 	let error = $state('');
+	let showPublicPrivateProfileConfirm = $state(false);
 	let voiceLocationHint = $state('');
 	let step = $state<'choice' | 'form'>('form');
 
@@ -169,7 +170,7 @@
 	let inviteSending = $state(false);
 	let inviteError = $state('');
 
-	async function handleCreateEvent() {
+	async function handleCreateEvent(publicExposureConfirmed = false) {
 		error = '';
 
 		const currentUser = auth.currentUser;
@@ -212,6 +213,15 @@
 			return;
 		}
 
+		let creatorProfile: UserProfile | null = null;
+		if (visibility === 'public') {
+			creatorProfile = await getUserProfile(currentUser.uid);
+			if (creatorProfile?.isPrivate && !publicExposureConfirmed) {
+				showPublicPrivateProfileConfirm = true;
+				return;
+			}
+		}
+
 		loading = true;
 
 		try {
@@ -251,7 +261,7 @@
 
 			createdEventId = createdEvent.id;
 			createdEventTitle = createdEvent.title;
-			const profile = await getUserProfile(currentUser.uid);
+			const profile = creatorProfile ?? (await getUserProfile(currentUser.uid));
 			if (profile?.accountType === 'organization') {
 				await goto(resolve(`/events/${createdEvent.id}`));
 			} else {
@@ -869,6 +879,33 @@
 		{/if}
 	</div>
 </div>
+
+{#if showPublicPrivateProfileConfirm}
+	<div class="fixed inset-0 z-[60] flex items-center justify-center p-4">
+		<button
+			type="button"
+			aria-label={i18n.t('cancel')}
+			class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
+			onclick={() => (showPublicPrivateProfileConfirm = false)}
+		></button>
+		<section class="relative w-full max-w-md rounded-[2rem] border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 sm:p-7">
+			<div class="grid h-12 w-12 place-items-center rounded-2xl bg-amber-100 text-2xl dark:bg-amber-950/60">⚠️</div>
+			<h2 class="mt-4 text-xl font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{i18n.t('private_public_event_warning_title')}</h2>
+			<p class="mt-2 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{i18n.t('private_public_event_warning_message')}</p>
+			<div class="mt-6 grid grid-cols-2 gap-3">
+				<button type="button" onclick={() => (showPublicPrivateProfileConfirm = false)} class="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-black text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">{i18n.t('cancel')}</button>
+				<button
+					type="button"
+					onclick={() => {
+						showPublicPrivateProfileConfirm = false;
+						void handleCreateEvent(true);
+					}}
+					class="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700"
+				>{i18n.t('confirm_public_event')}</button>
+			</div>
+		</section>
+	</div>
+{/if}
 
 {#if showInviteModal}
 	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
