@@ -53,6 +53,9 @@
 		return hours * 60 + minutes;
 	});
 	let maxParticipants = $state(10);
+	let enableMinParticipants = $state(false);
+	let minParticipants = $state<number | null>(null);
+	let minParticipantsDeadlineHours = $state(8);
 	let visibility = $state<EventVisibility>('private');
 	let priceMode = $state<'free' | 'per_person' | 'total_split'>('free');
 	let priceValue = $state<number | null>(null);
@@ -213,6 +216,17 @@
 			return;
 		}
 
+		if (enableMinParticipants) {
+			if (!minParticipants || minParticipants < 1) {
+				error = 'Minimum participants must be at least 1.';
+				return;
+			}
+			if (minParticipants > maxParticipants) {
+				error = i18n.t('min_greater_than_max_error') || 'Minimum participants cannot be greater than maximum participants.';
+				return;
+			}
+		}
+
 		let creatorProfile: UserProfile | null = null;
 		if (visibility === 'public') {
 			creatorProfile = await getUserProfile(currentUser.uid);
@@ -239,6 +253,8 @@
 				startAt,
 				endAt,
 				maxParticipants,
+				minParticipants: enableMinParticipants ? minParticipants : null,
+				minParticipantsDeadlineHours: enableMinParticipants ? (minParticipantsDeadlineHours ?? 8) : null,
 				visibility,
 				priceTotal: priceMode === 'total_split' ? (priceValue ?? undefined) : undefined,
 				pricePerPerson: priceMode === 'per_person' ? (priceValue ?? undefined) : undefined,
@@ -653,6 +669,62 @@
 								class={`mt-2 ${inputClass}`}
 							/>
 						</div>
+					</div>
+
+					<div class="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800 sm:p-4">
+						<label class="flex cursor-pointer items-center justify-between gap-4">
+							<div>
+								<p class="text-sm font-bold text-slate-700 dark:text-slate-300">
+									{i18n.t('min_participants_label')}
+								</p>
+								<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+									{i18n.t('min_participants_help')}
+								</p>
+							</div>
+
+							<input
+								type="checkbox"
+								bind:checked={enableMinParticipants}
+								class="h-5 w-5 shrink-0 rounded border-slate-300 text-blue-600 accent-blue-600 dark:border-slate-600"
+							/>
+						</label>
+
+						{#if enableMinParticipants}
+							<div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+								<div>
+									<label for="minParticipants" class={labelClass}>
+										{i18n.t('min_participants')}
+									</label>
+									<input
+										id="minParticipants"
+										type="number"
+										min="1"
+										max={maxParticipants}
+										bind:value={minParticipants}
+										placeholder="e.g. 4"
+										class={`mt-2 ${inputClass}`}
+									/>
+								</div>
+								<div>
+									<label for="minParticipantsDeadlineHours" class={labelClass}>
+										{i18n.t('cancellation_deadline_hours')}
+									</label>
+									<select
+										id="minParticipantsDeadlineHours"
+										bind:value={minParticipantsDeadlineHours}
+										class={`mt-2 ${inputClass}`}
+									>
+										<option value={1}>1 {i18n.t('hours_before_start', { hours: 1 })}</option>
+										<option value={2}>2 {i18n.t('hours_before_start', { hours: 2 })}</option>
+										<option value={4}>4 {i18n.t('hours_before_start', { hours: 4 })}</option>
+										<option value={8}>8 {i18n.t('hours_before_start', { hours: 8 })} (Default)</option>
+										<option value={12}>12 {i18n.t('hours_before_start', { hours: 12 })}</option>
+										<option value={24}>24 {i18n.t('hours_before_start', { hours: 24 })}</option>
+										<option value={48}>48 {i18n.t('hours_before_start', { hours: 48 })}</option>
+									</select>
+								</div>
+							</div>
+						{/if}
 					</div>
 
 					<div

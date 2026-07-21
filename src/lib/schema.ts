@@ -300,6 +300,8 @@ export interface SportEvent {
 	endAt?: Timestamp | null;
 
 	maxParticipants: number;
+	minParticipants?: number | null;
+	minParticipantsDeadlineHours?: number | null;
 	participantIds: string[];
 
 	visibility: EventVisibility;

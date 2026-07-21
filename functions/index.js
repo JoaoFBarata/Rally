@@ -127,6 +127,8 @@ const PUSH_TEXT = {
 		eventFinishedBody: (title) => `"${title}" has finished.`,
 		eventCancelledTitle: 'Event cancelled',
 		eventCancelledBody: (title) => `"${title}" was cancelled.`,
+		eventAutoCancelledTitle: 'Event cancelled automatically',
+		eventAutoCancelledBody: (title, min) => `"${title}" was cancelled because it did not reach the minimum of ${min} participants.`,
 		participantJoinedTitle: 'New participant',
 		participantJoinedBody: (name, title) => `${name} joined "${title}".`,
 		participantLeftTitle: 'Participant left',
@@ -155,6 +157,8 @@ const PUSH_TEXT = {
 		eventFinishedBody: (title) => `"${title}" terminou.`,
 		eventCancelledTitle: 'Evento cancelado',
 		eventCancelledBody: (title) => `"${title}" foi cancelado.`,
+		eventAutoCancelledTitle: 'Evento cancelado automaticamente',
+		eventAutoCancelledBody: (title, min) => `"${title}" foi cancelado por não atingir o mínimo de ${min} participantes.`,
 		participantJoinedTitle: 'Novo participante',
 		participantJoinedBody: (name, title) => `${name} juntou-se a "${title}".`,
 		participantLeftTitle: 'Participante saiu',
@@ -183,6 +187,8 @@ const PUSH_TEXT = {
 		eventFinishedBody: (title) => `"${title}" ha finalizado.`,
 		eventCancelledTitle: 'Evento cancelado',
 		eventCancelledBody: (title) => `"${title}" ha sido cancelado.`,
+		eventAutoCancelledTitle: 'Evento cancelado automáticamente',
+		eventAutoCancelledBody: (title, min) => `"${title}" fue cancelado por no alcanzar el mínimo de ${min} participantes.`,
 		participantJoinedTitle: 'Nuevo participante',
 		participantJoinedBody: (name, title) => `${name} se unió a "${title}".`,
 		participantLeftTitle: 'Participante salió',
@@ -211,6 +217,8 @@ const PUSH_TEXT = {
 		eventFinishedBody: (title) => `« ${title} » est terminé.`,
 		eventCancelledTitle: 'Événement annulé',
 		eventCancelledBody: (title) => `« ${title} » a été annulé.`,
+		eventAutoCancelledTitle: 'Événement annulé automatiquement',
+		eventAutoCancelledBody: (title, min) => `« ${title} » a été annulé car le nombre minimum de ${min} participants n'a pas été atteint.`,
 		participantJoinedTitle: 'Nouveau participant',
 		participantJoinedBody: (name, title) => `${name} a rejoint « ${title} ».`,
 		participantLeftTitle: 'Un participant est parti',
@@ -428,8 +436,16 @@ exports.createEventPaymentCheckout = onCall(
 			const event = eventDoc.data();
 			console.log(`[createEventPaymentCheckout] Event loaded: title="${event.title}", status=${event.status}, creatorId=${event.creatorId}`);
 			
-			if (event.status === 'cancelled') {
-				throw new HttpsError('failed-precondition', 'Cannot pay for a cancelled event.');
+			const minParticipants = Number(event.minParticipants || 0);
+			const deadlineHours = Number(event.minParticipantsDeadlineHours ?? 8);
+			const startMs = event.startAt && typeof event.startAt.toMillis === 'function' ? event.startAt.toMillis() : new Date(event.startAt).getTime();
+			const deadlineMs = startMs ? startMs - deadlineHours * 3600 * 1000 : null;
+			const isMinDeadlinePassed = deadlineMs && Date.now() >= deadlineMs;
+			const pCount = (Array.isArray(event.participantIds) ? event.participantIds : []).length;
+			const isMinUnmet = minParticipants > 0 && pCount < minParticipants && isMinDeadlinePassed;
+
+			if (event.status === 'cancelled' || isMinUnmet) {
+				throw new HttpsError('failed-precondition', 'Cannot pay for a cancelled event or an event that missed its minimum participant requirement.');
 			}
 
 			if (!isJoinPayment && event.creatorId === userId) {
@@ -1741,6 +1757,66 @@ exports.processEventLifecycle = onSchedule('every 5 minutes', async () => {
 				finishedAt: FieldValue.serverTimestamp(),
 				updatedAt: FieldValue.serverTimestamp()
 			});
+		}
+
+		// Auto-cancel open/full events that failed to reach their minimum participants by the configured deadline
+		const upcomingSnap = await db
+			.collection('events')
+			.where('startAt', '>', currentTime)
+			.get();
+
+		for (const eventDoc of upcomingSnap.docs) {
+			const data = eventDoc.data();
+			if (data.status === 'cancelled' || data.status === 'finished') continue;
+
+			const minParticipants = Number(data.minParticipants || 0);
+			if (minParticipants <= 0) continue;
+
+			const participantCount = (Array.isArray(data.participantIds) ? data.participantIds : []).length;
+			if (participantCount >= minParticipants) continue;
+
+			const deadlineHours = Number(data.minParticipantsDeadlineHours ?? 8);
+			const startMs = data.startAt && typeof data.startAt.toMillis === 'function'
+				? data.startAt.toMillis()
+				: new Date(data.startAt).getTime();
+			const deadlineMs = startMs - deadlineHours * 60 * 60 * 1000;
+
+			if (now >= deadlineMs) {
+				const paymentStatuses = { ...(data.paymentStatuses || {}) };
+				for (const pid of data.participantIds || []) {
+					if ((paymentStatuses[pid] ?? 'pending') !== 'paid') {
+						paymentStatuses[pid] = 'not_required';
+					}
+				}
+
+				await eventDoc.ref.update({
+					status: 'cancelled',
+					cancelledReason: 'min_participants_not_met',
+					cancelledAt: FieldValue.serverTimestamp(),
+					updatedAt: FieldValue.serverTimestamp(),
+					paymentStatuses
+				});
+
+				const recipients = [
+					...new Set([data.creatorId, ...(data.participantIds || [])].filter(Boolean))
+				];
+
+				await Promise.allSettled(
+					recipients.map(async (userId) => {
+						const userDoc = await db.collection('users').doc(userId).get();
+						if (!userDoc.exists) return;
+						const text = pushTextFor(userDoc.data().language);
+						await sendPushToUser(userId, {
+							notification: {
+								title: text.eventAutoCancelledTitle,
+								body: text.eventAutoCancelledBody(data.title || text.eventFallback, minParticipants)
+							},
+							data: { path: `/events/${eventDoc.id}` },
+							android: { notification: { channelId: 'rally_default_channel' } }
+						});
+					})
+				);
+			}
 		}
 	} catch (error) {
 		console.error('Error in processEventLifecycle Cloud Function:', error);

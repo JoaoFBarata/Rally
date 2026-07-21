@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { SportEvent } from '$lib/schema';
 	import EventCard from '$lib/components/EventCard.svelte';
+	import { calculateVisibleDotIndexes } from '$lib/utils/carousel.utils';
 
 	let {
 		events,
@@ -95,19 +96,7 @@
 	}
 
 	function visibleDotIndexes() {
-		if (events.length <= 7) return Array.from({ length: events.length }, (_, index) => index);
-
-		const indexes = new Set<number>([
-			0,
-			events.length - 1,
-			currentIndex - 1,
-			currentIndex,
-			currentIndex + 1
-		]);
-
-		return [...indexes]
-			.map((index) => (index + events.length) % events.length)
-			.sort((a, b) => a - b);
+		return calculateVisibleDotIndexes(events.length, currentIndex);
 	}
 
 	$effect(() => {

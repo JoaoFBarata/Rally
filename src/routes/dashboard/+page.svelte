@@ -654,10 +654,27 @@
 		const { activeInvites, activeInviteEvents } = await getActiveInvitesWithEvents(loadedInvites);
 		inviteEventsById = activeInviteEvents;
 		invites = activeInvites;
-		publicEvents = loadedPublicEvents;
-		publicOrganizations = loadedOrganizations;
-		followedOrganizationIds = followedOrganizations.map((organization) => organization.id);
-		friends = loadedFriends;
+		const uniquePublicEventsMap = new Map<string, SportEvent>();
+		for (const event of loadedPublicEvents) {
+			if (event?.id) uniquePublicEventsMap.set(event.id, event);
+		}
+		publicEvents = Array.from(uniquePublicEventsMap.values());
+
+		const uniquePublicOrgsMap = new Map<string, Organization>();
+		for (const organization of loadedOrganizations) {
+			if (organization?.id) uniquePublicOrgsMap.set(organization.id, organization);
+		}
+		publicOrganizations = Array.from(uniquePublicOrgsMap.values());
+
+		followedOrganizationIds = followedOrganizations
+			.map((organization) => organization.id)
+			.filter(Boolean);
+
+		const uniqueFriendsMap = new Map<string, UserProfile>();
+		for (const friend of loadedFriends) {
+			if (friend?.id) uniqueFriendsMap.set(friend.id, friend);
+		}
+		friends = Array.from(uniqueFriendsMap.values());
 		pendingFriendRequests = loadedFriendRequests.filter((request) => request.status === 'pending');
 		friendRequestPreviewUser = pendingFriendRequests[0]
 			? await getUserProfile(pendingFriendRequests[0].fromUserId)

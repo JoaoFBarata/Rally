@@ -598,7 +598,7 @@
 				<button
 					type="button"
 					onclick={() => setContentMode(contentMode === 'events' ? 'venues' : 'events')}
-					class="group relative inline-flex h-10 shrink-0 items-center gap-2 rounded-full bg-blue-50 pl-4 pr-3 shadow-sm transition hover:bg-blue-100 sm:h-11 sm:mt-3 dark:bg-blue-950/60 dark:hover:bg-blue-900"
+					class="group relative hidden h-10 shrink-0 items-center gap-2 rounded-full bg-blue-50 pl-4 pr-3 shadow-sm transition hover:bg-blue-100 sm:mt-3 sm:inline-flex sm:h-11 dark:bg-blue-950/60 dark:hover:bg-blue-900"
 					style="perspective: 600px;"
 					aria-label={`${i18n.t('explore_events_tab')} / ${i18n.t('explore_venues_tab')}`}
 				>
@@ -681,6 +681,31 @@
 			</div>
 		</div>
 	</header>
+
+	<div
+		class="mb-3 grid h-11 grid-cols-2 rounded-2xl border border-slate-200 bg-slate-100 p-1 shadow-inner shadow-slate-200/70 dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/20 sm:hidden"
+	>
+		<button
+			type="button"
+			aria-pressed={contentMode === 'events'}
+			onclick={() => setContentMode('events')}
+			class="rounded-xl text-sm font-black transition {contentMode === 'events'
+				? 'bg-white text-slate-950 shadow-sm ring-1 ring-slate-200/80 dark:bg-slate-700 dark:text-white dark:ring-slate-600'
+				: 'text-slate-500 dark:text-slate-400'}"
+		>
+			{i18n.t('explore_events_tab')}
+		</button>
+		<button
+			type="button"
+			aria-pressed={contentMode === 'venues'}
+			onclick={() => setContentMode('venues')}
+			class="rounded-xl text-sm font-black transition {contentMode === 'venues'
+				? 'bg-white text-slate-950 shadow-sm ring-1 ring-slate-200/80 dark:bg-slate-700 dark:text-white dark:ring-slate-600'
+				: 'text-slate-500 dark:text-slate-400'}"
+		>
+			{i18n.t('explore_venues_tab')}
+		</button>
+	</div>
 
 	{#if loading}
 		<section
