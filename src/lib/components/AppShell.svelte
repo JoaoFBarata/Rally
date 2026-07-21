@@ -125,20 +125,19 @@
 		return items;
 	});
 
-	// Keep the mobile bar compact, but do not hide Profile for platform admins.
+	// Mobile navbar excludes payments since access is provided on the profile page on mobile
 	let mobileNavItems = $derived.by(() => {
-		let filtered = navItems.filter((item) => item.href !== '/admin');
-		if (filtered.length > 5) {
-			const replaceableHref = organizationId ? organizationManageHref : '/profile';
-			filtered = filtered.filter((item) => item.href !== replaceableHref);
-		}
-
-		return filtered.slice(0, 5);
+		return navItems.filter((item) => item.href !== '/admin' && item.href !== '/payments');
 	});
 
-	let mobileNavGridClass = $derived(
-		mobileNavItems.length > 4 ? 'max-w-lg grid-cols-6 gap-0.5' : 'max-w-md grid-cols-5 gap-1'
-	);
+	let mobileNavGridClass = $derived.by(() => {
+		// +1 for the center Create Event (+) button inserted into the grid
+		const totalCols = mobileNavItems.length + 1;
+		if (totalCols === 5) return 'max-w-md grid-cols-5 gap-1';
+		if (totalCols === 6) return 'max-w-lg grid-cols-6 gap-0.5';
+		if (totalCols === 7) return 'max-w-lg grid-cols-7 gap-0.5';
+		return 'max-w-md grid-cols-5 gap-1';
+	});
 
 	function mobileLabel(label: string) {
 		if (label === 'Organization') return 'Org';
@@ -504,7 +503,7 @@
 						</span>
 
 						<span
-							class={`max-w-14 truncate text-[11px] font-bold leading-none ${
+							class={`max-w-14 truncate text-[11px] font-bold leading-none whitespace-nowrap ${
 								isActive(item.href)
 									? 'text-blue-600 dark:text-blue-400'
 									: 'text-slate-400 dark:text-slate-500'

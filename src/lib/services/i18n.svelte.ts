@@ -2055,6 +2055,7 @@ class I18nService {
 			max_capacity: 'Max Capacity',
 			estimated_share: 'Estimated Share per Person',
 			split_on_completion: 'Cost will be calculated and split when the event finishes.',
+			mark_as_paid: 'Mark as Paid',
 
 			// Auth / Register / Login
 			login: 'Login',
@@ -2927,6 +2928,7 @@ class I18nService {
 			max_capacity: 'Capacidade Máxima',
 			estimated_share: 'Partilha Estimada por Pessoa',
 			split_on_completion: 'O valor será calculado e dividido quando o evento terminar.',
+			mark_as_paid: 'Marcar como Pago',
 
 			// Auth / Registo / Login
 			login: 'Iniciar Sessão',
@@ -3823,6 +3825,7 @@ class I18nService {
 			max_capacity: 'Capacidad Máxima',
 			estimated_share: 'Cuota Estimada por Persona',
 			split_on_completion: 'El coste se calculará y dividirá al finalizar el evento.',
+			mark_as_paid: 'Marcar como Pagado',
 
 			// Auth / Registro / Login
 			login: 'Iniciar sesión',
@@ -4720,6 +4723,7 @@ class I18nService {
 			max_capacity: 'Capacité Maximale',
 			estimated_share: 'Part Estimée par Personne',
 			split_on_completion: 'Le coût sera calculé et partagé à la fin de l\'événement.',
+			mark_as_paid: 'Marquer comme Payé',
 
 			// Auth / Inscription / Connexion
 			login: 'Se connecter',

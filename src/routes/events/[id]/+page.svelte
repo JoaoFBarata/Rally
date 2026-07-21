@@ -1011,7 +1011,7 @@
 		}
 	}
 
-	async function handleToggleParticipantPayment(participantId: string, currentStatus: 'paid' | 'pending') {
+	async function handleSetParticipantPaymentPaid(participantId: string) {
 		const currentUser = auth.currentUser;
 
 		if (!currentUser || !event || !isCreator || !paymentSummary?.splitAmount) return;
@@ -1024,7 +1024,7 @@
 				eventId: event.id,
 				userId: currentUser.uid,
 				participantId,
-				status: currentStatus === 'paid' ? 'pending' : 'paid'
+				status: 'paid'
 			});
 			await reloadEvent();
 		} catch (err) {
@@ -1721,26 +1721,27 @@
 
 														{#if currentStatus === 'paid'}
 															<span class="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-black text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">Paid</span>
-														{:else if isCurrentUserPayment}
-															<button
-																type="button"
-																onclick={() => handlePayForCurrentUser(participantId)}
-																disabled={paymentActionLoading || paymentConfirming}
-																class="rounded-full bg-blue-600 px-3 py-1.5 text-xs font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
-															>
-																{paymentActionLoading || paymentConfirming ? 'Opening...' : 'Pay'}
-															</button>
-														{:else if isCreator}
-															<button
-																type="button"
-																onclick={() => handleToggleParticipantPayment(participantId, currentStatus)}
-																disabled={paymentActionLoading}
-																class="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-black text-amber-700 transition hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300"
-															>
-																Pending
-															</button>
 														{:else}
 															<span class="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-black text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">Pending</span>
+															{#if isCurrentUserPayment}
+																<button
+																	type="button"
+																	onclick={() => handlePayForCurrentUser(participantId)}
+																	disabled={paymentActionLoading || paymentConfirming}
+																	class="rounded-full bg-blue-600 px-3 py-1.5 text-xs font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
+																>
+																	{paymentActionLoading || paymentConfirming ? 'Opening...' : 'Pay'}
+																</button>
+															{:else if isCreator}
+																<button
+																	type="button"
+																	onclick={() => handleSetParticipantPaymentPaid(participantId)}
+																	disabled={paymentActionLoading}
+																	class="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60"
+																>
+																	{i18n.t('mark_as_paid')}
+																</button>
+															{/if}
 														{/if}
 													</div>
 												{/each}
@@ -2066,26 +2067,27 @@
 
 											{#if currentStatus === 'paid'}
 												<span class="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-black text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">Paid</span>
-											{:else if isCurrentUserPayment}
-												<button
-													type="button"
-													onclick={() => handlePayForCurrentUser(participantId)}
-													disabled={paymentActionLoading || paymentConfirming}
-													class="rounded-full bg-blue-600 px-3 py-1.5 text-xs font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
-												>
-													{paymentActionLoading || paymentConfirming ? 'Opening...' : 'Pay'}
-												</button>
-											{:else if isCreator}
-												<button
-													type="button"
-													onclick={() => handleToggleParticipantPayment(participantId, currentStatus)}
-													disabled={paymentActionLoading}
-													class="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-black text-amber-700 transition hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300"
-												>
-													Pending
-												</button>
 											{:else}
 												<span class="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-black text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">Pending</span>
+												{#if isCurrentUserPayment}
+													<button
+														type="button"
+														onclick={() => handlePayForCurrentUser(participantId)}
+														disabled={paymentActionLoading || paymentConfirming}
+														class="rounded-full bg-blue-600 px-3 py-1.5 text-xs font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
+													>
+														{paymentActionLoading || paymentConfirming ? 'Opening...' : 'Pay'}
+													</button>
+												{:else if isCreator}
+													<button
+														type="button"
+														onclick={() => handleSetParticipantPaymentPaid(participantId)}
+														disabled={paymentActionLoading}
+														class="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60"
+													>
+														{i18n.t('mark_as_paid')}
+													</button>
+												{/if}
 											{/if}
 										</div>
 									{/each}
