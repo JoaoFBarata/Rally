@@ -1,9 +1,11 @@
 const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { onRequest } = require('firebase-functions/v2/https');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { defineSecret } = require('firebase-functions/params');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
+const { getAuth } = require('firebase-admin/auth');
 const { getMessaging } = require('firebase-admin/messaging');
 const { GoogleGenAI, Type } = require('@google/genai');
 const Stripe = require('stripe');
@@ -144,7 +146,21 @@ function friendRequestIdFor(fromUserId, toUserId) {
 }
 
 function getStripeClient() {
-	return new Stripe(stripeApiKey.value());
+	let key = process.env.STRIPE_API_KEY;
+	try {
+		if (stripeApiKey && typeof stripeApiKey.value === 'function') {
+			const val = stripeApiKey.value();
+			if (val) key = val;
+		}
+	} catch (err) {
+		console.warn('[getStripeClient] Could not read stripeApiKey secret from Secret Manager:', err?.message);
+	}
+	if (!key) {
+		console.error('[getStripeClient] STRIPE_API_KEY is missing from both Secret Manager and process.env!');
+		throw new HttpsError('failed-precondition', 'Stripe API key is not configured on the server.');
+	}
+	console.log(`[getStripeClient] Stripe client initialized with key starting with "${key.substring(0, 7)}..."`);
+	return new Stripe(key);
 }
 
 function getEventPaymentAttendeeIds(event) {
@@ -177,16 +193,23 @@ function buildPendingPaymentStatuses(event) {
 }
 
 function getRequestOrigin(request) {
-	const originHeader = request.rawRequest?.headers?.origin || request.rawRequest?.headers?.referer;
-	if (!originHeader) {
-		throw new HttpsError('failed-precondition', 'Missing request origin.');
+	const originHeader =
+		request.rawRequest?.headers?.origin ||
+		request.rawRequest?.headers?.referer ||
+		request.rawRequest?.headers?.['x-forwarded-host'];
+
+	if (originHeader) {
+		try {
+			if (originHeader.startsWith('http://') || originHeader.startsWith('https://')) {
+				return new URL(originHeader).origin;
+			}
+			return `https://${originHeader}`;
+		} catch {
+			return originHeader;
+		}
 	}
 
-	try {
-		return new URL(originHeader).origin;
-	} catch {
-		return originHeader;
-	}
+	return 'https://synqo-rally.web.app';
 }
 
 async function canManageEvent(event, userId) {
@@ -202,6 +225,26 @@ async function canManageEvent(event, userId) {
 	}
 
 	return false;
+}
+
+function setCorsHeaders(req, res) {
+	const origin = req.headers.origin || '*';
+	res.set('Access-Control-Allow-Origin', origin);
+	res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+	res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+	res.set('Vary', 'Origin');
+}
+
+async function getAuthenticatedUserFromRequest(req) {
+	const authorization = req.headers.authorization || '';
+	const token = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
+
+	if (!token) {
+		throw new HttpsError('unauthenticated', 'You must be signed in.');
+	}
+
+	const decoded = await getAuth().verifyIdToken(token);
+	return decoded;
 }
 
 // Server-authoritative friend request flow. This intentionally does not depend
@@ -257,129 +300,178 @@ exports.sendFriendRequest = onCall(async (request) => {
 	return result;
 });
 
-exports.createEventPaymentCheckout = onCall({ secrets: [stripeApiKey] }, async (request) => {
-	if (!request.auth) throw new HttpsError('unauthenticated', 'You must be signed in.');
+exports.createEventPaymentCheckout = onCall(
+	{ secrets: [stripeApiKey], invoker: 'public', cors: true },
+	async (request) => {
+		console.log('[createEventPaymentCheckout] Function invoked. Auth:', request.auth ? request.auth.uid : 'UNAUTHENTICATED');
+		if (!request.auth) {
+			console.error('[createEventPaymentCheckout] Rejected: Unauthenticated');
+			throw new HttpsError('unauthenticated', 'You must be signed in.');
+		}
 
-	const eventId = String(request.data?.eventId || '').trim();
-	if (!eventId) {
-		throw new HttpsError('invalid-argument', 'Missing event id.');
-	}
-
-	const userId = request.auth.uid;
-	const eventDoc = await db.collection('events').doc(eventId).get();
-	if (!eventDoc.exists) {
-		throw new HttpsError('not-found', 'Event not found.');
-	}
-
-	const event = eventDoc.data();
-	if (event.status !== 'finished') {
-		throw new HttpsError('failed-precondition', 'Payments are only available after the event is finished.');
-	}
-	if (event.creatorId === userId) {
-		throw new HttpsError('failed-precondition', 'The host does not need to pay.');
-	}
-	if (!Array.isArray(event.participantIds) || !event.participantIds.includes(userId)) {
-		throw new HttpsError('permission-denied', 'You can only pay for your own event participation.');
-	}
-	if (event.paymentStatuses && event.paymentStatuses[userId] === 'paid') {
-		throw new HttpsError('failed-precondition', 'This payment is already completed.');
-	}
-
-	const splitAmount = getEventPaymentSplitAmount(event);
-	if (splitAmount == null || splitAmount <= 0) {
-		throw new HttpsError('failed-precondition', 'This event has no payable split amount.');
-	}
-
-	const origin = getRequestOrigin(request);
-	const stripe = getStripeClient();
-	const amountInCents = Math.round(splitAmount * 100);
-	const checkoutSession = await stripe.checkout.sessions.create({
-		mode: 'payment',
-		customer_email: request.auth.token.email || undefined,
-		line_items: [
-			{
-				quantity: 1,
-				price_data: {
-					currency: String(event.currency || 'EUR').toLowerCase(),
-					product_data: {
-						name: `${event.title} event payment`,
-						description: `Payment for ${event.title}`
-					},
-					unit_amount: amountInCents
-				}
+		try {
+			const eventId = String(request.data?.eventId || '').trim();
+			console.log(`[createEventPaymentCheckout] Target eventId: "${eventId}", userId: "${request.auth.uid}"`);
+			if (!eventId) {
+				throw new HttpsError('invalid-argument', 'Missing event id.');
 			}
-		],
-		metadata: {
-			eventId,
-			userId
-		},
-		payment_intent_data: {
-			metadata: {
-				eventId,
-				userId
+
+			const userId = request.auth.uid;
+			const eventDoc = await db.collection('events').doc(eventId).get();
+			if (!eventDoc.exists) {
+				console.error(`[createEventPaymentCheckout] Event doc not found: ${eventId}`);
+				throw new HttpsError('not-found', 'Event not found.');
 			}
-		},
-		success_url: `${origin}/events/${eventId}?paymentSessionId={CHECKOUT_SESSION_ID}`,
-		cancel_url: `${origin}/events/${eventId}`
-	});
 
-	if (!checkoutSession.url) {
-		throw new HttpsError('internal', 'Could not start the Stripe checkout session.');
+			const event = eventDoc.data();
+			console.log(`[createEventPaymentCheckout] Event loaded: title="${event.title}", status=${event.status}, creatorId=${event.creatorId}`);
+			if (event.status !== 'finished') {
+				throw new HttpsError('failed-precondition', 'Payments are only available after the event is finished.');
+			}
+			if (event.creatorId === userId) {
+				throw new HttpsError('failed-precondition', 'The host does not need to pay.');
+			}
+			if (!Array.isArray(event.participantIds) || !event.participantIds.includes(userId)) {
+				throw new HttpsError('permission-denied', 'You can only pay for your own event participation.');
+			}
+			if (event.paymentStatuses && event.paymentStatuses[userId] === 'paid') {
+				throw new HttpsError('failed-precondition', 'This payment is already completed.');
+			}
+
+			const splitAmount = getEventPaymentSplitAmount(event);
+			console.log(`[createEventPaymentCheckout] Calculated splitAmount: ${splitAmount}`);
+			if (splitAmount == null || splitAmount <= 0) {
+				throw new HttpsError('failed-precondition', 'This event has no payable split amount.');
+			}
+
+			const origin = getRequestOrigin(request);
+			console.log(`[createEventPaymentCheckout] Resolved origin: ${origin}`);
+			const stripe = getStripeClient();
+			const amountInCents = Math.round(splitAmount * 100);
+
+			let currency = String(event.currency || 'EUR').toLowerCase();
+			if (currency === '€') currency = 'eur';
+			if (currency === '$') currency = 'usd';
+			if (currency === '£') currency = 'gbp';
+
+			console.log(`[createEventPaymentCheckout] Calling Stripe session create: amountInCents=${amountInCents}, currency=${currency}`);
+			const checkoutSession = await stripe.checkout.sessions.create({
+				mode: 'payment',
+				customer_email: request.auth.token?.email || undefined,
+				line_items: [
+					{
+						quantity: 1,
+						price_data: {
+							currency,
+							product_data: {
+								name: `${event.title || 'Event'} payment`,
+								description: `Payment for ${event.title || 'event'}`
+							},
+							unit_amount: amountInCents
+						}
+					}
+				],
+				metadata: {
+					eventId,
+					userId
+				},
+				payment_intent_data: {
+					metadata: {
+						eventId,
+						userId
+					}
+				},
+				success_url: `${origin}/events/${eventId}?paymentSessionId={CHECKOUT_SESSION_ID}`,
+				cancel_url: `${origin}/events/${eventId}`
+			});
+
+			console.log(`[createEventPaymentCheckout] Stripe session created: id=${checkoutSession.id}, url=${checkoutSession.url}`);
+			if (!checkoutSession.url) {
+				throw new HttpsError('internal', 'Could not start the Stripe checkout session.');
+			}
+
+			return { checkoutUrl: checkoutSession.url };
+		} catch (error) {
+			console.error('[createEventPaymentCheckout] Exception caught:', error);
+			if (error instanceof HttpsError) {
+				throw error;
+			}
+			throw new HttpsError('internal', error?.message || 'Could not start the payment flow.');
+		}
 	}
+);
 
-	return { checkoutUrl: checkoutSession.url };
-});
+exports.confirmEventPayment = onCall(
+	{ secrets: [stripeApiKey], invoker: 'public', cors: true },
+	async (request) => {
+		console.log('[confirmEventPayment] Function invoked. Auth:', request.auth ? request.auth.uid : 'UNAUTHENTICATED');
+		if (!request.auth) {
+			console.error('[confirmEventPayment] Rejected: Unauthenticated');
+			throw new HttpsError('unauthenticated', 'You must be signed in.');
+		}
 
-exports.confirmEventPayment = onCall({ secrets: [stripeApiKey] }, async (request) => {
-	if (!request.auth) throw new HttpsError('unauthenticated', 'You must be signed in.');
+		try {
+			const eventId = String(request.data?.eventId || '').trim();
+			const sessionId = String(request.data?.sessionId || '').trim();
+			console.log(`[confirmEventPayment] eventId: "${eventId}", sessionId: "${sessionId}", userId: "${request.auth.uid}"`);
+			if (!eventId || !sessionId) {
+				throw new HttpsError('invalid-argument', 'Missing payment confirmation data.');
+			}
 
-	const eventId = String(request.data?.eventId || '').trim();
-	const sessionId = String(request.data?.sessionId || '').trim();
-	if (!eventId || !sessionId) {
-		throw new HttpsError('invalid-argument', 'Missing payment confirmation data.');
+			const userId = request.auth.uid;
+			const eventDoc = await db.collection('events').doc(eventId).get();
+			if (!eventDoc.exists) {
+				console.error(`[confirmEventPayment] Event not found: ${eventId}`);
+				throw new HttpsError('not-found', 'Event not found.');
+			}
+
+			const event = eventDoc.data();
+			if (event.status !== 'finished') {
+				throw new HttpsError('failed-precondition', 'Payments can only be confirmed after the event is finished.');
+			}
+			if (event.creatorId === userId) {
+				throw new HttpsError('failed-precondition', 'The host does not need to pay.');
+			}
+			if (!Array.isArray(event.participantIds) || !event.participantIds.includes(userId)) {
+				throw new HttpsError('permission-denied', 'You can only confirm your own payment.');
+			}
+
+			const stripe = getStripeClient();
+			console.log(`[confirmEventPayment] Retrieving Stripe session ${sessionId}`);
+			const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+			if (session.metadata?.eventId !== eventId || session.metadata?.userId !== userId) {
+				console.error('[confirmEventPayment] Session metadata mismatch:', session.metadata);
+				throw new HttpsError('permission-denied', 'This payment session does not belong to the current user or event.');
+			}
+
+			if (session.payment_status !== 'paid') {
+				console.error(`[confirmEventPayment] Payment status is not paid: ${session.payment_status}`);
+				throw new HttpsError('failed-precondition', 'Payment has not been completed yet.');
+			}
+
+			const paymentStatuses = {
+				...(event.paymentStatuses || buildPendingPaymentStatuses(event)),
+				[userId]: 'paid'
+			};
+
+			await db.collection('events').doc(eventId).update({
+				paymentSplitAmount: getEventPaymentSplitAmount(event),
+				paymentStatuses,
+				updatedAt: FieldValue.serverTimestamp()
+			});
+
+			console.log(`[confirmEventPayment] Successfully updated payment status for user ${userId} on event ${eventId}`);
+			return { status: 'paid' };
+		} catch (error) {
+			console.error('[confirmEventPayment] Exception caught:', error);
+			if (error instanceof HttpsError) {
+				throw error;
+			}
+			throw new HttpsError('internal', error?.message || 'Could not confirm the payment.');
+		}
 	}
-
-	const userId = request.auth.uid;
-	const eventDoc = await db.collection('events').doc(eventId).get();
-	if (!eventDoc.exists) {
-		throw new HttpsError('not-found', 'Event not found.');
-	}
-
-	const event = eventDoc.data();
-	if (event.status !== 'finished') {
-		throw new HttpsError('failed-precondition', 'Payments can only be confirmed after the event is finished.');
-	}
-	if (event.creatorId === userId) {
-		throw new HttpsError('failed-precondition', 'The host does not need to pay.');
-	}
-	if (!Array.isArray(event.participantIds) || !event.participantIds.includes(userId)) {
-		throw new HttpsError('permission-denied', 'You can only confirm your own payment.');
-	}
-
-	const stripe = getStripeClient();
-	const session = await stripe.checkout.sessions.retrieve(sessionId);
-
-	if (session.metadata?.eventId !== eventId || session.metadata?.userId !== userId) {
-		throw new HttpsError('permission-denied', 'This payment session does not belong to the current user or event.');
-	}
-
-	if (session.payment_status !== 'paid') {
-		throw new HttpsError('failed-precondition', 'Payment has not been completed yet.');
-	}
-
-	const paymentStatuses = {
-		...(event.paymentStatuses || buildPendingPaymentStatuses(event)),
-		[userId]: 'paid'
-	};
-
-	await db.collection('events').doc(eventId).update({
-		paymentSplitAmount: getEventPaymentSplitAmount(event),
-		paymentStatuses,
-		updatedAt: FieldValue.serverTimestamp()
-	});
-
-	return { status: 'paid' };
-});
+);
 
 // QR scans establish friendship directly on the trusted server and notify both
 // accounts. Repeated scans are idempotent but still confirm the relationship.
