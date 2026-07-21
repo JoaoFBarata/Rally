@@ -30,8 +30,9 @@ export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const functions = getFunctions(app);
 
-// In local dev, call the Functions emulator instead of the deployed function.
-// Start it with: firebase emulators:start --only functions
-if (dev) {
+// Use emulators only when explicitly requested. Normal localhost development
+// calls the deployed Functions, so destructive/account flows do not silently
+// fail when no emulator is running.
+if (dev && import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
 	connectFunctionsEmulator(functions, '127.0.0.1', 5001);
 }

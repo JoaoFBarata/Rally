@@ -25,6 +25,7 @@
 	import { goBack } from '$lib/utils/navigation';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { isPlatformAdminEmail } from '$lib/admin';
+	import { deleteCurrentAccount } from '$lib/services/account.service';
 
 	let profile = $state<UserProfile | null>(null);
 	let loading = $state(true);
@@ -36,6 +37,9 @@
 
 	let privacySaving = $state(false);
 	let twoFactorSaving = $state(false);
+	let showDeleteAccountConfirm = $state(false);
+	let deleteAccountLoading = $state(false);
+	let deleteAccountError = $state('');
 
 	let notificationsEnabled = $state(true);
 	let selectedLanguage = $state<string>(i18n.currentLang);
@@ -161,6 +165,25 @@
 			await goto('/');
 		} finally {
 			logoutLoading = false;
+		}
+	}
+
+	async function handleDeleteAccount() {
+		const userId = auth.currentUser?.uid;
+		if (!userId) return;
+		deleteAccountLoading = true;
+		deleteAccountError = '';
+		error = '';
+		try {
+			await deleteCurrentAccount();
+			removeDeviceAccount(userId);
+			await authService.logout().catch(() => {});
+			await goto('/');
+		} catch (err) {
+			console.error('Delete account error:', err);
+			deleteAccountError = getFriendlyErrorMessage(err, i18n.t('delete_account_failed'));
+		} finally {
+			deleteAccountLoading = false;
 		}
 	}
 
@@ -398,6 +421,7 @@
 			</section>
 		{/if}
 
+		{#if profile?.accountType !== 'organization'}
 		<section>
 			<p class="mb-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
 				{i18n.t('privacy')}
@@ -425,6 +449,7 @@
 				</div>
 			</div>
 		</section>
+		{/if}
 
 		<section>
 			<p class="mb-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
@@ -638,7 +663,35 @@
 						</button>
 					</div>
 				</div>
+				<button
+					type="button"
+					onclick={() => {
+						deleteAccountError = '';
+						showDeleteAccountConfirm = true;
+					}}
+					class="mt-3 w-full rounded-3xl border border-red-200 bg-red-50 px-4 py-3.5 text-sm font-black text-red-700 transition hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-950/50"
+				>
+					{i18n.t('delete_account')}
+				</button>
 			{/if}
 		</section>
 	{/if}
 </div>
+
+{#if showDeleteAccountConfirm}
+	<div class="fixed inset-0 z-[70] flex items-center justify-center p-4">
+		<button type="button" aria-label={i18n.t('cancel')} class="absolute inset-0 bg-slate-950/65 backdrop-blur-sm" onclick={() => !deleteAccountLoading && (showDeleteAccountConfirm = false)}></button>
+		<section class="relative w-full max-w-md rounded-[2rem] border border-red-200 bg-white p-6 shadow-2xl dark:border-red-900/60 dark:bg-slate-900 sm:p-7">
+			<div class="grid h-12 w-12 place-items-center rounded-2xl bg-red-100 text-2xl dark:bg-red-950/60">⚠️</div>
+			<h2 class="mt-4 text-2xl font-black text-slate-950 dark:text-slate-50">{i18n.t('delete_account_confirm_title')}</h2>
+			<p class="mt-2 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{i18n.t('delete_account_confirm_message')}</p>
+			{#if deleteAccountError}
+				<p class="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:bg-red-950/40 dark:text-red-300">{deleteAccountError}</p>
+			{/if}
+			<div class="mt-6 grid grid-cols-2 gap-3">
+				<button type="button" disabled={deleteAccountLoading} onclick={() => (showDeleteAccountConfirm = false)} class="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-black text-slate-600 disabled:opacity-60 dark:border-slate-700 dark:text-slate-300">{i18n.t('cancel')}</button>
+				<button type="button" disabled={deleteAccountLoading} onclick={handleDeleteAccount} class="rounded-2xl bg-red-600 px-4 py-3 text-sm font-black text-white transition hover:bg-red-700 disabled:opacity-60">{deleteAccountLoading ? i18n.t('deleting_account') : i18n.t('delete_account_forever')}</button>
+			</div>
+		</section>
+	</div>
+{/if}
