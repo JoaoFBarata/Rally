@@ -5,6 +5,9 @@ import { playwright } from '@vitest/browser-playwright';
 import { sveltekit } from '@sveltejs/kit/vite';
 
 export default defineConfig({
+  define: {
+    __BUILD_VERSION__: JSON.stringify(Date.now().toString())
+  },
   plugins: [tailwindcss(), sveltekit()],
   test: {
     expect: {

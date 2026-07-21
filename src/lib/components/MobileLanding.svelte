@@ -1,5 +1,6 @@
 <script lang="ts">
 	import RallyLogo from '$lib/components/RallyLogo.svelte';
+	import { getSportBackgroundImage } from '$lib/utils/format.utils';
 
 	type LandingUser = {
 		displayName?: string | null;
@@ -9,10 +10,10 @@
 	let { user = null, loading = false }: { user?: LandingUser; loading?: boolean } = $props();
 
 	const heroImages = [
-		{ src: '/event-backgrounds/football.png', alt: 'Football event', className: 'translate-y-5 rotate-[-3deg]' },
-		{ src: '/event-backgrounds/padel.png', alt: 'Padel event', className: '-translate-y-2 rotate-[2deg]' },
-		{ src: '/event-backgrounds/basketball.png', alt: 'Basketball event', className: '-translate-y-5 rotate-[-1deg]' },
-		{ src: '/event-backgrounds/running.png', alt: 'Running event', className: 'translate-y-7 rotate-[3deg]' }
+		{ src: getSportBackgroundImage('football'), alt: 'Football event', className: 'translate-y-5 rotate-[-3deg]' },
+		{ src: getSportBackgroundImage('padel'), alt: 'Padel event', className: '-translate-y-2 rotate-[2deg]' },
+		{ src: getSportBackgroundImage('basketball'), alt: 'Basketball event', className: '-translate-y-5 rotate-[-1deg]' },
+		{ src: getSportBackgroundImage('running'), alt: 'Running event', className: 'translate-y-7 rotate-[3deg]' }
 	];
 
 	const features = [

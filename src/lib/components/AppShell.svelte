@@ -392,16 +392,17 @@
 			<aside class={`hidden md:flex flex-col h-screen sticky top-0 shrink-0 overflow-hidden bg-[#f6f6f6] transition-[width] duration-300 ease-in-out dark:bg-[#242424] ${
 					sidebarCollapsed ? 'w-24' : 'w-71'
 				}`}>
-				<div class={`${sidebarCollapsed ? 'flex flex-col gap-5 px-auto' : 'flex flex-row px-6.75'} justify-between items-center w-full mt-12 transition-[flex-direction,padding] duration-300 ease-in-out`}>
-					<RallyLogo size="md" href={organizationManageHref ?? '/'} additionalClasses={`transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'hidden' : ''}`}/>
-					<RallyLogo size="compact" mark href={organizationManageHref ?? '/'} additionalClasses={`transition-all duration-300 ease-in-out ${sidebarCollapsed ? '' : 'hidden'}`}/>
-					<button type="button"
-						    onclick={toggleSidebar}
-						    title={sidebarCollapsed ? i18n.t('expand_sidebar') : i18n.t('collapse_sidebar')}
-						    aria-label={sidebarCollapsed ? i18n.t('expand_sidebar') : i18n.t('collapse_sidebar')}
-						    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-[color,background-color] duration-300 ease-in-out hover:bg-gray-200 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white">
-						<PanelLeft class="h-5 w-5" />
-					</button>
+				<button type="button"
+					    onclick={toggleSidebar}
+					    title={sidebarCollapsed ? i18n.t('expand_sidebar') : i18n.t('collapse_sidebar')}
+					    aria-label={sidebarCollapsed ? i18n.t('expand_sidebar') : i18n.t('collapse_sidebar')}
+					    class="absolute top-2 left-2 z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-[color,background-color] duration-300 ease-in-out hover:bg-gray-200 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white">
+					<PanelLeft class="h-5 w-5" />
+				</button>
+
+				<div class="relative mt-12 h-12 w-full shrink-0">
+					<RallyLogo size="md" href={organizationManageHref ?? '/'} additionalClasses={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'pointer-events-none scale-90 opacity-0' : 'scale-100 opacity-100'}`}/>
+					<RallyLogo size="compact" mark href={organizationManageHref ?? '/'} additionalClasses={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'scale-100 opacity-100' : 'pointer-events-none scale-90 opacity-0'}`}/>
 				</div>
 
 				<div class={`mt-14.25 flex w-full justify-center transition-[padding] duration-300 ease-in-out ${sidebarCollapsed ? 'px-4.75' : 'px-6.75'}`}>
