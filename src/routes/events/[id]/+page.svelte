@@ -1354,7 +1354,7 @@
 		</div>
 	{:else if event}
 		<!-- Main Header Hero Banner (Full width of content area up to sidebar) -->
-		<div class="relative w-full -mx-4 sm:-mx-6 md:-mx-8 lg:-mx-12 xl:-mx-16 -mt-6 sm:-mt-0 mb-6 bg-slate-900 dark:bg-[#161616]">
+		<div class="relative w-auto mx-0 md:-mx-8 lg:-mx-12 xl:-mx-16 mt-0 mb-6 bg-slate-900 dark:bg-[#161616]">
 			<!-- Hero Cover Image -->
 			<div class="relative h-[260px] sm:h-[360px] w-full overflow-hidden">
 				<img
@@ -1371,16 +1371,16 @@
 					<button
 						type="button"
 						onclick={() => goBack(resolve('/dashboard'))}
-						class="flex items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-sm font-bold text-slate-900 shadow-md backdrop-blur-md transition hover:bg-white dark:bg-slate-900/80 dark:text-white dark:hover:bg-slate-900 active:scale-95"
+						class="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-bold text-slate-900 shadow-md backdrop-blur-md transition hover:bg-slate-900 hover:text-white dark:bg-slate-900/90 dark:text-white dark:hover:bg-white dark:hover:text-slate-900 active:scale-95"
 						aria-label={i18n.t('back_aria')}
 					>
-						<ArrowLeft class="h-4 w-4 text-blue-600 dark:text-blue-400" />
+						<ArrowLeft class="h-4 w-4 text-blue-600 dark:text-blue-400 group-hover:text-inherit" />
 						<span class="hidden sm:inline">{i18n.t('back')}</span>
 					</button>
 
 					<div class="flex items-center gap-2">
 						{#if isCreator || isParticipant}
-							<label class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-white/80 text-slate-900 shadow-md backdrop-blur-md transition hover:bg-white dark:bg-slate-900/80 dark:text-white dark:hover:bg-slate-900 active:scale-95">
+							<label class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-white/90 text-slate-900 shadow-md backdrop-blur-md transition hover:bg-slate-900 hover:text-white dark:bg-slate-900/90 dark:text-white dark:hover:bg-white dark:hover:text-slate-900 active:scale-95">
 								<Camera class="h-4 w-4 text-blue-600 dark:text-blue-400" />
 								<input type="file" accept="image/*" class="hidden" onchange={handleGroupPhotoFileChange} disabled={groupPhotoSaving} />
 							</label>
@@ -1388,7 +1388,7 @@
 						<button
 							type="button"
 							onclick={shareEvent}
-							class="flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-slate-900 shadow-md backdrop-blur-md transition hover:bg-white dark:bg-slate-900/80 dark:text-white dark:hover:bg-slate-900 active:scale-95"
+							class="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-slate-900 shadow-md backdrop-blur-md transition hover:bg-slate-900 hover:text-white dark:bg-slate-900/90 dark:text-white dark:hover:bg-white dark:hover:text-slate-900 active:scale-95"
 							aria-label={i18n.t('share_event_aria')}
 						>
 							<Share2 class="h-4 w-4 text-blue-600 dark:text-blue-400" />
@@ -1399,7 +1399,7 @@
 							class={`flex h-10 w-10 items-center justify-center rounded-full shadow-md backdrop-blur-md transition active:scale-95 ${
 								isSavedEvent
 									? 'bg-amber-500 text-white'
-									: 'bg-white/80 text-slate-900 hover:bg-white dark:bg-slate-900/80 dark:text-white dark:hover:bg-slate-900'
+									: 'bg-white/90 text-slate-900 hover:bg-slate-900 hover:text-white dark:bg-slate-900/90 dark:text-white dark:hover:bg-white dark:hover:text-slate-900'
 							}`}
 							aria-label={isSavedEvent ? i18n.t('unsave_event_aria') : i18n.t('save_event_aria')}
 						>
@@ -1448,7 +1448,7 @@
 		</div>
 
 		<!-- Container -->
-		<div class="mx-auto max-w-6xl px-4 space-y-6">
+		<div class="mx-auto max-w-6xl px-4 sm:px-6 md:px-0 space-y-6">
 
 			<!-- Global Alerts -->
 			{#if error}
@@ -1487,7 +1487,7 @@
 							class={`flex flex-1 items-center justify-center gap-2 min-w-[110px] rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold transition-all ${
 								activeEventTab === tab.id
 									? 'bg-blue-600 text-white shadow-md shadow-blue-600/25 scale-[1.02]'
-									: 'text-slate-600 hover:bg-slate-200 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white'
+									: 'text-slate-700 hover:bg-blue-600 hover:text-white dark:text-slate-300 dark:hover:bg-blue-600 dark:hover:text-white'
 							}`}
 						>
 							<tab.icon class="h-4 w-4 shrink-0" />
@@ -1627,7 +1627,7 @@
 									href={googleCalendarUrl}
 									target="_blank"
 									rel="noopener noreferrer"
-									class="flex items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700 transition hover:bg-blue-100 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300"
+									class="flex items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700 transition hover:bg-blue-600 hover:text-white hover:border-blue-600 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-600 dark:hover:text-white"
 								>
 									<Calendar class="h-4 w-4" />
 									<span>{i18n.t('add_to_google_calendar')}</span>
@@ -1639,7 +1639,7 @@
 									href={`https://www.google.com/maps/dir/?api=1&destination=${event.location.lat},${event.location.lng}`}
 									target="_blank"
 									rel="noopener noreferrer"
-									class="flex items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700 transition hover:bg-blue-100 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300"
+									class="flex items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700 transition hover:bg-blue-600 hover:text-white hover:border-blue-600 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-600 dark:hover:text-white"
 								>
 									<Compass class="h-4 w-4" />
 									<span>{i18n.t('get_directions')}</span>
@@ -1688,7 +1688,7 @@
 									type="button"
 									onclick={contactOrganizer}
 									disabled={contactLoading}
-									class="flex w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 py-2.5 text-xs font-bold text-blue-700 transition hover:bg-blue-100 disabled:opacity-60 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300"
+									class="flex w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 py-2.5 text-xs font-bold text-blue-700 transition hover:bg-blue-600 hover:text-white hover:border-blue-600 disabled:opacity-60 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-600 dark:hover:text-white"
 								>
 									<MessageSquare class="h-4 w-4" />
 									<span>{contactLoading ? i18n.t('opening') : i18n.t('message_organizer')}</span>
@@ -1713,7 +1713,7 @@
 													type="button"
 													onclick={handleStopPromotion}
 													disabled={stoppingPromotion}
-													class="rounded-lg bg-white px-2.5 py-1 text-xs font-bold text-slate-700 shadow hover:bg-red-50 hover:text-red-600 dark:bg-slate-900 dark:text-slate-300"
+													class="rounded-lg bg-white px-2.5 py-1 text-xs font-bold text-slate-700 shadow hover:bg-red-600 hover:text-white dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-red-600 transition"
 												>
 													{stoppingPromotion ? '...' : 'Stop'}
 												</button>
@@ -1839,7 +1839,7 @@
 												type="button"
 												onclick={() => handleRespondToJoinRequest(req.id, 'declined')}
 												disabled={joinRequestActionLoading}
-												class="rounded-lg bg-slate-200 px-3 py-1 text-xs font-bold text-slate-700 hover:bg-red-100 hover:text-red-700 dark:bg-slate-800 dark:text-slate-300"
+												class="rounded-lg bg-slate-200 px-3 py-1 text-xs font-bold text-slate-800 hover:bg-red-600 hover:text-white dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-red-600 dark:hover:text-white transition"
 											>
 												Decline
 											</button>
@@ -1915,7 +1915,7 @@
 													type="button"
 													onclick={() => handleSetParticipantPaymentPaid(participant.id)}
 													disabled={paymentActionLoading}
-													class="rounded-lg bg-white border border-slate-200 px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300"
+													class="rounded-lg bg-slate-100 border border-slate-300 px-2.5 py-1 text-xs font-bold text-slate-800 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-emerald-600 dark:hover:text-white transition"
 												>
 													Mark Paid
 												</button>
@@ -2107,7 +2107,7 @@
 					{#if isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
 						<a
 							href={resolve(`/events/${event.id}/edit`)}
-							class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-800 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+							class="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-slate-100 px-4 py-3 text-sm font-bold text-slate-900 transition hover:bg-slate-900 hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:hover:bg-white dark:hover:text-slate-900"
 						>
 							<Edit3 class="h-4 w-4" />
 							<span class="hidden sm:inline">{i18n.t('edit_event')}</span>
@@ -2158,7 +2158,7 @@
 				<button
 					type="button"
 					onclick={() => dismissConfirm(false)}
-					class="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
+					class="rounded-xl border border-slate-300 bg-slate-100 px-4 py-2.5 text-xs font-bold text-slate-800 hover:bg-slate-900 hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-white dark:hover:text-slate-900 transition"
 				>
 					Cancel
 				</button>
