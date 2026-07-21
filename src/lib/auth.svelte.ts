@@ -15,9 +15,13 @@ class AuthState {
     constructor() {
         onAuthStateChanged(auth, async (u) => {
             const revision = ++this.revision;
-            this.loading = true;
             this.user = u;
             this.requiresEmailVerification = false;
+
+            // Firebase Auth has already restored the local session at this
+            // point. Do not keep the whole native app behind the splash while
+            // waiting for a separate Firestore profile request.
+            this.loading = false;
 
             if (u) {
                 try {
@@ -29,8 +33,6 @@ class AuthState {
                     console.error('Could not load auth verification requirement:', err);
                 }
             }
-
-            if (revision === this.revision) this.loading = false;
         });
     }
 
