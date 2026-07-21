@@ -1493,7 +1493,7 @@
 							<div class="rounded-[1.25rem] bg-white p-3.5 shadow-sm shadow-slate-200/60 ring-1 ring-slate-200/70 dark:bg-slate-900 dark:shadow-none dark:ring-slate-800">
 								<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
 									<div class="min-w-0">
-										<p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{i18n.t('price')}</p>
+										<p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{i18n.t('estimated_price')}</p>
 										<p class="mt-1 text-sm font-black text-slate-950 dark:text-slate-50 break-words">{formatPriceLabel(event)}</p>
 									</div>
 									<span class="inline-block self-start rounded-full bg-green-50 px-3 py-1.5 text-xs font-black text-green-700 dark:bg-green-950 dark:text-green-300 sm:self-auto shrink-0">
