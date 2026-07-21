@@ -9,7 +9,8 @@
 		completeEmailTwoFactorChallenge,
 		currentUrlIsEmailTwoFactorLink,
 		getPendingTwoFactorChallenge,
-		startEmailTwoFactorChallenge
+		startEmailTwoFactorChallenge,
+		TWO_FACTOR_COMPLETED_KEY
 	} from '$lib/services/two-factor.service';
 
 	let loading = $state(true);
@@ -17,6 +18,7 @@
 	let error = $state('');
 	let success = $state('');
 	let pendingEmail = $state('');
+	let verifiedReturnTo = $state('');
 
 	const returnTo = $derived(
 		page.url.searchParams.get('returnTo')?.startsWith('/')
@@ -24,31 +26,52 @@
 			: '/dashboard'
 	);
 
-	onMount(async () => {
-		error = '';
-		success = '';
+	onMount(() => {
+		function handleCompletedChallenge(event: StorageEvent) {
+			if (event.key !== TWO_FACTOR_COMPLETED_KEY || !event.newValue) return;
 
-		try {
-			const pending = getPendingTwoFactorChallenge();
-			pendingEmail = pending?.email ?? '';
-
-			if (currentUrlIsEmailTwoFactorLink()) {
-				const result = await completeEmailTwoFactorChallenge();
-				await goto(result.returnTo || returnTo);
-				return;
+			try {
+				const completed = JSON.parse(event.newValue) as { returnTo?: string };
+				const destination = completed.returnTo?.startsWith('/') ? completed.returnTo : returnTo;
+				void goto(destination);
+			} catch {
+				void goto(returnTo);
 			}
-
-			if (page.url.searchParams.get('sent')) {
-				success = 'We sent a verification link to your email. Open it to continue.';
-			} else if (!pending) {
-				error = 'No active two-factor verification found. Log in again to request a new link.';
-			}
-		} catch (err) {
-			console.error('Two-factor verification error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not verify this login.');
-		} finally {
-			loading = false;
 		}
+
+		window.addEventListener('storage', handleCompletedChallenge);
+
+		void (async () => {
+			error = '';
+			success = '';
+
+			try {
+				const pending = getPendingTwoFactorChallenge();
+				pendingEmail = pending?.email ?? '';
+
+				if (currentUrlIsEmailTwoFactorLink()) {
+					const result = await completeEmailTwoFactorChallenge();
+					verifiedReturnTo = result.returnTo || returnTo;
+					success = 'Login verified. You can return to the Rally tab you already had open.';
+
+					window.setTimeout(() => window.close(), 500);
+					return;
+				}
+
+				if (page.url.searchParams.get('sent')) {
+					success = 'We sent a verification link to your email. Open it to continue.';
+				} else if (!pending) {
+					error = 'No active two-factor verification found. Log in again to request a new link.';
+				}
+			} catch (err) {
+				console.error('Two-factor verification error:', err);
+				error = getFriendlyErrorMessage(err, 'Could not verify this login.');
+			} finally {
+				loading = false;
+			}
+		})();
+
+		return () => window.removeEventListener('storage', handleCompletedChallenge);
 	});
 
 	async function handleResend() {
@@ -137,6 +160,14 @@
 				</div>
 
 				<div class="mt-7 flex flex-col gap-3">
+					{#if verifiedReturnTo}
+						<a
+							href={verifiedReturnTo}
+							class="rounded-2xl bg-blue-600 px-5 py-3 text-center font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700"
+						>
+							Continue to Rally
+						</a>
+					{:else}
 					<button
 						type="button"
 						onclick={handleResend}
@@ -145,6 +176,7 @@
 					>
 						{resending ? 'Sending...' : 'Send link again'}
 					</button>
+					{/if}
 					<a
 						href="/login"
 						class="rounded-2xl border border-slate-200 px-5 py-3 text-center font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
