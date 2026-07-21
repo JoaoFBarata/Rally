@@ -108,6 +108,11 @@
 				return;
 			}
 
+			if (Capacitor.isNativePlatform() && page.url.pathname === '/' && authState.user) {
+				void goto(resolve('/dashboard'), { replaceState: true });
+				return;
+			}
+
 			const protectedRoutes =
 				page.url.pathname.startsWith('/dashboard') ||
 				page.url.pathname.startsWith('/events') ||
