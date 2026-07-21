@@ -3,11 +3,18 @@
 	import mapboxgl from 'mapbox-gl';
 	import MapboxWorker from 'mapbox-gl/dist/mapbox-gl-csp-worker?worker';
 	import { PUBLIC_MAPBOX_ACCESS_TOKEN } from '$env/static/public';
-	import type { Sport, SportEvent, SportLevel, UserProfile } from '$lib/schema';
+	import type { Sport, SportEvent, SportLevel, UserProfile, Venue } from '$lib/schema';
 	import { themeState } from '$lib/theme.svelte';
 	import EventCard from '$lib/components/EventCard.svelte';
+	import VenueCard from '$lib/components/VenueCard.svelte';
 	import { isPromotionActive, getEventStartAtMillis } from '$lib/services/event.service';
-	import { formatDate, getCurrencySymbol, getSportBackgroundImage } from '$lib/utils/format.utils';
+	import {
+		formatDate,
+		formatSport,
+		getCurrencySymbol,
+		getSportBackgroundImage,
+		getSportEmoji
+	} from '$lib/utils/format.utils';
 	import { i18n } from '$lib/services/i18n.svelte';
 	import { getEventTemporalState } from '$lib/utils/event-lifecycle.utils';
 
@@ -47,7 +54,20 @@
 		onSelectedEventChange,
 		getEventHref = (event: SportEvent) => `/events/${event.id}`,
 		profile = null,
-		viewMode = 'map'
+		viewMode = 'map',
+		mode = 'events',
+		venues = [],
+		venueRatings = {},
+		venueCities = [],
+		venueSportOptions = [],
+		selectedVenueSport = null,
+		selectedVenueCity = null,
+		venuesLoading = false,
+		venueError = '',
+		onToggleVenueSport,
+		onVenueCityChange,
+		onSelectedVenueChange,
+		getVenueHref = (venue: Venue) => `/locations/${venue.id}`
 	} = $props<{
 		events: SportEvent[];
 		totalEventsCount?: number;
@@ -90,6 +110,19 @@
 		getEventHref?: (event: SportEvent) => string;
 		profile?: UserProfile | null;
 		viewMode?: 'map' | 'feed';
+		mode?: 'events' | 'venues';
+		venues?: Venue[];
+		venueRatings?: Record<string, { average: number; count: number }>;
+		venueCities?: string[];
+		venueSportOptions?: Sport[];
+		selectedVenueSport?: Sport | null;
+		selectedVenueCity?: string | null;
+		venuesLoading?: boolean;
+		venueError?: string;
+		onToggleVenueSport?: (sport: Sport) => void;
+		onVenueCityChange?: (city: string | null) => void;
+		onSelectedVenueChange?: (venueId: string | null) => void;
+		getVenueHref?: (venue: Venue) => string;
 	}>();
 
 	let mapContainer: HTMLDivElement;
@@ -103,14 +136,12 @@
 	let selectedEvent = $state<SportEvent | null>(null);
 	let selectedEventGroup = $state<SportEvent[]>([]);
 	let selectedEventIndex = $state(0);
+	let selectedVenue = $state<Venue | null>(null);
 	let localSearchTerm = $state('');
 	let markers: mapboxgl.Marker[] = [];
 	let routeEndpointMarkers: mapboxgl.Marker[] = [];
 	let svelteMarkers: any[] = [];
 	let showFilters = $state(false);
-	let featuredFeedScroller = $state<HTMLDivElement | null>(null);
-	let friendsFeedScroller = $state<HTMLDivElement | null>(null);
-	let generalFeedScroller = $state<HTMLDivElement | null>(null);
 	const routeSourceId = 'selected-event-route';
 	let mapResizeFrame: number | null = null;
 	let mapResizeSettleTimer: number | null = null;
@@ -216,16 +247,42 @@
 	let shownFeedCount = $derived(
 		feedFeaturedEvents.length + feedFriendsEvents.length + feedGeneralEvents.length
 	);
+	let feedGridEvents = $derived([
+		...feedFeaturedEvents,
+		...feedFriendsEvents,
+		...feedGeneralEvents
+	]);
 	let searchPreviewEvents = $derived(localSearchTerm.trim() ? events.slice(0, 6) : []);
+
+	function getVenueRatingLabel(venue: Venue) {
+		const rating = venueRatings[venue.id];
+		if (!rating?.count) return null;
+		return `★${rating.average.toFixed(1)}`;
+	}
 
 	let clusterIndex: any = null;
 	let hasFitBoundsForCurrentEvents = false;
 	let previousVisibleEventIds = '';
+	let venueClusterIndex: any = null;
+	let hasFitBoundsForCurrentVenues = false;
+	let previousVisibleVenueIds = '';
 	type EventPointFeature = {
 		type: 'Feature';
 		properties: {
 			eventId: string;
 			event: SportEvent;
+			isCluster: false;
+		};
+		geometry: {
+			type: 'Point';
+			coordinates: [number, number];
+		};
+	};
+	type VenuePointFeature = {
+		type: 'Feature';
+		properties: {
+			venueId: string;
+			venue: Venue;
 			isCluster: false;
 		};
 		geometry: {
@@ -243,6 +300,10 @@
 		if (dateFilter === 'today') return i18n.t('showing_events_today', replacements);
 		if (dateFilter === 'all') return i18n.t('showing_events_all_upcoming', replacements);
 		return i18n.t('showing_events_next_days', { ...replacements, days: dateFilter });
+	}
+
+	function formatShowingLocations(count: number) {
+		return i18n.t('showing_locations_count', { count });
 	}
 
 	async function loadCreatorProfiles(eventsList: SportEvent[]) {
@@ -347,6 +408,65 @@
 		}
 	});
 
+	$effect(() => {
+		if (venues) {
+			const visibleVenueIds = venues
+				.map((venue: Venue) => venue.id)
+				.sort()
+				.join(',');
+
+			if (visibleVenueIds !== previousVisibleVenueIds) {
+				hasFitBoundsForCurrentVenues = false;
+			}
+			previousVisibleVenueIds = visibleVenueIds;
+
+			const points: VenuePointFeature[] = venues.map(
+				(venue: Venue): VenuePointFeature => ({
+					type: 'Feature' as const,
+					properties: {
+						venueId: venue.id,
+						venue: venue,
+						isCluster: false
+					},
+					geometry: {
+						type: 'Point' as const,
+						coordinates: [venue.lng, venue.lat]
+					}
+				})
+			);
+
+			const index = new Supercluster({
+				radius: 50,
+				maxZoom: 15
+			});
+			index.load(points);
+			venueClusterIndex = index;
+
+			if (mapReady && mode === 'venues') {
+				renderMarkers();
+			}
+		}
+	});
+
+	$effect(() => {
+		if (
+			selectedVenue &&
+			!venues.some((venue: Venue) => venue.id === selectedVenue?.id)
+		) {
+			clearSelectedVenue();
+		}
+	});
+
+	function clearSelectedVenue() {
+		selectedVenue = null;
+		onSelectedVenueChange?.(null);
+	}
+
+	function selectVenue(venue: Venue) {
+		selectedVenue = venue;
+		onSelectedVenueChange?.(venue.id);
+	}
+
 	function clearSelectedEvent() {
 		selectedEvent = null;
 		selectedEventGroup = [];
@@ -373,12 +493,6 @@
 	function clearAllFilters() {
 		onClearFilters?.();
 		clearSelectedEvent();
-	}
-
-	function scrollFeedSection(scroller: HTMLDivElement | null, direction: -1 | 1) {
-		if (!scroller) return;
-		const scrollAmount = Math.min(scroller.clientWidth * 0.86, 520);
-		scroller.scrollBy({ left: scrollAmount * direction, behavior: 'smooth' });
 	}
 
 	function toggleSportFilter(sport: Sport) {
@@ -624,6 +738,11 @@
 		return '#dc2626'; // Red - Public events
 	}
 
+	function getVenueMarkerColor(venue: Venue) {
+		if (selectedVenue?.id === venue.id) return '#10b981'; // Green - Selected venue
+		return venue.verificationStatus === 'verified' ? '#059669' : '#64748b';
+	}
+
 	function getMarkerQueryBbox(currentMap: mapboxgl.Map): [number, number, number, number] | null {
 		const canvas = currentMap.getCanvas();
 		if (!canvas.clientWidth || !canvas.clientHeight) return null;
@@ -642,6 +761,10 @@
 	}
 
 	function renderMarkers() {
+		if (mode === 'venues') {
+			renderVenueMarkers();
+			return;
+		}
 		if (!map || !mapReady || !clusterIndex) return;
 		const currentMap = map;
 
@@ -783,6 +906,130 @@
 		}
 	}
 
+	function renderVenueMarkers() {
+		if (!map || !mapReady || !venueClusterIndex) return;
+		const currentMap = map;
+
+		if (!hasFitBoundsForCurrentVenues && venues.length > 0) {
+			const bounds = new mapboxgl.LngLatBounds();
+			const allCoords = venues.map((venue: Venue) => ({ lat: venue.lat, lng: venue.lng }));
+			const mapCenter = currentMap.getCenter();
+			const nearbyCoords = allCoords.filter((coords: { lat: number; lng: number }) => {
+				return getDistanceMeters({ lat: mapCenter.lat, lng: mapCenter.lng }, coords) <= 90000;
+			});
+			const coordsToFit = nearbyCoords.length ? nearbyCoords : allCoords;
+
+			for (const coords of coordsToFit) {
+				bounds.extend([coords.lng, coords.lat]);
+			}
+
+			if (coordsToFit.length) {
+				hasFitBoundsForCurrentVenues = true;
+				currentMap.fitBounds(bounds, {
+					padding: 80,
+					maxZoom: 12
+				});
+				return;
+			}
+		}
+
+		clearMarkers();
+
+		const zoom = Math.floor(currentMap.getZoom());
+		const bbox = getMarkerQueryBbox(currentMap);
+		if (!bbox) return;
+
+		const features = venueClusterIndex.getClusters(bbox, zoom);
+
+		for (const feature of features) {
+			const [lng, lat] = feature.geometry.coordinates;
+
+			if (feature.properties.cluster) {
+				const count = feature.properties.point_count;
+				const clusterId = feature.id;
+
+				const leaves = venueClusterIndex.getLeaves(clusterId, Infinity);
+				const clusterVenues = leaves.map((leaf: any) => leaf.properties.venue as Venue);
+				const selectedClusterVenue = selectedVenue
+					? clusterVenues.find((venue: Venue) => venue.id === selectedVenue?.id)
+					: null;
+				const priorityVenue = selectedClusterVenue ?? clusterVenues[0];
+
+				const el = document.createElement('div');
+				el.className = 'custom-marker custom-cluster-marker';
+				el.style.cursor = 'pointer';
+				el.style.zIndex = selectedClusterVenue ? '60' : '10';
+
+				const markerComponent = mount(Marker, {
+					target: el,
+					props: {
+						kind: 'venue',
+						profile_url: priorityVenue.photoURL || '',
+						name_letter: getSportEmoji(priorityVenue.sports[0]),
+						sport: priorityVenue.sports[0],
+						rating_label: getVenueRatingLabel(priorityVenue),
+						marker_color: getVenueMarkerColor(priorityVenue),
+						marker_scale: selectedClusterVenue ? 0.78 : 0.6,
+						cluster_count: count - 1
+					}
+				});
+				svelteMarkers.push(markerComponent);
+
+				el.addEventListener('click', () => {
+					selectVenue(priorityVenue);
+					try {
+						const expansionZoom = venueClusterIndex.getClusterExpansionZoom(clusterId);
+						const currentZoom = currentMap.getZoom();
+						currentMap.flyTo({
+							center: [lng, lat],
+							zoom: Math.max(currentZoom, Math.min(Math.max(expansionZoom, currentZoom + 1), 16)),
+							speed: 1.2
+						});
+					} catch (e) {
+						console.error('Expansion zoom error:', e);
+					}
+				});
+
+				const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+					.setLngLat([lng, lat])
+					.addTo(currentMap);
+				markers.push(marker);
+			} else {
+				const venue = feature.properties.venue;
+				const isSelectedMarker = selectedVenue?.id === venue.id;
+
+				const el = document.createElement('div');
+				el.className = 'custom-marker';
+				el.style.cursor = 'pointer';
+				el.style.zIndex = isSelectedMarker ? '60' : '10';
+
+				const markerComponent = mount(Marker, {
+					target: el,
+					props: {
+						kind: 'venue',
+						profile_url: venue.photoURL || '',
+						name_letter: getSportEmoji(venue.sports[0]),
+						sport: venue.sports[0],
+						rating_label: getVenueRatingLabel(venue),
+						marker_color: getVenueMarkerColor(venue),
+						marker_scale: isSelectedMarker ? 0.78 : 0.6
+					}
+				});
+				svelteMarkers.push(markerComponent);
+
+				el.addEventListener('click', () => {
+					selectVenue(venue);
+				});
+
+				const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+					.setLngLat([lng, lat])
+					.addTo(currentMap);
+
+				markers.push(marker);
+			}
+		}
+	}
+
 	onMount(() => {
 		(mapboxgl as any).workerClass = MapboxWorker;
 		mapboxgl.accessToken = PUBLIC_MAPBOX_ACCESS_TOKEN;
@@ -874,6 +1121,7 @@
 
 	$effect(() => {
 		const profiles = creatorProfiles; // Track changes
+		const currentMode = mode; // Track changes
 		if (mapReady) {
 			renderMarkers();
 		}
@@ -889,59 +1137,72 @@
 		class:hidden={viewMode !== 'map'}
 	>
 		{#if viewMode === 'map'}
-			<div
-				class="absolute inset-x-3 top-3 z-20 flex items-center gap-2 md:hidden fullscreen-force-show"
-			>
-				<button
-					type="button"
-					onclick={() => (showFilters = !showFilters)}
-					class="flex min-w-0 items-center gap-2 rounded-full border border-slate-200/60 bg-white/95 px-3 py-2 text-sm font-black text-slate-700 shadow-md backdrop-blur transition active:scale-95 dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-200"
+			{#if mode === 'events'}
+				<div
+					class="absolute inset-x-3 top-3 z-20 flex items-center gap-2 md:hidden fullscreen-force-show"
 				>
-					<svg
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						class="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400"
+					<button
+						type="button"
+						onclick={() => (showFilters = !showFilters)}
+						class="flex min-w-0 items-center gap-2 rounded-full border border-slate-200/60 bg-white/95 px-3 py-2 text-sm font-black text-slate-700 shadow-md backdrop-blur transition active:scale-95 dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-200"
 					>
-						<path d="M3 5h18" />
-						<path d="M7 12h10" />
-						<path d="M10 19h4" />
-					</svg>
-
-					<span class="truncate">{i18n.t('filters_label')}</span>
-
-					{#if activeFilterCount > 0}
-						<span
-							class="shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white"
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.5"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400"
 						>
-							{activeFilterCount}
-						</span>
-					{/if}
-				</button>
-			</div>
+							<path d="M3 5h18" />
+							<path d="M7 12h10" />
+							<path d="M10 19h4" />
+						</svg>
+
+						<span class="truncate">{i18n.t('filters_label')}</span>
+
+						{#if activeFilterCount > 0}
+							<span
+								class="shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white"
+							>
+								{activeFilterCount}
+							</span>
+						{/if}
+					</button>
+				</div>
+			{/if}
 
 			<div
 				class="absolute right-2 bottom-2 z-10 flex flex-row flex-wrap items-center gap-3 rounded-xl bg-white/95 p-2 shadow-md backdrop-blur dark:bg-slate-900/95 text-xs md:right-4 md:bottom-4 md:flex-col md:items-start md:gap-2 md:rounded-2xl md:p-4 md:shadow-lg md:text-sm"
 			>
-				{#if currentUserId}
+				{#if mode === 'events'}
+					{#if currentUserId}
+						<div class="flex items-center gap-1.5">
+							<span class="h-2.5 w-2.5 rounded-full bg-[#00B4D8]"></span>
+							<span>{i18n.t('my_events')}</span>
+						</div>
+					{/if}
+
 					<div class="flex items-center gap-1.5">
-						<span class="h-2.5 w-2.5 rounded-full bg-[#00B4D8]"></span>
-						<span>{i18n.t('my_events')}</span>
+						<span class="h-2.5 w-2.5 rounded-full bg-red-600"></span>
+						<span>{i18n.t('public_events')}</span>
 					</div>
-				{/if}
 
-				<div class="flex items-center gap-1.5">
-					<span class="h-2.5 w-2.5 rounded-full bg-red-600"></span>
-					<span>{i18n.t('public_events')}</span>
-				</div>
-
-				{#if currentUserId}
+					{#if currentUserId}
+						<div class="flex items-center gap-1.5">
+							<span class="h-2.5 w-2.5 rounded-full bg-yellow-600"></span>
+							<span>{i18n.t('friends_events')}</span>
+						</div>
+					{/if}
+				{:else}
 					<div class="flex items-center gap-1.5">
-						<span class="h-2.5 w-2.5 rounded-full bg-yellow-600"></span>
-						<span>{i18n.t('friends_events')}</span>
+						<span class="h-2.5 w-2.5 rounded-full bg-emerald-600"></span>
+						<span>{i18n.t('verified')}</span>
+					</div>
+					<div class="flex items-center gap-1.5">
+						<span class="h-2.5 w-2.5 rounded-full bg-slate-500"></span>
+						<span>{i18n.t('not_verified')}</span>
 					</div>
 				{/if}
 			</div>
@@ -951,7 +1212,7 @@
 		<div
 			class="border-t border-slate-200 bg-white px-4 py-2.5 text-center text-[11px] font-black uppercase tracking-wide text-blue-700 dark:border-slate-800 dark:bg-slate-900 dark:text-blue-300 md:hidden"
 		>
-			{formatShowingEvents(events.length)}
+			{mode === 'events' ? formatShowingEvents(events.length) : formatShowingLocations(venues.length)}
 		</div>
 	{/if}
 	<!-- Floating Filters Modal Card (Mobile Only) -->
@@ -1262,6 +1523,7 @@
 	{/if}
 
 	<!-- Desktop Filters Bar (Web Only) -->
+	{#if mode === 'events'}
 	<div
 		class="hidden md:block border-t border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900 shrink-0"
 	>
@@ -1596,8 +1858,53 @@
 			</div>
 		{/if}
 	</div>
+	{/if}
 
-	{#if viewMode === 'map' && selectedEvent}
+	{#if mode === 'venues'}
+		<div
+			class="border-t border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900 shrink-0"
+		>
+			<div class="flex items-center justify-between gap-3">
+				<span class="text-xs font-black uppercase tracking-wider text-slate-400">
+					{formatShowingLocations(venues.length)}
+				</span>
+			</div>
+			<div class="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+				{#each venueSportOptions as sport (sport)}
+					<button
+						type="button"
+						onclick={() => onToggleVenueSport?.(sport)}
+						class={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold capitalize transition ${
+							selectedVenueSport === sport
+								? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
+								: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950'
+						}`}
+					>
+						{formatSport(sport)}
+					</button>
+				{/each}
+			</div>
+			{#if venueCities.length > 1}
+				<div class="mt-2 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+					{#each venueCities as city (city)}
+						<button
+							type="button"
+							onclick={() => onVenueCityChange?.(city)}
+							class={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold transition ${
+								selectedVenueCity === city
+									? 'bg-slate-950 text-white dark:bg-white dark:text-slate-950'
+									: 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
+							}`}
+						>
+							{city}
+						</button>
+					{/each}
+				</div>
+			{/if}
+		</div>
+	{/if}
+
+	{#if viewMode === 'map' && mode === 'events' && selectedEvent}
 		<aside
 			class="absolute inset-x-3 bottom-3 z-20 max-h-[42dvh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2.5 shadow-xl shadow-slate-300/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none md:inset-x-auto md:bottom-auto md:left-5 md:top-5 md:m-0 md:max-h-[70dvh] md:w-[24rem] md:rounded-[1.75rem] md:p-4 md:shadow-2xl md:shadow-slate-300/70"
 		>
@@ -1757,213 +2064,173 @@
 		</aside>
 	{/if}
 
+	{#if viewMode === 'map' && mode === 'venues' && selectedVenue}
+		<aside
+			class="absolute inset-x-3 bottom-3 z-20 max-h-[42dvh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2.5 shadow-xl shadow-slate-300/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none md:inset-x-auto md:bottom-auto md:left-5 md:top-5 md:m-0 md:max-h-[70dvh] md:w-[24rem] md:rounded-[1.75rem] md:p-4 md:shadow-2xl md:shadow-slate-300/70"
+		>
+			<div class="flex items-center justify-between gap-3">
+				<div class="flex min-w-0 flex-wrap items-center gap-2">
+					{#if selectedVenue.verificationStatus === 'verified'}
+						<span
+							class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 md:px-3 md:py-1 md:text-xs"
+						>
+							{i18n.t('verified')}
+						</span>
+					{:else}
+						<span
+							class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-600 dark:bg-slate-800 dark:text-slate-300 md:px-3 md:py-1 md:text-xs"
+						>
+							{i18n.t('not_verified')}
+						</span>
+					{/if}
+				</div>
+				<button
+					type="button"
+					onclick={clearSelectedVenue}
+					class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-lg font-black text-slate-500 transition hover:bg-slate-200 hover:text-slate-900 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100 md:h-8 md:w-8 md:text-xl"
+					aria-label="Close venue preview"
+				>
+					×
+				</button>
+			</div>
+
+			<div class="mt-2.5 flex gap-2.5 md:mt-3 md:gap-3">
+				<div
+					class="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800 sm:h-20 sm:w-20 md:h-28 md:w-28"
+				>
+					<img
+						src={selectedVenue.photoURL || getSportBackgroundImage(selectedVenue.sports[0])}
+						alt={selectedVenue.name}
+						class="h-full w-full object-cover"
+					/>
+				</div>
+
+				<div class="min-w-0 flex-1">
+					<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50 md:text-base">
+						{selectedVenue.name}
+					</p>
+					<p class="mt-1 truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
+						{selectedVenue.sports.map((s) => formatSport(s)).join(' · ')}
+					</p>
+					<p class="mt-1 truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
+						📍 {selectedVenue.city}
+					</p>
+					{#if getVenueRatingLabel(selectedVenue)}
+						<p class="mt-1 text-xs font-black text-yellow-500">
+							{getVenueRatingLabel(selectedVenue)}
+						</p>
+					{/if}
+				</div>
+			</div>
+
+			<a
+				href={getVenueHref(selectedVenue)}
+				class="mt-3 block rounded-xl bg-blue-600 px-3 py-2 text-center text-xs font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 md:rounded-2xl md:px-4 md:py-2.5 md:text-sm"
+			>
+				{i18n.t('view_venue')}
+			</a>
+		</aside>
+	{/if}
+
 	{#if viewMode === 'feed'}
 		<!-- Feed list wrapper -->
 		<div
 			class="min-w-0 w-full max-w-full flex-1 overflow-x-hidden overflow-y-auto px-3 py-6 sm:px-4 md:px-8"
 		>
-			<div class="mb-4 flex items-center justify-between gap-3 md:hidden">
-				<button
-					type="button"
-					onclick={() => (showFilters = !showFilters)}
-					class="flex min-w-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 shadow-sm transition active:scale-95 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
-				>
-					<svg
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						class="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400"
+			{#if mode === 'events'}
+				<div class="mb-4 flex items-center justify-between gap-3 md:hidden">
+					<button
+						type="button"
+						onclick={() => (showFilters = !showFilters)}
+						class="flex min-w-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 shadow-sm transition active:scale-95 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
 					>
-						<path d="M3 5h18" />
-						<path d="M7 12h10" />
-						<path d="M10 19h4" />
-					</svg>
-
-					<span class="truncate">{i18n.t('filters_label')}</span>
-
-					{#if activeFilterCount > 0}
-						<span
-							class="shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white"
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.5"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400"
 						>
-							{activeFilterCount}
-						</span>
-					{/if}
-				</button>
+							<path d="M3 5h18" />
+							<path d="M7 12h10" />
+							<path d="M10 19h4" />
+						</svg>
 
-				<span class="min-w-0 truncate text-right text-[11px] font-black uppercase tracking-wide text-slate-400">
-					{formatShowingEvents(shownFeedCount)}
-				</span>
-			</div>
+						<span class="truncate">{i18n.t('filters_label')}</span>
 
-			{#if shownFeedCount === 0}
-				<div class="flex flex-col items-center justify-center py-20 text-center">
-					<div class="rounded-full bg-slate-100 p-4 dark:bg-slate-800 text-3xl mb-4">🔍</div>
-					<h3 class="text-lg font-black text-slate-950 dark:text-slate-50">
-						{i18n.t('no_events_found')}
-					</h3>
-					<p class="mt-1 text-sm text-slate-500 max-w-sm dark:text-slate-400">
-						{i18n.t('no_events_found_sub')}
+						{#if activeFilterCount > 0}
+							<span
+								class="shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white"
+							>
+								{activeFilterCount}
+							</span>
+						{/if}
+					</button>
+
+					<span class="min-w-0 truncate text-right text-[11px] font-black uppercase tracking-wide text-slate-400">
+						{formatShowingEvents(shownFeedCount)}
+					</span>
+				</div>
+
+				{#if shownFeedCount === 0}
+					<div class="flex flex-col items-center justify-center py-20 text-center">
+						<div class="rounded-full bg-slate-100 p-4 dark:bg-slate-800 text-3xl mb-4">🔍</div>
+						<h3 class="text-lg font-black text-slate-950 dark:text-slate-50">
+							{i18n.t('no_events_found')}
+						</h3>
+						<p class="mt-1 text-sm text-slate-500 max-w-sm dark:text-slate-400">
+							{i18n.t('no_events_found_sub')}
+						</p>
+						{#if activeFilterCount > 0}
+							<button
+								type="button"
+								onclick={clearAllFilters}
+								class="mt-4 rounded-full bg-blue-50 px-4 py-2 text-xs font-black text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+							>
+								{i18n.t('clear_all_filters')}
+							</button>
+						{/if}
+					</div>
+				{:else}
+					<p class="mb-5 hidden text-xs font-black uppercase tracking-wider text-slate-400 md:block">
+						{formatShowingEvents(shownFeedCount)}
 					</p>
-					{#if activeFilterCount > 0}
-						<button
-							type="button"
-							onclick={clearAllFilters}
-							class="mt-4 rounded-full bg-blue-50 px-4 py-2 text-xs font-black text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
-						>
-							{i18n.t('clear_all_filters')}
-						</button>
-					{/if}
-				</div>
+
+					<div class="grid grid-cols-2 gap-4 pb-16 sm:grid-cols-3 lg:grid-cols-4">
+						{#each feedGridEvents as event (event.id)}
+							<EventCard {event} variant="vertical" />
+						{/each}
+					</div>
+				{/if}
 			{:else}
-				<p class="mb-5 hidden text-xs font-black uppercase tracking-wider text-slate-400 md:block">
-					{formatShowingEvents(shownFeedCount)}
-				</p>
-
-				<div class="space-y-12 pb-16">
-					<!-- 1. Featured Section -->
-					{#if feedFeaturedEvents.length > 0}
-						<section>
-							<div class="mb-4 flex items-end justify-between gap-3">
-								<div class="min-w-0">
-									<h3
-										class="flex items-center gap-2 text-base font-black text-slate-900 dark:text-slate-100"
-									>
-										<span class="text-slate-400">★</span>
-										{i18n.t('featured_games')}
-									</h3>
-									<p class="text-xs text-slate-500 dark:text-slate-400">
-										{i18n.t('promoted_matching_pref')}
-									</p>
-								</div>
-								<div class="flex shrink-0 items-center gap-2">
-									<button
-										type="button"
-										onclick={() => scrollFeedSection(featuredFeedScroller, -1)}
-										class="grid h-9 w-9 place-items-center rounded-full bg-white text-lg font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-blue-950"
-										aria-label={i18n.t('previous_nearby_event')}
-									>
-										‹
-									</button>
-									<button
-										type="button"
-										onclick={() => scrollFeedSection(featuredFeedScroller, 1)}
-										class="grid h-9 w-9 place-items-center rounded-full bg-white text-lg font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-blue-950"
-										aria-label={i18n.t('next_nearby_event')}
-									>
-										›
-									</button>
-								</div>
-							</div>
-							<div
-								bind:this={featuredFeedScroller}
-								class="rally-scrollbar -mx-3 flex snap-x gap-4 overflow-x-auto px-3 pb-3 sm:-mx-4 sm:px-4"
-							>
-								{#each feedFeaturedEvents as event (event.id)}
-									<div class="w-[calc((100vw-4rem)/1.72)] max-w-[13.5rem] shrink-0 snap-start sm:w-52 lg:w-56">
-										<EventCard {event} variant="vertical" />
-									</div>
-								{/each}
-							</div>
-						</section>
-					{/if}
-
-					<!-- 2. Friends Section -->
-					{#if feedFriendsEvents.length > 0}
-						<section>
-							<div class="mb-4 flex items-end justify-between gap-3">
-								<div class="min-w-0">
-									<h3
-										class="flex items-center gap-2 text-base font-black text-slate-900 dark:text-slate-100"
-									>
-										<span class="text-slate-400">◎</span>
-										{i18n.t('friends_activity')}
-									</h3>
-									<p class="text-xs text-slate-500 dark:text-slate-400">
-										{i18n.t('friends_activity_sub')}
-									</p>
-								</div>
-								<div class="flex shrink-0 items-center gap-2">
-									<button
-										type="button"
-										onclick={() => scrollFeedSection(friendsFeedScroller, -1)}
-										class="grid h-9 w-9 place-items-center rounded-full bg-white text-lg font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-blue-950"
-										aria-label={i18n.t('previous_nearby_event')}
-									>
-										‹
-									</button>
-									<button
-										type="button"
-										onclick={() => scrollFeedSection(friendsFeedScroller, 1)}
-										class="grid h-9 w-9 place-items-center rounded-full bg-white text-lg font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-blue-950"
-										aria-label={i18n.t('next_nearby_event')}
-									>
-										›
-									</button>
-								</div>
-							</div>
-							<div
-								bind:this={friendsFeedScroller}
-								class="rally-scrollbar -mx-3 flex snap-x gap-4 overflow-x-auto px-3 pb-3 sm:-mx-4 sm:px-4"
-							>
-								{#each feedFriendsEvents as event (event.id)}
-									<div class="w-[calc((100vw-4rem)/1.72)] max-w-[13.5rem] shrink-0 snap-start sm:w-52 lg:w-56">
-										<EventCard {event} variant="vertical" />
-									</div>
-								{/each}
-							</div>
-						</section>
-					{/if}
-
-					<!-- 3. General Section -->
-					{#if feedGeneralEvents.length > 0}
-						<section>
-							<div class="mb-4 flex items-end justify-between gap-3">
-								<div class="min-w-0">
-									<h3
-										class="flex items-center gap-2 text-base font-black text-slate-900 dark:text-slate-100"
-									>
-										<span class="text-slate-400">⌕</span>
-										{i18n.t('explore_games')}
-									</h3>
-									<p class="text-xs text-slate-500 dark:text-slate-400">
-										{i18n.t('explore_games_sub')}
-									</p>
-								</div>
-								<div class="flex shrink-0 items-center gap-2">
-									<button
-										type="button"
-										onclick={() => scrollFeedSection(generalFeedScroller, -1)}
-										class="grid h-9 w-9 place-items-center rounded-full bg-white text-lg font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-blue-950"
-										aria-label={i18n.t('previous_nearby_event')}
-									>
-										‹
-									</button>
-									<button
-										type="button"
-										onclick={() => scrollFeedSection(generalFeedScroller, 1)}
-										class="grid h-9 w-9 place-items-center rounded-full bg-white text-lg font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-blue-950"
-										aria-label={i18n.t('next_nearby_event')}
-									>
-										›
-									</button>
-								</div>
-							</div>
-							<div
-								bind:this={generalFeedScroller}
-								class="rally-scrollbar -mx-3 flex snap-x gap-4 overflow-x-auto px-3 pb-3 sm:-mx-4 sm:px-4"
-							>
-								{#each feedGeneralEvents as event (event.id)}
-									<div class="w-[calc((100vw-4rem)/1.72)] max-w-[13.5rem] shrink-0 snap-start sm:w-52 lg:w-56">
-										<EventCard {event} variant="vertical" />
-									</div>
-								{/each}
-							</div>
-						</section>
-					{/if}
-				</div>
+				{#if venuesLoading && venues.length === 0}
+					<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+						{#each Array(8) as _}
+							<div class="h-56 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800"></div>
+						{/each}
+					</div>
+				{:else if venueError}
+					<div
+						class="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
+					>
+						{venueError}
+					</div>
+				{:else if venues.length === 0}
+					<div class="flex flex-col items-center justify-center py-20 text-center">
+						<div class="rounded-full bg-slate-100 p-4 text-3xl dark:bg-slate-800">📍</div>
+						<h3 class="mt-4 text-lg font-black text-slate-950 dark:text-slate-50">
+							{i18n.t('no_locations_found')}
+						</h3>
+					</div>
+				{:else}
+					<div class="grid grid-cols-2 gap-4 pb-16 sm:grid-cols-3 lg:grid-cols-4">
+						{#each venues as venue (venue.id)}
+							<VenueCard {venue} rating={venueRatings[venue.id]} />
+						{/each}
+					</div>
+				{/if}
 			{/if}
 		</div>
 	{/if}

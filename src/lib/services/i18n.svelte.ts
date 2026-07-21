@@ -2148,6 +2148,8 @@ class I18nService {
 			// Explore
 			map_view: 'Map View',
 			feed_view: 'Feed View',
+			explore_events_tab: 'Events',
+			explore_venues_tab: 'Venues',
 			explore_subtitle: 'Find events, teams and sports partners nearby',
 			featured_games: 'Featured Games',
 			promoted_matching_pref: 'Promoted events matched to your preferences.',
@@ -2157,6 +2159,7 @@ class I18nService {
 			explore_games_sub: 'Find open spots, matches near you, and other games.',
 			load_more: 'Load More',
 			showing_events: 'Showing {count} of {total} events',
+			showing_locations_count: 'Showing {count} locations',
 			showing_results: 'Showing results for "{searchTerm}".',
 			no_sports_available: 'No sports available.',
 			choose_map_sports_msg: 'Choose which sports appear on the map.',
@@ -2487,6 +2490,7 @@ class I18nService {
 
 			// General
 			view_event: 'View event',
+			view_venue: 'View venue',
 			casual: 'Casual',
 			open: 'Open',
 
@@ -2993,6 +2997,8 @@ class I18nService {
 			// Explore
 			map_view: 'Ver Mapa',
 			feed_view: 'Ver Feed',
+			explore_events_tab: 'Eventos',
+			explore_venues_tab: 'Locais',
 			explore_subtitle: 'Encontra eventos, equipas e parceiros desportivos perto de ti',
 			featured_games: 'Jogos em Destaque',
 			promoted_matching_pref: 'Eventos promovidos adequados às tuas preferências.',
@@ -3002,6 +3008,7 @@ class I18nService {
 			explore_games_sub: 'Encontra vagas abertas, jogos perto de ti e outras partidas.',
 			load_more: 'Carregar Mais',
 			showing_events: 'A mostrar {count} de {total} eventos',
+			showing_locations_count: 'A mostrar {count} localizações',
 			showing_results: 'A mostrar resultados para "{searchTerm}".',
 			no_sports_available: 'Sem desportos disponíveis.',
 			choose_map_sports_msg: 'Escolhe quais desportos aparecem no mapa.',
@@ -3343,6 +3350,7 @@ class I18nService {
 			// Geral
 			view_event: 'Ver evento',
 			casual: 'Casual',
+			view_venue: 'Ver local',
 			open: 'Aberto',
 
 			// Organizations (Profile & Manage)
@@ -3853,6 +3861,8 @@ class I18nService {
 			// Explorar
 			map_view: 'Ver Mapa',
 			feed_view: 'Ver Feed',
+			explore_events_tab: 'Eventos',
+			explore_venues_tab: 'Locales',
 			explore_subtitle: 'Encuentra eventos, equipos y compañeros deportivos cerca de ti',
 			featured_games: 'Juegos Destacados',
 			promoted_matching_pref: 'Eventos promocionados adaptados a tus preferencias.',
@@ -3862,6 +3872,7 @@ class I18nService {
 			explore_games_sub: 'Encuentra plazas libres, partidos cerca de ti y otros juegos.',
 			load_more: 'Cargar Más',
 			showing_events: 'Mostrando {count} de {total} eventos',
+			showing_locations_count: 'Mostrando {count} ubicaciones',
 			showing_results: 'Mostrando resultados para "{searchTerm}".',
 			no_sports_available: 'No hay deportes disponibles.',
 			choose_map_sports_msg: 'Elige qué deportes aparecen en el mapa.',
@@ -4204,6 +4215,7 @@ class I18nService {
 			view_event: 'Ver evento',
 			casual: 'Casual',
 			open: 'Abierto',
+			view_venue: 'Ver local',
 
 			// Organizations (Profile & Manage)
 			followers_count: '{count} seguidores',
@@ -4720,6 +4732,8 @@ class I18nService {
 			// Explorar
 			map_view: 'Mode Carte',
 			feed_view: 'Mode Liste',
+			explore_events_tab: 'Événements',
+			explore_venues_tab: 'Lieux',
 			explore_subtitle:
 				'Trouvez des événements, des équipes et des partenaires sportifs à proximité',
 			featured_games: 'Jeux à la Une',
@@ -4730,6 +4744,7 @@ class I18nService {
 			explore_games_sub: "Trouvez des places libres, des matchs à proximité et d'autres jeux.",
 			load_more: 'Charger Plus',
 			showing_events: 'Affichage de {count} sur {total} événements',
+			showing_locations_count: 'Affichage de {count} lieux',
 			showing_results: 'Affichage des résultats pour "{searchTerm}".',
 			no_sports_available: 'Aucun sport disponible.',
 			choose_map_sports_msg: 'Choisissez les sports qui apparaissent sur la carte.',
@@ -5076,6 +5091,7 @@ class I18nService {
 			casual: 'Occasionnel',
 			open: 'Ouvert',
 
+			view_venue: "Voir le lieu",
 			// Organizations (Profile & Manage)
 			followers_count: '{count} abonnés',
 			followers: 'Abonnés',

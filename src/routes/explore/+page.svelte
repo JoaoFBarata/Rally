@@ -12,7 +12,8 @@
 	import { getFriendsForUser } from '$lib/services/social.service';
 	import { getOrganizationsFollowedByUser } from '$lib/services/organization.service';
 	import { ensureUserProfile } from '$lib/services/user.service';
-	import type { Sport, SportEvent, SportLevel, UserProfile } from '$lib/schema';
+	import { getVenues, getVenueReviews, getRatingSummary } from '$lib/services/venue.service';
+	import type { Sport, SportEvent, SportLevel, UserProfile, Venue } from '$lib/schema';
 	import ExploreMap from '$lib/components/maps/ExploreMap.svelte';
 	import EventCard from '$lib/components/EventCard.svelte';
 	import { getEventStartAtMillis, isPromotionActive } from '$lib/services/event.service';
@@ -26,7 +27,9 @@
 	type PriceFilter = 'all' | 'free' | 'paid';
 	type AudienceFilter = 'all' | 'mine' | 'friends' | 'public' | 'joined' | 'following_orgs';
 	type TemporalFilter = 'all' | 'live' | 'starting_soon';
+	type ExploreContentMode = 'events' | 'venues';
 
+	const validContentModes: ExploreContentMode[] = ['events', 'venues'];
 	const defaultDateFilter: DateFilter = '7';
 	const defaultPriceFilter: PriceFilter = 'all';
 	const defaultAudienceFilter: AudienceFilter = 'all';
@@ -71,6 +74,16 @@
 	let viewMode = $state<'map' | 'feed'>(
 		(page.url.searchParams.get('view') as 'map' | 'feed') || 'map'
 	);
+	let contentMode = $state<ExploreContentMode>(
+		getValidParam('mode', validContentModes, 'events')
+	);
+	let venues = $state<Venue[]>([]);
+	let venueRatings = $state<Record<string, { average: number; count: number }>>({});
+	let venuesLoaded = $state(false);
+	let venuesLoading = $state(false);
+	let venueError = $state('');
+	let selectedVenueSport = $state<Sport | null>(null);
+	let selectedVenueCity = $state<string | null>(null);
 	let selectedSports = $state<Sport[]>(getListParam<Sport>('sports'));
 	let selectedLevels = $state<SportLevel[]>(
 		getListParam<SportLevel>('levels').filter((level) => availableLevels.includes(level))
@@ -138,6 +151,22 @@
 			.map((event) => event.pricePerPerson ?? 0)
 			.filter((price) => price > 0);
 		return Math.max(10, Math.ceil(Math.max(...prices, 0)));
+	});
+
+	let venueCities = $derived.by(() => {
+		return [...new Set(venues.map((venue) => venue.city))].sort();
+	});
+
+	let venueSportOptions = $derived.by((): Sport[] => {
+		return [...new Set(venues.flatMap((venue) => venue.sports))].sort();
+	});
+
+	let filteredVenues = $derived.by(() => {
+		return venues.filter((venue) => {
+			if (selectedVenueSport && !venue.sports.includes(selectedVenueSport)) return false;
+			if (selectedVenueCity && venue.city !== selectedVenueCity) return false;
+			return true;
+		});
 	});
 
 	let activeFilterCount = $derived.by(() => {
@@ -344,6 +373,31 @@
 		selectedMapEventId = null;
 	}
 
+	async function loadVenuesData() {
+		if (venuesLoading) return;
+		venuesLoading = true;
+		venueError = '';
+		try {
+			venues = await getVenues();
+			const ratingEntries = await Promise.all(
+				venues.map(async (venue) => {
+					const reviews = await getVenueReviews(venue.id);
+					return [venue.id, getRatingSummary(reviews)] as [
+						string,
+						{ average: number; count: number }
+					];
+				})
+			);
+			venueRatings = Object.fromEntries(ratingEntries);
+			venuesLoaded = true;
+		} catch (err) {
+			console.error('Load venues error:', err);
+			venueError = getFriendlyErrorMessage(err, i18n.t('venue_not_found'));
+		} finally {
+			venuesLoading = false;
+		}
+	}
+
 	function syncExploreQuery() {
 		const params = new URLSearchParams(page.url.searchParams);
 		const trimmedSearch = searchTerm.trim();
@@ -377,6 +431,9 @@
 
 		if (viewMode !== 'map') params.set('view', viewMode);
 		else params.delete('view');
+
+		if (contentMode !== 'events') params.set('mode', contentMode);
+		else params.delete('mode');
 
 		const query = params.toString();
 		void goto(`${page.url.pathname}${query ? `?${query}` : ''}`, {
@@ -447,6 +504,22 @@
 		syncExploreQuery();
 	}
 
+	function setContentMode(value: ExploreContentMode) {
+		if (contentMode === value) return;
+		contentMode = value;
+		clearSelectedEvent();
+		syncExploreQuery();
+		if (value === 'venues' && !venuesLoaded) void loadVenuesData();
+	}
+
+	function toggleVenueSportFilter(sport: Sport) {
+		selectedVenueSport = selectedVenueSport === sport ? null : sport;
+	}
+
+	function setVenueCityFilter(city: string | null) {
+		selectedVenueCity = selectedVenueCity === city ? null : city;
+	}
+
 	function clearAllFilters() {
 		selectedSports = [];
 		selectedLevels = [];
@@ -481,6 +554,7 @@
 			try {
 				profile = await ensureUserProfile(currentUser);
 				await loadExploreData(currentUser.uid);
+				if (contentMode === 'venues') void loadVenuesData();
 				unsubscribePromotions = subscribeToPromotedEventsForUser(
 					currentUser.uid,
 					profile,
@@ -519,45 +593,92 @@
 		class="mb-2 sm:mb-6 shrink-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
 	>
 		<div>
-			<h1 class="text-2xl font-black tracking-tight sm:mt-3 sm:text-3xl">{i18n.t('explore')}</h1>
+			<div class="flex flex-wrap items-center gap-2">
+				<h1 class="text-2xl font-black tracking-tight sm:mt-3 sm:text-3xl">{i18n.t('explore')}</h1>
+				<button
+					type="button"
+					onclick={() => setContentMode(contentMode === 'events' ? 'venues' : 'events')}
+					class="group relative inline-flex h-10 shrink-0 items-center gap-2 rounded-full bg-blue-50 pl-4 pr-3 shadow-sm transition hover:bg-blue-100 sm:h-11 sm:mt-3 dark:bg-blue-950/60 dark:hover:bg-blue-900"
+					style="perspective: 600px;"
+					aria-label={`${i18n.t('explore_events_tab')} / ${i18n.t('explore_venues_tab')}`}
+				>
+					<span
+						class="relative inline-block h-6 w-28 sm:w-32"
+						style="transform-style: preserve-3d; transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1); transform: rotateY({contentMode === 'venues' ? '180deg' : '0deg'});"
+					>
+						<span
+							class="absolute inset-0 flex items-center justify-center gap-1.5 text-base font-black text-blue-700 sm:text-lg dark:text-blue-300"
+							style="backface-visibility: hidden;"
+						>
+							⚽ {i18n.t('explore_events_tab')}
+						</span>
+						<span
+							class="absolute inset-0 flex items-center justify-center gap-1.5 text-base font-black text-blue-700 sm:text-lg dark:text-blue-300"
+							style="backface-visibility: hidden; transform: rotateY(180deg);"
+						>
+							📍 {i18n.t('explore_venues_tab')}
+						</span>
+					</span>
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="h-4 w-4 shrink-0 text-blue-400 transition-transform duration-500 group-active:rotate-180 sm:h-5 sm:w-5 dark:text-blue-500"
+					>
+						<path d="M21 2v6h-6" />
+						<path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+						<path d="M3 22v-6h6" />
+						<path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+					</svg>
+				</button>
+			</div>
 			<p class="mt-1 hidden text-sm text-slate-500 sm:block">
-				{searchTerm ? i18n.t('showing_results', { searchTerm }) : i18n.t('explore_subtitle')}
+				{searchTerm && contentMode === 'events'
+					? i18n.t('showing_results', { searchTerm })
+					: contentMode === 'events'
+						? i18n.t('explore_subtitle')
+						: i18n.t('locations_sub')}
 			</p>
 		</div>
-		<div class="relative grid h-11 w-[17rem] max-w-full grid-cols-2 self-start rounded-xl border border-slate-200 bg-slate-100 p-1 shadow-inner shadow-slate-200/70 sm:h-13 sm:w-[19rem] sm:self-center sm:rounded-2xl dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/20">
-			<span
-				aria-hidden="true"
-				class={`pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-lg bg-white shadow-[0_4px_14px_rgba(15,23,42,0.12)] ring-1 ring-slate-200/80 transition-transform duration-300 ease-out sm:rounded-xl dark:bg-slate-700 dark:ring-slate-600 ${viewMode === 'feed' ? 'translate-x-full' : 'translate-x-0'}`}
-			></span>
-			<button
-				type="button"
-				aria-pressed={viewMode === 'map'}
-				onclick={() => {
-					viewMode = 'map';
-					syncExploreQuery();
-				}}
-				class="relative z-10 flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-black transition-colors duration-300 sm:gap-2 sm:rounded-xl sm:px-4 sm:text-sm {viewMode === 'map'
-					? 'text-slate-950 dark:text-white'
-					: 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'}"
-			>
-				<MapIcon class="h-4.5 w-4.5 shrink-0 text-blue-600 sm:h-5 sm:w-5 dark:text-blue-400" strokeWidth={2.4} />
-				<span class="truncate">{i18n.t('map_view')}</span>
-			</button>
-			<button
-				type="button"
-				aria-pressed={viewMode === 'feed'}
-				onclick={() => {
-					viewMode = 'feed';
-					syncExploreQuery();
-				}}
-				class="relative z-10 flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-black transition-colors duration-300 sm:gap-2 sm:rounded-xl sm:px-4 sm:text-sm {viewMode ===
-				'feed'
-					? 'text-slate-950 dark:text-white'
-					: 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'}"
-			>
-				<LayoutList class="h-4.5 w-4.5 shrink-0 text-blue-600 sm:h-5 sm:w-5 dark:text-blue-400" strokeWidth={2.4} />
-				<span class="truncate">{i18n.t('feed_view')}</span>
-			</button>
+		<div class="flex flex-col items-start gap-2 sm:items-end sm:self-center">
+			<div class="relative grid h-11 w-[17rem] max-w-full grid-cols-2 self-start rounded-xl border border-slate-200 bg-slate-100 p-1 shadow-inner shadow-slate-200/70 sm:h-13 sm:w-[19rem] sm:self-end sm:rounded-2xl dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/20">
+				<span
+					aria-hidden="true"
+					class={`pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-lg bg-white shadow-[0_4px_14px_rgba(15,23,42,0.12)] ring-1 ring-slate-200/80 transition-transform duration-300 ease-out sm:rounded-xl dark:bg-slate-700 dark:ring-slate-600 ${viewMode === 'feed' ? 'translate-x-full' : 'translate-x-0'}`}
+				></span>
+				<button
+					type="button"
+					aria-pressed={viewMode === 'map'}
+					onclick={() => {
+						viewMode = 'map';
+						syncExploreQuery();
+					}}
+					class="relative z-10 flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-black transition-colors duration-300 sm:gap-2 sm:rounded-xl sm:px-4 sm:text-sm {viewMode === 'map'
+						? 'text-slate-950 dark:text-white'
+						: 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'}"
+				>
+					<MapIcon class="h-4.5 w-4.5 shrink-0 text-blue-600 sm:h-5 sm:w-5 dark:text-blue-400" strokeWidth={2.4} />
+					<span class="truncate">{i18n.t('map_view')}</span>
+				</button>
+				<button
+					type="button"
+					aria-pressed={viewMode === 'feed'}
+					onclick={() => {
+						viewMode = 'feed';
+						syncExploreQuery();
+					}}
+					class="relative z-10 flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-black transition-colors duration-300 sm:gap-2 sm:rounded-xl sm:px-4 sm:text-sm {viewMode ===
+					'feed'
+						? 'text-slate-950 dark:text-white'
+						: 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'}"
+				>
+					<LayoutList class="h-4.5 w-4.5 shrink-0 text-blue-600 sm:h-5 sm:w-5 dark:text-blue-400" strokeWidth={2.4} />
+					<span class="truncate">{i18n.t('feed_view')}</span>
+				</button>
+			</div>
 		</div>
 	</header>
 
@@ -599,6 +720,15 @@
 					{temporalFilterOptions}
 					{profile}
 					{viewMode}
+					mode={contentMode}
+					venues={filteredVenues}
+					{venueRatings}
+					{venueCities}
+					{venueSportOptions}
+					{selectedVenueSport}
+					{selectedVenueCity}
+					{venuesLoading}
+					{venueError}
 					onToggleSport={toggleSportFilter}
 					onToggleLevel={toggleLevelFilter}
 					onDateFilterChange={setDateFilter}
@@ -611,8 +741,10 @@
 					onClearFilters={clearAllFilters}
 					onFilteredCountChange={(count) => (filteredEventCount = count)}
 					onSelectedEventChange={(eventId) => (selectedMapEventId = eventId)}
+					onToggleVenueSport={toggleVenueSportFilter}
+					onVenueCityChange={setVenueCityFilter}
 				/>
-				{#if viewMode === 'map' && !selectedMapEventId && showSponsored}
+				{#if contentMode === 'events' && viewMode === 'map' && !selectedMapEventId && showSponsored}
 					<div
 						class="pointer-events-none absolute inset-x-3 bottom-3 z-20 hidden md:block md:inset-x-auto md:left-5 md:top-5 md:bottom-auto md:w-80"
 					>
@@ -668,7 +800,7 @@
 			</div>
 
 			<!-- Mobile Promoted Section -->
-			{#if viewMode === 'map' && showSponsored}
+			{#if contentMode === 'events' && viewMode === 'map' && showSponsored}
 				<section class="mt-1 md:hidden shrink-0">
 					<div class="mb-2 flex items-center justify-between gap-3">
 						<div>
