@@ -131,9 +131,12 @@
 	});
 
 	let mobileNavGridClass = $derived.by(() => {
-		if (mobileNavItems.length === 4) return 'max-w-md grid-cols-4 gap-1';
-		if (mobileNavItems.length === 5) return 'max-w-md grid-cols-5 gap-1';
-		return 'max-w-lg grid-cols-6 gap-0.5';
+		// +1 for the center Create Event (+) button inserted into the grid
+		const totalCols = mobileNavItems.length + 1;
+		if (totalCols === 5) return 'max-w-md grid-cols-5 gap-1';
+		if (totalCols === 6) return 'max-w-lg grid-cols-6 gap-0.5';
+		if (totalCols === 7) return 'max-w-lg grid-cols-7 gap-0.5';
+		return 'max-w-md grid-cols-5 gap-1';
 	});
 
 	function mobileLabel(label: string) {
@@ -500,7 +503,7 @@
 						</span>
 
 						<span
-							class={`max-w-14 truncate text-[11px] font-bold leading-none ${
+							class={`max-w-14 truncate text-[11px] font-bold leading-none whitespace-nowrap ${
 								isActive(item.href)
 									? 'text-blue-600 dark:text-blue-400'
 									: 'text-slate-400 dark:text-slate-500'
