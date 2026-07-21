@@ -8,8 +8,9 @@
 	let {
 		size = 'md',
 		href = '/',
-		mark = false
-	}: { size?: LogoSize; href?: string; mark?: boolean } = $props();
+		mark = false,
+		additionalClasses = ''
+	}: { size?: LogoSize; href?: string; mark?: boolean; additionalClasses?: string } = $props();
 
 	const sizes: Record<LogoSize, string> = {
 		xs: 'h-7',
@@ -36,6 +37,6 @@
 	);
 </script>
 
-<a {href} class="inline-flex items-center">
-	<img src={logoSrc} alt="Rally" class={`${currentSize} w-auto object-contain`} />
+<a {href} class={`flex flex-row w-fit items-center ${additionalClasses}`}>
+	<img src={logoSrc} alt="Rally Logo" class={`${currentSize} w-auto object-contain`} />
 </a>

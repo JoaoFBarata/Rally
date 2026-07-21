@@ -379,68 +379,45 @@
 	<div class="min-h-screen bg-white text-black dark:bg-[#161616] dark:text-white font-montserrat">
 		<div class="flex min-h-screen min-w-0 overflow-x-clip">
 			<!-- Desktop sidebar -->
-			<aside
-				class={`hidden md:flex flex-col h-screen sticky top-0 shrink-0 overflow-hidden bg-[#f6f6f6] transition-[width] duration-300 ease-in-out dark:bg-[#242424] ${
+			<aside class={`hidden md:flex flex-col h-screen sticky top-0 shrink-0 overflow-hidden bg-[#f6f6f6] transition-[width] duration-300 ease-in-out dark:bg-[#242424] ${
 					sidebarCollapsed ? 'w-24' : 'w-71'
-				}`}
-			>
-				<div class="relative h-18 w-full shrink-0">
-					<div
-						class={`absolute left-6.75 top-6 transition-all duration-300 ease-in-out ${sidebarCollapsed ? '-translate-x-3 opacity-0 pointer-events-none' : 'translate-x-0 opacity-100'}`}
-					>
-						<RallyLogo size="md" href={organizationManageHref ?? '/'} />
-					</div>
-					<div
-						class={`absolute left-0.5 top-5 transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'translate-x-0 opacity-100' : 'pointer-events-none translate-x-3 opacity-0'}`}
-					>
-						<RallyLogo size="compact" mark href={organizationManageHref ?? '/'} />
-					</div>
-					<button
-						type="button"
-						onclick={toggleSidebar}
-						title={sidebarCollapsed ? i18n.t('expand_sidebar') : i18n.t('collapse_sidebar')}
-						aria-label={sidebarCollapsed ? i18n.t('expand_sidebar') : i18n.t('collapse_sidebar')}
-						class={`absolute top-7.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-[right,color,background-color] duration-300 ease-in-out hover:bg-slate-200 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white ${sidebarCollapsed ? 'right-1.5' : 'right-6'}`}
-					>
+				}`}>
+				<div class={`${sidebarCollapsed ? 'flex flex-col gap-5 px-auto' : 'flex flex-row px-6.75'} justify-between items-center w-full mt-12 transition-[flex-direction,padding] duration-300 ease-in-out`}>
+					<RallyLogo size="md" href={organizationManageHref ?? '/'} additionalClasses={`transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'hidden' : ''}`}/>
+					<RallyLogo size="compact" mark href={organizationManageHref ?? '/'} additionalClasses={`transition-all duration-300 ease-in-out ${sidebarCollapsed ? '' : 'hidden'}`}/>
+					<button type="button"
+						    onclick={toggleSidebar}
+						    title={sidebarCollapsed ? i18n.t('expand_sidebar') : i18n.t('collapse_sidebar')}
+						    aria-label={sidebarCollapsed ? i18n.t('expand_sidebar') : i18n.t('collapse_sidebar')}
+						    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-[color,background-color] duration-300 ease-in-out hover:bg-gray-200 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white">
 						<PanelLeft class="h-5 w-5" />
 					</button>
 				</div>
 
-				<div
-					class={`mt-6.25 flex w-full justify-center transition-[padding] duration-300 ease-in-out ${sidebarCollapsed ? 'px-4.75' : 'px-6.75'}`}
-				>
-					<button
-						class={`relative mt-10.25 flex h-14.5 items-center justify-center overflow-hidden rounded-[10px] bg-[#0095ff] text-white cursor-pointer transition-[width,box-shadow] duration-300 ease-in-out hover:shadow-[0px_5px_15px_0px_rgba(100,100,111,0.7)] dark:hover:shadow-[0px_5px_15px_0px_rgba(155,155,144,0.7)] ${sidebarCollapsed ? 'w-14.5' : 'w-53.25'}`}
-						onclick={() => goto(resolveNavHref(createEventHref))}
-						title={sidebarCollapsed ? i18n.t('new_event') : undefined}
-					>
-						<span
-							class={`absolute transition-all duration-200 ${sidebarCollapsed ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`}
-							><NavIcon name="create" /></span
-						>
-						<h3
-							class={`whitespace-nowrap text-[20px] font-semibold transition-all duration-200 ${sidebarCollapsed ? 'scale-95 opacity-0' : 'scale-100 opacity-100'}`}
-						>
+				<div class={`mt-14.25 flex w-full justify-center transition-[padding] duration-300 ease-in-out ${sidebarCollapsed ? 'px-4.75' : 'px-6.75'}`}>
+					<button class={`relative flex h-14.5 items-center justify-center overflow-hidden rounded-[10px] bg-[#0095ff] text-white cursor-pointer transition-[width,box-shadow] duration-300 ease-in-out hover:shadow-[0px_5px_15px_0px_rgba(100,100,111,0.7)] dark:hover:shadow-[0px_5px_15px_0px_rgba(155,155,144,0.7)] ${sidebarCollapsed ? 'w-14.5' : 'w-53.25'}`}
+						    onclick={() => goto(resolveNavHref(createEventHref))}
+						    title={sidebarCollapsed ? i18n.t('new_event') : undefined}>
+						<span class={`absolute transition-all duration-200 ${sidebarCollapsed ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`}>
+							<NavIcon name="create"/>
+						</span>
+						<h3 class={`whitespace-nowrap text-[20px] font-semibold transition-all duration-200 ${sidebarCollapsed ? 'scale-95 opacity-0' : 'scale-100 opacity-100'}`}>
 							{i18n.t('new_event')}
 						</h3>
 					</button>
 				</div>
-				<div
-					class="w-full grow flex flex-col justify-between bg-[#eaeaea] dark:bg-[#1E1E1E] rounded-tr-[75px] mt-10 pb-9"
-				>
+				<div class="w-full grow flex flex-col justify-between bg-[#eaeaea] dark:bg-[#1E1E1E] rounded-tr-[75px] mt-10 pb-9">
 					<div>
 						{#each navItems as item, idx (item.href)}
-							<a
-								href={resolveNavHref(item.href)}
-								title={sidebarCollapsed ? item.label : undefined}
-								class={`flex flex-row items-center text-[1.25rem] ${idx == 0 ? 'rounded-tr-[75px] ' : ''}font-medium transition-all duration-300 py-5 w-full gap-6 ${
-									sidebarCollapsed ? 'px-9' : 'px-[2.59375rem]'
-								} ${
-									isActive(item.href)
-										? 'bg-blue-600 text-white'
-										: 'text-slate-600 hover:bg-slate-300 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
-								}`}
-							>
+							<a href={resolveNavHref(item.href)}
+							   title={sidebarCollapsed ? item.label : undefined}
+							   class={`flex flex-row items-center text-[1.25rem] ${idx == 0 ? 'rounded-tr-[75px] ' : ''}font-medium transition-all duration-300 py-5 w-full gap-6 ${
+								   sidebarCollapsed ? 'px-9' : 'px-[2.59375rem]'
+							   } ${
+							    	isActive(item.href)
+							    		? 'bg-blue-600 text-white'
+							    		: 'text-slate-600 hover:bg-slate-300 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
+							   }`}>
 								<span class="relative flex items-center justify-center h-6 w-6 text-lg">
 									<NavIcon name={item.icon} />
 									{#if sidebarCollapsed && item.href === '/messages' && notificationState.unreadMessages > 0}
@@ -448,17 +425,14 @@
 									{/if}
 								</span>
 
-								<span
-									class={`whitespace-nowrap transition-all duration-200 ${sidebarCollapsed ? 'pointer-events-none -translate-x-2 opacity-0' : 'translate-x-0 opacity-100'}`}
-									>{item.label}</span
-								>
+								<span class={`whitespace-nowrap transition-all duration-200 ${sidebarCollapsed ? 'pointer-events-none -translate-x-2 opacity-0' : 'translate-x-0 opacity-100'}`}>
+									{item.label}
+								</span>
 
 								{#if !sidebarCollapsed && item.href === '/messages' && notificationState.unreadMessages > 0}
-									<span
-										class={`ml-auto flex min-h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold ${
+									<span class={`ml-auto flex min-h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold ${
 											isActive(item.href) ? 'bg-white text-blue-600' : 'bg-red-500 text-white'
-										}`}
-									>
+										}`}>
 										{formatBadge(notificationState.unreadMessages)}
 									</span>
 								{/if}
@@ -466,24 +440,21 @@
 						{/each}
 					</div>
 					<div>
-						<a
-							href={resolveNavHref('/settings')}
-							title={sidebarCollapsed ? i18n.t('settings') : undefined}
-							class={`flex flex-row items-center gap-6 text-[1.25rem] font-medium transition-all duration-300 py-5 w-full ${
-								sidebarCollapsed ? 'px-9' : 'px-[2.59375rem]'
-							} ${
-								isActive('/settings')
-									? 'bg-blue-600 text-white'
-									: 'text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
-							}`}
-						>
+						<a href={resolveNavHref('/settings')}
+						   title={sidebarCollapsed ? i18n.t('settings') : undefined}
+						   class={`flex flex-row items-center gap-6 text-[1.25rem] font-medium transition-all duration-300 py-5 w-full ${
+						    	sidebarCollapsed ? 'px-9' : 'px-[2.59375rem]'
+						   } ${
+						    	isActive('/settings')
+						     		? 'bg-blue-600 text-white'
+						    		: 'text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
+						   }`}>
 							<span class="flex items-center justify-center h-6 w-6 text-lg">
-								<NavIcon name="settings" />
+								<NavIcon name="settings"/>
 							</span>
-							<span
-								class={`whitespace-nowrap transition-all duration-200 ${sidebarCollapsed ? 'pointer-events-none -translate-x-2 opacity-0' : 'translate-x-0 opacity-100'}`}
-								>{i18n.t('settings')}</span
-							>
+							<span class={`whitespace-nowrap transition-all duration-200 ${sidebarCollapsed ? 'pointer-events-none -translate-x-2 opacity-0' : 'translate-x-0 opacity-100'}`}>
+								{i18n.t('settings')}
+							</span>
 						</a>
 					</div>
 				</div>
