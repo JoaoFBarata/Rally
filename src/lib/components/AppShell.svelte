@@ -174,6 +174,7 @@
 		return (
 			pathname === '/' ||
 			pathname === '/login' ||
+			pathname === '/verify-email' ||
 			pathname === '/verify-2fa' ||
 			pathname.startsWith('/register') ||
 			pathname === '/discover' ||

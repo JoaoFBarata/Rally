@@ -268,6 +268,18 @@
 		return value === null || value === undefined ? '' : String(value);
 	}
 
+	function setMatchScoreInput(matchId: string, side: 'homeScore' | 'awayScore', value: string) {
+		const input = matchInputs[matchId];
+		if (!input) return;
+		matchInputs = {
+			...matchInputs,
+			[matchId]: {
+				...input,
+				[side]: value
+			}
+		};
+	}
+
 	async function loadTournamentData() {
 		loading = true;
 		error = '';
@@ -601,12 +613,15 @@
 		success = '';
 
 		try {
-			if (input.homeScore.trim() === '' || input.awayScore.trim() === '') {
+			const homeScoreText = String(input.homeScore ?? '').trim();
+			const awayScoreText = String(input.awayScore ?? '').trim();
+
+			if (homeScoreText === '' || awayScoreText === '') {
 				throw new Error(i18n.t('add_valid_scores'));
 			}
 
-			const homeScore = Number(input.homeScore);
-			const awayScore = Number(input.awayScore);
+			const homeScore = Number(homeScoreText);
+			const awayScore = Number(awayScoreText);
 
 			if (!Number.isFinite(homeScore) || !Number.isFinite(awayScore)) {
 				throw new Error(i18n.t('add_valid_scores'));
@@ -889,17 +904,21 @@
 					</div>
 					<div class="grid grid-cols-2 gap-2">
 						<input
-							bind:value={matchInputs[match.id].homeScore}
 							type="number"
 							min="0"
+							value={matchInputs[match.id].homeScore}
+							oninput={(event) =>
+								setMatchScoreInput(match.id, 'homeScore', event.currentTarget.value)}
 							placeholder={match.homeName}
 							aria-label={`${match.homeName} score`}
 							class="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
 						/>
 						<input
-							bind:value={matchInputs[match.id].awayScore}
 							type="number"
 							min="0"
+							value={matchInputs[match.id].awayScore}
+							oninput={(event) =>
+								setMatchScoreInput(match.id, 'awayScore', event.currentTarget.value)}
 							placeholder={match.awayName}
 							aria-label={`${match.awayName} score`}
 							class="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"

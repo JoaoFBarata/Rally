@@ -176,17 +176,24 @@
 	let primarySpotlightRally = $derived(spotlightRallies[0] ?? null);
 	let compactSpotlightRallies = $derived(spotlightRallies.slice(1, 5));
 	let recentlyFinishedRallies = $derived.by(() => {
-		const finished = allUserEvents
+		const recentlyFinished = allUserEvents
 			.filter((event) => event.status !== 'cancelled')
 			.filter((event) => getEventTemporalState(event, nowMs) === 'finished')
-			.sort((a, b) => getEventFinishedSortMs(b) - getEventFinishedSortMs(a));
-
-		return finished
 			.filter((event) => {
 				const elapsedSinceEnd = nowMs - getEventFinishedSortMs(event);
 				return elapsedSinceEnd >= 0 && elapsedSinceEnd < RECENT_FINISHED_MS;
 			})
-			.slice(0, 1);
+			.sort((a, b) => getEventFinishedSortMs(b) - getEventFinishedSortMs(a));
+
+		const latestFinished = recentlyFinished[0];
+		if (!latestFinished) return [];
+
+		const finishedAtMs = getEventFinishedSortMs(latestFinished);
+		const newerLiveStartedAfterFinish = spotlightRallies.some(
+			(event) => timestampToMillis(event.startAt) > finishedAtMs
+		);
+
+		return newerLiveStartedAfterFinish ? [] : [latestFinished];
 	});
 	let userEventIds = $derived(new Set(allUserEvents.map((event) => event.id)));
 	let userLocationAnchor = $derived(userDeviceLocation);

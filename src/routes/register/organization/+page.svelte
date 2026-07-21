@@ -74,7 +74,7 @@
 			});
 
 			i18n.setLanguage(registerLanguage as any);
-			await goto('/dashboard');
+			await goto('/verify-email');
 		} catch (err) {
 			console.error('Organization register error:', err);
 			error = getFriendlyErrorMessage(err, 'Could not create organization account.');

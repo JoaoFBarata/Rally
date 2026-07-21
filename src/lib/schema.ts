@@ -102,6 +102,7 @@ export interface UserProfile {
 	rallyPointsTotal?: number;
 
 	isPrivate?: boolean;
+	requiresEmailVerification?: boolean;
 	twoFactorEnabled?: boolean;
 	twoFactorMethods?: TwoFactorMethod[];
 	twoFactorPreferredMethod?: TwoFactorMethod;
