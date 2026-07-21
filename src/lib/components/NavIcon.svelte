@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Building2, Calendar, Cog, Compass, House, Send, ShieldUser, Search, User, Plus } from '@lucide/svelte';
+	import { Building2, Calendar, Cog, Compass, House, MapPin, Send, ShieldUser, Search, User, Plus } from '@lucide/svelte';
 
 	let { name } = $props<{ name: string; class?: string }>();
 </script>
@@ -24,4 +24,6 @@
 	<ShieldUser/>
 {:else if name === 'settings'}
 	<Cog/>
+{:else if name === 'locations'}
+	<MapPin/>
 {/if}
