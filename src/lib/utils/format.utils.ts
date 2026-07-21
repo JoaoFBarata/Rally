@@ -96,6 +96,33 @@ export function getSportBackgroundImage(sport: string | undefined | null): strin
 	);
 }
 
+export function getSportEmoji(sport: string | undefined | null): string {
+	const normalizedSport = (sport || 'other').toLowerCase();
+	const sportEmojis: Record<string, string> = {
+		football: '⚽',
+		padel: '🎾',
+		basketball: '🏀',
+		running: '🏃',
+		gym: '🏋️',
+		tennis: '🎾',
+		cycling: '🚴',
+		volleyball: '🏐',
+		bowling: '🎳',
+		snooker: '🎱',
+		golf: '⛳',
+		swimming: '🏊',
+		hiking: '🥾',
+		yoga: '🧘',
+		surf: '🏄',
+		pingpong: '🏓',
+		rugby: '🏉',
+		americanfootball: '🏈',
+		other: '🏟️'
+	};
+
+	return sportEmojis[normalizedSport] ?? sportEmojis.other;
+}
+
 export function getCurrencySymbol(currency?: string | null): string {
 	const symbols: Record<string, string> = {
 		EUR: '€',

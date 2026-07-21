@@ -21,7 +21,8 @@
 	import {
 		ensureUserProfile,
 		getUserProfile,
-		getUserProfilesByIds
+		getUserProfilesByIds,
+		updateUserSports
 	} from '$lib/services/user.service';
 	import { i18n } from '$lib/services/i18n.svelte';
 	import {
@@ -45,12 +46,14 @@
 		SportEvent,
 		TournamentEntry,
 		TournamentMatch,
+		Sport,
 		UserProfile
 	} from '$lib/schema';
 	import EventCard from '$lib/components/EventCard.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import PromotedEventCarousel from '$lib/components/PromotedEventCarousel.svelte';
 	import RallyLogo from '$lib/components/RallyLogo.svelte';
+	import SportsOnboardingModal from '$lib/components/SportsOnboardingModal.svelte';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import {
 		subscribeToEventCatalogChanges,
@@ -101,6 +104,12 @@
 	let locationStatus = $state<'idle' | 'loading' | 'ready' | 'blocked' | 'unsupported'>('idle');
 	let scrollContainer = $state<HTMLDivElement>();
 	let nowMs = $state(Date.now());
+
+	async function completeSportsOnboarding(sports: Sport[]) {
+		if (!user || !profile) return;
+		await updateUserSports(user.uid, sports);
+		profile = { ...profile, sports };
+	}
 	const isFinishedNow = (event: SportEvent) => getEventTemporalState(event, nowMs) === 'finished';
 
 	let hostingEvents = $derived(
@@ -813,6 +822,9 @@
 		</div>
 	</div>
 {:else}
+	{#if profile && !profile.sports?.length}
+		<SportsOnboardingModal onComplete={completeSportsOnboarding} />
+	{/if}
 	<div class="mx-auto w-full max-w-[1500px] px-4 py-5 sm:px-5 sm:py-8">
 		<header class="mb-5 flex items-center justify-between gap-4 sm:mb-7">
 			<div class="min-w-0">
@@ -1365,11 +1377,6 @@
 						>
 							<div class="mb-2 flex flex-wrap items-center justify-between gap-2 px-2 pt-1">
 								<div class="min-w-0">
-									<p
-										class="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400"
-									>
-										{getTemporalLabel(primarySpotlightRally)}
-									</p>
 									<p class="truncate text-xs font-bold text-slate-500 dark:text-slate-400">
 										{getTemporalDescription(primarySpotlightRally)}
 									</p>

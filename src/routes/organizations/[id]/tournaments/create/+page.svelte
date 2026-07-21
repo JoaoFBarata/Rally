@@ -17,6 +17,7 @@
 	import { goBack } from '$lib/utils/navigation';
 	import { TEXT_LIMITS } from '$lib/constants/text-limits';
 	import { i18n } from '$lib/services/i18n.svelte';
+	import CreationTypeSwitch from '$lib/components/CreationTypeSwitch.svelte';
 	import type {
 		EntryFeeType,
 		Organization,
@@ -302,6 +303,10 @@
 					{i18n.t('hosted_by')} <span class="font-black">{organization.name}</span>
 				</p>
 			</div>
+		</div>
+
+		<div class="mt-5">
+			<CreationTypeSwitch organizationId={organization.id} active="tournament" />
 		</div>
 
 		{#if error}

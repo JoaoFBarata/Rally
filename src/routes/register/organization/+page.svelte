@@ -9,6 +9,7 @@
 	import { themeState } from '$lib/theme.svelte';
 	import { i18n } from '$lib/services/i18n.svelte';
 	import { onMount } from 'svelte';
+	import { authState } from '$lib/auth.svelte';
 
 	onMount(() => {
 		void goto('/register?type=organization', { replaceState: true });
@@ -74,6 +75,7 @@
 			});
 
 			i18n.setLanguage(registerLanguage as any);
+			await authState.refresh();
 			await goto('/verify-email');
 		} catch (err) {
 			console.error('Organization register error:', err);
@@ -237,7 +239,9 @@
 							</label>
 							<input
 								id="email"
+								name="email"
 								type="email"
+								autocomplete="email"
 								bind:value={email}
 								class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
 								placeholder="admin@company.com"
@@ -272,7 +276,9 @@
 							<div class="relative mt-2">
 								<input
 									id="password"
+									name="password"
 									type={showPassword ? 'text' : 'password'}
+									autocomplete="new-password"
 									bind:value={password}
 									class="w-full rounded-2xl border border-slate-200 bg-slate-50 pl-4 pr-12 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
 									placeholder="••••••••"
@@ -311,7 +317,9 @@
 							<div class="relative mt-2">
 								<input
 									id="confirmPassword"
+									name="confirmPassword"
 									type={showPassword ? 'text' : 'password'}
+									autocomplete="new-password"
 									bind:value={confirmPassword}
 									class="w-full rounded-2xl border border-slate-200 bg-slate-50 pl-4 pr-12 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
 									placeholder="••••••••"

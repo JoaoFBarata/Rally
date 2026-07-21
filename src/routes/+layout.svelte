@@ -63,11 +63,15 @@
 	// Proteção de rota simples no cliente
 	$effect(() => {
 		if (!authState.loading) {
+			const isPasswordAccount = Boolean(
+				authState.user?.providerData.some((provider) => provider.providerId === 'password')
+			);
+			const isUnverifiedPasswordAccount =
+				Boolean(authState.user) && isPasswordAccount && !authState.user?.emailVerified;
 			const requiresEmailVerification =
-				Boolean(authState.user) &&
+				isUnverifiedPasswordAccount &&
 				authState.requiresEmailVerification &&
-				!authState.user?.emailVerified &&
-				authState.user?.providerData.some((provider) => provider.providerId === 'password');
+				!authState.user?.emailVerified;
 			const emailVerificationAllowedRoute =
 				page.url.pathname === '/' ||
 				page.url.pathname === '/login' ||
@@ -104,7 +108,11 @@
 				return;
 			}
 
-			if (page.url.pathname === '/verify-email' && authState.user && !requiresEmailVerification) {
+			if (
+				page.url.pathname === '/verify-email' &&
+				authState.user &&
+				(!isPasswordAccount || authState.user.emailVerified)
+			) {
 				goto(resolve('/dashboard'));
 			}
 		}

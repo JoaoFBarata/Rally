@@ -121,7 +121,7 @@
 <main class="mx-auto w-full max-w-4xl px-5 py-5 pb-28 sm:px-8 sm:py-8">
 	<button
 		type="button"
-		onclick={() => goBack(resolve('/locations'))}
+		onclick={() => goBack(`${resolve('/explore')}?mode=venues`)}
 		class="-ml-2 flex h-11 w-11 items-center justify-center rounded-full text-slate-950 transition hover:bg-white/80 dark:text-slate-50 dark:hover:bg-slate-900"
 		aria-label={i18n.t('back_to_locations')}
 	>

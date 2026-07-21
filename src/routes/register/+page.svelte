@@ -10,6 +10,7 @@
 	import { i18n } from '$lib/services/i18n.svelte';
 	import { page } from '$app/state';
 	import type { OrganizationType } from '$lib/schema';
+	import { authState } from '$lib/auth.svelte';
 
 	type RegistrationType = 'personal' | 'organization';
 	let accountType = $state<RegistrationType>(
@@ -91,6 +92,7 @@
 				await authService.register(email, password, displayName, registerLanguage);
 			}
 			i18n.setLanguage(registerLanguage as any);
+			await authState.refresh();
 			await goto(resolve('/verify-email'));
 		} catch (err) {
 			console.error('Register error:', err);
@@ -306,7 +308,9 @@
 
 						<input
 							id="email"
+							name="email"
 							type="email"
+							autocomplete="email"
 							bind:value={email}
 							placeholder="you@example.com"
 							class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
@@ -353,7 +357,9 @@
 							<div class="relative mt-2">
 								<input
 									id="password"
+									name="password"
 									type={showPassword ? 'text' : 'password'}
+									autocomplete="new-password"
 									bind:value={password}
 									placeholder="••••••••"
 									class="w-full rounded-2xl border border-slate-200 bg-slate-50 pl-4 pr-12 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"
@@ -393,7 +399,9 @@
 							<div class="relative mt-2">
 								<input
 									id="confirmPassword"
+									name="confirmPassword"
 									type={showPassword ? 'text' : 'password'}
+									autocomplete="new-password"
 									bind:value={confirmPassword}
 									placeholder="••••••••"
 									class="w-full rounded-2xl border border-slate-200 bg-slate-50 pl-4 pr-12 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-slate-50 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950"

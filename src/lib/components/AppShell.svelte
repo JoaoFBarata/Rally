@@ -64,11 +64,6 @@
 					icon: 'explore'
 				},
 				{
-					label: i18n.t('locations'),
-					href: '/locations',
-					icon: 'locations'
-				},
-				{
 					label: i18n.t('organization'),
 					href: organizationManageHref,
 					icon: 'organization'
@@ -95,11 +90,6 @@
 					label: i18n.t('home'),
 					href: '/dashboard',
 					icon: 'dashboard'
-				},
-				{
-					label: i18n.t('locations'),
-					href: '/locations',
-					icon: 'locations'
 				},
 				{
 					label: i18n.t('messages'),

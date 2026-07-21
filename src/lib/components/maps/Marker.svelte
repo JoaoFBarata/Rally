@@ -3,20 +3,23 @@
 		profile_url,
 		name_letter = 'U',
 		sport,
-		n_confirmed_attendees,
-		max_occupancy,
+		n_confirmed_attendees = 0,
+		max_occupancy = 0,
 		marker_scale = 0.6,
 		marker_color = '#00B4D8FF',
 		cluster_count = 0,
-		temporal_state = 'upcoming'
+		temporal_state = 'upcoming',
+		kind = 'event',
+		rating_label = null
 	} = $props();
-	const pulseDurationMs = $derived(temporal_state === 'live' ? 2800 : 2400);
+	const effectiveTemporalState = $derived(kind === 'venue' ? 'upcoming' : temporal_state);
+	const pulseDurationMs = $derived(effectiveTemporalState === 'live' ? 2800 : 2400);
 	const pulseDelay = $derived(`-${Date.now() % pulseDurationMs}ms`);
 </script>
 
 <div
 	id="marker"
-	class="marker-{temporal_state} w-[calc(var(--marker-scale)*7.1875rem)] select-none"
+	class="marker-{effectiveTemporalState} w-[calc(var(--marker-scale)*7.1875rem)] select-none"
 	style="--marker-scale: calc({marker_scale}*var(--map-zoom-scale)); --marker-color: {marker_color}; --pulse-delay: {pulseDelay}"
 >
 	<div id="marker-icon-wrapper" class="relative w-full h-[calc(var(--marker-scale)*7.1875rem)]">
@@ -58,27 +61,41 @@
 					</h3>
 				</div>
 			{:else}
-				<div
-					id="marker-occupation-wrapper"
-					class="absolute bottom-0 left-0 w-[calc(var(--marker-scale)*2.3125rem)] h-[calc(var(--marker-scale)*2.3125rem)] rounded-full p-[calc(var(--marker-scale)*0.1875rem)] bg-linear-115 from-[#ff595eFF] from-50% to-[#00B4D8FF] to-50%"
-				>
+				{#if kind === 'venue'}
 					<div
-						class="w-full h-full bg-linear-115 from-[#fdfdfdFF] from-50% to-[#00B4D8FF] to-50% dark:from-[#242424] flex flex-row items-center justify-between px-[calc(var(--marker-scale)*0.1875rem)] rounded-full"
+						id="marker-rating-wrapper"
+						class="absolute bottom-0 left-0 flex h-[calc(var(--marker-scale)*2.3125rem)] w-[calc(var(--marker-scale)*2.3125rem)] items-center justify-center rounded-full bg-[#fdfdfdFF] p-[calc(var(--marker-scale)*0.1875rem)] dark:bg-[#242424]"
+						style="border: calc(var(--marker-scale) * 0.1875rem) solid var(--marker-color);"
 					>
-						<div class="mb-[calc(var(--marker-scale)*0.25rem)]">
-							<h3
-								class="text-[calc(var(--marker-scale)*0.625rem)] text-black dark:text-white font-bold"
-							>
-								{n_confirmed_attendees}
-							</h3>
-						</div>
-						<div class="mt-[calc(var(--marker-scale)*0.6rem)]">
-							<h3 class="text-white font-bold text-[calc(var(--marker-scale)*0.625rem)]">
-								{max_occupancy}
-							</h3>
+						<h3
+							class="text-[calc(var(--marker-scale)*0.5625rem)] font-black text-slate-700 dark:text-slate-200"
+						>
+							{rating_label ?? '—'}
+						</h3>
+					</div>
+				{:else}
+					<div
+						id="marker-occupation-wrapper"
+						class="absolute bottom-0 left-0 w-[calc(var(--marker-scale)*2.3125rem)] h-[calc(var(--marker-scale)*2.3125rem)] rounded-full p-[calc(var(--marker-scale)*0.1875rem)] bg-linear-115 from-[#ff595eFF] from-50% to-[#00B4D8FF] to-50%"
+					>
+						<div
+							class="w-full h-full bg-linear-115 from-[#fdfdfdFF] from-50% to-[#00B4D8FF] to-50% dark:from-[#242424] flex flex-row items-center justify-between px-[calc(var(--marker-scale)*0.1875rem)] rounded-full"
+						>
+							<div class="mb-[calc(var(--marker-scale)*0.25rem)]">
+								<h3
+									class="text-[calc(var(--marker-scale)*0.625rem)] text-black dark:text-white font-bold"
+								>
+									{n_confirmed_attendees}
+								</h3>
+							</div>
+							<div class="mt-[calc(var(--marker-scale)*0.6rem)]">
+								<h3 class="text-white font-bold text-[calc(var(--marker-scale)*0.625rem)]">
+									{max_occupancy}
+								</h3>
+							</div>
 						</div>
 					</div>
-				</div>
+				{/if}
 				<div
 					id="marker-sport-wrapper"
 					class="absolute bottom-0 right-0 w-[calc(var(--marker-scale)*2.8125rem)] h-[calc(var(--marker-scale)*2.8125rem)] rounded-full border-[calc(var(--marker-scale)*0.25rem)] border-solid border-[#0065fdFF] bg-[#fdfdfdFF] dark:bg-[#242424] flex justify-center items-center"

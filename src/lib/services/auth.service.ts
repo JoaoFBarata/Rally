@@ -39,6 +39,16 @@ async function sendAccountVerificationEmail() {
 	});
 }
 
+async function sendInitialVerificationEmail() {
+	try {
+		await sendAccountVerificationEmail();
+		sessionStorage.removeItem('rally:verification-email-send-failed');
+	} catch (err) {
+		sessionStorage.setItem('rally:verification-email-send-failed', '1');
+		console.error('Verification email send error:', err);
+	}
+}
+
 async function removeCurrentFcmToken() {
 	const user = auth.currentUser;
 	if (!user) return;
@@ -88,9 +98,7 @@ export const authService = {
 			'Welcome to Rally! You will receive event updates and more through this chat.'
 		).catch((err) => console.error('Welcome message error:', err));
 
-		await sendAccountVerificationEmail().catch((err) =>
-			console.error('Verification email send error:', err)
-		);
+		await sendInitialVerificationEmail();
 
 		return credential.user;
 	},
@@ -160,9 +168,7 @@ export const authService = {
 			'Welcome to Rally! You will receive organization updates and event activity through this chat.'
 		).catch((err) => console.error('Welcome message error:', err));
 
-		await sendAccountVerificationEmail().catch((err) =>
-			console.error('Verification email send error:', err)
-		);
+		await sendInitialVerificationEmail();
 
 		return {
 			user: credential.user,
@@ -200,6 +206,7 @@ export const authService = {
 
 	async sendVerificationEmail() {
 		await sendAccountVerificationEmail();
+		sessionStorage.removeItem('rally:verification-email-send-failed');
 	},
 
 	async signInWithGoogle() {

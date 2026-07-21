@@ -855,7 +855,6 @@
 								<div class="overflow-hidden rounded-[1.9rem] border border-emerald-100 bg-white p-2 shadow-sm shadow-emerald-100/70 dark:border-emerald-900/60 dark:bg-slate-900 dark:shadow-none">
 									<div class="mb-2 flex items-center justify-between gap-2 px-2 pt-1">
 										<div class="min-w-0">
-											<p class="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">{i18n.t('happening_now')}</p>
 											<p class="truncate text-xs font-bold text-slate-500 dark:text-slate-400">{targetProfile.displayName}</p>
 										</div>
 										{#if event.eventKind === 'tournament'}
