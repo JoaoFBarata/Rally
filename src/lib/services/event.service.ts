@@ -109,23 +109,40 @@ function getEventPaymentPayerIds(event: SportEvent) {
 	return (event.participantIds ?? []).filter((participantId) => participantId !== event.creatorId);
 }
 
+export function isUpfrontPaymentEvent(event: SportEvent) {
+	return (
+		event.paymentMode === 'official' ||
+		event.entryFeeType === 'paid' ||
+		(event.eventKind === 'tournament' && (event.entryFeeAmount ?? 0) > 0)
+	);
+}
+
+export function isPricePerPersonEvent(event: SportEvent) {
+	return event.pricePerPerson != null && event.priceTotal == null;
+}
+
 function buildPendingPaymentStatuses(event: SportEvent) {
+	const existing = event.paymentStatuses ?? {};
 	return Object.fromEntries(
-		getEventPaymentPayerIds(event).map((participantId) => [participantId, 'pending' as const])
+		getEventPaymentPayerIds(event).map((participantId) => [
+			participantId,
+			existing[participantId] ?? ('pending' as const)
+		])
 	);
 }
 
 export function getEventPaymentSplitAmount(event: SportEvent) {
 	if (event.paymentSplitAmount != null) return event.paymentSplitAmount;
 
-	const attendeeCount = getEventPaymentAttendeeIds(event).length;
-	if (attendeeCount <= 0) return null;
-
 	if (event.priceTotal != null) {
+		const attendeeCount = getEventPaymentAttendeeIds(event).length;
+		if (attendeeCount <= 0) return null;
 		return Number((event.priceTotal / attendeeCount).toFixed(2));
 	}
 
 	if (event.pricePerPerson != null) return event.pricePerPerson;
+
+	if (event.entryFeeAmount != null) return event.entryFeeAmount;
 
 	return null;
 }
@@ -135,13 +152,19 @@ export function getEventPaymentSummary(event: SportEvent) {
 	const statuses = event.paymentStatuses ?? {};
 	const splitAmount = getEventPaymentSplitAmount(event);
 	const paidCount = payerIds.filter((participantId) => (statuses[participantId] ?? 'pending') === 'paid').length;
+	const isUpfront = isUpfrontPaymentEvent(event);
+	const isPricePerPerson = isPricePerPersonEvent(event);
+	const isCostSplit = event.priceTotal != null;
 
 	return {
 		payerIds,
 		statuses,
 		splitAmount,
 		paidCount,
-		pendingCount: payerIds.length - paidCount
+		pendingCount: payerIds.length - paidCount,
+		isUpfront,
+		isPricePerPerson,
+		isCostSplit
 	};
 }
 
@@ -898,6 +921,10 @@ export async function joinEvent(eventId: string, userId: string) {
 
 	if (event.eventKind === 'tournament') {
 		throw new Error('Use tournament registration instead of joining the event directly.');
+	}
+
+	if (isUpfrontPaymentEvent(event)) {
+		throw new Error('This event requires upfront payment to join. Please complete payment to join.');
 	}
 
 	const eventRef = doc(db, 'events', eventId);

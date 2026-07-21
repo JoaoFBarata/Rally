@@ -171,18 +171,33 @@ function getEventPaymentPayerIds(event) {
 	return (event.participantIds || []).filter((participantId) => participantId !== event.creatorId);
 }
 
+function isUpfrontPaymentEvent(event) {
+	return (
+		event.paymentMode === 'official' ||
+		event.entryFeeType === 'paid' ||
+		(event.eventKind === 'tournament' && Number(event.entryFeeAmount || 0) > 0)
+	);
+}
+
+function isPricePerPersonEvent(event) {
+	return event.pricePerPerson != null && event.priceTotal == null;
+}
+
 function getEventPaymentSplitAmount(event) {
 	if (event.paymentSplitAmount != null) return Number(event.paymentSplitAmount);
 
-	const attendeeCount = getEventPaymentAttendeeIds(event).length;
-	if (attendeeCount <= 0) return null;
-
 	if (event.priceTotal != null) {
+		const attendeeCount = getEventPaymentAttendeeIds(event).length;
+		if (attendeeCount <= 0) return null;
 		return Number((Number(event.priceTotal) / attendeeCount).toFixed(2));
 	}
 
 	if (event.pricePerPerson != null) {
 		return Number(event.pricePerPerson);
+	}
+
+	if (event.entryFeeAmount != null) {
+		return Number(event.entryFeeAmount);
 	}
 
 	return null;
@@ -311,7 +326,9 @@ exports.createEventPaymentCheckout = onCall(
 
 		try {
 			const eventId = String(request.data?.eventId || '').trim();
-			console.log(`[createEventPaymentCheckout] Target eventId: "${eventId}", userId: "${request.auth.uid}"`);
+			const isJoinPayment = Boolean(request.data?.isJoinPayment);
+			const teamName = String(request.data?.teamName || '').trim();
+			console.log(`[createEventPaymentCheckout] Target eventId: "${eventId}", userId: "${request.auth.uid}", isJoinPayment: ${isJoinPayment}`);
 			if (!eventId) {
 				throw new HttpsError('invalid-argument', 'Missing event id.');
 			}
@@ -325,23 +342,63 @@ exports.createEventPaymentCheckout = onCall(
 
 			const event = eventDoc.data();
 			console.log(`[createEventPaymentCheckout] Event loaded: title="${event.title}", status=${event.status}, creatorId=${event.creatorId}`);
-			if (event.status !== 'finished') {
-				throw new HttpsError('failed-precondition', 'Payments are only available after the event is finished.');
+			
+			if (event.status === 'cancelled') {
+				throw new HttpsError('failed-precondition', 'Cannot pay for a cancelled event.');
 			}
-			if (event.creatorId === userId) {
-				throw new HttpsError('failed-precondition', 'The host does not need to pay.');
+
+			if (!isJoinPayment && event.creatorId === userId) {
+				throw new HttpsError('failed-precondition', 'As the host of this event, you do not need to pay.');
 			}
-			if (!Array.isArray(event.participantIds) || !event.participantIds.includes(userId)) {
-				throw new HttpsError('permission-denied', 'You can only pay for your own event participation.');
-			}
-			if (event.paymentStatuses && event.paymentStatuses[userId] === 'paid') {
-				throw new HttpsError('failed-precondition', 'This payment is already completed.');
+
+			const isUpfront = isUpfrontPaymentEvent(event);
+			const isPerPerson = isPricePerPersonEvent(event);
+			const isParticipant = Array.isArray(event.participantIds) && event.participantIds.includes(userId);
+
+			if (isUpfront) {
+				if (isJoinPayment) {
+					if (isParticipant) {
+						throw new HttpsError('failed-precondition', 'You are already a participant in this event.');
+					}
+					const currentParticipants = event.participantIds || [];
+					const max = event.maxParticipants || 100;
+					if (currentParticipants.length >= max) {
+						throw new HttpsError('failed-precondition', 'Event is already full.');
+					}
+				} else {
+					if (!isParticipant) {
+						throw new HttpsError('permission-denied', 'You are not a participant in this event.');
+					}
+					if (event.paymentStatuses && event.paymentStatuses[userId] === 'paid') {
+						throw new HttpsError('failed-precondition', 'This payment is already completed.');
+					}
+				}
+			} else if (isPerPerson) {
+				if (!isParticipant && !isJoinPayment) {
+					throw new HttpsError('permission-denied', 'You can only pay if you are a participant or joining.');
+				}
+				if (event.paymentStatuses && event.paymentStatuses[userId] === 'paid') {
+					throw new HttpsError('failed-precondition', 'This payment is already completed.');
+				}
+			} else {
+				if (event.status !== 'finished') {
+					throw new HttpsError('failed-precondition', 'Payments are only available after the event is finished.');
+				}
+				if (event.creatorId === userId) {
+					throw new HttpsError('failed-precondition', 'The host does not need to pay.');
+				}
+				if (!isParticipant) {
+					throw new HttpsError('permission-denied', 'You can only pay for your own event participation.');
+				}
+				if (event.paymentStatuses && event.paymentStatuses[userId] === 'paid') {
+					throw new HttpsError('failed-precondition', 'This payment is already completed.');
+				}
 			}
 
 			const splitAmount = getEventPaymentSplitAmount(event);
 			console.log(`[createEventPaymentCheckout] Calculated splitAmount: ${splitAmount}`);
 			if (splitAmount == null || splitAmount <= 0) {
-				throw new HttpsError('failed-precondition', 'This event has no payable split amount.');
+				throw new HttpsError('failed-precondition', 'This event has no payable amount.');
 			}
 
 			const origin = getRequestOrigin(request);
@@ -354,6 +411,12 @@ exports.createEventPaymentCheckout = onCall(
 			if (currency === '$') currency = 'usd';
 			if (currency === '£') currency = 'gbp';
 
+			const productName = isUpfront
+				? `${event.title || 'Event'} Entry Fee`
+				: isPerPerson
+					? `${event.title || 'Event'} Participant Fee`
+					: `${event.title || 'Event'} Cost Split`;
+
 			console.log(`[createEventPaymentCheckout] Calling Stripe session create: amountInCents=${amountInCents}, currency=${currency}`);
 			const checkoutSession = await stripe.checkout.sessions.create({
 				mode: 'payment',
@@ -364,7 +427,7 @@ exports.createEventPaymentCheckout = onCall(
 						price_data: {
 							currency,
 							product_data: {
-								name: `${event.title || 'Event'} payment`,
+								name: productName,
 								description: `Payment for ${event.title || 'event'}`
 							},
 							unit_amount: amountInCents
@@ -373,12 +436,16 @@ exports.createEventPaymentCheckout = onCall(
 				],
 				metadata: {
 					eventId,
-					userId
+					userId,
+					isJoinPayment: isJoinPayment ? 'true' : 'false',
+					teamName: teamName.slice(0, 32)
 				},
 				payment_intent_data: {
 					metadata: {
 						eventId,
-						userId
+						userId,
+						isJoinPayment: isJoinPayment ? 'true' : 'false',
+						teamName: teamName.slice(0, 32)
 					}
 				},
 				success_url: `${origin}/events/${eventId}?paymentSessionId={CHECKOUT_SESSION_ID}`,
@@ -419,23 +486,14 @@ exports.confirmEventPayment = onCall(
 			}
 
 			const userId = request.auth.uid;
-			const eventDoc = await db.collection('events').doc(eventId).get();
+			const eventRef = db.collection('events').doc(eventId);
+			const eventDoc = await eventRef.get();
 			if (!eventDoc.exists) {
 				console.error(`[confirmEventPayment] Event not found: ${eventId}`);
 				throw new HttpsError('not-found', 'Event not found.');
 			}
 
 			const event = eventDoc.data();
-			if (event.status !== 'finished') {
-				throw new HttpsError('failed-precondition', 'Payments can only be confirmed after the event is finished.');
-			}
-			if (event.creatorId === userId) {
-				throw new HttpsError('failed-precondition', 'The host does not need to pay.');
-			}
-			if (!Array.isArray(event.participantIds) || !event.participantIds.includes(userId)) {
-				throw new HttpsError('permission-denied', 'You can only confirm your own payment.');
-			}
-
 			const stripe = getStripeClient();
 			console.log(`[confirmEventPayment] Retrieving Stripe session ${sessionId}`);
 			const session = await stripe.checkout.sessions.retrieve(sessionId);
@@ -450,12 +508,62 @@ exports.confirmEventPayment = onCall(
 				throw new HttpsError('failed-precondition', 'Payment has not been completed yet.');
 			}
 
+			const isJoinPayment = session.metadata?.isJoinPayment === 'true';
+			const teamName = session.metadata?.teamName || '';
+			let currentParticipantIds = event.participantIds || [];
+
+			if (isJoinPayment) {
+				const isTournament = event.eventKind === 'tournament';
+				const isAlreadyParticipant = currentParticipantIds.includes(userId);
+
+				if (!isAlreadyParticipant) {
+					currentParticipantIds = [...currentParticipantIds, userId];
+				}
+
+				if (isTournament) {
+					const userDoc = await db.collection('users').doc(userId).get();
+					const userData = userDoc.exists ? userDoc.data() : {};
+					const displayName = userData.displayName || 'Player';
+
+					const entriesSnap = await db.collection('tournament_entries').where('eventId', '==', eventId).get();
+					const existingEntries = entriesSnap.docs.map((d) => d.data());
+					const registered = existingEntries.some((e) => Array.isArray(e.memberIds) && e.memberIds.includes(userId));
+
+					if (!registered) {
+						const regType = event.tournamentRegistrationType || 'individual';
+						const seed = existingEntries.length + 1;
+						const entryName = regType === 'team' ? (teamName || `${displayName}'s Team`) : displayName;
+
+						await db.collection('tournament_entries').add({
+							eventId,
+							type: regType,
+							name: entryName,
+							captainId: userId,
+							memberIds: [userId],
+							isOpen: false,
+							maxMembers: regType === 'team' ? (event.maxTeamSize || event.teamSize || null) : 1,
+							groupName: null,
+							seed,
+							status: 'confirmed',
+							createdAt: FieldValue.serverTimestamp(),
+							updatedAt: FieldValue.serverTimestamp()
+						});
+					}
+				}
+			}
+
+			const max = event.maxParticipants || 100;
+			const newStatus = currentParticipantIds.length >= max && event.status === 'open' ? 'full' : event.status;
+
+			const existingStatuses = event.paymentStatuses || {};
 			const paymentStatuses = {
-				...(event.paymentStatuses || buildPendingPaymentStatuses(event)),
+				...existingStatuses,
 				[userId]: 'paid'
 			};
 
-			await db.collection('events').doc(eventId).update({
+			await eventRef.update({
+				participantIds: currentParticipantIds,
+				status: newStatus,
 				paymentSplitAmount: getEventPaymentSplitAmount(event),
 				paymentStatuses,
 				updatedAt: FieldValue.serverTimestamp()
@@ -469,6 +577,431 @@ exports.confirmEventPayment = onCall(
 				throw error;
 			}
 			throw new HttpsError('internal', error?.message || 'Could not confirm the payment.');
+		}
+	}
+);
+
+exports.createEventPromotionCheckout = onCall(
+	{ secrets: [stripeApiKey], invoker: 'public', cors: true },
+	async (request) => {
+		console.log('[createEventPromotionCheckout] Function invoked. Auth:', request.auth ? request.auth.uid : 'UNAUTHENTICATED');
+		if (!request.auth) {
+			throw new HttpsError('unauthenticated', 'You must be signed in.');
+		}
+
+		try {
+			const eventId = String(request.data?.eventId || '').trim();
+			const budget = Number(request.data?.budget || 0);
+			const durationDays = Number(request.data?.durationDays || 7);
+			const plan = String(request.data?.plan || 'local');
+			const targetCity = String(request.data?.targetCity || '').trim();
+			const targetCountry = String(request.data?.targetCountry || 'PT').trim().toUpperCase();
+			const targetSport = String(request.data?.targetSport || '').trim();
+
+			if (!eventId || budget <= 0) {
+				throw new HttpsError('invalid-argument', 'Missing or invalid promotion parameters.');
+			}
+
+			const userId = request.auth.uid;
+			const eventDoc = await db.collection('events').doc(eventId).get();
+			if (!eventDoc.exists) {
+				throw new HttpsError('not-found', 'Event not found.');
+			}
+
+			const event = eventDoc.data();
+			if (event.hostType !== 'organization' || !event.organizationId) {
+				throw new HttpsError('failed-precondition', 'Only organization events can be sponsored.');
+			}
+
+			const orgDoc = await db.collection('organizations').doc(event.organizationId).get();
+			if (!orgDoc.exists) {
+				throw new HttpsError('not-found', 'Organization not found.');
+			}
+
+			const org = orgDoc.data();
+			const isAdmin = org.ownerId === userId || (Array.isArray(org.adminIds) && org.adminIds.includes(userId));
+			if (!isAdmin) {
+				throw new HttpsError('permission-denied', 'Only organization admins can sponsor events.');
+			}
+
+			if (org.verificationStatus !== 'verified') {
+				throw new HttpsError('failed-precondition', 'Only verified organizations can sponsor events.');
+			}
+
+			const origin = getRequestOrigin(request);
+			const stripe = getStripeClient();
+			const amountInCents = Math.round(budget * 100);
+
+			const checkoutSession = await stripe.checkout.sessions.create({
+				mode: 'payment',
+				customer_email: request.auth.token?.email || undefined,
+				line_items: [
+					{
+						quantity: 1,
+						price_data: {
+							currency: 'eur',
+							product_data: {
+								name: `Event Sponsorship - ${event.title || 'Event'}`,
+								description: `Promotion campaign (${plan}) for ${durationDays} days`
+							},
+							unit_amount: amountInCents
+						}
+					}
+				],
+				metadata: {
+					type: 'event_promotion',
+					eventId,
+					userId,
+					budget: String(budget),
+					durationDays: String(durationDays),
+					plan,
+					targetCity,
+					targetCountry,
+					targetSport
+				},
+				payment_intent_data: {
+					metadata: {
+						type: 'event_promotion',
+						eventId,
+						userId
+					}
+				},
+				success_url: `${origin}/events/${eventId}?promotionSessionId={CHECKOUT_SESSION_ID}`,
+				cancel_url: `${origin}/events/${eventId}`
+			});
+
+			if (!checkoutSession.url) {
+				throw new HttpsError('internal', 'Could not start the Stripe checkout session.');
+			}
+
+			return { checkoutUrl: checkoutSession.url };
+		} catch (error) {
+			console.error('[createEventPromotionCheckout] Exception caught:', error);
+			if (error instanceof HttpsError) throw error;
+			throw new HttpsError('internal', error?.message || 'Could not start promotion payment flow.');
+		}
+	}
+);
+
+exports.confirmEventPromotionPayment = onCall(
+	{ secrets: [stripeApiKey], invoker: 'public', cors: true },
+	async (request) => {
+		console.log('[confirmEventPromotionPayment] Function invoked. Auth:', request.auth ? request.auth.uid : 'UNAUTHENTICATED');
+		if (!request.auth) {
+			throw new HttpsError('unauthenticated', 'You must be signed in.');
+		}
+
+		try {
+			const eventId = String(request.data?.eventId || '').trim();
+			const sessionId = String(request.data?.sessionId || '').trim();
+			if (!eventId || !sessionId) {
+				throw new HttpsError('invalid-argument', 'Missing promotion confirmation data.');
+			}
+
+			const userId = request.auth.uid;
+			const eventRef = db.collection('events').doc(eventId);
+			const eventDoc = await eventRef.get();
+			if (!eventDoc.exists) {
+				throw new HttpsError('not-found', 'Event not found.');
+			}
+
+			const event = eventDoc.data();
+			if (event.hostType !== 'organization' || !event.organizationId) {
+				throw new HttpsError('failed-precondition', 'Only organization events can be sponsored.');
+			}
+
+			const orgDoc = await db.collection('organizations').doc(event.organizationId).get();
+			if (!orgDoc.exists) {
+				throw new HttpsError('not-found', 'Organization not found.');
+			}
+
+			const org = orgDoc.data();
+			const isAdmin = org.ownerId === userId || (Array.isArray(org.adminIds) && org.adminIds.includes(userId));
+			if (!isAdmin) {
+				throw new HttpsError('permission-denied', 'Only organization admins can sponsor events.');
+			}
+
+			if (org.verificationStatus !== 'verified') {
+				throw new HttpsError('failed-precondition', 'Only verified organizations can sponsor events.');
+			}
+
+			const stripe = getStripeClient();
+			const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+			if (
+				session.metadata?.type !== 'event_promotion' ||
+				session.metadata?.eventId !== eventId ||
+				session.metadata?.userId !== userId
+			) {
+				throw new HttpsError('permission-denied', 'Promotion payment session mismatch.');
+			}
+
+			if (session.payment_status !== 'paid') {
+				throw new HttpsError('failed-precondition', 'Promotion payment has not been completed.');
+			}
+
+			const budget = Number(session.metadata?.budget || 0);
+			const durationDays = Number(session.metadata?.durationDays || 7);
+			const plan = session.metadata?.plan || 'local';
+			const targetCity = session.metadata?.targetCity || '';
+			const targetCountry = session.metadata?.targetCountry || 'PT';
+			const targetSport = session.metadata?.targetSport || null;
+
+			const cpm = plan === 'sport' ? 11 : 7;
+			const impressionLimit = Math.floor((budget / cpm) * 1000);
+			const endsAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
+
+			await eventRef.update({
+				isPromoted: true,
+				promotionStatus: 'active',
+				promotionPlan: plan,
+				promotionBudget: budget,
+				promotionCpm: cpm,
+				promotionImpressionLimit: impressionLimit,
+				promotionTargetCity: targetCity,
+				promotionTargetCountry: targetCountry,
+				promotionTargetSport: targetSport || null,
+				promotionStartedAt: FieldValue.serverTimestamp(),
+				promotionEndsAt: Timestamp.fromDate(endsAt),
+				promotionViews: 0,
+				promotionClicks: 0,
+				updatedAt: FieldValue.serverTimestamp()
+			});
+
+			console.log(`[confirmEventPromotionPayment] Promotion activated for event ${eventId}`);
+			return { status: 'active' };
+		} catch (error) {
+			console.error('[confirmEventPromotionPayment] Exception caught:', error);
+			if (error instanceof HttpsError) throw error;
+			throw new HttpsError('internal', error?.message || 'Could not confirm promotion payment.');
+		}
+	}
+);
+
+exports.createBatchEventPaymentCheckout = onCall(
+	{ secrets: [stripeApiKey], invoker: 'public', cors: true },
+	async (request) => {
+		console.log('[createBatchEventPaymentCheckout] Function invoked. Auth:', request.auth ? request.auth.uid : 'UNAUTHENTICATED');
+		if (!request.auth) {
+			throw new HttpsError('unauthenticated', 'You must be signed in.');
+		}
+
+		try {
+			const eventIds = Array.isArray(request.data?.eventIds) ? request.data.eventIds : [];
+			if (eventIds.length === 0) {
+				throw new HttpsError('invalid-argument', 'Missing event ids.');
+			}
+
+			const userId = request.auth.uid;
+			const line_items = [];
+			const validEventIds = [];
+
+			for (const eventId of eventIds) {
+				const eventDoc = await db.collection('events').doc(eventId).get();
+				if (!eventDoc.exists) continue;
+
+				const event = eventDoc.data();
+				if (event.status === 'cancelled') continue;
+				if (event.creatorId === userId) continue;
+				if (event.paymentStatuses && event.paymentStatuses[userId] === 'paid') continue;
+				if (!Array.isArray(event.participantIds) || !event.participantIds.includes(userId)) continue;
+
+				const splitAmount = getEventPaymentSplitAmount(event);
+				if (splitAmount == null || splitAmount <= 0) continue;
+
+				const amountInCents = Math.round(splitAmount * 100);
+				let currency = String(event.currency || 'EUR').toLowerCase();
+				if (currency === '€') currency = 'eur';
+				if (currency === '$') currency = 'usd';
+				if (currency === '£') currency = 'gbp';
+
+				line_items.push({
+					quantity: 1,
+					price_data: {
+						currency,
+						product_data: {
+							name: `${event.title || 'Event'} payment`,
+							description: `Payment for ${event.title || 'event'}`
+						},
+						unit_amount: amountInCents
+					}
+				});
+
+				validEventIds.push(eventId);
+			}
+
+			if (line_items.length === 0) {
+				throw new HttpsError('failed-precondition', 'No pending payable events found.');
+			}
+
+			const origin = getRequestOrigin(request);
+			const stripe = getStripeClient();
+
+			const checkoutSession = await stripe.checkout.sessions.create({
+				mode: 'payment',
+				customer_email: request.auth.token?.email || undefined,
+				line_items,
+				metadata: {
+					type: 'batch_event_payment',
+					userId,
+					eventIds: validEventIds.join(',')
+				},
+				payment_intent_data: {
+					metadata: {
+						type: 'batch_event_payment',
+						userId
+					}
+				},
+				success_url: `${origin}/payments?batchSessionId={CHECKOUT_SESSION_ID}`,
+				cancel_url: `${origin}/payments`
+			});
+
+			if (!checkoutSession.url) {
+				throw new HttpsError('internal', 'Could not start batch Stripe checkout session.');
+			}
+
+			return { checkoutUrl: checkoutSession.url };
+		} catch (error) {
+			console.error('[createBatchEventPaymentCheckout] Exception caught:', error);
+			if (error instanceof HttpsError) throw error;
+			throw new HttpsError('internal', error?.message || 'Could not start batch payment flow.');
+		}
+	}
+);
+
+exports.confirmBatchEventPayment = onCall(
+	{ secrets: [stripeApiKey], invoker: 'public', cors: true },
+	async (request) => {
+		console.log('[confirmBatchEventPayment] Function invoked. Auth:', request.auth ? request.auth.uid : 'UNAUTHENTICATED');
+		if (!request.auth) {
+			throw new HttpsError('unauthenticated', 'You must be signed in.');
+		}
+
+		try {
+			const sessionId = String(request.data?.sessionId || '').trim();
+			if (!sessionId) {
+				throw new HttpsError('invalid-argument', 'Missing session id.');
+			}
+
+			const userId = request.auth.uid;
+			const stripe = getStripeClient();
+			const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+			if (session.metadata?.type !== 'batch_event_payment' || session.metadata?.userId !== userId) {
+				throw new HttpsError('permission-denied', 'Session metadata mismatch.');
+			}
+
+			if (session.payment_status !== 'paid') {
+				throw new HttpsError('failed-precondition', 'Payment has not been completed yet.');
+			}
+
+			const eventIds = String(session.metadata?.eventIds || '').split(',').filter(Boolean);
+
+			for (const eventId of eventIds) {
+				const eventRef = db.collection('events').doc(eventId);
+				const eventDoc = await eventRef.get();
+				if (!eventDoc.exists) continue;
+
+				const event = eventDoc.data();
+				const existingStatuses = event.paymentStatuses || {};
+				const paymentStatuses = {
+					...existingStatuses,
+					[userId]: 'paid'
+				};
+
+				await eventRef.update({
+					paymentSplitAmount: getEventPaymentSplitAmount(event),
+					paymentStatuses,
+					updatedAt: FieldValue.serverTimestamp()
+				});
+			}
+
+			console.log(`[confirmBatchEventPayment] Successfully confirmed batch payments for user ${userId} across ${eventIds.length} events`);
+			return { status: 'paid', count: eventIds.length };
+		} catch (error) {
+			console.error('[confirmBatchEventPayment] Exception caught:', error);
+			if (error instanceof HttpsError) throw error;
+			throw new HttpsError('internal', error?.message || 'Could not confirm batch payment.');
+		}
+	}
+);
+
+exports.sendPaymentReminders = onCall(
+	{ secrets: [stripeApiKey], invoker: 'public', cors: true },
+	async (request) => {
+		console.log('[sendPaymentReminders] Function invoked. Auth:', request.auth ? request.auth.uid : 'UNAUTHENTICATED');
+		if (!request.auth) {
+			throw new HttpsError('unauthenticated', 'You must be signed in.');
+		}
+
+		try {
+			const eventId = String(request.data?.eventId || '').trim();
+			if (!eventId) {
+				throw new HttpsError('invalid-argument', 'Missing event id.');
+			}
+
+			const userId = request.auth.uid;
+			const eventRef = db.collection('events').doc(eventId);
+			const eventDoc = await eventRef.get();
+			if (!eventDoc.exists) {
+				throw new HttpsError('not-found', 'Event not found.');
+			}
+
+			const event = eventDoc.data();
+			if (event.creatorId !== userId) {
+				throw new HttpsError('permission-denied', 'Only the event organizer can send payment reminders.');
+			}
+
+			const COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+			const lastSentAt = event.lastPaymentReminderSentAt ? event.lastPaymentReminderSentAt.toMillis() : 0;
+			if (Date.now() - lastSentAt < COOLDOWN_MS) {
+				throw new HttpsError('failed-precondition', 'Payment reminders were sent recently. Please wait before sending again.');
+			}
+
+			const payerIds = getEventPaymentPayerIds(event);
+			const statuses = event.paymentStatuses || {};
+			const unpaidPayerIds = payerIds.filter((id) => (statuses[id] || 'pending') !== 'paid');
+
+			if (unpaidPayerIds.length === 0) {
+				return { count: 0, message: 'All participants have already paid.' };
+			}
+
+			const splitAmount = getEventPaymentSplitAmount(event);
+			const amountStr = splitAmount != null ? ` (€${splitAmount.toFixed(2)})` : '';
+			const pushBody = `Payment reminder: You have a pending payment${amountStr} for "${event.title || 'event'}".`;
+
+			for (const participantId of unpaidPayerIds) {
+				try {
+					const userDoc = await db.collection('users').doc(participantId).get();
+					if (userDoc.exists && userDoc.data()?.fcmToken) {
+						const token = userDoc.data().fcmToken;
+						await messaging.send({
+							token,
+							notification: {
+								title: 'Payment Reminder',
+								body: pushBody
+							},
+							data: {
+								path: `/events/${eventId}`
+							}
+						});
+					}
+				} catch (err) {
+					console.warn(`[sendPaymentReminders] Error sending push to user ${participantId}:`, err?.message);
+				}
+			}
+
+			await eventRef.update({
+				lastPaymentReminderSentAt: FieldValue.serverTimestamp(),
+				updatedAt: FieldValue.serverTimestamp()
+			});
+
+			console.log(`[sendPaymentReminders] Sent payment reminders to ${unpaidPayerIds.length} participants for event ${eventId}`);
+			return { count: unpaidPayerIds.length };
+		} catch (error) {
+			console.error('[sendPaymentReminders] Exception caught:', error);
+			if (error instanceof HttpsError) throw error;
+			throw new HttpsError('internal', error?.message || 'Could not send payment reminders.');
 		}
 	}
 );

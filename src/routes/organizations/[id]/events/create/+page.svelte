@@ -25,6 +25,7 @@
 		PROMOTION_COUNTRIES,
 		promoteEvent
 	} from '$lib/services/event.service';
+	import { createEventPromotionCheckout } from '$lib/services/event-payment.service';
 	import LocationPickerMap from '$lib/components/maps/LocationPickerMap.svelte';
 	import RouteEditorMap from '$lib/components/maps/RouteEditorMap.svelte';
 	import TimeSelect from '$lib/components/TimeSelect.svelte';
@@ -331,16 +332,17 @@
 				paymentMode
 			});
 			if (promote) {
-				await promoteEvent({
+				const { checkoutUrl } = await createEventPromotionCheckout({
 					eventId: createdEvent.id,
-					userId: user.uid,
-					budget: Number(promotionBudget) || 0,
+					budget: Number(promotionBudget) || 15,
 					durationDays: Number(promotionDurationDays) || 7,
 					plan: promotionPlan,
 					targetCity: promotionTargetCity,
 					targetCountry: promotionTargetCountry,
 					targetSport: promotionTargetSport || null
 				});
+				window.location.assign(checkoutUrl);
+				return;
 			}
 
 			await goto(resolve(`/events/${createdEvent.id}`));

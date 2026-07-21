@@ -74,6 +74,11 @@
 					icon: 'messages'
 				},
 				{
+					label: i18n.t('payments'),
+					href: '/payments',
+					icon: 'payments'
+				},
+				{
 					label: i18n.t('profile'),
 					href: organizationPublicHref,
 					icon: 'profile'
@@ -95,6 +100,11 @@
 					label: i18n.t('messages'),
 					href: '/messages',
 					icon: 'messages'
+				},
+				{
+					label: i18n.t('payments'),
+					href: '/payments',
+					icon: 'payments'
 				},
 				{
 					label: i18n.t('profile'),

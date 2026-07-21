@@ -21,6 +21,7 @@
 		leaveTournament,
 		cancelEvent
 	} from '$lib/services/event.service';
+	import { createEventPaymentCheckout } from '$lib/services/event-payment.service';
 	import { getUserProfile, getUserProfilesByIds } from '$lib/services/user.service';
 	import { getFriendsForUser } from '$lib/services/social.service';
 	import { inviteUsersToTournamentTeam } from '$lib/services/invite.service';
@@ -398,6 +399,14 @@
 		return rows.sort((a, b) => b.points - a.points || b.wins - a.wins);
 	}
 
+	let isPaidTournament = $derived(
+		event.entryFeeType === 'paid' || (event.entryFeeAmount ?? 0) > 0
+	);
+	let userPaymentStatus = $derived.by(() => {
+		if (!currentUserId || !event.paymentStatuses) return 'pending';
+		return event.paymentStatuses[currentUserId] === 'paid' ? 'paid' : 'pending';
+	});
+
 	async function handleJoinIndividual() {
 		if (!currentUserId) return;
 
@@ -406,6 +415,15 @@
 		success = '';
 
 		try {
+			if (isPaidTournament) {
+				const { checkoutUrl } = await createEventPaymentCheckout({
+					eventId: event.id,
+					isJoinPayment: true
+				});
+				window.location.assign(checkoutUrl);
+				return;
+			}
+
 			const profile = await getUserProfile(currentUserId);
 
 			await joinTournamentAsIndividual({
@@ -436,6 +454,16 @@
 				throw new Error('Choose a team name.');
 			}
 
+			if (isPaidTournament) {
+				const { checkoutUrl } = await createEventPaymentCheckout({
+					eventId: event.id,
+					isJoinPayment: true,
+					teamName: teamName.trim()
+				});
+				window.location.assign(checkoutUrl);
+				return;
+			}
+
 			await createTournamentTeam({
 				eventId: event.id,
 				captainId: currentUserId,
@@ -450,6 +478,23 @@
 			console.error('Create tournament team error:', err);
 			error = getFriendlyErrorMessage(err, 'Could not create team.');
 		} finally {
+			actionLoading = '';
+		}
+	}
+
+	async function handlePayEntryFee() {
+		if (!currentUserId) return;
+
+		actionLoading = 'pay-entry-fee';
+		error = '';
+		try {
+			const { checkoutUrl } = await createEventPaymentCheckout({
+				eventId: event.id
+			});
+			window.location.assign(checkoutUrl);
+		} catch (err) {
+			console.error('Pay entry fee error:', err);
+			error = getFriendlyErrorMessage(err, 'Could not start payment checkout.');
 			actionLoading = '';
 		}
 	}
@@ -1325,7 +1370,11 @@
 							disabled={actionLoading === 'join-individual'}
 							class="mt-4 w-full rounded-2xl bg-blue-600 px-5 py-3 font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
 						>
-							{actionLoading === 'join-individual' ? i18n.t('joining') : i18n.t('join_tournament')}
+							{actionLoading === 'join-individual'
+								? i18n.t('joining')
+								: isPaidTournament
+									? `Pay Entry Fee & Join (€${event.entryFeeAmount ?? 0})`
+									: i18n.t('join_tournament')}
 						</button>
 					{:else}
 						<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
@@ -1352,7 +1401,11 @@
 							disabled={actionLoading === 'create-team'}
 							class="mt-4 w-full rounded-2xl bg-blue-600 px-5 py-3 font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
 						>
-							{actionLoading === 'create-team' ? i18n.t('creating_tournament') : i18n.t('create_team')}
+							{actionLoading === 'create-team'
+								? i18n.t('creating_tournament')
+								: isPaidTournament
+									? `Pay Entry Fee & Create Team (€${event.entryFeeAmount ?? 0})`
+									: i18n.t('create_team')}
 						</button>
 					{/if}
 				</div>
@@ -1368,6 +1421,22 @@
 					<p class="mt-2 text-sm font-bold text-slate-500 dark:text-slate-400">
 						{i18n.t('registered_as', { name: userEntry.name })}
 					</p>
+					{#if isPaidTournament}
+						{#if userPaymentStatus === 'paid'}
+							<div class="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-black text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+								✓ Entry Fee Paid (€{event.entryFeeAmount ?? 0})
+							</div>
+						{:else}
+							<button
+								type="button"
+								onclick={handlePayEntryFee}
+								disabled={actionLoading === 'pay-entry-fee'}
+								class="mt-3 w-full rounded-2xl bg-blue-600 px-5 py-3 font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
+							>
+								{actionLoading === 'pay-entry-fee' ? 'Opening checkout...' : `Pay Entry Fee (€${event.entryFeeAmount ?? 0})`}
+							</button>
+						{/if}
+					{/if}
 					{#if userEntry.type === 'team'}
 						<button
 							type="button"

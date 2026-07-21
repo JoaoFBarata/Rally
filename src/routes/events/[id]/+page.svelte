@@ -69,7 +69,10 @@
 	import { getOrCreateOrganizationConversation } from '$lib/services/chat.service';
 	import {
 		confirmEventPayment,
-		createEventPaymentCheckout
+		confirmEventPromotionPayment,
+		createEventPaymentCheckout,
+		createEventPromotionCheckout,
+		sendPaymentReminders
 	} from '$lib/services/event-payment.service';
 	import TournamentPanel from '$lib/components/tournaments/TournamentPanel.svelte';
 	import { getOrganizationReviews } from '$lib/services/organization.service';
@@ -664,6 +667,30 @@
 
 	async function syncPaymentReturn(currentEvent: SportEvent) {
 		const paymentSessionId = page.url.searchParams.get('paymentSessionId');
+		const promotionSessionId = page.url.searchParams.get('promotionSessionId');
+
+		if (promotionSessionId && promotionSessionId !== lastConfirmedPaymentSessionId) {
+			lastConfirmedPaymentSessionId = promotionSessionId;
+			paymentConfirming = true;
+			error = '';
+
+			try {
+				await confirmEventPromotionPayment({
+					eventId: currentEvent.id,
+					sessionId: promotionSessionId
+				});
+
+				await reloadEvent();
+				await goto(resolve(`/events/${currentEvent.id}`), { replaceState: true, noScroll: true });
+			} catch (err) {
+				lastConfirmedPaymentSessionId = '';
+				console.error('Confirm promotion payment error:', err);
+				error = getFriendlyErrorMessage(err, 'Could not confirm promotion payment.');
+			} finally {
+				paymentConfirming = false;
+			}
+			return;
+		}
 
 		if (!paymentSessionId || paymentSessionId === lastConfirmedPaymentSessionId) return;
 
@@ -813,6 +840,15 @@
 		error = '';
 
 		try {
+			if (paymentSummary?.isUpfront) {
+				const { checkoutUrl } = await createEventPaymentCheckout({
+					eventId: event.id,
+					isJoinPayment: true
+				});
+				window.location.assign(checkoutUrl);
+				return;
+			}
+
 			await joinEvent(event.id, currentUser.uid);
 			await reloadEvent();
 		} catch (err) {
@@ -1000,15 +1036,56 @@
 		return `${getCurrencySymbol(event?.currency)}${amount.toFixed(2)}`;
 	}
 
+	let reminderSending = $state(false);
+	let reminderSuccess = $state('');
+
+	async function handleSendReminders() {
+		const currentUser = auth.currentUser;
+		if (!currentUser || !event || !isCreator) return;
+
+		reminderSending = true;
+		error = '';
+		reminderSuccess = '';
+
+		try {
+			const res = await sendPaymentReminders({ eventId: event.id });
+			if (res.count > 0) {
+				reminderSuccess = i18n.t('reminder_sent');
+			} else {
+				reminderSuccess = i18n.t('all_payments_settled');
+			}
+			await reloadEvent();
+		} catch (err: any) {
+			console.error('Send payment reminders error:', err);
+			error = getFriendlyErrorMessage(err, i18n.t('reminder_cooldown'));
+		} finally {
+			reminderSending = false;
+		}
+	}
+
 	async function handleRemoveParticipant(participantId: string) {
 		const currentUser = auth.currentUser;
 
 		if (!currentUser || !event) return;
 
+		const isPaid = paymentSummary?.statuses?.[participantId] === 'paid';
+		const splitAmount = paymentSummary?.splitAmount;
+
+		let title = i18n.t('remove_player_title');
+		let message = i18n.t('remove_player_message');
+		let confirmLabel = i18n.t('remove_player');
+
+		if (isPaid && splitAmount != null) {
+			const amountStr = formatPaymentAmount(splitAmount);
+			title = 'Remove Paid Participant';
+			message = `This player has already paid ${amountStr}. Removing them will issue a refund of ${amountStr}. Are you sure you want to proceed?`;
+			confirmLabel = 'Refund & Remove';
+		}
+
 		const confirmed = await showConfirm({
-			title: i18n.t('remove_player_title'),
-			message: i18n.t('remove_player_message'),
-			confirmLabel: i18n.t('remove_player'),
+			title,
+			message,
+			confirmLabel,
 			danger: true
 		});
 
@@ -1112,11 +1189,10 @@
 		error = '';
 
 		try {
-			await promoteEvent({
+			const { checkoutUrl } = await createEventPromotionCheckout({
 				eventId: event.id,
-				userId: user.uid,
-				budget: Number(promotionBudget),
-				durationDays: Number(promotionDurationDays),
+				budget: Number(promotionBudget) || 15,
+				durationDays: Number(promotionDurationDays) || 7,
 				plan: promotionPlan,
 				targetCity: promotionTargetCity,
 				targetCountry: promotionTargetCountry,
@@ -1124,10 +1200,10 @@
 			});
 
 			showPromoteModal = false;
-			await goto(resolve(`/organizations/${event.organizationId}/manage`));
+			window.location.assign(checkoutUrl);
 		} catch (err) {
 			console.error('Promote event error:', err);
-			error = getFriendlyErrorMessage(err, 'Could not promote event.');
+			error = getFriendlyErrorMessage(err, 'Could not start promotion payment flow.');
 		} finally {
 			promoting = false;
 		}
@@ -1511,7 +1587,7 @@
 											{/if}
 									{#if canInvite}<a href={resolve(`/events/${event.id}/invite`)} class="inline-flex min-h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-center text-sm font-black leading-tight text-slate-800 shadow-sm shadow-slate-200/50 transition active:scale-[0.98] dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:shadow-none">{i18n.t('invite_people')}</a>{/if}
 											{#if canJoin}
-												<button onclick={handleJoinEvent} disabled={actionLoading} class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition active:scale-[0.98] disabled:opacity-60">{actionLoading ? i18n.t('joining') : i18n.t('join_event')}</button>
+												<button onclick={handleJoinEvent} disabled={actionLoading} class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition active:scale-[0.98] disabled:opacity-60">{actionLoading ? i18n.t('joining') : (paymentSummary?.isUpfront && paymentSummary?.splitAmount != null ? `Pay & Join (${formatPaymentAmount(paymentSummary.splitAmount)})` : i18n.t('join_event'))}</button>
 											{:else if canRequestJoin}
 												<button onclick={handleRequestToJoin} disabled={actionLoading} class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition active:scale-[0.98] disabled:opacity-60">{actionLoading ? i18n.t('requesting') : i18n.t('request_to_join')}</button>
 											{:else if hasPendingJoinRequest}
@@ -1536,13 +1612,23 @@
 										{#if canInvite}<a href={resolve(`/events/${event.id}/invite`)} class="rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white">{i18n.t('invite_people')}</a>{/if}
 									</div>
 
-									{#if effectiveStatus === 'finished' && paymentSummary?.splitAmount != null}
+									{#if paymentSummary?.splitAmount != null && (effectiveStatus === 'finished' || paymentSummary.isUpfront || paymentSummary.isPricePerPerson)}
 										<div class="rounded-2xl bg-emerald-50 p-4 dark:bg-emerald-950/35">
 											<div class="flex items-start justify-between gap-3">
 												<div>
-													<p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Payments</p>
-													<p class="mt-1 text-sm font-black text-slate-950 dark:text-slate-50">{formatPaymentAmount(paymentSummary.splitAmount)} split</p>
-													<p class="mt-1 text-xs font-semibold text-slate-600 dark:text-slate-300">Host excluded from payment, included in the split.</p>
+													<p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">
+														{paymentSummary.isUpfront ? 'Upfront Payment' : paymentSummary.isPricePerPerson ? 'Per Person Price' : 'Cost Split'}
+													</p>
+													<p class="mt-1 text-sm font-black text-slate-950 dark:text-slate-50">
+														{formatPaymentAmount(paymentSummary.splitAmount)} {paymentSummary.isUpfront ? 'entry fee' : paymentSummary.isPricePerPerson ? 'per person' : 'split'}
+													</p>
+													<p class="mt-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
+														{paymentSummary.isUpfront
+															? 'Payment is required upon entry.'
+															: paymentSummary.isPricePerPerson
+																? 'Fixed price per person. No cost splitting.'
+																: 'Host excluded from payment, included in the split.'}
+													</p>
 												</div>
 												<div class="rounded-2xl bg-white px-3 py-2 text-right shadow-sm dark:bg-slate-900">
 													<p class="text-base font-black text-emerald-700 dark:text-emerald-300">{paymentSummary.payerIds.length}</p>
@@ -1614,6 +1700,20 @@
 													</p>
 												</div>
 											</div>
+											{#if isCreator && paymentSummary.pendingCount > 0}
+												<div class="mt-4 flex flex-col gap-1.5">
+													<button
+														onclick={handleSendReminders}
+														disabled={reminderSending}
+														class="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-xs font-black text-white shadow-md shadow-amber-600/20 transition hover:bg-amber-700 active:scale-[0.98] disabled:opacity-60"
+													>
+														{reminderSending ? i18n.t('sending_reminders') : i18n.t('send_reminders')}
+													</button>
+													{#if reminderSuccess}
+														<p class="text-xs font-bold text-emerald-600 dark:text-emerald-400">{reminderSuccess}</p>
+													{/if}
+												</div>
+											{/if}
 										</div>
 									{/if}
 									<div class="divide-y divide-slate-200 overflow-hidden rounded-2xl bg-white dark:divide-slate-800 dark:bg-slate-900">
@@ -1851,18 +1951,22 @@
 							</div>
 						</div>
 
-						{#if effectiveStatus === 'finished' && paymentSummary?.splitAmount != null}
+						{#if paymentSummary?.splitAmount != null && (effectiveStatus === 'finished' || paymentSummary.isUpfront || paymentSummary.isPricePerPerson)}
 							<div class="mt-5 rounded-2xl bg-emerald-50 p-5 dark:bg-emerald-950/35">
 								<div class="flex items-start justify-between gap-4">
 									<div>
 										<p class="text-sm font-black uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300">
-											Payments
+											{paymentSummary.isUpfront ? 'Upfront Payment' : paymentSummary.isPricePerPerson ? 'Per Person Price' : 'Payments'}
 										</p>
 										<h3 class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50">
-											Settled split
+											{paymentSummary.isUpfront ? 'Entry fee' : paymentSummary.isPricePerPerson ? 'Fixed per person' : 'Settled split'}
 										</h3>
 										<p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
-											The host is included in the split but does not owe payment.
+											{paymentSummary.isUpfront
+												? 'Payment is required upon entry.'
+												: paymentSummary.isPricePerPerson
+													? 'Fixed price per person. No cost splitting.'
+													: 'The host is included in the split but does not owe payment.'}
 										</p>
 									</div>
 									<div class="rounded-2xl bg-white px-4 py-3 text-right shadow-sm dark:bg-slate-900">
@@ -1941,6 +2045,20 @@
 										</p>
 									</div>
 								</div>
+								{#if isCreator && paymentSummary.pendingCount > 0}
+									<div class="mt-4 flex flex-col gap-1.5">
+										<button
+											onclick={handleSendReminders}
+											disabled={reminderSending}
+											class="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-xs font-black text-white shadow-md shadow-amber-600/20 transition hover:bg-amber-700 active:scale-[0.98] disabled:opacity-60"
+										>
+											{reminderSending ? i18n.t('sending_reminders') : i18n.t('send_reminders')}
+										</button>
+										{#if reminderSuccess}
+											<p class="text-xs font-bold text-emerald-600 dark:text-emerald-400">{reminderSuccess}</p>
+										{/if}
+									</div>
+								{/if}
 							</div>
 						{/if}
 
@@ -2388,7 +2506,7 @@
 							disabled={actionLoading}
 							class="mt-5 w-full rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-700 disabled:opacity-60"
 						>
-							{actionLoading ? i18n.t('joining') : i18n.t('join_event')}
+							{actionLoading ? i18n.t('joining') : (paymentSummary?.isUpfront && paymentSummary?.splitAmount != null ? `Pay & Join (${formatPaymentAmount(paymentSummary.splitAmount)})` : i18n.t('join_event'))}
 						</button>
 					{:else if canRequestJoin}
 						<button
