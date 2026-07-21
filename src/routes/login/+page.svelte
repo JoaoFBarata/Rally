@@ -47,6 +47,10 @@
 			await goto(safeReturnTo);
 		} catch (err) {
 			console.error('Login error:', err);
+			if (err instanceof Error && err.message.includes('auth/email-not-verified')) {
+				await goto('/verify-email');
+				return;
+			}
 			const friendly = getFriendlyErrorMessage(err, i18n.t('login_error'));
 			error = friendly.includes('auth/operation-not-allowed')
 				? i18n.t('email_link_not_enabled')

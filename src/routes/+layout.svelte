@@ -63,6 +63,17 @@
 	// Proteção de rota simples no cliente
 	$effect(() => {
 		if (!authState.loading) {
+			const requiresEmailVerification =
+				Boolean(authState.user) &&
+				authState.requiresEmailVerification &&
+				!authState.user?.emailVerified &&
+				authState.user?.providerData.some((provider) => provider.providerId === 'password');
+			const emailVerificationAllowedRoute =
+				page.url.pathname === '/' ||
+				page.url.pathname === '/login' ||
+				page.url.pathname === '/verify-email' ||
+				page.url.pathname.startsWith('/register');
+
 			if (!authState.user || (page.url.pathname !== '/' && page.url.pathname !== '/dashboard')) {
 				nativeStartupPending = false;
 			}
@@ -80,6 +91,21 @@
 
 			if (protectedRoutes && !authState.user) {
 				goto(resolve('/login'));
+				return;
+			}
+
+			if (page.url.pathname === '/verify-email' && !authState.user) {
+				goto(resolve('/login'));
+				return;
+			}
+
+			if (requiresEmailVerification && !emailVerificationAllowedRoute) {
+				goto(resolve('/verify-email'));
+				return;
+			}
+
+			if (page.url.pathname === '/verify-email' && authState.user && !requiresEmailVerification) {
+				goto(resolve('/dashboard'));
 			}
 		}
 	});

@@ -1859,7 +1859,7 @@
 							</div>
 							<div
 								bind:this={featuredFeedScroller}
-								class="-mx-3 flex snap-x gap-4 overflow-x-auto px-3 pb-3 sm:-mx-4 sm:px-4"
+								class="rally-scrollbar -mx-3 flex snap-x gap-4 overflow-x-auto px-3 pb-3 sm:-mx-4 sm:px-4"
 							>
 								{#each feedFeaturedEvents as event (event.id)}
 									<div class="w-[calc((100vw-4rem)/1.72)] max-w-[13.5rem] shrink-0 snap-start sm:w-52 lg:w-56">
@@ -1906,7 +1906,7 @@
 							</div>
 							<div
 								bind:this={friendsFeedScroller}
-								class="-mx-3 flex snap-x gap-4 overflow-x-auto px-3 pb-3 sm:-mx-4 sm:px-4"
+								class="rally-scrollbar -mx-3 flex snap-x gap-4 overflow-x-auto px-3 pb-3 sm:-mx-4 sm:px-4"
 							>
 								{#each feedFriendsEvents as event (event.id)}
 									<div class="w-[calc((100vw-4rem)/1.72)] max-w-[13.5rem] shrink-0 snap-start sm:w-52 lg:w-56">
@@ -1953,7 +1953,7 @@
 							</div>
 							<div
 								bind:this={generalFeedScroller}
-								class="-mx-3 flex snap-x gap-4 overflow-x-auto px-3 pb-3 sm:-mx-4 sm:px-4"
+								class="rally-scrollbar -mx-3 flex snap-x gap-4 overflow-x-auto px-3 pb-3 sm:-mx-4 sm:px-4"
 							>
 								{#each feedGeneralEvents as event (event.id)}
 									<div class="w-[calc((100vw-4rem)/1.72)] max-w-[13.5rem] shrink-0 snap-start sm:w-52 lg:w-56">

@@ -1,6 +1,8 @@
 <!-- src/routes/events/create/+page.svelte -->
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { i18n } from '$lib/services/i18n.svelte';
 	import { auth } from '$lib/firebase';
@@ -95,6 +97,44 @@
 			month: 'short',
 			year: 'numeric'
 		});
+	});
+
+	const knownSports: Sport[] = [
+		'football',
+		'padel',
+		'basketball',
+		'running',
+		'gym',
+		'tennis',
+		'cycling',
+		'volleyball',
+		'bowling',
+		'snooker',
+		'golf',
+		'swimming',
+		'hiking',
+		'yoga',
+		'surf',
+		'pingpong',
+		'rugby',
+		'americanfootball',
+		'other'
+	];
+
+	// Prefill from a "Schedule event here" link off a venue's Locations page.
+	onMount(() => {
+		const params = page.url.searchParams;
+		const venueName = params.get('venueName');
+		const venueAddress = params.get('address');
+		const venueLat = Number(params.get('lat'));
+		const venueLng = Number(params.get('lng'));
+		const venueSport = params.get('sport') as Sport | null;
+
+		if (venueName) locationName = venueName;
+		if (venueAddress) address = venueAddress;
+		if (Number.isFinite(venueLat) && params.get('lat')) lat = venueLat;
+		if (Number.isFinite(venueLng) && params.get('lng')) lng = venueLng;
+		if (venueSport && knownSports.includes(venueSport)) sport = venueSport;
 	});
 
 	const todayStr = new Date().toLocaleDateString('en-CA');

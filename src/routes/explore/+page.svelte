@@ -20,6 +20,7 @@
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { i18n } from '$lib/services/i18n.svelte';
 	import { getEventTemporalState } from '$lib/utils/event-lifecycle.utils';
+	import { LayoutList, Map as MapIcon } from '@lucide/svelte';
 
 	type DateFilter = 'today' | '7' | '14' | '30' | 'all';
 	type PriceFilter = 'all' | 'free' | 'paid';
@@ -523,33 +524,39 @@
 				{searchTerm ? i18n.t('showing_results', { searchTerm }) : i18n.t('explore_subtitle')}
 			</p>
 		</div>
-		<div
-			class="inline-flex rounded-full bg-slate-100 p-1 dark:bg-slate-800 self-start sm:self-center"
-		>
+		<div class="relative grid h-13 w-[19rem] max-w-full grid-cols-2 self-start rounded-2xl border border-slate-200 bg-slate-100 p-1 shadow-inner shadow-slate-200/70 sm:self-center dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/20">
+			<span
+				aria-hidden="true"
+				class={`pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-xl bg-white shadow-[0_4px_14px_rgba(15,23,42,0.12)] ring-1 ring-slate-200/80 transition-transform duration-300 ease-out dark:bg-slate-700 dark:ring-slate-600 ${viewMode === 'feed' ? 'translate-x-full' : 'translate-x-0'}`}
+			></span>
 			<button
 				type="button"
+				aria-pressed={viewMode === 'map'}
 				onclick={() => {
 					viewMode = 'map';
 					syncExploreQuery();
 				}}
-				class="rounded-full px-4 py-2 text-xs font-black transition duration-200 {viewMode === 'map'
-					? 'bg-white text-slate-950 shadow-md dark:bg-slate-700 dark:text-slate-50'
+				class="relative z-10 flex min-w-0 items-center justify-center gap-2 rounded-xl px-4 text-sm font-black transition-colors duration-300 {viewMode === 'map'
+					? 'text-slate-950 dark:text-white'
 					: 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'}"
 			>
-				🗺️ {i18n.t('map_view')}
+				<MapIcon class="h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" strokeWidth={2.4} />
+				<span class="truncate">{i18n.t('map_view')}</span>
 			</button>
 			<button
 				type="button"
+				aria-pressed={viewMode === 'feed'}
 				onclick={() => {
 					viewMode = 'feed';
 					syncExploreQuery();
 				}}
-				class="rounded-full px-4 py-2 text-xs font-black transition duration-200 {viewMode ===
+				class="relative z-10 flex min-w-0 items-center justify-center gap-2 rounded-xl px-4 text-sm font-black transition-colors duration-300 {viewMode ===
 				'feed'
-					? 'bg-white text-slate-950 shadow-md dark:bg-slate-700 dark:text-slate-50'
+					? 'text-slate-950 dark:text-white'
 					: 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'}"
 			>
-				📰 {i18n.t('feed_view')}
+				<LayoutList class="h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" strokeWidth={2.4} />
+				<span class="truncate">{i18n.t('feed_view')}</span>
 			</button>
 		</div>
 	</header>

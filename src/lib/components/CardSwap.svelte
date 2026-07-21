@@ -39,7 +39,7 @@
 	} = $props();
 
 	let container = $state<HTMLDivElement | null>(null);
-	let cardEls: HTMLDivElement[] = [];
+	let cardEls = $state<HTMLElement[]>([]);
 
 	function makeSlot(i: number, distX: number, distY: number, total: number): Slot {
 		return {
@@ -183,22 +183,25 @@
 	style={`width:${typeof width === 'number' ? `${width}px` : width}; height:${typeof height === 'number' ? `${height}px` : height};`}
 >
 	{#each items as item, i (item.src)}
-		<div
-			bind:this={cardEls[i]}
-			class="card"
-			style={`width:${typeof width === 'number' ? `${width}px` : width}; height:${typeof height === 'number' ? `${height}px` : height};`}
-			role={onCardClick ? 'button' : 'img'}
-			tabindex={onCardClick ? 0 : -1}
-			onclick={() => onCardClick?.(i)}
-			onkeydown={(e) => {
-				if (onCardClick && (e.key === 'Enter' || e.key === ' ')) {
-					e.preventDefault();
-					onCardClick(i);
-				}
-			}}
-		>
-			<img src={item.src} alt={item.alt ?? ''} />
-		</div>
+		{#if onCardClick}
+			<button
+				bind:this={cardEls[i]}
+				type="button"
+				class="card"
+				style={`width:${typeof width === 'number' ? `${width}px` : width}; height:${typeof height === 'number' ? `${height}px` : height};`}
+				onclick={() => onCardClick(i)}
+			>
+				<img src={item.src} alt={item.alt ?? ''} />
+			</button>
+		{:else}
+			<div
+				bind:this={cardEls[i]}
+				class="card"
+				style={`width:${typeof width === 'number' ? `${width}px` : width}; height:${typeof height === 'number' ? `${height}px` : height};`}
+			>
+				<img src={item.src} alt={item.alt ?? ''} />
+			</div>
+		{/if}
 	{/each}
 </div>
 
@@ -215,6 +218,7 @@
 	}
 
 	.card {
+		padding: 0;
 		position: absolute;
 		top: 50%;
 		left: 50%;

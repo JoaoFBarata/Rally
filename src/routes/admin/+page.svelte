@@ -13,6 +13,8 @@
 	} from '$lib/services/organization.service';
 	import type { Organization, OrganizationVerificationRequest } from '$lib/schema';
 	import { isPlatformAdminEmail } from '$lib/admin';
+	import { seedVenues } from '$lib/services/venue.service';
+	import { venueSeeds } from '$lib/data/venues.seed';
 
 	type RequestWithOrg = OrganizationVerificationRequest & { organization: Organization | null };
 
@@ -24,8 +26,12 @@
 		users: 0,
 		organizations: 0,
 		events: { total: 0, open: 0, full: 0, cancelled: 0, finished: 0 },
-		pendingVerifications: 0
+		pendingVerifications: 0,
+		venues: 0
 	});
+
+	let seedingVenues = $state(false);
+	let seedVenuesMessage = $state('');
 
 	let verificationRequests = $state<RequestWithOrg[]>([]);
 	let loadingRequests = $state(false);
@@ -36,41 +42,79 @@
 	let adminNotes = $state<Record<string, string>>({});
 	let actionError = $state('');
 
+	// Each stat is fetched independently so a single denied query (e.g. an
+	// aggregation query whose rule depends on per-document data, which
+	// Firestore's count() cannot evaluate and always rejects) can't take
+	// down every other stat on this page.
+	async function safeCount(label: string, countQuery: Parameters<typeof getCountFromServer>[0]) {
+		try {
+			const snap = await getCountFromServer(countQuery);
+			return snap.data().count;
+		} catch (err) {
+			console.error(`Load ${label} count error:`, err);
+			return 0;
+		}
+	}
+
 	async function loadStats() {
 		const [
-			usersSnap,
-			orgsSnap,
-			eventsSnap,
-			openSnap,
-			fullSnap,
-			cancelledSnap,
-			finishedSnap,
-			pendingVerSnap
+			usersCount,
+			orgsCount,
+			eventsCount,
+			openCount,
+			fullCount,
+			cancelledCount,
+			finishedCount,
+			pendingVerCount,
+			venuesCount
 		] = await Promise.all([
-			getCountFromServer(collection(db, 'users')),
-			getCountFromServer(collection(db, 'organizations')),
-			getCountFromServer(collection(db, 'events')),
-			getCountFromServer(query(collection(db, 'events'), where('status', '==', 'open'))),
-			getCountFromServer(query(collection(db, 'events'), where('status', '==', 'full'))),
-			getCountFromServer(query(collection(db, 'events'), where('status', '==', 'cancelled'))),
-			getCountFromServer(query(collection(db, 'events'), where('status', '==', 'finished'))),
-			getCountFromServer(
+			safeCount('users', collection(db, 'users')),
+			safeCount('organizations', collection(db, 'organizations')),
+			safeCount('events (total)', collection(db, 'events')),
+			safeCount('events (open)', query(collection(db, 'events'), where('status', '==', 'open'))),
+			safeCount('events (full)', query(collection(db, 'events'), where('status', '==', 'full'))),
+			safeCount(
+				'events (cancelled)',
+				query(collection(db, 'events'), where('status', '==', 'cancelled'))
+			),
+			safeCount(
+				'events (finished)',
+				query(collection(db, 'events'), where('status', '==', 'finished'))
+			),
+			safeCount(
+				'pending verifications',
 				query(collection(db, 'organizationVerificationRequests'), where('status', '==', 'pending'))
-			)
+			),
+			safeCount('venues', collection(db, 'venues'))
 		]);
 
 		stats = {
-			users: usersSnap.data().count,
-			organizations: orgsSnap.data().count,
+			users: usersCount,
+			organizations: orgsCount,
 			events: {
-				total: eventsSnap.data().count,
-				open: openSnap.data().count,
-				full: fullSnap.data().count,
-				cancelled: cancelledSnap.data().count,
-				finished: finishedSnap.data().count
+				total: eventsCount,
+				open: openCount,
+				full: fullCount,
+				cancelled: cancelledCount,
+				finished: finishedCount
 			},
-			pendingVerifications: pendingVerSnap.data().count
+			pendingVerifications: pendingVerCount,
+			venues: venuesCount
 		};
+	}
+
+	async function handleSeedVenues() {
+		seedingVenues = true;
+		seedVenuesMessage = '';
+		try {
+			const count = await seedVenues(venueSeeds);
+			seedVenuesMessage = `Seeded ${count} venues.`;
+			await loadStats();
+		} catch (e) {
+			seedVenuesMessage = `Failed: ${(e as Error).message}`;
+		} finally {
+			seedingVenues = false;
+		}
 	}
 
 	async function loadVerificationRequests() {
@@ -321,6 +365,35 @@
 							</div>
 						{/each}
 					</div>
+				</div>
+
+				<!-- Locations directory seed -->
+				<div
+					class="mt-6 rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"
+				>
+					<div class="flex items-center justify-between gap-4">
+						<div>
+							<h2 class="text-sm font-semibold text-slate-700 dark:text-slate-300">
+								Locations directory
+							</h2>
+							<p class="mt-1 text-xs text-slate-500">
+								{stats.venues} venue{stats.venues === 1 ? '' : 's'} currently in Firestore ·
+								{venueSeeds.length} in the curated seed set.
+							</p>
+						</div>
+						<button
+							onclick={handleSeedVenues}
+							disabled={seedingVenues}
+							class="shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
+						>
+							{seedingVenues ? 'Seeding…' : 'Seed / update venues'}
+						</button>
+					</div>
+					{#if seedVenuesMessage}
+						<p class="mt-3 text-xs font-medium text-slate-600 dark:text-slate-400">
+							{seedVenuesMessage}
+						</p>
+					{/if}
 				</div>
 			{/if}
 

@@ -3,6 +3,7 @@ import {
 	createUserWithEmailAndPassword,
 	deleteUser,
 	GoogleAuthProvider,
+	sendEmailVerification,
 	sendPasswordResetEmail,
 	signInWithEmailAndPassword,
 	signInWithPopup,
@@ -23,6 +24,20 @@ import { createOrganization } from '$lib/services/organization.service';
 import { sendRallySystemMessage } from '$lib/services/chat.service';
 import type { OrganizationType } from '$lib/schema';
 import { createAppUrl } from '$lib/utils/app-url';
+
+function isPasswordUser(user = auth.currentUser) {
+	return Boolean(user?.providerData.some((provider) => provider.providerId === 'password'));
+}
+
+async function sendAccountVerificationEmail() {
+	const user = auth.currentUser;
+	if (!user || !isPasswordUser(user) || user.emailVerified) return;
+
+	await sendEmailVerification(user, {
+		url: createAppUrl('/verify-email'),
+		handleCodeInApp: false
+	});
+}
 
 async function removeCurrentFcmToken() {
 	const user = auth.currentUser;
@@ -56,7 +71,8 @@ export const authService = {
 				displayName,
 				photoURL: credential.user.photoURL,
 				accountType: 'personal',
-				language
+				language,
+				requiresEmailVerification: true
 			});
 		} catch (err) {
 			// Roll back the Auth account so a retry doesn't hit
@@ -71,6 +87,10 @@ export const authService = {
 			credential.user.uid,
 			'Welcome to Rally! You will receive event updates and more through this chat.'
 		).catch((err) => console.error('Welcome message error:', err));
+
+		await sendAccountVerificationEmail().catch((err) =>
+			console.error('Verification email send error:', err)
+		);
 
 		return credential.user;
 	},
@@ -103,7 +123,8 @@ export const authService = {
 				displayName: params.organizationName,
 				photoURL: credential.user.photoURL,
 				accountType: 'organization',
-				language: params.language
+				language: params.language,
+				requiresEmailVerification: true
 			});
 
 			organization = await createOrganization({
@@ -139,6 +160,10 @@ export const authService = {
 			'Welcome to Rally! You will receive organization updates and event activity through this chat.'
 		).catch((err) => console.error('Welcome message error:', err));
 
+		await sendAccountVerificationEmail().catch((err) =>
+			console.error('Verification email send error:', err)
+		);
+
 		return {
 			user: credential.user,
 			organization
@@ -147,8 +172,18 @@ export const authService = {
 
 	async login(email: string, password: string) {
 		const credential = await signInWithEmailAndPassword(auth, email, password);
-
 		const profile = await ensureUserProfile(credential.user);
+
+		if (
+			profile.requiresEmailVerification &&
+			isPasswordUser(credential.user) &&
+			!credential.user.emailVerified
+		) {
+			await sendAccountVerificationEmail().catch((err) =>
+				console.error('Verification email resend error:', err)
+			);
+			throw new Error('auth/email-not-verified');
+		}
 
 		return {
 			user: credential.user,
@@ -161,6 +196,10 @@ export const authService = {
 			url: createAppUrl('/login'),
 			handleCodeInApp: false
 		});
+	},
+
+	async sendVerificationEmail() {
+		await sendAccountVerificationEmail();
 	},
 
 	async signInWithGoogle() {

@@ -10,6 +10,7 @@ import { ensureUserProfile } from '$lib/services/user.service';
 import type { TwoFactorMethod, UserProfile } from '$lib/schema';
 
 const PENDING_2FA_KEY = 'rally:pending-two-factor';
+export const TWO_FACTOR_COMPLETED_KEY = 'rally:two-factor-completed';
 const CHALLENGE_MAX_AGE_MS = 15 * 60 * 1000;
 
 export interface PendingTwoFactorChallenge {
@@ -69,6 +70,7 @@ export async function startEmailTwoFactorChallenge(params: {
 	const email = params.email.trim();
 	const returnTo = params.returnTo?.startsWith('/') ? params.returnTo : '/dashboard';
 	const verifyPath = `/verify-2fa?returnTo=${encodeURIComponent(returnTo)}`;
+	localStorage.removeItem(TWO_FACTOR_COMPLETED_KEY);
 
 	try {
 		await sendSignInLinkToEmail(auth, email, {
@@ -113,6 +115,10 @@ export async function completeEmailTwoFactorChallenge() {
 	const credential = await signInWithEmailLink(auth, pending.email, window.location.href);
 	await ensureUserProfile(credential.user);
 	clearPendingTwoFactorChallenge();
+	localStorage.setItem(
+		TWO_FACTOR_COMPLETED_KEY,
+		JSON.stringify({ returnTo: pending.returnTo, completedAt: Date.now() })
+	);
 
 	return {
 		user: credential.user,

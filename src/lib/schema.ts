@@ -102,6 +102,7 @@ export interface UserProfile {
 	rallyPointsTotal?: number;
 
 	isPrivate?: boolean;
+	requiresEmailVerification?: boolean;
 	twoFactorEnabled?: boolean;
 	twoFactorMethods?: TwoFactorMethod[];
 	twoFactorPreferredMethod?: TwoFactorMethod;
@@ -216,6 +217,45 @@ export interface OrganizationVerificationRequest {
 	updatedAt: Timestamp;
 	reviewedAt?: Timestamp | null;
 	reviewedBy?: string | null;
+}
+
+// A curated directory venue (gym, court, field, pool, etc.) where events can
+// be played. Distinct from Organization — venues are added/curated by Rally
+// itself (not self-registered), so verificationStatus here reflects whether
+// Rally has confirmed the venue is real/active, not a partnership claim.
+export interface Venue {
+	id: string;
+	name: string;
+	sports: Sport[];
+	description?: string;
+	address: string;
+	city: string;
+	country?: string;
+	lat: number;
+	lng: number;
+	photoURL?: string | null;
+	website?: string;
+	phone?: string;
+	verificationStatus: VerificationStatus;
+	ratingAvg?: number;
+	ratingCount?: number;
+	createdAt: Timestamp;
+	updatedAt: Timestamp;
+}
+
+export type VenueReviewSource = 'official' | 'rally_user';
+
+export interface VenueReview {
+	id: string;
+	venueId: string;
+	source: VenueReviewSource;
+	userId?: string | null;
+	authorName: string;
+	authorPhotoURL?: string | null;
+	rating: number;
+	comment: string;
+	createdAt: Timestamp;
+	updatedAt: Timestamp;
 }
 
 export interface SportEvent {

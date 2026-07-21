@@ -64,6 +64,11 @@
 					icon: 'explore'
 				},
 				{
+					label: i18n.t('locations'),
+					href: '/locations',
+					icon: 'locations'
+				},
+				{
 					label: i18n.t('organization'),
 					href: organizationManageHref,
 					icon: 'organization'
@@ -90,6 +95,11 @@
 					label: i18n.t('home'),
 					href: '/dashboard',
 					icon: 'dashboard'
+				},
+				{
+					label: i18n.t('locations'),
+					href: '/locations',
+					icon: 'locations'
 				},
 				{
 					label: i18n.t('messages'),
@@ -164,6 +174,7 @@
 		return (
 			pathname === '/' ||
 			pathname === '/login' ||
+			pathname === '/verify-email' ||
 			pathname === '/verify-2fa' ||
 			pathname.startsWith('/register') ||
 			pathname === '/discover' ||
@@ -382,9 +393,10 @@
 			<aside class={`hidden md:flex flex-col h-screen sticky top-0 shrink-0 overflow-hidden bg-[#f6f6f6] transition-[width] duration-300 ease-in-out dark:bg-[#242424] ${
 					sidebarCollapsed ? 'w-24' : 'w-71'
 				}`}>
-				<div class={`${sidebarCollapsed ? 'flex flex-col gap-5 px-auto' : 'flex flex-row px-6.75'} justify-between items-center w-full mt-12 transition-[flex-direction,padding] duration-300 ease-in-out`}>
-					<RallyLogo size="md" href={organizationManageHref ?? '/'} additionalClasses={`transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'hidden' : ''}`}/>
-					<RallyLogo size="compact" mark href={organizationManageHref ?? '/'} additionalClasses={`transition-all duration-300 ease-in-out ${sidebarCollapsed ? '' : 'hidden'}`}/>
+				<div class={`mt-12 flex h-12 w-full shrink-0 items-center px-6.75 ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
+					{#if !sidebarCollapsed}
+						<RallyLogo size="md" href={organizationManageHref ?? '/'} />
+					{/if}
 					<button type="button"
 						    onclick={toggleSidebar}
 						    title={sidebarCollapsed ? i18n.t('expand_sidebar') : i18n.t('collapse_sidebar')}

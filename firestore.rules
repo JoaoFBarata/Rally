@@ -469,5 +469,40 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+
+    // ── Venues ───────────────────────────────────────────────────────────────
+    // A curated directory of real-world sports venues, added/maintained by
+    // Rally platform admins (not self-registered like Organizations). Any
+    // signed-in user can read; only platform admins can write.
+    match /venues/{venueId} {
+      allow read:   if isAuth();
+      allow create: if isPlatformAdmin();
+      allow update: if isPlatformAdmin();
+      allow delete: if isPlatformAdmin();
+    }
+
+
+    // ── Venue Reviews ────────────────────────────────────────────────────────
+    // 'official' reviews are curated by Rally platform admins. 'rally_user'
+    // reviews are written by real users about a venue they've actually been
+    // to, and can only be authored/edited/removed as themselves (platform
+    // admins can also moderate any review).
+    match /venueReviews/{reviewId} {
+      allow read: if isAuth();
+      allow create: if isAuth() && (
+        (request.resource.data.source == 'official' && isPlatformAdmin())
+        || (request.resource.data.source == 'rally_user'
+            && request.resource.data.userId == request.auth.uid)
+      );
+      allow update: if isAuth() && (
+        isPlatformAdmin()
+        || (resource.data.source == 'rally_user' && resource.data.userId == request.auth.uid)
+      );
+      allow delete: if isAuth() && (
+        isPlatformAdmin()
+        || (resource.data.source == 'rally_user' && resource.data.userId == request.auth.uid)
+      );
+    }
+
   }
 }

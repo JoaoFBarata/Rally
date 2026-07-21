@@ -91,7 +91,7 @@
 				await authService.register(email, password, displayName, registerLanguage);
 			}
 			i18n.setLanguage(registerLanguage as any);
-			await goto(resolve('/dashboard'));
+			await goto(resolve('/verify-email'));
 		} catch (err) {
 			console.error('Register error:', err);
 			error = getFriendlyErrorMessage(err, i18n.t('create_account_error'));

@@ -44,6 +44,7 @@ export async function createUserProfile(params: {
 	accountType?: AccountType;
 	activeOrganizationId?: string | null;
 	language?: string;
+	requiresEmailVerification?: boolean;
 }) {
 	const userRef = doc(db, 'users', params.id);
 	const rallyTag = generateRallyTag(params.displayName, params.email, params.id);
@@ -63,6 +64,7 @@ export async function createUserProfile(params: {
 		age: null,
 		sports: params.sports ?? [],
 		language: params.language ?? i18n.currentLang,
+		requiresEmailVerification: params.requiresEmailVerification ?? false,
 		twoFactorEnabled: false,
 		twoFactorMethods: [],
 		twoFactorPreferredMethod: 'email',
