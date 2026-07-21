@@ -1053,26 +1053,36 @@ exports.sendPaymentReminders = onCall(
 
 			const splitAmount = getEventPaymentSplitAmount(event);
 			const amountStr = splitAmount != null ? ` (€${splitAmount.toFixed(2)})` : '';
-			const pushBody = `Payment reminder: You have a pending payment${amountStr} for "${event.title || 'event'}".`;
+			const reminderText = `Payment reminder: You have a pending payment${amountStr} for "${event.title || 'event'}". You can view and settle your payment on the Payments page or event page.`;
 
 			for (const participantId of unpaidPayerIds) {
 				try {
-					const userDoc = await db.collection('users').doc(participantId).get();
-					if (userDoc.exists && userDoc.data()?.fcmToken) {
-						const token = userDoc.data().fcmToken;
-						await messaging.send({
-							token,
-							notification: {
-								title: 'Payment Reminder',
-								body: pushBody
-							},
-							data: {
-								path: `/events/${eventId}`
-							}
-						});
-					}
+					const convId = [userId, participantId].sort().join('_');
+					const convRef = db.collection('conversations').doc(convId);
+
+					await convRef.set(
+						{
+							id: convId,
+							type: 'direct',
+							memberIds: [userId, participantId],
+							createdAt: FieldValue.serverTimestamp(),
+							updatedAt: FieldValue.serverTimestamp()
+						},
+						{ merge: true }
+					);
+
+					await convRef.collection('messages').add({
+						conversationId: convId,
+						senderId: userId,
+						text: reminderText,
+						type: 'text',
+						createdAt: FieldValue.serverTimestamp(),
+						readBy: [userId]
+					});
+
+					console.log(`[sendPaymentReminders] Sent reminder message to user ${participantId} in conversation ${convId}`);
 				} catch (err) {
-					console.warn(`[sendPaymentReminders] Error sending push to user ${participantId}:`, err?.message);
+					console.warn(`[sendPaymentReminders] Error sending reminder message to user ${participantId}:`, err?.message);
 				}
 			}
 

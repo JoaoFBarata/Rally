@@ -32,16 +32,32 @@
 
 	let currentUserId = $derived(auth.currentUser?.uid);
 
-	// Filter events where current user owes payment (excluding hosted events)
+	// Filter events where current user owes payment (excluding hosted events and unfinished cost-splits)
 	let eventsINeedToPay = $derived.by(() => {
 		if (!currentUserId) return [];
 		return joinedEvents.filter((evt) => {
 			if (evt.status === 'cancelled') return false;
 			if (evt.creatorId === currentUserId) return false;
+
+			// For cost-split events (priceTotal != null), payment is only due after the event is finished
+			if (evt.priceTotal != null && evt.status !== 'finished') {
+				return false;
+			}
+
 			const summary = getEventPaymentSummary(evt);
 			if (!summary || summary.splitAmount == null || summary.splitAmount <= 0) return false;
 			const status = summary.statuses[currentUserId] || 'pending';
 			return status !== 'paid';
+		});
+	});
+
+	// Filter upcoming cost-split events where user is a participant but event is not yet finished
+	let upcomingCostSplitEvents = $derived.by(() => {
+		if (!currentUserId) return [];
+		return joinedEvents.filter((evt) => {
+			if (evt.status === 'cancelled' || evt.status === 'finished') return false;
+			if (evt.priceTotal == null || evt.priceTotal <= 0) return false;
+			return Array.isArray(evt.participantIds) && evt.participantIds.includes(currentUserId);
 		});
 	});
 
@@ -394,6 +410,70 @@
 				</div>
 			{/if}
 		</div>
+
+		<!-- Section: Upcoming Cost-Split Events -->
+		{#if upcomingCostSplitEvents.length > 0}
+			<div class="mb-12">
+				<div class="mb-4 flex items-center justify-between">
+					<h2 class="text-lg font-black text-slate-950 dark:text-slate-50 sm:text-xl">
+						{i18n.t('upcoming_cost_splits')}
+					</h2>
+					<span class="rounded-full bg-blue-100 px-3 py-1 text-xs font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+						{upcomingCostSplitEvents.length} Active
+					</span>
+				</div>
+
+				<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+					{#each upcomingCostSplitEvents as event (event.id)}
+						{@const currentCount = event.participantIds?.length ?? 0}
+						{@const maxCount = event.maxParticipants ?? 1}
+						{@const totalCost = event.priceTotal ?? 0}
+						{@const estimatedShare = totalCost / Math.max(1, currentCount)}
+						<div class="flex flex-col justify-between rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+							<div>
+								<div class="flex items-start justify-between gap-3">
+									<a href={resolve(`/events/${event.id}`)} class="group">
+										<h3 class="font-black text-slate-950 transition group-hover:text-blue-600 dark:text-slate-50 dark:group-hover:text-blue-400">
+											{event.title}
+										</h3>
+									</a>
+									<span class="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+										{event.sport}
+									</span>
+								</div>
+
+								<div class="mt-3 space-y-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+									<p>{formatDate(event.startAt)}</p>
+									<p class="truncate">{event.location?.name || event.location?.address || 'Location TBA'}</p>
+								</div>
+
+								<!-- Cost Split Metrics Grid -->
+								<div class="mt-4 grid grid-cols-3 gap-2">
+									<div class="rounded-2xl bg-slate-50 p-2 text-center dark:bg-slate-800/60">
+										<p class="text-[9px] font-black uppercase tracking-wider text-slate-400">{i18n.t('total_event_cost')}</p>
+										<p class="mt-0.5 text-xs font-black text-slate-900 dark:text-slate-100">{formatAmount(totalCost, event.currency)}</p>
+									</div>
+									<div class="rounded-2xl bg-slate-50 p-2 text-center dark:bg-slate-800/60">
+										<p class="text-[9px] font-black uppercase tracking-wider text-slate-400">{i18n.t('current_attendees')}</p>
+										<p class="mt-0.5 text-xs font-black text-blue-600 dark:text-blue-400">{currentCount} / {maxCount}</p>
+									</div>
+									<div class="rounded-2xl bg-blue-50/70 p-2 text-center dark:bg-blue-950/40">
+										<p class="text-[9px] font-black uppercase tracking-wider text-blue-500 dark:text-blue-400">{i18n.t('estimated_share')}</p>
+										<p class="mt-0.5 text-xs font-black text-blue-700 dark:text-blue-300">{formatAmount(estimatedShare, event.currency)}</p>
+									</div>
+								</div>
+							</div>
+
+							<div class="mt-5 border-t border-slate-100 pt-3 dark:border-slate-800">
+								<p class="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+									💡 {i18n.t('split_on_completion')}
+								</p>
+							</div>
+						</div>
+					{/each}
+				</div>
+			</div>
+		{/if}
 
 		<!-- Section 2: Money Due to Me (Hosted Events) -->
 		<div>
