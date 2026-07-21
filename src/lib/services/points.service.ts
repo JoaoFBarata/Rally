@@ -8,12 +8,19 @@ import {
 	query,
 	runTransaction,
 	serverTimestamp,
+	Timestamp,
 	where
 } from 'firebase/firestore';
 import { db } from '$lib/firebase';
-import type { RallyPointTransaction } from '$lib/schema';
+import type { PointRedemption, RallyPointTransaction, Venue } from '$lib/schema';
 
 // ─── Formula constants ────────────────────────────────────────────────────────
+
+/** Redeemable reward at any Rally Verified venue. */
+export const VENUE_REWARD = {
+	POINTS_COST: 150,
+	DISCOUNT_PERCENT: 10
+} as const;
 
 export const RALLY_POINTS_CONFIG = {
 	/** Base reward for participating in any verified-venue event. */
@@ -150,4 +157,62 @@ export async function getUserPointTransactions(
 	);
 	const snap = await getDocs(q);
 	return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as RallyPointTransaction);
+}
+
+function generateRedemptionCode() {
+	const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+	let code = '';
+	for (let i = 0; i < 6; i++) {
+		code += alphabet[Math.floor(Math.random() * alphabet.length)];
+	}
+	return `RALLY-${code}`;
+}
+
+/**
+ * Redeems VENUE_REWARD.POINTS_COST Rally Points for a discount voucher at a
+ * Rally Verified venue. Throws if the user doesn't have enough points.
+ */
+export async function redeemVenueDiscount(
+	userId: string,
+	venue: Venue,
+	currentPoints: number
+): Promise<PointRedemption> {
+	if (currentPoints < VENUE_REWARD.POINTS_COST) {
+		throw new Error('Not enough Rally Points for this reward.');
+	}
+
+	const userRef = doc(db, 'users', userId);
+	const redemptionsRef = collection(db, 'users', userId, 'pointRedemptions');
+	const newRedemptionRef = doc(redemptionsRef);
+
+	const redemption: Omit<PointRedemption, 'createdAt'> = {
+		id: newRedemptionRef.id,
+		userId,
+		venueId: venue.id,
+		venueName: venue.name,
+		pointsSpent: VENUE_REWARD.POINTS_COST,
+		discountPercent: VENUE_REWARD.DISCOUNT_PERCENT,
+		code: generateRedemptionCode()
+	};
+
+	await runTransaction(db, async (tx) => {
+		tx.update(userRef, {
+			rallyPointsTotal: increment(-VENUE_REWARD.POINTS_COST),
+			updatedAt: serverTimestamp()
+		});
+		tx.set(newRedemptionRef, { ...redemption, createdAt: serverTimestamp() });
+	});
+
+	return { ...redemption, createdAt: Timestamp.now() };
+}
+
+/** Fetches a user's past redemptions (most recent first). */
+export async function getUserRedemptions(userId: string, n = 10): Promise<PointRedemption[]> {
+	const q = query(
+		collection(db, 'users', userId, 'pointRedemptions'),
+		orderBy('createdAt', 'desc'),
+		limit(n)
+	);
+	const snap = await getDocs(q);
+	return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as PointRedemption);
 }

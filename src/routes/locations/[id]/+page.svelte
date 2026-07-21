@@ -21,6 +21,8 @@
 	import { TEXT_LIMITS } from '$lib/constants/text-limits';
 	import EventCard from '$lib/components/EventCard.svelte';
 	import { i18n } from '$lib/services/i18n.svelte';
+	import { VENUE_REWARD, redeemVenueDiscount } from '$lib/services/points.service';
+	import type { PointRedemption } from '$lib/schema';
 
 	let venue = $state<Venue | null>(null);
 	let currentProfile = $state<UserProfile | null>(null);
@@ -30,6 +32,10 @@
 	let reviewSource = $state<VenueReviewSource>('official');
 	let loading = $state(true);
 	let error = $state('');
+
+	let redeeming = $state(false);
+	let redeemError = $state('');
+	let redemption = $state<PointRedemption | null>(null);
 
 	let reviewRating = $state(5);
 	let reviewComment = $state('');
@@ -105,6 +111,32 @@
 		}
 	}
 
+	async function handleRedeem() {
+		const currentUser = auth.currentUser;
+		if (!currentUser || !venue || !currentProfile) return;
+
+		redeeming = true;
+		redeemError = '';
+
+		try {
+			const result = await redeemVenueDiscount(
+				currentUser.uid,
+				venue,
+				currentProfile.rallyPointsTotal ?? 0
+			);
+			redemption = result;
+			currentProfile = {
+				...currentProfile,
+				rallyPointsTotal: (currentProfile.rallyPointsTotal ?? 0) - VENUE_REWARD.POINTS_COST
+			};
+		} catch (err) {
+			console.error('Redeem venue discount error:', err);
+			redeemError = getFriendlyErrorMessage(err, 'Could not redeem your points.');
+		} finally {
+			redeeming = false;
+		}
+	}
+
 	onMount(() => {
 		const unsubscribe = onAuthStateChanged(auth, async (user) => {
 			if (!user) {
@@ -125,8 +157,19 @@
 		class="-ml-2 flex h-11 w-11 items-center justify-center rounded-full text-slate-950 transition hover:bg-white/80 dark:text-slate-50 dark:hover:bg-slate-900"
 		aria-label={i18n.t('back_to_locations')}
 	>
-		<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8">
-			<path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+		<svg
+			xmlns="http://www.w3.org/2000/svg"
+			class="h-6 w-6"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="2.8"
+		>
+			<path
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
+			/>
 		</svg>
 	</button>
 
@@ -139,7 +182,9 @@
 			{error || i18n.t('venue_not_found')}
 		</div>
 	{:else}
-		<section class="mt-2 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+		<section
+			class="mt-2 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"
+		>
 			<div class="relative aspect-[16/9] w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
 				<img
 					src={venue.photoURL || getSportBackgroundImage(venue.sports[0])}
@@ -148,11 +193,15 @@
 				/>
 				<div class="absolute inset-x-3 top-3 flex flex-wrap gap-1.5">
 					{#if venue.verificationStatus === 'verified'}
-						<span class="rounded-full bg-emerald-600 px-3 py-1 text-xs font-black uppercase tracking-wide text-white shadow-lg">
+						<span
+							class="rounded-full bg-emerald-600 px-3 py-1 text-xs font-black uppercase tracking-wide text-white shadow-lg"
+						>
 							{i18n.t('verified')}
 						</span>
 					{:else}
-						<span class="rounded-full bg-slate-900/80 px-3 py-1 text-xs font-black uppercase tracking-wide text-white shadow-lg backdrop-blur">
+						<span
+							class="rounded-full bg-slate-900/80 px-3 py-1 text-xs font-black uppercase tracking-wide text-white shadow-lg backdrop-blur"
+						>
 							{i18n.t('not_verified')}
 						</span>
 					{/if}
@@ -162,7 +211,9 @@
 			<div class="p-5 sm:p-6">
 				<div class="flex flex-wrap gap-1.5">
 					{#each venue.sports as sport (sport)}
-						<span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 ring-1 ring-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:ring-blue-900/60">
+						<span
+							class="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 ring-1 ring-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:ring-blue-900/60"
+						>
 							{formatSport(sport)}
 						</span>
 					{/each}
@@ -230,6 +281,88 @@
 			</div>
 		</section>
 
+		{#if venue.verificationStatus === 'verified'}
+			<section
+				class="mt-6 overflow-hidden rounded-3xl border border-amber-200 bg-amber-50/60 p-5 dark:border-amber-900/50 dark:bg-amber-950/20"
+			>
+				<div class="flex items-start justify-between gap-3">
+					<div>
+						<p
+							class="text-xs font-black uppercase tracking-[0.2em] text-amber-700 dark:text-amber-300"
+						>
+							⭐ Rally Points
+						</p>
+						<h2 class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50">
+							Earn points playing here
+						</h2>
+						<p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
+							This is a Rally Verified venue. Every event you finish here earns Rally Points,
+							redeemable for a discount on your next visit.
+						</p>
+					</div>
+				</div>
+
+				{#if currentProfile}
+					{@const balance = currentProfile.rallyPointsTotal ?? 0}
+					{@const progress = Math.min(100, Math.round((balance / VENUE_REWARD.POINTS_COST) * 100))}
+
+					{#if redemption}
+						<div
+							class="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/40"
+						>
+							<p class="text-sm font-black text-emerald-700 dark:text-emerald-300">
+								{redemption.discountPercent}% off redeemed!
+							</p>
+							<p class="mt-1 text-xs text-slate-600 dark:text-slate-300">
+								Show this code at {venue.name}:
+							</p>
+							<p
+								class="mt-2 inline-flex rounded-xl bg-white px-3 py-1.5 font-mono text-sm font-black tracking-wider text-slate-950 shadow-sm dark:bg-slate-900 dark:text-slate-50"
+							>
+								{redemption.code}
+							</p>
+						</div>
+					{:else}
+						<div class="mt-4">
+							<div
+								class="flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400"
+							>
+								<span>{balance} / {VENUE_REWARD.POINTS_COST} points</span>
+								<span>{VENUE_REWARD.DISCOUNT_PERCENT}% off at {VENUE_REWARD.POINTS_COST} pts</span>
+							</div>
+							<div
+								class="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-white dark:bg-slate-800"
+							>
+								<div
+									class="h-full rounded-full bg-amber-500 transition-all"
+									style={`width: ${progress}%`}
+								></div>
+							</div>
+
+							{#if redeemError}
+								<p class="mt-2 text-xs font-bold text-red-600 dark:text-red-400">{redeemError}</p>
+							{/if}
+
+							<button
+								type="button"
+								onclick={handleRedeem}
+								disabled={redeeming || balance < VENUE_REWARD.POINTS_COST}
+								class="mt-3 rounded-full bg-amber-600 px-4 py-2 text-sm font-black text-white shadow-lg shadow-amber-600/25 transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
+							>
+								{#if redeeming}
+									Redeeming…
+								{:else if balance < VENUE_REWARD.POINTS_COST}
+									{VENUE_REWARD.POINTS_COST - balance} more points needed
+								{:else}
+									Redeem {VENUE_REWARD.DISCOUNT_PERCENT}% off ({VENUE_REWARD.POINTS_COST} pts)
+								{/if}
+							</button>
+						</div>
+					{/if}
+				{/if}
+			</section>
+		{/if}
+
 		{#if upcomingEvents.length > 0}
 			<section class="mt-6">
 				<h2 class="text-lg font-black text-slate-950 dark:text-slate-50">
@@ -291,8 +424,12 @@
 			</div>
 
 			{#if reviewSource === 'rally_user'}
-				<div class="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/60">
-					<p class="text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('save_review')}</p>
+				<div
+					class="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/60"
+				>
+					<p class="text-sm font-black text-slate-950 dark:text-slate-50">
+						{i18n.t('save_review')}
+					</p>
 					<div class="mt-2 flex gap-1">
 						{#each [1, 2, 3, 4, 5] as star (star)}
 							<button
@@ -301,7 +438,11 @@
 								class="text-2xl leading-none"
 								aria-label={`${star} stars`}
 							>
-								<span class={star <= reviewRating ? 'text-yellow-500' : 'text-slate-300 dark:text-slate-700'}>★</span>
+								<span
+									class={star <= reviewRating
+										? 'text-yellow-500'
+										: 'text-slate-300 dark:text-slate-700'}>★</span
+								>
 							</button>
 						{/each}
 					</div>
@@ -329,16 +470,24 @@
 			<div class="mt-4 space-y-3">
 				{#if visibleReviews.length === 0}
 					<p class="text-sm font-bold text-slate-400 dark:text-slate-500">
-						{reviewSource === 'official' ? i18n.t('no_official_reviews_yet') : i18n.t('no_rally_reviews_yet')}
+						{reviewSource === 'official'
+							? i18n.t('no_official_reviews_yet')
+							: i18n.t('no_rally_reviews_yet')}
 					</p>
 				{:else}
 					{#each visibleReviews as review (review.id)}
-						<div class="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+						<div
+							class="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"
+						>
 							<div class="flex items-center justify-between gap-3">
 								<p class="font-black text-slate-950 dark:text-slate-50">{review.authorName}</p>
-								<p class="shrink-0 text-sm font-black text-yellow-500">{'★'.repeat(review.rating)}</p>
+								<p class="shrink-0 text-sm font-black text-yellow-500">
+									{'★'.repeat(review.rating)}
+								</p>
 							</div>
-							<p class="mt-1.5 text-sm leading-6 text-slate-600 dark:text-slate-300">{review.comment}</p>
+							<p class="mt-1.5 text-sm leading-6 text-slate-600 dark:text-slate-300">
+								{review.comment}
+							</p>
 						</div>
 					{/each}
 				{/if}
