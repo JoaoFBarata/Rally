@@ -26,6 +26,7 @@
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { isPlatformAdminEmail } from '$lib/admin';
 	import { deleteCurrentAccount } from '$lib/services/account.service';
+	import { getOrganizationById } from '$lib/services/organization.service';
 
 	let profile = $state<UserProfile | null>(null);
 	let loading = $state(true);
@@ -82,6 +83,17 @@
 
 		try {
 			profile = await ensureUserProfile(currentUser);
+			if (profile.accountType === 'organization' && profile.activeOrganizationId) {
+				const organization = await getOrganizationById(profile.activeOrganizationId);
+				if (organization) {
+					profile = {
+						...profile,
+						displayName: organization.name,
+						photoURL: organization.logoURL ?? null,
+						rallyTag: organization.handle
+					};
+				}
+			}
 			canChangePassword = currentUser.providerData.some((p) => p.providerId === 'password');
 			deviceAccounts = rememberDeviceAccount(profile, currentUser);
 			deviceAccounts = getDeviceAccounts();
@@ -221,7 +233,18 @@
 					return;
 				}
 
-				deviceAccounts = rememberDeviceAccount(switchedProfile, switchedUser);
+				const accountProfile =
+					account.accountType === 'organization'
+						? {
+								...switchedProfile,
+								displayName: account.displayName,
+								photoURL: account.photoURL ?? null,
+								rallyTag: account.rallyTag,
+								accountType: account.accountType,
+								activeOrganizationId: account.activeOrganizationId ?? null
+							}
+						: switchedProfile;
+				deviceAccounts = rememberDeviceAccount(accountProfile, switchedUser);
 				showAccountSwitcher = false;
 				await goto(getPostSwitchHref(deviceAccounts.find((item) => item.id === switchedUser.uid) ?? account));
 				return;
