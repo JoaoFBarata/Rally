@@ -38,6 +38,9 @@
 	const todayStr = new Date().toLocaleDateString('en-CA');
 	let durationMinutes = $state(90);
 	let maxParticipants = $state(10);
+	let enableMinParticipants = $state(false);
+	let minParticipants = $state<number | null>(null);
+	let minParticipantsDeadlineHours = $state(8);
 	let visibility = $state<EventVisibility>('private');
 	let priceMode = $state<'free' | 'per_person' | 'total_split'>('free');
 	let priceValue = $state<number | null>(null);
@@ -124,6 +127,15 @@
 			durationMinutes = Math.round((endDate.getTime() - parsedStartDate.getTime()) / 60000);
 		}
 		maxParticipants = e.maxParticipants;
+		if (e.minParticipants && e.minParticipants > 0) {
+			enableMinParticipants = true;
+			minParticipants = e.minParticipants;
+			minParticipantsDeadlineHours = e.minParticipantsDeadlineHours ?? 8;
+		} else {
+			enableMinParticipants = false;
+			minParticipants = null;
+			minParticipantsDeadlineHours = 8;
+		}
 		visibility = e.visibility;
 		currency = e.currency ?? 'EUR';
 		if (e.priceTotal && e.priceTotal > 0) {
@@ -215,6 +227,17 @@
 			return;
 		}
 
+		if (enableMinParticipants) {
+			if (!minParticipants || minParticipants < 1) {
+				error = 'Minimum participants must be at least 1.';
+				return;
+			}
+			if (minParticipants > maxParticipants) {
+				error = 'Minimum participants cannot be greater than maximum participants.';
+				return;
+			}
+		}
+
 		const endAt = new Date(parsedStartAt.getTime() + duration * 60_000);
 
 		saving = true;
@@ -229,14 +252,16 @@
 				customSport,
 				level,
 				locationName,
-					address,
-					lat,
-					lng,
-					route: sport === 'running' || sport === 'cycling' || sport === 'hiking' ? route : [],
-					startAt: parsedStartAt,
-					endAt,
-					maxParticipants,
-					visibility,
+				address,
+				lat,
+				lng,
+				route: sport === 'running' || sport === 'cycling' || sport === 'hiking' ? route : [],
+				startAt: parsedStartAt,
+				endAt,
+				maxParticipants,
+				minParticipants: enableMinParticipants ? minParticipants : null,
+				minParticipantsDeadlineHours: enableMinParticipants ? (minParticipantsDeadlineHours ?? 8) : null,
+				visibility,
 					priceTotal: priceMode === 'total_split' ? (priceValue ?? null) : null,
 					pricePerPerson: priceMode === 'per_person' ? (priceValue ?? null) : null,
 					currency,
@@ -547,6 +572,62 @@
 									</p>
 								{/if}
 						</div>
+					</div>
+
+					<div class="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800 sm:p-4">
+						<label class="flex cursor-pointer items-center justify-between gap-4">
+							<div>
+								<p class="text-sm font-bold text-slate-700 dark:text-slate-300">
+									{i18n.t('min_participants_label')}
+								</p>
+								<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+									{i18n.t('min_participants_help')}
+								</p>
+							</div>
+
+							<input
+								type="checkbox"
+								bind:checked={enableMinParticipants}
+								class="h-5 w-5 shrink-0 rounded border-slate-300 text-blue-600 accent-blue-600 dark:border-slate-600"
+							/>
+						</label>
+
+						{#if enableMinParticipants}
+							<div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+								<div>
+									<label for="edit-minParticipants" class={labelClass}>
+										{i18n.t('min_participants')}
+									</label>
+									<input
+										id="edit-minParticipants"
+										type="number"
+										min="1"
+										max={maxParticipants}
+										bind:value={minParticipants}
+										placeholder="e.g. 4"
+										class={`mt-2 ${inputClass}`}
+									/>
+								</div>
+								<div>
+									<label for="edit-minParticipantsDeadlineHours" class={labelClass}>
+										{i18n.t('cancellation_deadline_hours')}
+									</label>
+									<select
+										id="edit-minParticipantsDeadlineHours"
+										bind:value={minParticipantsDeadlineHours}
+										class={`mt-2 ${inputClass}`}
+									>
+										<option value={1}>1 {i18n.t('hours_before_start', { hours: 1 })}</option>
+										<option value={2}>2 {i18n.t('hours_before_start', { hours: 2 })}</option>
+										<option value={4}>4 {i18n.t('hours_before_start', { hours: 4 })}</option>
+										<option value={8}>8 {i18n.t('hours_before_start', { hours: 8 })} (Default)</option>
+										<option value={12}>12 {i18n.t('hours_before_start', { hours: 12 })}</option>
+										<option value={24}>24 {i18n.t('hours_before_start', { hours: 24 })}</option>
+										<option value={48}>48 {i18n.t('hours_before_start', { hours: 48 })}</option>
+									</select>
+								</div>
+							</div>
+						{/if}
 					</div>
 
 					<div class="grid grid-cols-2 gap-3 sm:gap-5">

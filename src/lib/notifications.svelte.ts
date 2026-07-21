@@ -67,7 +67,16 @@ function getTimestampMillis(value: unknown) {
 
 function mergeNotificationPreviews(type: NotificationPreview['type'], previews: NotificationPreview[]) {
 	const existing = notificationState.previews.filter((item) => item.type !== type);
-	notificationState.previews = [...existing, ...previews]
+	const combined = [...existing, ...previews];
+	const seen = new Set<string>();
+	const unique: NotificationPreview[] = [];
+	for (const item of combined) {
+		if (item?.id && !seen.has(item.id)) {
+			seen.add(item.id);
+			unique.push(item);
+		}
+	}
+	notificationState.previews = unique
 		.sort((a, b) => b.createdAtMs - a.createdAtMs)
 		.slice(0, 30);
 }

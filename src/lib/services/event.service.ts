@@ -148,10 +148,20 @@ export function getEventPaymentSplitAmount(event: SportEvent) {
 }
 
 export function getEventPaymentSummary(event: SportEvent) {
+	const isCancelled = getEffectiveEventStatus(event) === 'cancelled';
 	const payerIds = getEventPaymentPayerIds(event);
-	const statuses = event.paymentStatuses ?? {};
-	const splitAmount = getEventPaymentSplitAmount(event);
-	const paidCount = payerIds.filter((participantId) => (statuses[participantId] ?? 'pending') === 'paid').length;
+	const rawStatuses = event.paymentStatuses ?? {};
+	const statuses: Record<string, PaymentStatus> = {};
+	for (const pid of payerIds) {
+		const st = rawStatuses[pid] ?? 'pending';
+		if (isCancelled && st !== 'paid') {
+			statuses[pid] = 'not_required';
+		} else {
+			statuses[pid] = st;
+		}
+	}
+	const splitAmount = isCancelled ? null : getEventPaymentSplitAmount(event);
+	const paidCount = payerIds.filter((participantId) => statuses[participantId] === 'paid').length;
 	const isUpfront = isUpfrontPaymentEvent(event);
 	const isPricePerPerson = isPricePerPersonEvent(event);
 	const isCostSplit = event.priceTotal != null;
@@ -161,7 +171,7 @@ export function getEventPaymentSummary(event: SportEvent) {
 		statuses,
 		splitAmount,
 		paidCount,
-		pendingCount: payerIds.length - paidCount,
+		pendingCount: isCancelled ? 0 : payerIds.length - paidCount,
 		isUpfront,
 		isPricePerPerson,
 		isCostSplit
@@ -461,6 +471,8 @@ export async function createSportEvent(params: {
 	startAt: Date;
 	endAt?: Date;
 	maxParticipants: number;
+	minParticipants?: number | null;
+	minParticipantsDeadlineHours?: number | null;
 	visibility?: EventVisibility;
 	priceTotal?: number;
 	pricePerPerson?: number | null;
@@ -530,6 +542,12 @@ export async function createSportEvent(params: {
 				? params.priceTotal / params.maxParticipants
 				: undefined);
 
+	if (params.minParticipants !== undefined && params.minParticipants !== null && params.minParticipants > 0) {
+		if (params.minParticipants > params.maxParticipants) {
+			throw new Error('Minimum participants cannot be greater than maximum participants.');
+		}
+	}
+
 	const eventData = {
 		title: params.title,
 		description: params.description ?? '',
@@ -563,6 +581,8 @@ export async function createSportEvent(params: {
 		endAt: params.endAt ? Timestamp.fromDate(params.endAt) : null,
 
 		maxParticipants: params.maxParticipants,
+		minParticipants: params.minParticipants ?? null,
+		minParticipantsDeadlineHours: params.minParticipants ? (params.minParticipantsDeadlineHours ?? 8) : null,
 		participantIds,
 
 		visibility: params.visibility ?? 'private',
@@ -678,6 +698,8 @@ export async function updateSportEvent(params: {
 	startAt: Date;
 	endAt?: Date | null;
 	maxParticipants: number;
+	minParticipants?: number | null;
+	minParticipantsDeadlineHours?: number | null;
 	visibility: EventVisibility;
 	priceTotal?: number | null;
 	pricePerPerson?: number | null;
@@ -703,6 +725,12 @@ export async function updateSportEvent(params: {
 		);
 	}
 
+	if (params.minParticipants !== undefined && params.minParticipants !== null && params.minParticipants > 0) {
+		if (params.minParticipants > params.maxParticipants) {
+			throw new Error('Minimum participants cannot be greater than maximum participants.');
+		}
+	}
+
 	const pricePerPerson =
 		params.pricePerPerson !== undefined && params.pricePerPerson !== null
 			? params.pricePerPerson
@@ -726,6 +754,8 @@ export async function updateSportEvent(params: {
 		startAt: Timestamp.fromDate(params.startAt),
 		endAt: params.endAt ? Timestamp.fromDate(params.endAt) : null,
 		maxParticipants: params.maxParticipants,
+		minParticipants: params.minParticipants ?? null,
+		minParticipantsDeadlineHours: params.minParticipants ? (params.minParticipantsDeadlineHours ?? 8) : null,
 		visibility: params.visibility,
 		priceTotal: params.priceTotal ?? null,
 		pricePerPerson,
@@ -1043,14 +1073,23 @@ export async function cancelEvent(eventId: string, userId: string) {
 
 	await assertCanManageEvent(event, userId);
 
+	const paymentStatuses = { ...(event.paymentStatuses ?? {}) };
+	for (const pid of event.participantIds || []) {
+		if ((paymentStatuses[pid] ?? 'pending') !== 'paid') {
+			paymentStatuses[pid] = 'not_required';
+		}
+	}
+
 	await updateDoc(doc(db, 'events', eventId), {
 		status: 'cancelled',
+		paymentStatuses,
 		updatedAt: serverTimestamp()
 	});
 
 	await syncEventGroupConversation({
 		...event,
-		status: 'cancelled'
+		status: 'cancelled',
+		paymentStatuses
 	});
 }
 

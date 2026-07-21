@@ -64,8 +64,15 @@
 	import { getTypingLabel } from '$lib/utils/chat-typing.utils';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
-	import { formatSport, getCurrencySymbol, getSportBackgroundImage } from '$lib/utils/format.utils';
-	import { getEventEndMs, getEventStartMs, getEventTemporalState } from '$lib/utils/event-lifecycle.utils';
+	import { getCurrentLocale, formatSport, getCurrencySymbol, getSportBackgroundImage } from '$lib/utils/format.utils';
+	import {
+		getEventEndMs,
+		getEventStartMs,
+		getEventTemporalState,
+		getMinParticipantsDeadlineMs,
+		isMinParticipantsDeadlinePassed,
+		isMinParticipantsRequirementMet
+	} from '$lib/utils/event-lifecycle.utils';
 	import { getOrCreateOrganizationConversation } from '$lib/services/chat.service';
 	import {
 		confirmEventPayment,
@@ -158,6 +165,22 @@
 
 	let effectiveStatus = $derived.by(() => {
 		return event ? getEffectiveEventStatus(event) : 'draft';
+	});
+
+	let minParticipantsCount = $derived(event?.minParticipants ?? 0);
+	let hasMinParticipantsReq = $derived(minParticipantsCount > 0);
+	let minDeadlineMs = $derived(event ? getMinParticipantsDeadlineMs(event) : null);
+	let minDeadlinePassed = $derived(event ? isMinParticipantsDeadlinePassed(event) : false);
+	let minRequirementMet = $derived(event ? isMinParticipantsRequirementMet(event) : true);
+	let minDeadlineFormatted = $derived.by(() => {
+		if (!minDeadlineMs) return '';
+		const d = new Date(minDeadlineMs);
+		return d.toLocaleString(getCurrentLocale(), {
+			day: 'numeric',
+			month: 'short',
+			hour: '2-digit',
+			minute: '2-digit'
+		});
 	});
 	const TYPING_REFRESH_MS = 2000;
 	const TYPING_VISIBLE_MS = 5000;
@@ -1502,6 +1525,45 @@
 								</div>
 							</div>
 
+							{#if event && hasMinParticipantsReq}
+								<div class="rounded-[1.25rem] bg-white p-3.5 shadow-sm shadow-slate-200/60 ring-1 ring-slate-200/70 dark:bg-slate-900 dark:shadow-none dark:ring-slate-800">
+									<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+										<div class="min-w-0">
+											<p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+												{i18n.t('min_participants')}
+											</p>
+											<p class="mt-1 text-sm font-black text-slate-950 dark:text-slate-50 break-words">
+												{participants.length} / {minParticipantsCount} {i18n.t('confirmed')}
+											</p>
+										</div>
+										<span class={`inline-block self-start rounded-full px-3 py-1.5 text-xs font-black sm:self-auto shrink-0 ${
+											minRequirementMet
+												? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+												: minDeadlinePassed
+													? 'bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-300'
+													: 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
+										}`}>
+											{minRequirementMet
+												? i18n.t('min_participants_met', { current: participants.length, min: minParticipantsCount })
+												: minDeadlinePassed
+													? i18n.t('auto_cancelled_min_participants', { min: minParticipantsCount })
+													: i18n.t('min_participants_unmet', { remaining: Math.max(0, minParticipantsCount - participants.length) })}
+										</span>
+									</div>
+									{#if minDeadlineFormatted && !minRequirementMet && !minDeadlinePassed}
+										<div class="mt-2.5 flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400 border-t border-slate-100 pt-2.5 dark:border-slate-800">
+											<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+												<circle cx="12" cy="12" r="10"/>
+												<polyline points="12 6 12 12 16 14"/>
+											</svg>
+											<span>
+												{i18n.t('cancellation_deadline')}: {minDeadlineFormatted} ({event.minParticipantsDeadlineHours ?? 8}h {i18n.t('hours_before_start', { hours: event.minParticipantsDeadlineHours ?? 8 })})
+											</span>
+										</div>
+									{/if}
+								</div>
+							{/if}
+
 							<div class="space-y-2 px-1">
 								<p class="text-xs font-black uppercase tracking-[0.18em] text-slate-400">{i18n.t('description')}</p>
 								<p class="text-[14px] font-medium leading-6 text-slate-700 dark:text-slate-300">
@@ -1901,7 +1963,7 @@
 					{/if}
 
 					<div class="rounded-2xl bg-slate-50 p-5 dark:bg-slate-800">
-						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">{i18n.t('price')}</p>
+						<p class="text-sm font-medium text-slate-500 dark:text-slate-400">{i18n.t('estimated_price')}</p>
 						<p class="mt-2 font-bold text-slate-950 dark:text-slate-50">
 							{formatPriceLabel(event)}
 						</p>

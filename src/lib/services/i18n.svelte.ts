@@ -130,7 +130,17 @@ const detailPageTranslations: Record<Language, Record<string, string>> = {
 		could_not_send_friend_request: 'Could not send friend request.',
 		could_not_remove_friend: 'Could not remove friend.',
 		remove_friend_title: 'Remove friend?',
-		remove_friend_message: 'Are you sure you want to remove {name} from your friends?'
+		remove_friend_message: 'Are you sure you want to remove {name} from your friends?',
+		min_participants: 'Minimum participants',
+		min_participants_short: 'Min. participants',
+		cancellation_deadline: 'Auto-cancel deadline',
+		hours_before_start: '{hours}h before start',
+		min_participants_met: 'Minimum participant requirement met ({current}/{min})',
+		min_participants_unmet: 'Needs {remaining} more participant(s) to avoid cancellation',
+		auto_cancelled_min_participants: 'Cancelled: minimum participants threshold ({min}) was not reached before deadline.',
+		min_participants_label: 'Set minimum participants required',
+		min_participants_help: 'Event will be automatically cancelled if minimum participants are not reached by deadline',
+		cancellation_deadline_hours: 'Cancellation deadline (hours before start)'
 	},
 	pt: {
 		back_aria: 'Voltar',
@@ -260,7 +270,17 @@ const detailPageTranslations: Record<Language, Record<string, string>> = {
 		could_not_send_friend_request: 'Não foi possível enviar o pedido de amizade.',
 		could_not_remove_friend: 'Não foi possível remover o amigo.',
 		remove_friend_title: 'Remover amigo?',
-		remove_friend_message: 'Tens a certeza de que queres remover {name} dos teus amigos?'
+		remove_friend_message: 'Tens a certeza de que queres remover {name} dos teus amigos?',
+		min_participants: 'Mínimo de participantes',
+		min_participants_short: 'Mín. participantes',
+		cancellation_deadline: 'Prazo de cancelamento',
+		hours_before_start: '{hours}h antes do início',
+		min_participants_met: 'Mínimo de participantes atingido ({current}/{min})',
+		min_participants_unmet: 'Faltam {remaining} participante(s) para evitar o cancelamento',
+		auto_cancelled_min_participants: 'Cancelado: o mínimo de {min} participantes não foi atingido até ao prazo.',
+		min_participants_label: 'Definir mínimo de participantes necessário',
+		min_participants_help: 'O evento será automaticamente cancelado se o mínimo de participantes não for atingido até ao prazo',
+		cancellation_deadline_hours: 'Prazo de cancelamento (horas antes do início)'
 	},
 	es: {
 		back_aria: 'Volver',
@@ -390,7 +410,17 @@ const detailPageTranslations: Record<Language, Record<string, string>> = {
 		could_not_send_friend_request: 'No se pudo enviar la solicitud de amistad.',
 		could_not_remove_friend: 'No se pudo eliminar al amigo.',
 		remove_friend_title: '¿Eliminar amigo?',
-		remove_friend_message: '¿Seguro que quieres eliminar a {name} de tus amigos?'
+		remove_friend_message: '¿Seguro que quieres eliminar a {name} de tus amigos?',
+		min_participants: 'Mínimo de participantes',
+		min_participants_short: 'Mín. participantes',
+		cancellation_deadline: 'Plazo de cancelación',
+		hours_before_start: '{hours}h antes del inicio',
+		min_participants_met: 'Requisito mínimo alcanzado ({current}/{min})',
+		min_participants_unmet: 'Faltan {remaining} participante(s) para evitar la cancelación',
+		auto_cancelled_min_participants: 'Cancelado: no se alcanzó el mínimo de {min} participantes antes del plazo.',
+		min_participants_label: 'Establecer mínimo de participantes requerido',
+		min_participants_help: 'El evento se cancelará automáticamente si no se alcanza el mínimo de participantes antes del plazo',
+		cancellation_deadline_hours: 'Plazo de cancelación (horas antes del inicio)'
 	},
 	fr: {
 		back_aria: 'Retour',
@@ -517,7 +547,17 @@ const detailPageTranslations: Record<Language, Record<string, string>> = {
 		could_not_send_friend_request: 'Impossible d’envoyer la demande d’ami.',
 		could_not_remove_friend: 'Impossible de retirer l’ami.',
 		remove_friend_title: 'Retirer l’ami ?',
-		remove_friend_message: 'Voulez-vous vraiment retirer {name} de vos amis ?'
+		remove_friend_message: 'Voulez-vous vraiment retirer {name} de vos amis ?',
+		min_participants: 'Minimum de participants',
+		min_participants_short: 'Min. participants',
+		cancellation_deadline: 'Date limite d’annulation',
+		hours_before_start: '{hours}h avant le début',
+		min_participants_met: 'Exigence minimale de participants atteinte ({current}/{min})',
+		min_participants_unmet: 'Manque {remaining} participant(s) pour éviter l’annulation',
+		auto_cancelled_min_participants: 'Annulé : le nombre minimum de {min} participants n’a pas été atteint avant la date limite.',
+		min_participants_label: 'Définir un nombre minimum de participants requis',
+		min_participants_help: 'L’événement sera automatiquement annulé si le minimum de participants n’est pas atteint avant la date limite',
+		cancellation_deadline_hours: 'Délai d’annulation (heures avant le début)'
 	}
 };
 
