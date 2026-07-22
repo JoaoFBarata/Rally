@@ -30,7 +30,7 @@
 			>
 				{#if profile_url}
 					<img
-						class="h-full w-full rounded-full p-[calc(var(--marker-scale)*0.1875rem)] object-cover"
+						class={`h-full w-full rounded-full p-[calc(var(--marker-scale)*${kind === 'venue' ? '0.5875rem' : '0.1875rem'})] object-contain`}
 						id="inner-marker-icon"
 						src={profile_url}
 						alt=""
