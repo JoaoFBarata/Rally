@@ -4,11 +4,7 @@
 	import { authService } from '$lib/services/auth.service';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { i18n } from '$lib/services/i18n.svelte';
-	import {
-		normalizeTwoFactorReturnTo,
-		shouldRequireTwoFactor,
-		startEmailTwoFactorChallenge
-	} from '$lib/services/two-factor.service';
+	import { normalizeTwoFactorReturnTo } from '$lib/services/two-factor.service';
 
 	let loading = $state(false);
 	let error = $state('');
@@ -20,16 +16,7 @@
 		try {
 			const returnTo = page.url.searchParams.get('returnTo');
 			const safeReturnTo = normalizeTwoFactorReturnTo(returnTo);
-			const { user, profile } = await authService.signInWithGoogle();
-
-			if (shouldRequireTwoFactor(profile)) {
-				await startEmailTwoFactorChallenge({
-					email: user.email ?? '',
-					returnTo: safeReturnTo
-				});
-				await goto(`/verify-2fa?sent=1&returnTo=${encodeURIComponent(safeReturnTo)}`);
-				return;
-			}
+			await authService.signInWithGoogle();
 
 			await goto(safeReturnTo);
 		} catch (err) {

@@ -144,7 +144,7 @@
 	}
 
 	async function handleToggleTwoFactor() {
-		if (!profile) return;
+		if (!profile || !canChangePassword) return;
 
 		const nextEnabled = !profile.twoFactorEnabled;
 		twoFactorSaving = true;
@@ -501,37 +501,39 @@
 			</p>
 
 			<div class="overflow-hidden rounded-3xl bg-slate-50 dark:bg-slate-800">
-				<div class="border-b border-slate-200 p-4 dark:border-slate-700">
-					<div class="flex items-start justify-between gap-4">
-						<div>
-							<p class="font-black text-slate-950 dark:text-slate-50">
-								{i18n.t('two_factor_authentication')}
-							</p>
-							<p class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-								{i18n.t('two_factor_email_sub')}
-							</p>
+				{#if canChangePassword}
+					<div class="border-b border-slate-200 p-4 dark:border-slate-700">
+						<div class="flex items-start justify-between gap-4">
+							<div>
+								<p class="font-black text-slate-950 dark:text-slate-50">
+									{i18n.t('two_factor_authentication')}
+								</p>
+								<p class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+									{i18n.t('two_factor_email_sub')}
+								</p>
+							</div>
+							<button
+								type="button"
+								onclick={handleToggleTwoFactor}
+								disabled={twoFactorSaving}
+								class={`relative h-7 w-12 shrink-0 rounded-full transition disabled:opacity-60 ${profile?.twoFactorEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+								aria-label={i18n.t('toggle_two_factor_authentication')}
+							>
+								<span
+									class={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${profile?.twoFactorEnabled ? 'left-6' : 'left-1'}`}
+								></span>
+							</button>
 						</div>
-						<button
-							type="button"
-							onclick={handleToggleTwoFactor}
-							disabled={twoFactorSaving}
-							class={`relative h-7 w-12 shrink-0 rounded-full transition disabled:opacity-60 ${profile?.twoFactorEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}
-							aria-label={i18n.t('toggle_two_factor_authentication')}
-						>
-							<span
-								class={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${profile?.twoFactorEnabled ? 'left-6' : 'left-1'}`}
-							></span>
-						</button>
-					</div>
 
-					{#if profile?.twoFactorEnabled}
-						<div
-							class="mt-4 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs font-bold leading-5 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300"
-						>
-							{i18n.t('two_factor_email_active')}
-						</div>
-					{/if}
-				</div>
+						{#if profile?.twoFactorEnabled}
+							<div
+								class="mt-4 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs font-bold leading-5 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300"
+							>
+								{i18n.t('two_factor_email_active')}
+							</div>
+						{/if}
+					</div>
+				{/if}
 
 				{#if canChangePassword}
 					<div class="flex items-center justify-between gap-4 p-4">

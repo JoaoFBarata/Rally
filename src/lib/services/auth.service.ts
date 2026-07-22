@@ -9,20 +9,22 @@ import {
 	signInWithPopup,
 	signInWithCredential,
 	signOut,
-	updateProfile
+	updateProfile,
+	type User
 } from 'firebase/auth';
 import {
 	createUserProfile,
 	ensureUserProfile,
 	removeUserFcmToken,
-	updateUserActiveOrganization
+	updateUserActiveOrganization,
+	updateUserTwoFactorSettings
 } from '$lib/services/user.service';
 import { Capacitor } from '@capacitor/core';
 import { GoogleSignIn } from '@capawesome/capacitor-google-sign-in';
 import { env } from '$env/dynamic/public';
 import { createOrganization } from '$lib/services/organization.service';
 import { sendRallySystemMessage } from '$lib/services/chat.service';
-import type { OrganizationType } from '$lib/schema';
+import type { OrganizationType, UserProfile } from '$lib/schema';
 import { createAppUrl } from '$lib/utils/app-url';
 
 function isPasswordUser(user = auth.currentUser) {
@@ -47,6 +49,26 @@ async function sendInitialVerificationEmail() {
 		sessionStorage.setItem('rally:verification-email-send-failed', '1');
 		console.error('Verification email send error:', err);
 	}
+}
+
+async function disableTwoFactorForGoogleOnlyAccount(user: User, profile: UserProfile) {
+	const hasPasswordProvider = user.providerData.some(
+		(provider) => provider.providerId === 'password'
+	);
+	if (hasPasswordProvider || !profile.twoFactorEnabled) return profile;
+
+	await updateUserTwoFactorSettings(user.uid, {
+		enabled: false,
+		methods: [],
+		preferredMethod: 'email'
+	});
+
+	return {
+		...profile,
+		twoFactorEnabled: false,
+		twoFactorMethods: [],
+		twoFactorPreferredMethod: 'email' as const
+	};
 }
 
 async function removeCurrentFcmToken() {
@@ -233,7 +255,10 @@ export const authService = {
 			const credential = GoogleAuthProvider.credential(result.idToken);
 			const userCredential = await signInWithCredential(auth, credential);
 
-			const profile = await ensureUserProfile(userCredential.user);
+			const profile = await disableTwoFactorForGoogleOnlyAccount(
+				userCredential.user,
+				await ensureUserProfile(userCredential.user)
+			);
 			return { user: userCredential.user, profile };
 		} else {
 			const provider = new GoogleAuthProvider();
@@ -244,7 +269,10 @@ export const authService = {
 
 			const result = await signInWithPopup(auth, provider);
 
-			const profile = await ensureUserProfile(result.user);
+			const profile = await disableTwoFactorForGoogleOnlyAccount(
+				result.user,
+				await ensureUserProfile(result.user)
+			);
 
 			return { user: result.user, profile };
 		}
