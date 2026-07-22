@@ -107,7 +107,8 @@ const detailPageTranslations: Record<Language, Record<string, string>> = {
 		private_profile_message: "You'll be able to see it once you share an event together.",
 		private_profile_events_hidden: 'This person keeps their organized and joined events private.',
 		private_public_event_warning_title: 'Create a public event?',
-		private_public_event_warning_message: 'Your profile is private, but this public event will show everyone your name, profile photo and organizer identity. Confirm that you want to publish it publicly.',
+		private_public_event_warning_message:
+			'Your profile is private, but this public event will show everyone your name, profile photo and organizer identity. Confirm that you want to publish it publicly.',
 		confirm_public_event: 'Yes, publish publicly',
 		copy_rally_tag: 'Copy Rally tag',
 		how_it_works: 'How it works',
@@ -145,9 +146,11 @@ const detailPageTranslations: Record<Language, Record<string, string>> = {
 		hours_before_start: '{hours}h before start',
 		min_participants_met: 'Minimum participant requirement met ({current}/{min})',
 		min_participants_unmet: 'Needs {remaining} more participant(s) to avoid cancellation',
-		auto_cancelled_min_participants: 'Cancelled: minimum participants threshold ({min}) was not reached before deadline.',
+		auto_cancelled_min_participants:
+			'Cancelled: minimum participants threshold ({min}) was not reached before deadline.',
 		min_participants_label: 'Set minimum participants required',
-		min_participants_help: 'Event will be automatically cancelled if minimum participants are not reached by deadline',
+		min_participants_help:
+			'Event will be automatically cancelled if minimum participants are not reached by deadline',
 		cancellation_deadline_hours: 'Cancellation deadline (hours before start)'
 	},
 	pt: {
@@ -245,9 +248,11 @@ const detailPageTranslations: Record<Language, Record<string, string>> = {
 		unsave_event_aria: 'Remover evento guardado',
 		private_profile_title: 'Este perfil é privado',
 		private_profile_message: 'Poderás vê-lo quando partilhares um evento com esta pessoa.',
-		private_profile_events_hidden: 'Esta pessoa mantém privados os eventos que organiza e em que participa.',
+		private_profile_events_hidden:
+			'Esta pessoa mantém privados os eventos que organiza e em que participa.',
 		private_public_event_warning_title: 'Criar um evento público?',
-		private_public_event_warning_message: 'O teu perfil é privado, mas neste evento público todas as pessoas poderão ver o teu nome, fotografia de perfil e identidade como organizador. Confirma que queres publicá-lo como público.',
+		private_public_event_warning_message:
+			'O teu perfil é privado, mas neste evento público todas as pessoas poderão ver o teu nome, fotografia de perfil e identidade como organizador. Confirma que queres publicá-lo como público.',
 		confirm_public_event: 'Sim, publicar como público',
 		copy_rally_tag: 'Copiar etiqueta Rally',
 		how_it_works: 'Como funciona',
@@ -286,9 +291,11 @@ const detailPageTranslations: Record<Language, Record<string, string>> = {
 		hours_before_start: '{hours}h antes do início',
 		min_participants_met: 'Mínimo de participantes atingido ({current}/{min})',
 		min_participants_unmet: 'Faltam {remaining} participante(s) para evitar o cancelamento',
-		auto_cancelled_min_participants: 'Cancelado: o mínimo de {min} participantes não foi atingido até ao prazo.',
+		auto_cancelled_min_participants:
+			'Cancelado: o mínimo de {min} participantes não foi atingido até ao prazo.',
 		min_participants_label: 'Definir mínimo de participantes necessário',
-		min_participants_help: 'O evento será automaticamente cancelado se o mínimo de participantes não for atingido até ao prazo',
+		min_participants_help:
+			'O evento será automaticamente cancelado se o mínimo de participantes não for atingido até ao prazo',
 		cancellation_deadline_hours: 'Prazo de cancelamento (horas antes do início)'
 	},
 	es: {
@@ -386,9 +393,11 @@ const detailPageTranslations: Record<Language, Record<string, string>> = {
 		unsave_event_aria: 'Quitar evento guardado',
 		private_profile_title: 'Este perfil es privado',
 		private_profile_message: 'Podrás verlo cuando compartas un evento con esta persona.',
-		private_profile_events_hidden: 'Esta persona mantiene privados los eventos que organiza y en los que participa.',
+		private_profile_events_hidden:
+			'Esta persona mantiene privados los eventos que organiza y en los que participa.',
 		private_public_event_warning_title: '¿Crear un evento público?',
-		private_public_event_warning_message: 'Tu perfil es privado, pero en este evento público todos podrán ver tu nombre, foto de perfil e identidad como organizador. Confirma que quieres publicarlo públicamente.',
+		private_public_event_warning_message:
+			'Tu perfil es privado, pero en este evento público todos podrán ver tu nombre, foto de perfil e identidad como organizador. Confirma que quieres publicarlo públicamente.',
 		confirm_public_event: 'Sí, publicar públicamente',
 		copy_rally_tag: 'Copiar etiqueta Rally',
 		how_it_works: 'Cómo funciona',
@@ -427,9 +436,11 @@ const detailPageTranslations: Record<Language, Record<string, string>> = {
 		hours_before_start: '{hours}h antes del inicio',
 		min_participants_met: 'Requisito mínimo alcanzado ({current}/{min})',
 		min_participants_unmet: 'Faltan {remaining} participante(s) para evitar la cancelación',
-		auto_cancelled_min_participants: 'Cancelado: no se alcanzó el mínimo de {min} participantes antes del plazo.',
+		auto_cancelled_min_participants:
+			'Cancelado: no se alcanzó el mínimo de {min} participantes antes del plazo.',
 		min_participants_label: 'Establecer mínimo de participantes requerido',
-		min_participants_help: 'El evento se cancelará automáticamente si no se alcanza el mínimo de participantes antes del plazo',
+		min_participants_help:
+			'El evento se cancelará automáticamente si no se alcanza el mínimo de participantes antes del plazo',
 		cancellation_deadline_hours: 'Plazo de cancelación (horas antes del inicio)'
 	},
 	fr: {
@@ -524,9 +535,11 @@ const detailPageTranslations: Record<Language, Record<string, string>> = {
 		private_profile_title: 'Ce profil est privé',
 		private_profile_message:
 			'Vous pourrez le voir une fois que vous aurez partagé un événement ensemble.',
-		private_profile_events_hidden: 'Cette personne garde privés les événements qu’elle organise et auxquels elle participe.',
+		private_profile_events_hidden:
+			'Cette personne garde privés les événements qu’elle organise et auxquels elle participe.',
 		private_public_event_warning_title: 'Créer un événement public ?',
-		private_public_event_warning_message: 'Votre profil est privé, mais cet événement public affichera à tous votre nom, votre photo de profil et votre identité d’organisateur. Confirmez que vous souhaitez le publier publiquement.',
+		private_public_event_warning_message:
+			'Votre profil est privé, mais cet événement public affichera à tous votre nom, votre photo de profil et votre identité d’organisateur. Confirmez que vous souhaitez le publier publiquement.',
 		confirm_public_event: 'Oui, publier publiquement',
 		copy_rally_tag: 'Copier le tag Rally',
 		how_it_works: 'Comment ça marche',
@@ -565,9 +578,11 @@ const detailPageTranslations: Record<Language, Record<string, string>> = {
 		hours_before_start: '{hours}h avant le début',
 		min_participants_met: 'Exigence minimale de participants atteinte ({current}/{min})',
 		min_participants_unmet: 'Manque {remaining} participant(s) pour éviter l’annulation',
-		auto_cancelled_min_participants: 'Annulé : le nombre minimum de {min} participants n’a pas été atteint avant la date limite.',
+		auto_cancelled_min_participants:
+			'Annulé : le nombre minimum de {min} participants n’a pas été atteint avant la date limite.',
 		min_participants_label: 'Définir un nombre minimum de participants requis',
-		min_participants_help: 'L’événement sera automatiquement annulé si le minimum de participants n’est pas atteint avant la date limite',
+		min_participants_help:
+			'L’événement sera automatiquement annulé si le minimum de participants n’est pas atteint avant la date limite',
 		cancellation_deadline_hours: 'Délai d’annulation (heures avant le début)'
 	}
 };
@@ -1475,7 +1490,7 @@ const missingUiTranslations: Record<Language, Record<string, string>> = {
 		qr_friend_added: 'Vous êtes maintenant amis sur Rally.',
 		could_not_add_qr_friend: 'Impossible d’ajouter cet ami à partir du code QR.',
 		locations: 'Lieux',
-		locations_sub: "De vrais lieux où jouer, classés par sport.",
+		locations_sub: 'De vrais lieux où jouer, classés par sport.',
 		not_verified: 'Non vérifié',
 		official_source: 'Officiel',
 		rally_users_source: 'Utilisateurs Rally',
@@ -1489,7 +1504,7 @@ const missingUiTranslations: Record<Language, Record<string, string>> = {
 		get_directions: "Obtenir l'itinéraire",
 		venue_not_found: 'Lieu introuvable.',
 		no_locations_found: 'Aucun lieu trouvé',
-		schedule_event_here: "Planifier un événement ici",
+		schedule_event_here: 'Planifier un événement ici',
 		my_qr_code: 'Mon code QR',
 		show_qr_add_you: 'Montrez ce code QR pour vous ajouter sur Rally.',
 		close_qr_code: 'Fermer le code QR',
@@ -2101,10 +2116,13 @@ class I18nService {
 			resend_verification_email: 'Resend email',
 			verification_email_sent: 'Verification email sent. Check your inbox.',
 			verification_email_error: 'Could not send the verification email.',
-			verification_email_too_many_requests: 'Too many emails were requested. Firebase has temporarily paused new sends. Wait a few minutes and try again.',
-			verification_email_network_error: 'Could not connect to the email service. Check your connection and try again.',
+			verification_email_too_many_requests:
+				'Too many emails were requested. Firebase has temporarily paused new sends. Wait a few minutes and try again.',
+			verification_email_network_error:
+				'Could not connect to the email service. Check your connection and try again.',
 			resend_email_in: 'Resend in {seconds}s',
-			email_still_not_verified: 'This email is not verified yet. Open the link we sent and try again.',
+			email_still_not_verified:
+				'This email is not verified yet. Open the link we sent and try again.',
 			wrong_email_logout: 'Use another email',
 			email_link_not_enabled: 'Email link verification is not enabled in Firebase Auth yet.',
 			choose_account_type: 'Choose account type',
@@ -2217,6 +2235,18 @@ class I18nService {
 			invited_you: 'invited you',
 			someone: 'Someone',
 			more: 'more',
+			choose_avatar_title: 'Choose your avatar',
+			choose_avatar_intro: 'Pick a profile image before choosing your favourite sports.',
+			choose_gender_first: 'Choose a style first to see matching avatars.',
+			gender_female: 'Female avatars',
+			gender_male: 'Male avatars',
+			gender_neutral: 'Neutral avatars',
+			avatar_required: 'Choose a style and an avatar',
+			avatar_options_count: '{count} avatar options',
+			avatar_neutral_football: 'Football avatar',
+			avatar_neutral_tennis: 'Tennis avatar',
+			avatar_neutral_training: 'Training avatar',
+			avatar_neutral_cycling: 'Cycling avatar',
 			choose_fav_sports_title: 'Choose your favourite sports',
 			events_match_pref_msg: 'Events matching your favourite sports will appear here.',
 			go_to_profile_recommend_msg:
@@ -2339,7 +2369,8 @@ class I18nService {
 				'Friends can see your full profile. Everyone else can see your basic information, but not events you organize, join or have attended. Following an organization never grants it access to your full profile.',
 			delete_account: 'Delete account',
 			delete_account_confirm_title: 'Delete your account permanently?',
-			delete_account_confirm_message: 'This cannot be undone. Your organized events will be deleted, you will be removed from every event you joined, and your profile, friendships and account data will be erased.',
+			delete_account_confirm_message:
+				'This cannot be undone. Your organized events will be deleted, you will be removed from every event you joined, and your profile, friendships and account data will be erased.',
 			delete_account_forever: 'Yes, delete forever',
 			deleting_account: 'Deleting...',
 			delete_account_failed: 'The account could not be deleted. Please try again.',
@@ -2975,8 +3006,10 @@ class I18nService {
 			resend_verification_email: 'Reenviar e-mail',
 			verification_email_sent: 'E-mail de verificação enviado. Verifica a tua caixa de entrada.',
 			verification_email_error: 'Não foi possível enviar o e-mail de verificação.',
-			verification_email_too_many_requests: 'Foram pedidos demasiados emails. O Firebase suspendeu temporariamente novos envios. Aguarda alguns minutos e tenta novamente.',
-			verification_email_network_error: 'Não foi possível ligar ao serviço de email. Verifica a ligação e tenta novamente.',
+			verification_email_too_many_requests:
+				'Foram pedidos demasiados emails. O Firebase suspendeu temporariamente novos envios. Aguarda alguns minutos e tenta novamente.',
+			verification_email_network_error:
+				'Não foi possível ligar ao serviço de email. Verifica a ligação e tenta novamente.',
 			resend_email_in: 'Reenviar em {seconds}s',
 			email_still_not_verified:
 				'Este e-mail ainda não está verificado. Abre o link que enviámos e tenta outra vez.',
@@ -3095,6 +3128,19 @@ class I18nService {
 			invited_you: 'convidou-te',
 			someone: 'Alguém',
 			more: 'mais',
+			choose_avatar_title: 'Escolhe o teu avatar',
+			choose_avatar_intro:
+				'Escolhe uma imagem de perfil antes de selecionares os teus desportos favoritos.',
+			choose_gender_first: 'Escolhe primeiro um estilo para veres os avatares correspondentes.',
+			gender_female: 'Avatares femininos',
+			gender_male: 'Avatares masculinos',
+			gender_neutral: 'Avatares neutros',
+			avatar_required: 'Escolhe um estilo e um avatar',
+			avatar_options_count: '{count} opções de avatar',
+			avatar_neutral_football: 'Avatar de futebol',
+			avatar_neutral_tennis: 'Avatar de ténis',
+			avatar_neutral_training: 'Avatar de treino',
+			avatar_neutral_cycling: 'Avatar de ciclismo',
 			choose_fav_sports_title: 'Escolhe os teus desportos favoritos',
 			events_match_pref_msg:
 				'Os eventos correspondentes aos teus desportos favoritos aparecerão aqui.',
@@ -3219,7 +3265,8 @@ class I18nService {
 				'Os teus amigos podem ver o perfil completo. As restantes pessoas veem apenas a informação básica, sem os eventos que organizas, em que participas ou já participaste. Seguir uma organização nunca lhe dá acesso ao teu perfil completo.',
 			delete_account: 'Eliminar conta',
 			delete_account_confirm_title: 'Eliminar a tua conta permanentemente?',
-			delete_account_confirm_message: 'Esta ação não pode ser anulada. Os eventos que organizas serão eliminados, serás removido de todos os eventos em que participas e o teu perfil, amizades e dados da conta serão apagados.',
+			delete_account_confirm_message:
+				'Esta ação não pode ser anulada. Os eventos que organizas serão eliminados, serás removido de todos os eventos em que participas e o teu perfil, amizades e dados da conta serão apagados.',
 			delete_account_forever: 'Sim, eliminar para sempre',
 			deleting_account: 'A eliminar...',
 			delete_account_failed: 'Não foi possível eliminar a conta. Tenta novamente.',
@@ -3824,7 +3871,8 @@ class I18nService {
 			send_reminders: 'Enviar Recordatorios de Pago',
 			sending_reminders: 'Enviando recordatorios...',
 			reminder_sent: '¡Recordatorios de pago enviados a los participantes!',
-			reminder_cooldown: 'Los recordatorios se enviaron recientemente. Por favor espere antes de enviar de nuevo.',
+			reminder_cooldown:
+				'Los recordatorios se enviaron recientemente. Por favor espere antes de enviar de nuevo.',
 			no_pending_payments: 'No tienes pagos pendientes.',
 			no_receivables: 'Sin pagos pendientes de participantes en tus eventos.',
 			all_payments_settled: '¡Todos los pagos están al día!',
@@ -3871,8 +3919,10 @@ class I18nService {
 			resend_verification_email: 'Reenviar correo',
 			verification_email_sent: 'Correo de verificación enviado. Revisa tu bandeja de entrada.',
 			verification_email_error: 'No se pudo enviar el correo de verificación.',
-			verification_email_too_many_requests: 'Se solicitaron demasiados correos. Firebase ha pausado temporalmente los envíos. Espera unos minutos e inténtalo de nuevo.',
-			verification_email_network_error: 'No se pudo conectar con el servicio de correo. Revisa tu conexión e inténtalo de nuevo.',
+			verification_email_too_many_requests:
+				'Se solicitaron demasiados correos. Firebase ha pausado temporalmente los envíos. Espera unos minutos e inténtalo de nuevo.',
+			verification_email_network_error:
+				'No se pudo conectar con el servicio de correo. Revisa tu conexión e inténtalo de nuevo.',
 			resend_email_in: 'Reenviar en {seconds}s',
 			email_still_not_verified:
 				'Este correo aún no está verificado. Abre el enlace que enviamos e inténtalo otra vez.',
@@ -3990,6 +4040,19 @@ class I18nService {
 			invited_you: 'te invitó',
 			someone: 'Alguien',
 			more: 'más',
+			choose_avatar_title: 'Elige tu avatar',
+			choose_avatar_intro:
+				'Elige una imagen de perfil antes de seleccionar tus deportes favoritos.',
+			choose_gender_first: 'Elige primero un estilo para ver avatares relacionados.',
+			gender_female: 'Avatares femeninos',
+			gender_male: 'Avatares masculinos',
+			gender_neutral: 'Avatares neutros',
+			avatar_required: 'Elige un estilo y un avatar',
+			avatar_options_count: '{count} opciones de avatar',
+			avatar_neutral_football: 'Avatar de fútbol',
+			avatar_neutral_tennis: 'Avatar de tenis',
+			avatar_neutral_training: 'Avatar de entrenamiento',
+			avatar_neutral_cycling: 'Avatar de ciclismo',
 			choose_fav_sports_title: 'Elige tus deportes favoritos',
 			events_match_pref_msg:
 				'Los eventos que coincidan con tus deportes favoritos aparecerán aquí.',
@@ -4114,7 +4177,8 @@ class I18nService {
 				'Tus amigos pueden ver el perfil completo. Las demás personas solo ven la información básica, sin los eventos que organizas, en los que participas o ya has participado. Seguir una organización nunca le da acceso a tu perfil completo.',
 			delete_account: 'Eliminar cuenta',
 			delete_account_confirm_title: '¿Eliminar tu cuenta permanentemente?',
-			delete_account_confirm_message: 'Esta acción no se puede deshacer. Se eliminarán los eventos que organizas, se te quitará de todos los eventos en los que participas y se borrarán tu perfil, amistades y datos de cuenta.',
+			delete_account_confirm_message:
+				'Esta acción no se puede deshacer. Se eliminarán los eventos que organizas, se te quitará de todos los eventos en los que participas y se borrarán tu perfil, amistades y datos de cuenta.',
 			delete_account_forever: 'Sí, eliminar para siempre',
 			deleting_account: 'Eliminando...',
 			delete_account_failed: 'No se pudo eliminar la cuenta. Inténtalo de nuevo.',
@@ -4722,18 +4786,19 @@ class I18nService {
 			send_reminders: 'Envoyer Rappels de Paiement',
 			sending_reminders: 'Envoi des rappels...',
 			reminder_sent: 'Rappels de paiement envoyés aux participants !',
-			reminder_cooldown: 'Les rappels ont été envoyés récemment. Veuillez patienter avant de renvoyer.',
-			no_pending_payments: 'Vous n\'avez aucun paiement en attente.',
+			reminder_cooldown:
+				'Les rappels ont été envoyés récemment. Veuillez patienter avant de renvoyer.',
+			no_pending_payments: "Vous n'avez aucun paiement en attente.",
 			no_receivables: 'Aucun paiement de participant en attente pour vos événements.',
 			all_payments_settled: 'Tous les paiements sont réglés !',
 			events_you_owe: 'Événements que vous devez payer',
 			participants_owe_you: 'Paiements en attente pour les événements organisés',
 			upcoming_cost_splits: 'Prochains Partages de Coût',
-			total_event_cost: 'Coût Total de l\'Événement',
+			total_event_cost: "Coût Total de l'Événement",
 			current_attendees: 'Participants Actuels',
 			max_capacity: 'Capacité Maximale',
 			estimated_share: 'Part Estimée par Personne',
-			split_on_completion: 'Le coût sera calculé et partagé à la fin de l\'événement.',
+			split_on_completion: "Le coût sera calculé et partagé à la fin de l'événement.",
 			mark_as_paid: 'Marquer comme Payé',
 
 			// Auth / Inscription / Connexion
@@ -4770,8 +4835,10 @@ class I18nService {
 			resend_verification_email: 'Renvoyer l’e-mail',
 			verification_email_sent: 'E-mail de vérification envoyé. Consultez votre boîte de réception.',
 			verification_email_error: 'Impossible d’envoyer l’e-mail de vérification.',
-			verification_email_too_many_requests: 'Trop d’e-mails ont été demandés. Firebase a temporairement suspendu les envois. Attendez quelques minutes puis réessayez.',
-			verification_email_network_error: 'Impossible de contacter le service de messagerie. Vérifiez votre connexion puis réessayez.',
+			verification_email_too_many_requests:
+				'Trop d’e-mails ont été demandés. Firebase a temporairement suspendu les envois. Attendez quelques minutes puis réessayez.',
+			verification_email_network_error:
+				'Impossible de contacter le service de messagerie. Vérifiez votre connexion puis réessayez.',
 			resend_email_in: 'Renvoyer dans {seconds}s',
 			email_still_not_verified:
 				'Cet e-mail n’est pas encore vérifié. Ouvrez le lien envoyé puis réessayez.',
@@ -4891,6 +4958,19 @@ class I18nService {
 			invited_you: 'vous a invité',
 			someone: "Quelqu'un",
 			more: 'de plus',
+			choose_avatar_title: 'Choisissez votre avatar',
+			choose_avatar_intro:
+				'Choisissez une image de profil avant de sélectionner vos sports favoris.',
+			choose_gender_first: 'Choisissez d’abord un style pour voir les avatars correspondants.',
+			gender_female: 'Avatars féminins',
+			gender_male: 'Avatars masculins',
+			gender_neutral: 'Avatars neutres',
+			avatar_required: 'Choisissez un style et un avatar',
+			avatar_options_count: '{count} options d’avatar',
+			avatar_neutral_football: 'Avatar football',
+			avatar_neutral_tennis: 'Avatar tennis',
+			avatar_neutral_training: 'Avatar entraînement',
+			avatar_neutral_cycling: 'Avatar cyclisme',
 			choose_fav_sports_title: 'Choisissez vos sports favoris',
 			events_match_pref_msg: 'Les événements correspondant à vos sports favoris apparaîtront ici.',
 			go_to_profile_recommend_msg:
@@ -5018,7 +5098,8 @@ class I18nService {
 				'Vos amis peuvent voir votre profil complet. Les autres personnes ne voient que les informations de base, sans les événements que vous organisez ou auxquels vous participez. Suivre une organisation ne lui donne jamais accès à votre profil complet.',
 			delete_account: 'Supprimer le compte',
 			delete_account_confirm_title: 'Supprimer définitivement votre compte ?',
-			delete_account_confirm_message: 'Cette action est irréversible. Vos événements organisés seront supprimés, vous serez retiré des événements rejoints et votre profil, vos amitiés et vos données seront effacés.',
+			delete_account_confirm_message:
+				'Cette action est irréversible. Vos événements organisés seront supprimés, vous serez retiré des événements rejoints et votre profil, vos amitiés et vos données seront effacés.',
 			delete_account_forever: 'Oui, supprimer définitivement',
 			deleting_account: 'Suppression...',
 			delete_account_failed: 'Impossible de supprimer le compte. Réessayez.',
@@ -5285,7 +5366,7 @@ class I18nService {
 			casual: 'Occasionnel',
 			open: 'Ouvert',
 
-			view_venue: "Voir le lieu",
+			view_venue: 'Voir le lieu',
 			// Organizations (Profile & Manage)
 			followers_count: '{count} abonnés',
 			followers: 'Abonnés',

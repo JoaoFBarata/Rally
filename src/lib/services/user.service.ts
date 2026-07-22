@@ -15,7 +15,7 @@ import { FirebaseError } from 'firebase/app';
 import { type User, updateProfile } from 'firebase/auth';
 import { auth, db } from '$lib/firebase';
 import { authState } from '$lib/auth.svelte';
-import type { AccountType, Sport, TwoFactorMethod, UserProfile } from '$lib/schema';
+import type { AccountType, ProfileGender, Sport, TwoFactorMethod, UserProfile } from '$lib/schema';
 import { i18n } from './i18n.svelte';
 
 function slugify(value: string) {
@@ -63,6 +63,8 @@ export async function createUserProfile(params: {
 		country: '',
 		age: null,
 		sports: params.sports ?? [],
+		gender: null,
+		avatarOnboardingCompleted: Boolean(params.photoURL),
 		language: params.language ?? i18n.currentLang,
 		requiresEmailVerification: params.requiresEmailVerification ?? false,
 		twoFactorEnabled: false,
@@ -115,6 +117,8 @@ export async function ensureUserProfile(user: User) {
 		data.sports === undefined ||
 		data.photoURL === undefined ||
 		data.profilePhotoPath === undefined ||
+		data.gender === undefined ||
+		data.avatarOnboardingCompleted === undefined ||
 		data.accountType === undefined ||
 		data.activeOrganizationId === undefined ||
 		data.twoFactorEnabled === undefined ||
@@ -136,6 +140,8 @@ export async function ensureUserProfile(user: User) {
 			sports: data.sports ?? [],
 			photoURL: nextPhotoURL,
 			profilePhotoPath: data.profilePhotoPath ?? null,
+			gender: data.gender ?? null,
+			avatarOnboardingCompleted: data.avatarOnboardingCompleted ?? Boolean(nextPhotoURL),
 			accountType: data.accountType ?? 'personal',
 			activeOrganizationId: data.activeOrganizationId ?? null,
 			twoFactorEnabled: data.twoFactorEnabled ?? false,
@@ -206,6 +212,27 @@ export async function updateUserSports(userId: string, sports: Sport[]) {
 	});
 }
 
+export async function updateUserOnboardingAvatar(params: {
+	userId: string;
+	gender: ProfileGender;
+	photoURL: string;
+}) {
+	await updateDoc(doc(db, 'users', params.userId), {
+		gender: params.gender,
+		photoURL: params.photoURL,
+		profilePhotoPath: null,
+		avatarOnboardingCompleted: true,
+		updatedAt: serverTimestamp()
+	});
+
+	if (auth.currentUser && auth.currentUser.uid === params.userId) {
+		await updateProfile(auth.currentUser, {
+			photoURL: params.photoURL
+		});
+		await authState.refresh();
+	}
+}
+
 export async function updateUserPrivacy(userId: string, isPrivate: boolean) {
 	await updateDoc(doc(db, 'users', userId), {
 		isPrivate,
@@ -224,7 +251,7 @@ export async function updateUserTwoFactorSettings(
 	const methods = params.enabled ? [...new Set(params.methods)] : [];
 	const preferredMethod = methods.includes(params.preferredMethod)
 		? params.preferredMethod
-		: methods[0] ?? 'email';
+		: (methods[0] ?? 'email');
 
 	await updateDoc(doc(db, 'users', userId), {
 		twoFactorEnabled: params.enabled,

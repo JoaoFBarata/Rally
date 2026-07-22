@@ -22,6 +22,7 @@
 		ensureUserProfile,
 		getUserProfile,
 		getUserProfilesByIds,
+		updateUserOnboardingAvatar,
 		updateUserSports
 	} from '$lib/services/user.service';
 	import { i18n } from '$lib/services/i18n.svelte';
@@ -46,6 +47,7 @@
 		SportEvent,
 		TournamentEntry,
 		TournamentMatch,
+		ProfileGender,
 		Sport,
 		UserProfile
 	} from '$lib/schema';
@@ -54,6 +56,7 @@
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import PromotedEventCarousel from '$lib/components/PromotedEventCarousel.svelte';
 	import RallyLogo from '$lib/components/RallyLogo.svelte';
+	import AvatarOnboardingModal from '$lib/components/AvatarOnboardingModal.svelte';
 	import SportsOnboardingModal from '$lib/components/SportsOnboardingModal.svelte';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import {
@@ -110,6 +113,22 @@
 		if (!user || !profile) return;
 		await updateUserSports(user.uid, sports);
 		profile = { ...profile, sports };
+	}
+
+	async function completeAvatarOnboarding(params: { gender: ProfileGender; avatar: string }) {
+		if (!user || !profile) return;
+		await updateUserOnboardingAvatar({
+			userId: user.uid,
+			gender: params.gender,
+			photoURL: params.avatar
+		});
+		profile = {
+			...profile,
+			gender: params.gender,
+			photoURL: params.avatar,
+			profilePhotoPath: null,
+			avatarOnboardingCompleted: true
+		};
 	}
 	const isFinishedNow = (event: SportEvent) => getEventTemporalState(event, nowMs) === 'finished';
 
@@ -840,7 +859,9 @@
 		</div>
 	</div>
 {:else}
-	{#if profile && !profile.sports?.length}
+	{#if profile && profile.accountType !== 'organization' && !profile.photoURL && !profile.avatarOnboardingCompleted}
+		<AvatarOnboardingModal onComplete={completeAvatarOnboarding} />
+	{:else if profile && !profile.sports?.length}
 		<SportsOnboardingModal onComplete={completeSportsOnboarding} />
 	{/if}
 	<div class="mx-auto w-full max-w-[1500px] px-4 py-5 sm:px-5 sm:py-8">

@@ -22,6 +22,7 @@ export type Sport =
 	| 'other';
 
 export type AccountType = 'personal' | 'organization';
+export type ProfileGender = 'female' | 'male' | 'neutral';
 export type EventVisibility = 'private' | 'friends' | 'public';
 export type EventStatus = 'draft' | 'open' | 'full' | 'cancelled' | 'finished';
 export type InviteStatus = 'pending' | 'accepted' | 'declined' | 'maybe';
@@ -88,6 +89,8 @@ export interface UserProfile {
 	photoURL?: string | null;
 	profilePhotoPath?: string | null;
 	language?: string;
+	gender?: ProfileGender | null;
+	avatarOnboardingCompleted?: boolean;
 
 	accountType?: AccountType;
 	activeOrganizationId?: string | null;
