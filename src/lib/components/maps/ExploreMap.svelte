@@ -293,7 +293,6 @@
 			coordinates: [number, number];
 		};
 	};
-
 	let creatorProfiles = $state<Record<string, { photoURL?: string | null; displayName?: string }>>(
 		{}
 	);
@@ -309,43 +308,41 @@
 		return i18n.t('showing_locations_count', { count });
 	}
 
+	function getEventMarkerLogo() {
+		return $themeState ? '/r-logo-white.PNG' : '/r-logo-black.PNG';
+	}
+
+	function getEventMarkerImage(event: SportEvent) {
+		if (!currentUserId) return getEventMarkerLogo();
+		return (
+			event.groupPhotoURL ||
+			event.organizationLogoURL ||
+			creatorProfiles[event.creatorId]?.photoURL ||
+			getEventMarkerLogo()
+		);
+	}
+
 	async function loadCreatorProfiles(eventsList: SportEvent[]) {
-		const uniqueCreatorIds = [...new Set(eventsList.map((e) => e.creatorId))];
+		if (!currentUserId) return;
+		const uniqueCreatorIds = [...new Set(eventsList.map((event) => event.creatorId))];
 		const idsToLoad = uniqueCreatorIds.filter((id) => !creatorProfiles[id]);
 		if (idsToLoad.length === 0) return;
 
-		try {
-			const profiles = await Promise.all(
-				idsToLoad.map(async (id) => {
-					const profile = await getUserProfile(id);
-					return { id, profile };
-				})
-			);
-
-			const newProfiles = { ...creatorProfiles };
-			for (const item of profiles) {
-				if (item.profile) {
-					newProfiles[item.id] = {
-						photoURL: item.profile.photoURL ?? null,
-						displayName: item.profile.displayName
-					};
-				} else {
-					newProfiles[item.id] = {
-						photoURL: null,
-						displayName: 'Unknown'
-					};
-				}
-			}
-			creatorProfiles = newProfiles;
-		} catch (err) {
-			console.error('Failed to load creator profiles for explore map:', err);
+		const profiles = await Promise.all(
+			idsToLoad.map(async (id) => ({ id, profile: await getUserProfile(id) }))
+		);
+		const nextProfiles = { ...creatorProfiles };
+		for (const item of profiles) {
+			nextProfiles[item.id] = {
+				photoURL: item.profile?.photoURL ?? null,
+				displayName: item.profile?.displayName ?? ''
+			};
 		}
+		creatorProfiles = nextProfiles;
 	}
 
 	$effect(() => {
-		if (events.length > 0) {
-			loadCreatorProfiles(events);
-		}
+		if (currentUserId && events.length > 0) void loadCreatorProfiles(events);
 	});
 
 	$effect(() => {
@@ -452,10 +449,7 @@
 	});
 
 	$effect(() => {
-		if (
-			selectedVenue &&
-			!venues.some((venue: Venue) => venue.id === selectedVenue?.id)
-		) {
+		if (selectedVenue && !venues.some((venue: Venue) => venue.id === selectedVenue?.id)) {
 			clearSelectedVenue();
 		}
 	});
@@ -469,7 +463,8 @@
 
 	function sortVenueGroup(group: Venue[]) {
 		return group.slice().sort((a, b) => {
-			const selectedDiff = (a.id === selectedVenue?.id ? 0 : 1) - (b.id === selectedVenue?.id ? 0 : 1);
+			const selectedDiff =
+				(a.id === selectedVenue?.id ? 0 : 1) - (b.id === selectedVenue?.id ? 0 : 1);
 			if (selectedDiff !== 0) return selectedDiff;
 			return a.name.localeCompare(b.name);
 		});
@@ -879,12 +874,8 @@
 					? clusterEvents.find((event) => event.id === selectedEvent?.id)
 					: null;
 				const priorityEvent = selectedClusterEvent ?? clusterEvents[0];
+				const photoURL = getEventMarkerImage(priorityEvent);
 				const creator = creatorProfiles[priorityEvent.creatorId];
-				const photoURL =
-					priorityEvent.groupPhotoURL ||
-					priorityEvent.organizationLogoURL ||
-					creator?.photoURL ||
-					'';
 
 				const el = document.createElement('div');
 				el.className = 'custom-marker custom-cluster-marker';
@@ -895,7 +886,9 @@
 					target: el,
 					props: {
 						profile_url: photoURL,
-						name_letter: (creator?.displayName || 'U').charAt(0).toUpperCase(),
+						name_letter: currentUserId
+							? (creator?.displayName || 'R').charAt(0).toUpperCase()
+							: 'R',
 						sport: priorityEvent.sport,
 						n_confirmed_attendees: priorityEvent.participantIds?.length || 0,
 						max_occupancy: priorityEvent.maxParticipants || 0,
@@ -928,9 +921,8 @@
 				markers.push(marker);
 			} else {
 				const event = feature.properties.event;
+				const photoURL = getEventMarkerImage(event);
 				const creator = creatorProfiles[event.creatorId];
-				const photoURL =
-					event.groupPhotoURL || event.organizationLogoURL || creator?.photoURL || '';
 				const isSelectedMarker = selectedEvent?.id === event.id;
 
 				const el = document.createElement('div');
@@ -942,7 +934,9 @@
 					target: el,
 					props: {
 						profile_url: photoURL,
-						name_letter: (creator?.displayName || 'U').charAt(0).toUpperCase(),
+						name_letter: currentUserId
+							? (creator?.displayName || 'R').charAt(0).toUpperCase()
+							: 'R',
 						sport: event.sport,
 						n_confirmed_attendees: event.participantIds?.length || 0,
 						max_occupancy: event.maxParticipants || 0,
@@ -1024,7 +1018,8 @@
 					target: el,
 					props: {
 						kind: 'venue',
-						profile_url: priorityVenue.photoURL || `/${priorityVenue.sports[0] || 'other'}_icon.png`,
+						profile_url:
+							priorityVenue.photoURL || `/${priorityVenue.sports[0] || 'other'}_icon.png`,
 						name_letter: '',
 						sport: priorityVenue.sports[0],
 						rating_label: getVenueRatingLabel(priorityVenue),
@@ -1180,7 +1175,6 @@
 	});
 
 	$effect(() => {
-		const profiles = creatorProfiles; // Track changes
 		const currentMode = mode; // Track changes
 		if (mapReady) {
 			renderMarkers();
@@ -1234,7 +1228,7 @@
 			</div>
 
 			<div
-				class="absolute right-2 bottom-2 z-10 flex flex-row flex-wrap items-center gap-3 rounded-xl bg-white/95 p-2 shadow-md backdrop-blur dark:bg-slate-900/95 text-xs md:right-4 md:bottom-4 md:flex-col md:items-start md:gap-2 md:rounded-2xl md:p-4 md:shadow-lg md:text-sm"
+				class="absolute right-2 bottom-2 z-[70] flex flex-row flex-wrap items-center gap-3 rounded-xl bg-white/95 p-2 shadow-md backdrop-blur dark:bg-slate-900/95 text-xs md:right-4 md:bottom-4 md:flex-col md:items-start md:gap-2 md:rounded-2xl md:p-4 md:shadow-lg md:text-sm"
 			>
 				{#if mode === 'events'}
 					{#if currentUserId}
@@ -1272,7 +1266,9 @@
 		<div
 			class="border-t border-slate-200 bg-white px-4 py-2.5 text-center text-[11px] font-black uppercase tracking-wide text-blue-700 dark:border-slate-800 dark:bg-slate-900 dark:text-blue-300 md:hidden"
 		>
-			{mode === 'events' ? formatShowingEvents(events.length) : formatShowingLocations(venues.length)}
+			{mode === 'events'
+				? formatShowingEvents(events.length)
+				: formatShowingLocations(venues.length)}
 		</div>
 	{/if}
 	<!-- Floating Filters Modal Card (Mobile Only) -->
@@ -1364,424 +1360,92 @@
 					</div>
 				{/if}
 			{:else}
-			<div class="mt-4">
-				<label class="sr-only" for="mobile-explore-search">Search events</label>
-				<div
-					class="flex items-center gap-3 rounded-2xl bg-slate-100/90 px-3.5 py-2.5 shadow-inner shadow-white/70 backdrop-blur dark:bg-slate-800/80 dark:shadow-none"
-				>
-					<svg
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2.4"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						class="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500"
+				<div class="mt-4">
+					<label class="sr-only" for="mobile-explore-search">Search events</label>
+					<div
+						class="flex items-center gap-3 rounded-2xl bg-slate-100/90 px-3.5 py-2.5 shadow-inner shadow-white/70 backdrop-blur dark:bg-slate-800/80 dark:shadow-none"
 					>
-						<circle cx="11" cy="11" r="7" />
-						<path d="m20 20-3.5-3.5" />
-					</svg>
-					<input
-						id="mobile-explore-search"
-						type="search"
-						value={localSearchTerm}
-						placeholder={i18n.t('search_events_placeholder')}
-						oninput={(event) => handleSearchInput((event.currentTarget as HTMLInputElement).value)}
-						class="min-w-0 flex-1 appearance-none border-0 bg-transparent p-0 text-sm font-black text-slate-900 outline-none ring-0 shadow-none placeholder:font-bold placeholder:text-slate-400 focus:border-0 focus:outline-none focus:ring-0 dark:text-slate-100"
-					/>
-				</div>
-
-				{#if localSearchTerm.trim()}
-					<div class="mt-3 space-y-2">
-						{#if searchPreviewEvents.length}
-							{#each searchPreviewEvents as event (event.id)}
-								<button
-									type="button"
-									onclick={() => selectSearchResult(event)}
-									class="flex w-full items-center gap-2.5 rounded-2xl border border-slate-100 bg-white p-2 text-left shadow-sm transition active:scale-[0.99] dark:border-slate-800 dark:bg-slate-900"
-								>
-									<div
-										class="h-10 w-12 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800"
-									>
-										{#if getSelectedPreviewUrl(event)}
-											<img
-												src={getSelectedPreviewUrl(event)}
-												alt={event.title}
-												class="h-full w-full object-cover"
-											/>
-										{:else}
-											<div
-												class="grid h-full w-full place-items-center text-sm font-black uppercase text-blue-600 dark:text-blue-300"
-											>
-												{event.sport.charAt(0)}
-											</div>
-										{/if}
-									</div>
-									<div class="min-w-0 flex-1">
-										<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">
-											{event.title}
-										</p>
-										<p class="truncate text-xs font-bold text-slate-500 dark:text-slate-400">
-											{event.location?.address ??
-												event.location?.name ??
-												i18n.t('location_not_set')}
-										</p>
-									</div>
-									<span
-										class="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500 dark:bg-slate-800 dark:text-slate-300"
-									>
-										{formatSelectedDate(event)}
-									</span>
-								</button>
-							{/each}
-						{:else}
-							<p
-								class="rounded-2xl border border-dashed border-slate-200 p-3 text-sm font-bold text-slate-500 dark:border-slate-700 dark:text-slate-400"
-							>
-								{i18n.t('no_events_found_search')}
-							</p>
-						{/if}
-					</div>
-				{/if}
-			</div>
-
-			<!-- Date Filter -->
-			<div class="mt-4">
-				<p class="text-xs font-black uppercase tracking-wider text-slate-400">{i18n.t('date')}</p>
-				<div class="mt-2.5 flex flex-wrap gap-1.5">
-					{#each dateFilterOptions as option (option.value)}
-						<button
-							type="button"
-							onclick={() => {
-								onDateFilterChange?.(option.value);
-								clearSelectedEvent();
-							}}
-							class={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-								dateFilter === option.value
-									? 'bg-blue-600 text-white shadow-sm'
-									: 'bg-slate-50 text-slate-600 border border-slate-100 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-blue-950'
-							}`}
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.4"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500"
 						>
-							{option.label}
-						</button>
-					{/each}
-				</div>
-			</div>
-
-			<!-- Audience Filter -->
-			<div class="mt-5 border-t border-slate-100 pt-4 dark:border-slate-800">
-				<p class="text-xs font-black uppercase tracking-wider text-slate-400">
-					{i18n.t('event_timing_filter')}
-				</p>
-				<div class="mt-2.5 flex flex-wrap gap-1.5">
-					{#each temporalFilterOptions as option (option.value)}
-						<button
-							type="button"
-							onclick={() => {
-								onTemporalFilterChange?.(option.value);
-								clearSelectedEvent();
-							}}
-							class={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-								temporalFilter === option.value
-									? option.value === 'live'
-										? 'bg-emerald-500 text-white shadow-sm'
-										: option.value === 'starting_soon'
-											? 'bg-amber-400 text-slate-950 shadow-sm'
-											: 'bg-blue-600 text-white shadow-sm'
-									: 'border border-slate-100 bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
-							}`}
-						>
-							{option.label}
-						</button>
-					{/each}
-				</div>
-			</div>
-
-			<!-- Audience Filter -->
-			<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
-				<p class="text-xs font-black uppercase tracking-wider text-slate-400">
-					{i18n.t('event_type_label')}
-				</p>
-				<div class="mt-2.5 flex flex-wrap gap-1.5">
-					{#each audienceFilterOptions as option (option.value)}
-						<button
-							type="button"
-							onclick={() => {
-								onAudienceFilterChange?.(option.value);
-								clearSelectedEvent();
-							}}
-							class={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-								audienceFilter === option.value
-									? 'bg-blue-600 text-white shadow-sm'
-									: 'bg-slate-50 text-slate-600 border border-slate-100 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-blue-950'
-							}`}
-						>
-							{option.label}
-						</button>
-					{/each}
-					<button
-						type="button"
-						onclick={() => {
-							onOnlyTournamentsChange?.(!onlyTournaments);
-							clearSelectedEvent();
-						}}
-						class={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-							onlyTournaments
-								? 'bg-blue-600 text-white shadow-sm'
-								: 'bg-slate-50 text-slate-600 border border-slate-100 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-blue-950'
-						}`}
-					>
-						🏆 {i18n.t('only_tournaments')}
-					</button>
-				</div>
-			</div>
-
-			<!-- Price Filter -->
-			<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
-				<p class="text-xs font-black uppercase tracking-wider text-slate-400">{i18n.t('price')}</p>
-				<div class="mt-2.5 flex flex-wrap gap-1.5">
-					{#each priceFilterOptions as option (option.value)}
-						<button
-							type="button"
-							onclick={() => {
-								onPriceFilterChange?.(option.value);
-								clearSelectedEvent();
-							}}
-							class={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-								priceFilter === option.value
-									? 'bg-blue-600 text-white shadow-sm'
-									: 'bg-slate-50 text-slate-600 border border-slate-100 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-blue-950'
-							}`}
-						>
-							{option.label}
-						</button>
-					{/each}
-				</div>
-
-				{#if priceFilter === 'paid'}
-					<label class="mt-3 block">
-						<div
-							class="mb-1 flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400"
-						>
-							<span>{i18n.t('max_price')}</span>
-							<span>€{maxPrice}</span>
-						</div>
+							<circle cx="11" cy="11" r="7" />
+							<path d="m20 20-3.5-3.5" />
+						</svg>
 						<input
-							type="range"
-							min="1"
-							max={highestPrice}
-							value={maxPrice}
-							oninput={(event) => {
-								onMaxPriceChange?.(Number(event.currentTarget.value));
-								clearSelectedEvent();
-							}}
-							class="w-full accent-blue-600"
+							id="mobile-explore-search"
+							type="search"
+							value={localSearchTerm}
+							placeholder={i18n.t('search_events_placeholder')}
+							oninput={(event) =>
+								handleSearchInput((event.currentTarget as HTMLInputElement).value)}
+							class="min-w-0 flex-1 appearance-none border-0 bg-transparent p-0 text-sm font-black text-slate-900 outline-none ring-0 shadow-none placeholder:font-bold placeholder:text-slate-400 focus:border-0 focus:outline-none focus:ring-0 dark:text-slate-100"
 						/>
-					</label>
-				{/if}
-			</div>
-
-			<!-- Sports Filter -->
-			<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
-				<div>
-					<p class="text-xs font-black uppercase tracking-wider text-slate-400">
-						{i18n.t('sport_label')}
-					</p>
-				</div>
-
-				{#if availableSports.length === 0}
-					<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
-						{i18n.t('no_sports_available')}
-					</p>
-				{:else}
-					<div class="mt-2.5 flex flex-wrap gap-1.5">
-						{#each availableSports as sport (sport)}
-							<button
-								type="button"
-								onclick={() => toggleSportFilter(sport)}
-								class={`rounded-full px-3 py-1.5 text-xs font-bold capitalize transition ${
-									selectedSports.includes(sport)
-										? 'bg-blue-600 text-white shadow-sm'
-										: 'bg-slate-50 text-slate-600 border border-slate-100 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-blue-950'
-								}`}
-							>
-								{i18n.t('sport_' + sport.toLowerCase())}
-							</button>
-						{/each}
 					</div>
-				{/if}
-			</div>
 
-			<!-- Levels Filter -->
-			<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
-				<div>
-					<p class="text-xs font-black uppercase tracking-wider text-slate-400">
-						{i18n.t('level_label')}
-					</p>
-				</div>
-
-				<div class="mt-2.5 flex flex-wrap gap-1.5">
-					{#each availableLevels as level (level)}
-						<button
-							type="button"
-							onclick={() => toggleLevelFilter(level)}
-							class={`rounded-full px-3 py-1.5 text-xs font-bold capitalize transition ${
-								selectedLevels.includes(level)
-									? 'bg-blue-600 text-white shadow-sm'
-									: 'bg-slate-50 text-slate-600 border border-slate-100 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-blue-950'
-							}`}
-						>
-							{formatLevel(level)}
-						</button>
-					{/each}
-				</div>
-			</div>
-			{/if}
-		</div>
-	{/if}
-
-	<!-- Desktop Filters Bar (Web Only) -->
-	{#if mode === 'events'}
-	<div
-		class="hidden md:block border-t border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900 shrink-0"
-	>
-		<div class="flex items-center justify-between gap-3">
-			<div class="flex items-center gap-4">
-				<button
-					type="button"
-					onclick={() => (showFilters = !showFilters)}
-					class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-				>
-					<svg
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2.2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						class="h-4 w-4 text-blue-600 dark:text-blue-400"
-					>
-						<path d="M3 5h18" />
-						<path d="M7 12h10" />
-						<path d="M10 19h4" />
-					</svg>
-
-					<span>{i18n.t('filters_label')}</span>
-
-					{#if activeFilterCount > 0}
-						<span class="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white">
-							{activeFilterCount}
-						</span>
-					{/if}
-				</button>
-
-				<span class="text-xs font-black uppercase tracking-wider text-slate-400">
-					{formatShowingEvents(viewMode === 'map' ? events.length : shownFeedCount)}
-				</span>
-			</div>
-
-			{#if activeFilterCount > 0}
-				<button
-					type="button"
-					onclick={clearAllFilters}
-					class="text-sm font-bold text-slate-500 transition hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400"
-				>
-					{i18n.t('clear')}
-				</button>
-			{/if}
-		</div>
-
-		{#if showFilters}
-			<div class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700">
-				<label class="sr-only" for="desktop-explore-search">Search events</label>
-				<div
-					class="flex max-w-xl items-center gap-3 rounded-2xl bg-slate-100/90 px-4 py-2.5 shadow-inner shadow-white/70 backdrop-blur dark:bg-slate-800/80 dark:shadow-none"
-				>
-					<svg
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2.4"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						class="h-5 w-5 shrink-0 text-slate-400 dark:text-slate-500"
-					>
-						<circle cx="11" cy="11" r="7" />
-						<path d="m20 20-3.5-3.5" />
-					</svg>
-					<input
-						id="desktop-explore-search"
-						type="search"
-						value={localSearchTerm}
-						placeholder={i18n.t('search_events_orgs_placeholder')}
-						oninput={(event) => handleSearchInput((event.currentTarget as HTMLInputElement).value)}
-						class="min-w-0 flex-1 appearance-none border-0 bg-transparent p-0 text-sm font-black text-slate-900 outline-none ring-0 shadow-none placeholder:text-sm placeholder:font-bold placeholder:text-slate-400 focus:border-0 focus:outline-none focus:ring-0 dark:text-slate-100"
-					/>
-				</div>
-
-				{#if localSearchTerm.trim()}
-					<div class="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-						{#if searchPreviewEvents.length}
-							{#each searchPreviewEvents as event (event.id)}
-								<button
-									type="button"
-									onclick={() => selectSearchResult(event)}
-									class="flex min-w-0 items-center gap-2.5 rounded-2xl border border-slate-200 bg-white p-2 text-left shadow-sm transition hover:border-blue-200 hover:bg-blue-50/60 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-blue-900 dark:hover:bg-blue-950/30"
-								>
-									<div
-										class="h-12 w-16 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800"
+					{#if localSearchTerm.trim()}
+						<div class="mt-3 space-y-2">
+							{#if searchPreviewEvents.length}
+								{#each searchPreviewEvents as event (event.id)}
+									<button
+										type="button"
+										onclick={() => selectSearchResult(event)}
+										class="flex w-full items-center gap-2.5 rounded-2xl border border-slate-100 bg-white p-2 text-left shadow-sm transition active:scale-[0.99] dark:border-slate-800 dark:bg-slate-900"
 									>
-										{#if getSelectedPreviewUrl(event)}
-											<img
-												src={getSelectedPreviewUrl(event)}
-												alt={event.title}
-												class="h-full w-full object-cover"
-											/>
-										{:else}
-											<div
-												class="grid h-full w-full place-items-center text-sm font-black uppercase text-blue-600 dark:text-blue-300"
-											>
-												{event.sport.charAt(0)}
-											</div>
-										{/if}
-									</div>
-									<div class="min-w-0 flex-1">
-										<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">
-											{event.title}
-										</p>
-										<p class="truncate text-xs font-bold text-slate-500 dark:text-slate-400">
-											{event.location?.address ??
-												event.location?.name ??
-												i18n.t('location_not_set')}
-										</p>
-										<p
-											class="mt-0.5 truncate text-[11px] font-bold text-slate-400 dark:text-slate-500"
+										<div
+											class="h-10 w-12 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800"
+										>
+											{#if getSelectedPreviewUrl(event)}
+												<img
+													src={getSelectedPreviewUrl(event)}
+													alt={event.title}
+													class="h-full w-full object-cover"
+												/>
+											{:else}
+												<div
+													class="grid h-full w-full place-items-center text-sm font-black uppercase text-blue-600 dark:text-blue-300"
+												>
+													{event.sport.charAt(0)}
+												</div>
+											{/if}
+										</div>
+										<div class="min-w-0 flex-1">
+											<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">
+												{event.title}
+											</p>
+											<p class="truncate text-xs font-bold text-slate-500 dark:text-slate-400">
+												{event.location?.address ??
+													event.location?.name ??
+													i18n.t('location_not_set')}
+											</p>
+										</div>
+										<span
+											class="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500 dark:bg-slate-800 dark:text-slate-300"
 										>
 											{formatSelectedDate(event)}
-										</p>
-									</div>
-								</button>
-							{/each}
-						{:else}
-							<p
-								class="rounded-2xl border border-dashed border-slate-200 p-4 text-sm font-bold text-slate-500 dark:border-slate-700 dark:text-slate-400"
-							>
-								{i18n.t('no_events_found_search')}
-							</p>
-						{/if}
-					</div>
-				{/if}
-			</div>
+										</span>
+									</button>
+								{/each}
+							{:else}
+								<p
+									class="rounded-2xl border border-dashed border-slate-200 p-3 text-sm font-bold text-slate-500 dark:border-slate-700 dark:text-slate-400"
+								>
+									{i18n.t('no_events_found_search')}
+								</p>
+							{/if}
+						</div>
+					{/if}
+				</div>
 
-			<div
-				class="mt-5 grid gap-4 border-t border-slate-200 pt-4 dark:border-slate-700 lg:grid-cols-4"
-			>
-				<div>
-					<p class="text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('date')}</p>
-					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-						{i18n.t('date_filter_sub')}
-					</p>
-					<div class="mt-3 flex flex-wrap gap-2">
+				<!-- Date Filter -->
+				<div class="mt-4">
+					<p class="text-xs font-black uppercase tracking-wider text-slate-400">{i18n.t('date')}</p>
+					<div class="mt-2.5 flex flex-wrap gap-1.5">
 						{#each dateFilterOptions as option (option.value)}
 							<button
 								type="button"
@@ -1789,10 +1453,10 @@
 									onDateFilterChange?.(option.value);
 									clearSelectedEvent();
 								}}
-								class={`rounded-full px-4 py-2 text-sm font-bold transition ${
+								class={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
 									dateFilter === option.value
-										? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
-										: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950'
+										? 'bg-blue-600 text-white shadow-sm'
+										: 'bg-slate-50 text-slate-600 border border-slate-100 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-blue-950'
 								}`}
 							>
 								{option.label}
@@ -1801,14 +1465,12 @@
 					</div>
 				</div>
 
-				<div>
-					<p class="text-sm font-black text-slate-950 dark:text-slate-50">
+				<!-- Audience Filter -->
+				<div class="mt-5 border-t border-slate-100 pt-4 dark:border-slate-800">
+					<p class="text-xs font-black uppercase tracking-wider text-slate-400">
 						{i18n.t('event_timing_filter')}
 					</p>
-					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-						{i18n.t('event_timing_filter_sub')}
-					</p>
-					<div class="mt-3 flex flex-wrap gap-2">
+					<div class="mt-2.5 flex flex-wrap gap-1.5">
 						{#each temporalFilterOptions as option (option.value)}
 							<button
 								type="button"
@@ -1816,14 +1478,14 @@
 									onTemporalFilterChange?.(option.value);
 									clearSelectedEvent();
 								}}
-								class={`rounded-full px-4 py-2 text-sm font-bold transition ${
+								class={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
 									temporalFilter === option.value
 										? option.value === 'live'
-											? 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/25'
+											? 'bg-emerald-500 text-white shadow-sm'
 											: option.value === 'starting_soon'
-												? 'bg-amber-400 text-slate-950 shadow-sm shadow-amber-400/25'
-												: 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
-										: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700'
+												? 'bg-amber-400 text-slate-950 shadow-sm'
+												: 'bg-blue-600 text-white shadow-sm'
+										: 'border border-slate-100 bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
 								}`}
 							>
 								{option.label}
@@ -1832,14 +1494,12 @@
 					</div>
 				</div>
 
-				<div>
-					<p class="text-sm font-black text-slate-950 dark:text-slate-50">
+				<!-- Audience Filter -->
+				<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
+					<p class="text-xs font-black uppercase tracking-wider text-slate-400">
 						{i18n.t('event_type_label')}
 					</p>
-					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-						{i18n.t('type_filter_sub')}
-					</p>
-					<div class="mt-3 flex flex-wrap gap-2">
+					<div class="mt-2.5 flex flex-wrap gap-1.5">
 						{#each audienceFilterOptions as option (option.value)}
 							<button
 								type="button"
@@ -1847,10 +1507,10 @@
 									onAudienceFilterChange?.(option.value);
 									clearSelectedEvent();
 								}}
-								class={`rounded-full px-4 py-2 text-sm font-bold transition ${
+								class={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
 									audienceFilter === option.value
-										? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
-										: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950'
+										? 'bg-blue-600 text-white shadow-sm'
+										: 'bg-slate-50 text-slate-600 border border-slate-100 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-blue-950'
 								}`}
 							>
 								{option.label}
@@ -1862,10 +1522,10 @@
 								onOnlyTournamentsChange?.(!onlyTournaments);
 								clearSelectedEvent();
 							}}
-							class={`rounded-full px-4 py-2 text-sm font-bold transition ${
+							class={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
 								onlyTournaments
-									? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
-									: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950'
+									? 'bg-blue-600 text-white shadow-sm'
+									: 'bg-slate-50 text-slate-600 border border-slate-100 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-blue-950'
 							}`}
 						>
 							🏆 {i18n.t('only_tournaments')}
@@ -1873,12 +1533,12 @@
 					</div>
 				</div>
 
-				<div>
-					<p class="text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('price')}</p>
-					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-						{i18n.t('price_filter_sub')}
+				<!-- Price Filter -->
+				<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
+					<p class="text-xs font-black uppercase tracking-wider text-slate-400">
+						{i18n.t('price')}
 					</p>
-					<div class="mt-3 flex flex-wrap gap-2">
+					<div class="mt-2.5 flex flex-wrap gap-1.5">
 						{#each priceFilterOptions as option (option.value)}
 							<button
 								type="button"
@@ -1886,10 +1546,10 @@
 									onPriceFilterChange?.(option.value);
 									clearSelectedEvent();
 								}}
-								class={`rounded-full px-4 py-2 text-sm font-bold transition ${
+								class={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
 									priceFilter === option.value
-										? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
-										: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950'
+										? 'bg-blue-600 text-white shadow-sm'
+										: 'bg-slate-50 text-slate-600 border border-slate-100 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-blue-950'
 								}`}
 							>
 								{option.label}
@@ -1919,75 +1579,421 @@
 						</label>
 					{/if}
 				</div>
-			</div>
 
-			<div class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700">
-				<div>
-					<p class="text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('sports')}</p>
-					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-						{i18n.t('choose_map_sports_msg')}
-					</p>
+				<!-- Sports Filter -->
+				<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
+					<div>
+						<p class="text-xs font-black uppercase tracking-wider text-slate-400">
+							{i18n.t('sport_label')}
+						</p>
+					</div>
+
+					{#if availableSports.length === 0}
+						<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+							{i18n.t('no_sports_available')}
+						</p>
+					{:else}
+						<div class="mt-2.5 flex flex-wrap gap-1.5">
+							{#each availableSports as sport (sport)}
+								<button
+									type="button"
+									onclick={() => toggleSportFilter(sport)}
+									class={`rounded-full px-3 py-1.5 text-xs font-bold capitalize transition ${
+										selectedSports.includes(sport)
+											? 'bg-blue-600 text-white shadow-sm'
+											: 'bg-slate-50 text-slate-600 border border-slate-100 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-blue-950'
+									}`}
+								>
+									{i18n.t('sport_' + sport.toLowerCase())}
+								</button>
+							{/each}
+						</div>
+					{/if}
 				</div>
 
-				{#if availableSports.length === 0}
-					<p class="mt-4 text-sm text-slate-500 dark:text-slate-400">
-						{i18n.t('no_sports_available')}
-					</p>
-				{:else}
-					<div class="mt-4 flex flex-wrap gap-2">
-						{#each availableSports as sport (sport)}
+				<!-- Levels Filter -->
+				<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
+					<div>
+						<p class="text-xs font-black uppercase tracking-wider text-slate-400">
+							{i18n.t('level_label')}
+						</p>
+					</div>
+
+					<div class="mt-2.5 flex flex-wrap gap-1.5">
+						{#each availableLevels as level (level)}
 							<button
 								type="button"
-								onclick={() => toggleSportFilter(sport)}
-								class={`rounded-full px-4 py-2 text-sm font-bold capitalize transition ${
-									selectedSports.includes(sport)
-										? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
-										: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-750 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950'
+								onclick={() => toggleLevelFilter(level)}
+								class={`rounded-full px-3 py-1.5 text-xs font-bold capitalize transition ${
+									selectedLevels.includes(level)
+										? 'bg-blue-600 text-white shadow-sm'
+										: 'bg-slate-50 text-slate-600 border border-slate-100 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-blue-950'
 								}`}
 							>
-								{i18n.t('sport_' + sport.toLowerCase())}
+								{formatLevel(level)}
 							</button>
 						{/each}
 					</div>
+				</div>
+			{/if}
+		</div>
+	{/if}
+
+	<!-- Desktop Filters Bar (Web Only) -->
+	{#if mode === 'events'}
+		<div
+			class="hidden md:block border-t border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900 shrink-0"
+		>
+			<div class="flex items-center justify-between gap-3">
+				<div class="flex items-center gap-4">
+					<button
+						type="button"
+						onclick={() => (showFilters = !showFilters)}
+						class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+					>
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="h-4 w-4 text-blue-600 dark:text-blue-400"
+						>
+							<path d="M3 5h18" />
+							<path d="M7 12h10" />
+							<path d="M10 19h4" />
+						</svg>
+
+						<span>{i18n.t('filters_label')}</span>
+
+						{#if activeFilterCount > 0}
+							<span class="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white">
+								{activeFilterCount}
+							</span>
+						{/if}
+					</button>
+
+					<span class="text-xs font-black uppercase tracking-wider text-slate-400">
+						{formatShowingEvents(viewMode === 'map' ? events.length : shownFeedCount)}
+					</span>
+				</div>
+
+				{#if activeFilterCount > 0}
+					<button
+						type="button"
+						onclick={clearAllFilters}
+						class="text-sm font-bold text-slate-500 transition hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400"
+					>
+						{i18n.t('clear')}
+					</button>
 				{/if}
 			</div>
 
-			<div class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700">
-				<p class="text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('level_label')}</p>
-				<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-					{i18n.t('level_filter_sub')}
-				</p>
-
-				<div class="mt-4 flex flex-wrap gap-2">
-					{#each availableLevels as level (level)}
-						<button
-							type="button"
-							onclick={() => toggleLevelFilter(level)}
-							class={`rounded-full px-4 py-2 text-sm font-bold capitalize transition ${
-								selectedLevels.includes(level)
-									? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
-									: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950'
-							}`}
+			{#if showFilters}
+				<div class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700">
+					<label class="sr-only" for="desktop-explore-search">Search events</label>
+					<div
+						class="flex max-w-xl items-center gap-3 rounded-2xl bg-slate-100/90 px-4 py-2.5 shadow-inner shadow-white/70 backdrop-blur dark:bg-slate-800/80 dark:shadow-none"
+					>
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.4"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="h-5 w-5 shrink-0 text-slate-400 dark:text-slate-500"
 						>
-							{formatLevel(level)}
-						</button>
-					{/each}
+							<circle cx="11" cy="11" r="7" />
+							<path d="m20 20-3.5-3.5" />
+						</svg>
+						<input
+							id="desktop-explore-search"
+							type="search"
+							value={localSearchTerm}
+							placeholder={i18n.t('search_events_orgs_placeholder')}
+							oninput={(event) =>
+								handleSearchInput((event.currentTarget as HTMLInputElement).value)}
+							class="min-w-0 flex-1 appearance-none border-0 bg-transparent p-0 text-sm font-black text-slate-900 outline-none ring-0 shadow-none placeholder:text-sm placeholder:font-bold placeholder:text-slate-400 focus:border-0 focus:outline-none focus:ring-0 dark:text-slate-100"
+						/>
+					</div>
+
+					{#if localSearchTerm.trim()}
+						<div class="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+							{#if searchPreviewEvents.length}
+								{#each searchPreviewEvents as event (event.id)}
+									<button
+										type="button"
+										onclick={() => selectSearchResult(event)}
+										class="flex min-w-0 items-center gap-2.5 rounded-2xl border border-slate-200 bg-white p-2 text-left shadow-sm transition hover:border-blue-200 hover:bg-blue-50/60 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-blue-900 dark:hover:bg-blue-950/30"
+									>
+										<div
+											class="h-12 w-16 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800"
+										>
+											{#if getSelectedPreviewUrl(event)}
+												<img
+													src={getSelectedPreviewUrl(event)}
+													alt={event.title}
+													class="h-full w-full object-cover"
+												/>
+											{:else}
+												<div
+													class="grid h-full w-full place-items-center text-sm font-black uppercase text-blue-600 dark:text-blue-300"
+												>
+													{event.sport.charAt(0)}
+												</div>
+											{/if}
+										</div>
+										<div class="min-w-0 flex-1">
+											<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">
+												{event.title}
+											</p>
+											<p class="truncate text-xs font-bold text-slate-500 dark:text-slate-400">
+												{event.location?.address ??
+													event.location?.name ??
+													i18n.t('location_not_set')}
+											</p>
+											<p
+												class="mt-0.5 truncate text-[11px] font-bold text-slate-400 dark:text-slate-500"
+											>
+												{formatSelectedDate(event)}
+											</p>
+										</div>
+									</button>
+								{/each}
+							{:else}
+								<p
+									class="rounded-2xl border border-dashed border-slate-200 p-4 text-sm font-bold text-slate-500 dark:border-slate-700 dark:text-slate-400"
+								>
+									{i18n.t('no_events_found_search')}
+								</p>
+							{/if}
+						</div>
+					{/if}
 				</div>
-			</div>
-		{/if}
-	</div>
+
+				<div
+					class="mt-5 grid gap-4 border-t border-slate-200 pt-4 dark:border-slate-700 lg:grid-cols-4"
+				>
+					<div>
+						<p class="text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('date')}</p>
+						<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+							{i18n.t('date_filter_sub')}
+						</p>
+						<div class="mt-3 flex flex-wrap gap-2">
+							{#each dateFilterOptions as option (option.value)}
+								<button
+									type="button"
+									onclick={() => {
+										onDateFilterChange?.(option.value);
+										clearSelectedEvent();
+									}}
+									class={`rounded-full px-4 py-2 text-sm font-bold transition ${
+										dateFilter === option.value
+											? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
+											: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950'
+									}`}
+								>
+									{option.label}
+								</button>
+							{/each}
+						</div>
+					</div>
+
+					<div>
+						<p class="text-sm font-black text-slate-950 dark:text-slate-50">
+							{i18n.t('event_timing_filter')}
+						</p>
+						<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+							{i18n.t('event_timing_filter_sub')}
+						</p>
+						<div class="mt-3 flex flex-wrap gap-2">
+							{#each temporalFilterOptions as option (option.value)}
+								<button
+									type="button"
+									onclick={() => {
+										onTemporalFilterChange?.(option.value);
+										clearSelectedEvent();
+									}}
+									class={`rounded-full px-4 py-2 text-sm font-bold transition ${
+										temporalFilter === option.value
+											? option.value === 'live'
+												? 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/25'
+												: option.value === 'starting_soon'
+													? 'bg-amber-400 text-slate-950 shadow-sm shadow-amber-400/25'
+													: 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
+											: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700'
+									}`}
+								>
+									{option.label}
+								</button>
+							{/each}
+						</div>
+					</div>
+
+					<div>
+						<p class="text-sm font-black text-slate-950 dark:text-slate-50">
+							{i18n.t('event_type_label')}
+						</p>
+						<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+							{i18n.t('type_filter_sub')}
+						</p>
+						<div class="mt-3 flex flex-wrap gap-2">
+							{#each audienceFilterOptions as option (option.value)}
+								<button
+									type="button"
+									onclick={() => {
+										onAudienceFilterChange?.(option.value);
+										clearSelectedEvent();
+									}}
+									class={`rounded-full px-4 py-2 text-sm font-bold transition ${
+										audienceFilter === option.value
+											? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
+											: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950'
+									}`}
+								>
+									{option.label}
+								</button>
+							{/each}
+							<button
+								type="button"
+								onclick={() => {
+									onOnlyTournamentsChange?.(!onlyTournaments);
+									clearSelectedEvent();
+								}}
+								class={`rounded-full px-4 py-2 text-sm font-bold transition ${
+									onlyTournaments
+										? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
+										: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950'
+								}`}
+							>
+								🏆 {i18n.t('only_tournaments')}
+							</button>
+						</div>
+					</div>
+
+					<div>
+						<p class="text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('price')}</p>
+						<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+							{i18n.t('price_filter_sub')}
+						</p>
+						<div class="mt-3 flex flex-wrap gap-2">
+							{#each priceFilterOptions as option (option.value)}
+								<button
+									type="button"
+									onclick={() => {
+										onPriceFilterChange?.(option.value);
+										clearSelectedEvent();
+									}}
+									class={`rounded-full px-4 py-2 text-sm font-bold transition ${
+										priceFilter === option.value
+											? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
+											: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950'
+									}`}
+								>
+									{option.label}
+								</button>
+							{/each}
+						</div>
+
+						{#if priceFilter === 'paid'}
+							<label class="mt-3 block">
+								<div
+									class="mb-1 flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400"
+								>
+									<span>{i18n.t('max_price')}</span>
+									<span>€{maxPrice}</span>
+								</div>
+								<input
+									type="range"
+									min="1"
+									max={highestPrice}
+									value={maxPrice}
+									oninput={(event) => {
+										onMaxPriceChange?.(Number(event.currentTarget.value));
+										clearSelectedEvent();
+									}}
+									class="w-full accent-blue-600"
+								/>
+							</label>
+						{/if}
+					</div>
+				</div>
+
+				<div class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700">
+					<div>
+						<p class="text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('sports')}</p>
+						<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+							{i18n.t('choose_map_sports_msg')}
+						</p>
+					</div>
+
+					{#if availableSports.length === 0}
+						<p class="mt-4 text-sm text-slate-500 dark:text-slate-400">
+							{i18n.t('no_sports_available')}
+						</p>
+					{:else}
+						<div class="mt-4 flex flex-wrap gap-2">
+							{#each availableSports as sport (sport)}
+								<button
+									type="button"
+									onclick={() => toggleSportFilter(sport)}
+									class={`rounded-full px-4 py-2 text-sm font-bold capitalize transition ${
+										selectedSports.includes(sport)
+											? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
+											: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-750 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950'
+									}`}
+								>
+									{i18n.t('sport_' + sport.toLowerCase())}
+								</button>
+							{/each}
+						</div>
+					{/if}
+				</div>
+
+				<div class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700">
+					<p class="text-sm font-black text-slate-950 dark:text-slate-50">
+						{i18n.t('level_label')}
+					</p>
+					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+						{i18n.t('level_filter_sub')}
+					</p>
+
+					<div class="mt-4 flex flex-wrap gap-2">
+						{#each availableLevels as level (level)}
+							<button
+								type="button"
+								onclick={() => toggleLevelFilter(level)}
+								class={`rounded-full px-4 py-2 text-sm font-bold capitalize transition ${
+									selectedLevels.includes(level)
+										? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
+										: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950'
+								}`}
+							>
+								{formatLevel(level)}
+							</button>
+						{/each}
+					</div>
+				</div>
+			{/if}
+		</div>
 	{/if}
 
 	{#if mode === 'venues'}
 		<div
-			class="{viewMode === 'map' ? 'hidden md:block' : 'block'} shrink-0 border-t border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900"
+			class="{viewMode === 'map'
+				? 'hidden md:block'
+				: 'block'} shrink-0 border-t border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900"
 		>
 			<div class="flex items-center justify-between gap-3">
 				<span class="text-xs font-black uppercase tracking-wider text-slate-400">
 					{formatShowingLocations(venues.length)}
 				</span>
 			</div>
-			<div class="mt-3 flex gap-2 overflow-x-auto px-0.5 pt-0.5 pb-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+			<div
+				class="mt-3 flex gap-2 overflow-x-auto px-0.5 pt-0.5 pb-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+			>
 				{#each venueSportOptions as sport (sport)}
 					<button
 						type="button"
@@ -2003,7 +2009,9 @@
 				{/each}
 			</div>
 			{#if venueCities.length > 1}
-				<div class="mt-2 flex gap-2 overflow-x-auto px-0.5 pt-0.5 pb-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+				<div
+					class="mt-2 flex gap-2 overflow-x-auto px-0.5 pt-0.5 pb-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+				>
 					{#each venueCities as city (city)}
 						<button
 							type="button"
@@ -2259,7 +2267,9 @@
 						<p class="text-xs font-black text-slate-700 dark:text-slate-200">
 							{formatShowingLocations(selectedVenueGroup.length)}
 						</p>
-						<p class="hidden truncate text-[11px] font-bold text-slate-400 dark:text-slate-500 sm:block">
+						<p
+							class="hidden truncate text-[11px] font-bold text-slate-400 dark:text-slate-500 sm:block"
+						>
 							{i18n.t('use_arrows_preview_msg')}
 						</p>
 					</div>
@@ -2272,7 +2282,9 @@
 						>
 							‹
 						</button>
-						<span class="min-w-10 text-center text-xs font-black text-slate-500 dark:text-slate-300">
+						<span
+							class="min-w-10 text-center text-xs font-black text-slate-500 dark:text-slate-300"
+						>
 							{selectedVenueIndex + 1}/{selectedVenueGroup.length}
 						</span>
 						<button
@@ -2333,7 +2345,9 @@
 						{/if}
 					</button>
 
-					<span class="min-w-0 truncate text-right text-[11px] font-black uppercase tracking-wide text-slate-400">
+					<span
+						class="min-w-0 truncate text-right text-[11px] font-black uppercase tracking-wide text-slate-400"
+					>
 						{formatShowingEvents(shownFeedCount)}
 					</span>
 				</div>
@@ -2358,13 +2372,15 @@
 						{/if}
 					</div>
 				{:else}
-					<p class="mb-5 hidden text-xs font-black uppercase tracking-wider text-slate-400 md:block">
+					<p
+						class="mb-5 hidden text-xs font-black uppercase tracking-wider text-slate-400 md:block"
+					>
 						{formatShowingEvents(shownFeedCount)}
 					</p>
 
 					<div class="grid grid-cols-2 gap-4 pb-16 sm:grid-cols-3 lg:grid-cols-4">
 						{#each feedGridEvents as event (event.id)}
-							<EventCard {event} variant="vertical" />
+							<EventCard {event} eventHref={getEventHref(event)} variant="vertical" />
 						{/each}
 					</div>
 				{/if}

@@ -46,10 +46,7 @@ import {
 import { sendRallySystemMessage } from '$lib/services/chat.service';
 import { getUserProfile } from '$lib/services/user.service';
 import { getCurrentLocale } from '$lib/utils/format.utils';
-import {
-	getEventStartMs,
-	getEventTemporalState
-} from '$lib/utils/event-lifecycle.utils';
+import { getEventStartMs, getEventTemporalState } from '$lib/utils/event-lifecycle.utils';
 
 export const PROMOTION_PLANS: Record<
 	EventPromotionPlan,
@@ -95,10 +92,12 @@ export function getPromotionPlanConfig(plan: EventPromotionPlan) {
 }
 
 export function getAvailablePromotionPlanOptions() {
-	return (Object.entries(PROMOTION_PLANS) as [
-		EventPromotionPlan,
-		(typeof PROMOTION_PLANS)[EventPromotionPlan]
-	][]).filter(([plan]) => plan !== 'featured');
+	return (
+		Object.entries(PROMOTION_PLANS) as [
+			EventPromotionPlan,
+			(typeof PROMOTION_PLANS)[EventPromotionPlan]
+		][]
+	).filter(([plan]) => plan !== 'featured');
 }
 
 function getEventPaymentAttendeeIds(event: SportEvent) {
@@ -250,7 +249,10 @@ export function calculatePromotionStats(event: SportEvent) {
 export function isPromotionActive(event: SportEvent) {
 	if (!event.isPromoted) return false;
 	if (event.promotionStatus !== 'active') return false;
-	if (getEffectiveEventStatus(event) === 'finished' || getEffectiveEventStatus(event) === 'cancelled') {
+	if (
+		getEffectiveEventStatus(event) === 'finished' ||
+		getEffectiveEventStatus(event) === 'cancelled'
+	) {
 		return false;
 	}
 
@@ -366,9 +368,7 @@ async function notifyOrganizationFollowers(
 	]);
 	const recipients = followerIds.filter((userId) => !excludedIds.has(userId));
 
-	await Promise.allSettled(
-		recipients.map((userId) => sendRallySystemMessage(userId, message))
-	);
+	await Promise.allSettled(recipients.map((userId) => sendRallySystemMessage(userId, message)));
 }
 
 async function syncTournamentTeamConversation(
@@ -538,11 +538,15 @@ export async function createSportEvent(params: {
 	const pricePerPerson =
 		params.pricePerPerson !== undefined && params.pricePerPerson !== null
 			? params.pricePerPerson
-			: (params.priceTotal && params.maxParticipants > 0
+			: params.priceTotal && params.maxParticipants > 0
 				? params.priceTotal / params.maxParticipants
-				: undefined);
+				: undefined;
 
-	if (params.minParticipants !== undefined && params.minParticipants !== null && params.minParticipants > 0) {
+	if (
+		params.minParticipants !== undefined &&
+		params.minParticipants !== null &&
+		params.minParticipants > 0
+	) {
 		if (params.minParticipants > params.maxParticipants) {
 			throw new Error('Minimum participants cannot be greater than maximum participants.');
 		}
@@ -582,7 +586,9 @@ export async function createSportEvent(params: {
 
 		maxParticipants: params.maxParticipants,
 		minParticipants: params.minParticipants ?? null,
-		minParticipantsDeadlineHours: params.minParticipants ? (params.minParticipantsDeadlineHours ?? 8) : null,
+		minParticipantsDeadlineHours: params.minParticipants
+			? (params.minParticipantsDeadlineHours ?? 8)
+			: null,
 		participantIds,
 
 		visibility: params.visibility ?? 'private',
@@ -725,7 +731,11 @@ export async function updateSportEvent(params: {
 		);
 	}
 
-	if (params.minParticipants !== undefined && params.minParticipants !== null && params.minParticipants > 0) {
+	if (
+		params.minParticipants !== undefined &&
+		params.minParticipants !== null &&
+		params.minParticipants > 0
+	) {
 		if (params.minParticipants > params.maxParticipants) {
 			throw new Error('Minimum participants cannot be greater than maximum participants.');
 		}
@@ -734,9 +744,9 @@ export async function updateSportEvent(params: {
 	const pricePerPerson =
 		params.pricePerPerson !== undefined && params.pricePerPerson !== null
 			? params.pricePerPerson
-			: (params.priceTotal && params.maxParticipants > 0
+			: params.priceTotal && params.maxParticipants > 0
 				? params.priceTotal / params.maxParticipants
-			: null);
+				: null;
 	const route = params.route ?? event.route ?? null;
 
 	await updateDoc(doc(db, 'events', params.eventId), {
@@ -755,12 +765,15 @@ export async function updateSportEvent(params: {
 		endAt: params.endAt ? Timestamp.fromDate(params.endAt) : null,
 		maxParticipants: params.maxParticipants,
 		minParticipants: params.minParticipants ?? null,
-		minParticipantsDeadlineHours: params.minParticipants ? (params.minParticipantsDeadlineHours ?? 8) : null,
+		minParticipantsDeadlineHours: params.minParticipants
+			? (params.minParticipantsDeadlineHours ?? 8)
+			: null,
 		visibility: params.visibility,
 		priceTotal: params.priceTotal ?? null,
 		pricePerPerson,
 		currency: params.currency ?? event.currency ?? 'EUR',
-		paymentMode: (params.priceTotal || pricePerPerson) ? 'split' : ('none' satisfies EventPaymentMode),
+		paymentMode:
+			params.priceTotal || pricePerPerson ? 'split' : ('none' satisfies EventPaymentMode),
 		groupPhotoURL: params.groupPhotoURL ?? event.groupPhotoURL ?? null,
 		groupPhotoPath: params.groupPhotoPath ?? event.groupPhotoPath ?? null,
 		route,
@@ -869,21 +882,26 @@ export async function getEventsCreatedByOrganization(organizationId: string) {
 	}
 
 	const adminIds = [
-		...new Set([
-			...(organization.adminIds ?? []),
-			...(organization.memberIds ?? []),
-			organization.ownerId
-		].filter(Boolean))
+		...new Set(
+			[
+				...(organization.adminIds ?? []),
+				...(organization.memberIds ?? []),
+				organization.ownerId
+			].filter(Boolean)
+		)
 	];
 
-	const chunks = chunkArray(adminIds, 10).filter(chunk => chunk.length > 0);
+	const chunks = chunkArray(adminIds, 10).filter((chunk) => chunk.length > 0);
 	const chunkPromises = chunks.map(async (chunk) => {
 		const adminEventsQuery = query(collection(db, 'events'), where('creatorId', 'in', chunk));
 		const adminEventsSnap = await getDocs(adminEventsQuery);
-		return adminEventsSnap.docs.map(docSnap => ({
-			id: docSnap.id,
-			...docSnap.data()
-		} as SportEvent));
+		return adminEventsSnap.docs.map(
+			(docSnap) =>
+				({
+					id: docSnap.id,
+					...docSnap.data()
+				}) as SportEvent
+		);
 	});
 
 	const chunkResults = await Promise.all(chunkPromises);
@@ -954,7 +972,9 @@ export async function joinEvent(eventId: string, userId: string) {
 	}
 
 	if (isUpfrontPaymentEvent(event)) {
-		throw new Error('This event requires upfront payment to join. Please complete payment to join.');
+		throw new Error(
+			'This event requires upfront payment to join. Please complete payment to join.'
+		);
 	}
 
 	const eventRef = doc(db, 'events', eventId);
@@ -1583,10 +1603,7 @@ export async function updateTournamentEvent(params: {
 	if (status === 'cancelled') throw new Error('Cancelled tournaments cannot be edited.');
 	if (status === 'finished') throw new Error('Finished tournaments cannot be edited.');
 
-	if (
-		(params.entryFeeType === 'paid' || params.prizeType === 'cash') &&
-		event.organizationId
-	) {
+	if ((params.entryFeeType === 'paid' || params.prizeType === 'cash') && event.organizationId) {
 		const organization = await getOrganizationById(event.organizationId);
 		if (!organization || !canCreateOfficialPaidEvents(organization)) {
 			throw new Error('Paid tournaments and cash prizes require a verified organization.');

@@ -96,7 +96,6 @@ service cloud.firestore {
       }
     }
 
-
     // ── Organizations ────────────────────────────────────────────────────────
     // Readable by any signed-in user (org pages, event host display).
     // Org admins manage the profile. Platform admins can only update the
@@ -202,14 +201,14 @@ service cloud.firestore {
 
 
     // ── Events ───────────────────────────────────────────────────────────────
-    // All signed-in users can read events (explore / discover).
+    // Public events remain visible on Discover before authentication.
     // Write rules enforce who can do what:
     //   - Creator or org admin: full control.
     //   - Any user: join (add themselves) or leave (remove themselves) only,
     //     touching only participantIds + status + updatedAt.
     //   - Any user: increment promotion view/click counters (analytics tracking).
     match /events/{eventId} {
-      allow read: if isAuth();
+      allow read: if isAuth() || resource.data.visibility == 'public';
 
       allow create: if isAuth() && request.resource.data.creatorId == request.auth.uid
         // Org-hosted events require the creator to actually admin that org.

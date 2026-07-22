@@ -74,9 +74,7 @@
 	let viewMode = $state<'map' | 'feed'>(
 		(page.url.searchParams.get('view') as 'map' | 'feed') || 'map'
 	);
-	let contentMode = $state<ExploreContentMode>(
-		getValidParam('mode', validContentModes, 'events')
-	);
+	let contentMode = $state<ExploreContentMode>(getValidParam('mode', validContentModes, 'events'));
 	let venues = $state<Venue[]>([]);
 	let venueRatings = $state<Record<string, { average: number; count: number }>>({});
 	let venuesLoaded = $state(false);
@@ -604,7 +602,10 @@
 				>
 					<span
 						class="relative inline-block h-6 w-28 sm:w-32"
-						style="transform-style: preserve-3d; transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1); transform: rotateY({contentMode === 'venues' ? '180deg' : '0deg'});"
+						style="transform-style: preserve-3d; transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1); transform: rotateY({contentMode ===
+						'venues'
+							? '180deg'
+							: '0deg'});"
 					>
 						<span
 							class="absolute inset-0 flex items-center justify-center gap-1.5 text-base font-black text-blue-700 sm:text-lg dark:text-blue-300"
@@ -644,7 +645,9 @@
 			</p>
 		</div>
 		<div class="flex flex-col items-start gap-2 sm:items-end sm:self-center">
-			<div class="relative grid h-11 w-[17rem] max-w-full grid-cols-2 self-start rounded-xl border border-slate-200 bg-slate-100 p-1 shadow-inner shadow-slate-200/70 sm:h-13 sm:w-[19rem] sm:self-end sm:rounded-2xl dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/20">
+			<div
+				class="relative grid h-11 w-[17rem] max-w-full grid-cols-2 self-start rounded-xl border border-slate-200 bg-slate-100 p-1 shadow-inner shadow-slate-200/70 sm:h-13 sm:w-[19rem] sm:self-end sm:rounded-2xl dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/20"
+			>
 				<span
 					aria-hidden="true"
 					class={`pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-lg bg-white shadow-[0_4px_14px_rgba(15,23,42,0.12)] ring-1 ring-slate-200/80 transition-transform duration-300 ease-out sm:rounded-xl dark:bg-slate-700 dark:ring-slate-600 ${viewMode === 'feed' ? 'translate-x-full' : 'translate-x-0'}`}
@@ -656,11 +659,15 @@
 						viewMode = 'map';
 						syncExploreQuery();
 					}}
-					class="relative z-10 flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-black transition-colors duration-300 sm:gap-2 sm:rounded-xl sm:px-4 sm:text-sm {viewMode === 'map'
+					class="relative z-10 flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-black transition-colors duration-300 sm:gap-2 sm:rounded-xl sm:px-4 sm:text-sm {viewMode ===
+					'map'
 						? 'text-slate-950 dark:text-white'
 						: 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'}"
 				>
-					<MapIcon class="h-4.5 w-4.5 shrink-0 text-blue-600 sm:h-5 sm:w-5 dark:text-blue-400" strokeWidth={2.4} />
+					<MapIcon
+						class="h-4.5 w-4.5 shrink-0 text-blue-600 sm:h-5 sm:w-5 dark:text-blue-400"
+						strokeWidth={2.4}
+					/>
 					<span class="truncate">{i18n.t('map_view')}</span>
 				</button>
 				<button
@@ -675,7 +682,10 @@
 						? 'text-slate-950 dark:text-white'
 						: 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'}"
 				>
-					<LayoutList class="h-4.5 w-4.5 shrink-0 text-blue-600 sm:h-5 sm:w-5 dark:text-blue-400" strokeWidth={2.4} />
+					<LayoutList
+						class="h-4.5 w-4.5 shrink-0 text-blue-600 sm:h-5 sm:w-5 dark:text-blue-400"
+						strokeWidth={2.4}
+					/>
 					<span class="truncate">{i18n.t('feed_view')}</span>
 				</button>
 			</div>
@@ -771,7 +781,7 @@
 				/>
 				{#if contentMode === 'events' && viewMode === 'map' && !selectedMapEventId && showSponsored}
 					<div
-						class="pointer-events-none absolute inset-x-3 bottom-3 z-20 hidden md:block md:inset-x-auto md:left-5 md:top-5 md:bottom-auto md:w-80"
+						class="pointer-events-none absolute inset-x-3 bottom-3 z-20 hidden md:block md:inset-x-auto md:left-5 md:top-5 md:bottom-auto md:w-[25rem]"
 					>
 						<div class="pointer-events-auto space-y-3">
 							<section
@@ -795,7 +805,7 @@
 							{#if promotedEvents.length}
 								<div class="max-h-[52dvh] space-y-3 overflow-y-auto pr-1 md:max-h-[520px]">
 									{#each visiblePromotedEvents as event (event.id)}
-										<EventCard {event} variant="profile" />
+										<EventCard {event} variant="profile" promotedOverlay />
 									{/each}
 								</div>
 								{#if promotedPageCount > 1}
@@ -838,7 +848,6 @@
 								{i18n.t('promoted_boost_msg')}
 							</p>
 						</div>
-
 					</div>
 
 					{#if promotedEvents.length}

@@ -31,6 +31,8 @@
 		compactHero = false,
 		miniHero = false,
 		discoverMobile = false,
+		promotedOverlay = false,
+		eventHref = `/events/${event.id}`,
 		heroCtaLabel = 'Join game',
 		heroCtaTone = 'primary'
 	} = $props<{
@@ -40,6 +42,8 @@
 		compactHero?: boolean;
 		miniHero?: boolean;
 		discoverMobile?: boolean;
+		promotedOverlay?: boolean;
+		eventHref?: string;
 		heroCtaLabel?: string;
 		heroCtaTone?: 'primary' | 'muted';
 	}>();
@@ -225,7 +229,7 @@
 
 {#if variant === 'hero'}
 	<a
-		href={`/events/${event.id}`}
+		href={eventHref}
 		onclick={handleClick}
 		class={`group relative block overflow-hidden rounded-[1.75rem] border border-white/10 bg-gradient-to-br ${getHeroBackgroundClasses()} text-white shadow-xl shadow-slate-300/40 transition hover:-translate-y-0.5 hover:shadow-2xl dark:shadow-none ${
 			miniHero
@@ -345,13 +349,13 @@
 	</a>
 {:else if variant === 'profile'}
 	<a
-		href={`/events/${event.id}`}
+		href={eventHref}
 		onclick={handleClick}
-		class={`group flex max-w-full gap-3 overflow-hidden rounded-[1.45rem] p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg sm:p-4 ${getCardClasses()}`}
+		class={`group flex max-w-full overflow-hidden rounded-[1.45rem] shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${promotedOverlay ? 'min-h-32 gap-4 p-4' : 'gap-3 p-3 sm:p-4'} ${getCardClasses()}`}
 	>
 		{#if showImage}
 			<div
-				class="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800 sm:h-24 sm:w-32"
+				class={`relative shrink-0 overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800 ${promotedOverlay ? 'h-28 w-36' : 'h-20 w-20 sm:h-24 sm:w-32'}`}
 			>
 				{#if event.groupPhotoURL}
 					<img src={event.groupPhotoURL} alt={event.title} class="h-full w-full object-cover" />
@@ -367,10 +371,10 @@
 			</div>
 		{/if}
 
-		<div class="min-w-0 flex-1 py-1">
-			<div class="flex min-w-0 items-center gap-2">
+		<div class={`min-w-0 flex-1 py-1 ${promotedOverlay ? 'flex flex-col justify-center' : ''}`}>
+			<div class={`flex min-w-0 items-center gap-2 ${promotedOverlay ? 'flex-wrap' : ''}`}>
 				<p
-					class="min-w-0 flex-1 truncate text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base"
+					class={`min-w-0 truncate text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base ${promotedOverlay ? 'basis-full' : 'flex-1'}`}
 				>
 					{event.title}
 				</p>
@@ -400,7 +404,7 @@
 {:else}
 	{#if variant === 'vertical'}
 		<a
-			href={`/events/${event.id}`}
+			href={eventHref}
 			onclick={handleClick}
 			class="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:hover:shadow-none"
 		>
@@ -523,7 +527,7 @@
 		</a>
 	{:else}
 		<a
-			href={`/events/${event.id}`}
+			href={eventHref}
 			onclick={handleClick}
 			class={`group flex h-full min-h-[6.7rem] overflow-hidden rounded-[1.35rem] border shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg sm:min-h-[8.25rem] sm:rounded-[1.5rem] ${getCardClasses()}`}
 		>

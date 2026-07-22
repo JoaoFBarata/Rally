@@ -1,5 +1,5 @@
 import { collection, getDocs, onSnapshot, query, where } from 'firebase/firestore';
-import { db } from '$lib/firebase';
+import { auth, db } from '$lib/firebase';
 import type { SportEvent, UserProfile } from '$lib/schema';
 import {
 	getEventById,
@@ -155,10 +155,10 @@ async function refreshOrganizationSnapshots(events: SportEvent[]) {
 export async function getPublicEvents() {
 	const publicEventsQuery = query(collection(db, 'events'), where('visibility', '==', 'public'));
 	const publicEventsSnap = await getDocs(publicEventsQuery);
-
-	const events = await refreshOrganizationSnapshots(
-		publicEventsSnap.docs.map(eventFromDoc).filter(isVisibleInExplore)
-	);
+	const publicEvents = publicEventsSnap.docs.map(eventFromDoc).filter(isVisibleInExplore);
+	// Event documents already contain the public organization snapshot. Avoid
+	// reading protected organization management documents for anonymous visitors.
+	const events = auth.currentUser ? await refreshOrganizationSnapshots(publicEvents) : publicEvents;
 
 	return promotedFirst(sortEventsByStartDate(events));
 }
