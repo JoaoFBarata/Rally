@@ -193,3 +193,13 @@ select:-webkit-autofill:focus {
 .rally-scrollbar::-webkit-scrollbar-thumb:hover {
 	background: #1d4ed8;
 }
+
+.mobile-date-hint {
+	display: none;
+}
+
+@media (hover: none) and (pointer: coarse) and (max-width: 767px) {
+	.mobile-date-hint {
+		display: block;
+	}
+}

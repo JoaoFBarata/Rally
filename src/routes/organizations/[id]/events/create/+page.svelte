@@ -787,7 +787,7 @@
 								/>
 								{#if !date}
 									<span
-										class="pointer-events-none absolute left-3 top-[2.45rem] text-sm font-semibold text-slate-400 peer-focus:hidden dark:text-slate-500 sm:left-4 sm:top-[2.7rem] sm:text-base"
+										class="mobile-date-hint pointer-events-none absolute left-3 top-[2.45rem] text-sm font-semibold text-slate-400 peer-focus:hidden dark:text-slate-500"
 									>
 										{i18n.t('select_date')}
 									</span>
