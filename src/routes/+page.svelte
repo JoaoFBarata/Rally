@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { fade } from 'svelte/transition';
 	import { authState } from '$lib/auth.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -8,6 +10,12 @@
 	let contentVisible = $state(false);
 	let activePersona = $state(0);
 	let activeStep = $state(0);
+
+	$effect(() => {
+		if (!authState.loading && authState.user) {
+			void goto(resolve('/dashboard'), { replaceState: true });
+		}
+	});
 
 	onMount(() => {
 		const t = setTimeout(() => (contentVisible = true), 1000);
