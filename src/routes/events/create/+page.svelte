@@ -738,13 +738,13 @@
 										bind:value={minParticipantsDeadlineHours}
 										class={`mt-2 ${inputClass}`}
 									>
-										<option value={1}>1 {i18n.t('hours_before_start', { hours: 1 })}</option>
-										<option value={2}>2 {i18n.t('hours_before_start', { hours: 2 })}</option>
-										<option value={4}>4 {i18n.t('hours_before_start', { hours: 4 })}</option>
-										<option value={8}>8 {i18n.t('hours_before_start', { hours: 8 })} (Default)</option>
-										<option value={12}>12 {i18n.t('hours_before_start', { hours: 12 })}</option>
-										<option value={24}>24 {i18n.t('hours_before_start', { hours: 24 })}</option>
-										<option value={48}>48 {i18n.t('hours_before_start', { hours: 48 })}</option>
+										<option value={1}>{i18n.t('hours_before_start', { hours: 1 })}</option>
+										<option value={2}>{i18n.t('hours_before_start', { hours: 2 })}</option>
+										<option value={4}>{i18n.t('hours_before_start', { hours: 4 })}</option>
+										<option value={8}>{i18n.t('hours_before_start', { hours: 8 })} (Default)</option>
+										<option value={12}>{i18n.t('hours_before_start', { hours: 12 })}</option>
+										<option value={24}>{i18n.t('hours_before_start', { hours: 24 })}</option>
+										<option value={48}>{i18n.t('hours_before_start', { hours: 48 })}</option>
 									</select>
 								</div>
 							</div>
