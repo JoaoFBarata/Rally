@@ -4,6 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { auth } from '$lib/firebase';
+	import { profileAvatarOptions } from '$lib/avatar-options';
 	import type { Sport, UserProfile } from '$lib/schema';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import RallyWordmark from '$lib/components/RallyWordmark.svelte';
@@ -96,12 +97,7 @@
 	let fileInput = $state<HTMLInputElement | null>(null);
 	let friendToRemove = $state<UserProfile | null>(null);
 
-	const appAvatars = [
-		'/avatars/avatar_1.png',
-		'/avatars/avatar_2.png',
-		'/avatars/avatar_3.png',
-		'/avatars/avatar_4.png'
-	];
+	const appAvatars = profileAvatarOptions.map((avatar) => avatar.src);
 
 	function sortByDisplayName(a: UserProfile, b: UserProfile) {
 		return (a.displayName ?? '').localeCompare(b.displayName ?? '', undefined, {
@@ -881,12 +877,18 @@
 						class="flex w-full items-center justify-between rounded-[1.6rem] border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 active:scale-[0.99]"
 					>
 						<div class="flex items-center gap-3">
-							<div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
+							<div
+								class="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400"
+							>
 								<NavIcon name="payments" />
 							</div>
 							<div>
-								<span class="block text-sm font-black text-slate-950 dark:text-slate-50">{i18n.t('payments')}</span>
-								<span class="block text-xs text-slate-500 dark:text-slate-400">{i18n.t('events_you_owe')} & {i18n.t('money_due_to_me')}</span>
+								<span class="block text-sm font-black text-slate-950 dark:text-slate-50"
+									>{i18n.t('payments')}</span
+								>
+								<span class="block text-xs text-slate-500 dark:text-slate-400"
+									>{i18n.t('events_you_owe')} & {i18n.t('money_due_to_me')}</span
+								>
 							</div>
 						</div>
 						<div class="text-slate-400">
@@ -1670,7 +1672,7 @@
 				{:else}
 					<div class="mt-6">
 						<div class="grid grid-cols-3 gap-3">
-							{#each appAvatars as avatar}
+							{#each appAvatars as avatar (avatar)}
 								<button
 									type="button"
 									onclick={() => selectAppAvatar(avatar)}
