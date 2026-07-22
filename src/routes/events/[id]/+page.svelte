@@ -1768,7 +1768,7 @@
 								{#if minDeadlineFormatted && !minRequirementMet && !minDeadlinePassed}
 									<div class="mt-3 flex items-center gap-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
 										<Clock class="h-4 w-4 text-amber-500" />
-										<span>{i18n.t('cancellation_deadline')}: {minDeadlineFormatted} {i18n.t('hours_before_start', { hours: event.minParticipantsDeadlineHours ?? 8 })}</span>
+										<span>{i18n.t('cancellation_deadline')}: {minDeadlineFormatted} ({i18n.t('hours_before_start', { hours: event.minParticipantsDeadlineHours ?? 8 })})</span>
 									</div>
 								{/if}
 							</div>
