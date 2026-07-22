@@ -34,6 +34,7 @@
 	let loading = $state(true);
 	let creating = $state(false);
 	let error = $state('');
+	let submitAttempted = $state(false);
 
 	let title = $state('');
 	let description = $state('');
@@ -81,15 +82,20 @@
 	const sectionTitleClass = 'text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl';
 	const sideTitleClass = 'text-lg font-black text-slate-950 dark:text-slate-50 sm:text-xl';
 	const labelClass = 'text-xs font-black text-slate-700 dark:text-slate-200 sm:text-sm';
-	const helpClass = 'mt-1 text-[11px] font-bold leading-snug text-slate-500 dark:text-slate-400 sm:text-xs';
-	const compactHelpClass = 'mt-1 hidden text-[11px] font-bold leading-snug text-slate-500 dark:text-slate-400 sm:block sm:text-xs';
+	const requiredAsteriskClass = 'ml-1 text-red-500';
+	const invalidInputClass =
+		'border-red-400 bg-red-50/70 focus:border-red-500 focus:ring-red-100 dark:border-red-700 dark:bg-red-950/30 dark:focus:ring-red-950';
+	const fieldErrorClass = 'mt-1.5 text-xs font-bold text-red-600 dark:text-red-300';
+	const compactHelpClass =
+		'mt-1 hidden text-[11px] font-bold leading-snug text-slate-500 dark:text-slate-400 sm:block sm:text-xs';
 	const currencyOptions: { value: EventCurrency; label: string }[] = [
 		{ value: 'EUR', label: 'EUR €' },
 		{ value: 'USD', label: 'USD $' },
 		{ value: 'GBP', label: 'GBP £' },
 		{ value: 'BRL', label: 'BRL R$' }
 	];
-	const choiceClass = 'flex cursor-pointer items-start gap-2.5 rounded-2xl border p-2.5 transition sm:gap-3 sm:p-4';
+	const choiceClass =
+		'flex cursor-pointer items-start gap-2.5 rounded-2xl border p-2.5 transition sm:gap-3 sm:p-4';
 
 	const sports: { value: Sport; label: string }[] = [
 		{ value: 'football', label: 'Football' },
@@ -134,27 +140,26 @@
 
 		return Boolean(
 			organization &&
-				title.trim() &&
-				address.trim() &&
-				lat !== null &&
-				lng !== null &&
-				start &&
-				!Number.isNaN(start.getTime()) &&
-				start.getTime() > Date.now() &&
-				(!endTime || (end && end.getTime() > start.getTime())) &&
-				Number.isInteger(entries) &&
-				entries >= 2 &&
-				entries <= 64 &&
-				(format !== 'groups_playoff' ||
-					(Number.isInteger(groups) && groups >= 2 && groups <= 8)) &&
-				(registrationType !== 'team' ||
-					(Number.isInteger(minimumTeamSize) &&
-						minimumTeamSize >= 1 &&
-						Number.isInteger(maximumTeamSize) &&
-						maximumTeamSize >= minimumTeamSize)) &&
-				deadlineIsComplete &&
-				(entryFeeType === 'free' || Number(entryFeeAmount) > 0) &&
-				((entryFeeType !== 'paid' && prizeType !== 'cash') || isVerified)
+			title.trim() &&
+			address.trim() &&
+			lat !== null &&
+			lng !== null &&
+			start &&
+			!Number.isNaN(start.getTime()) &&
+			start.getTime() > Date.now() &&
+			(!endTime || (end && end.getTime() > start.getTime())) &&
+			Number.isInteger(entries) &&
+			entries >= 2 &&
+			entries <= 64 &&
+			(format !== 'groups_playoff' || (Number.isInteger(groups) && groups >= 2 && groups <= 8)) &&
+			(registrationType !== 'team' ||
+				(Number.isInteger(minimumTeamSize) &&
+					minimumTeamSize >= 1 &&
+					Number.isInteger(maximumTeamSize) &&
+					maximumTeamSize >= minimumTeamSize)) &&
+			deadlineIsComplete &&
+			(entryFeeType === 'free' || Number(entryFeeAmount) > 0) &&
+			((entryFeeType !== 'paid' && prizeType !== 'cash') || isVerified)
 		);
 	});
 
@@ -221,11 +226,60 @@
 		}
 	}
 
+	const formErrors = $derived.by(() => {
+		const startAt = buildDateTime(startTime);
+		const entries = Number(maxEntries);
+		const groups = Number(groupCount);
+		const minimumTeamSize = Number(minTeamSize);
+		const maximumTeamSize = Number(maxTeamSize);
+		const errors: Record<string, string> = {};
+
+		if (!title.trim()) errors.title = i18n.t('add_tournament_name_error');
+		if (!address.trim() || lat === null || lng === null) {
+			errors.location = i18n.t('choose_tournament_location_error');
+		}
+		if (!startAt) errors.start = i18n.t('choose_tournament_datetime_error');
+		else if (startAt <= new Date()) errors.start = i18n.t('future_date_error');
+		if (!Number.isInteger(entries) || entries < 2 || entries > 64) {
+			errors.maxEntries = i18n.t('max_entries_range_error');
+		}
+		if (format === 'groups_playoff' && (!Number.isInteger(groups) || groups < 2 || groups > 8)) {
+			errors.groupCount = i18n.t('groups_range_error');
+		}
+		if (registrationType === 'team') {
+			if (!Number.isInteger(minimumTeamSize) || minimumTeamSize < 1) {
+				errors.minTeamSize = i18n.t('check_team_sizes_error');
+			}
+			if (!Number.isInteger(maximumTeamSize) || maximumTeamSize < minimumTeamSize) {
+				errors.maxTeamSize = i18n.t('check_team_sizes_error');
+			}
+		}
+		if (
+			(registrationDeadlineDate && !registrationDeadlineTime) ||
+			(!registrationDeadlineDate && registrationDeadlineTime)
+		) {
+			errors.registrationDeadline = i18n.t('choose_deadline_datetime_error');
+		}
+		if (entryFeeType !== 'free' && (!Number(entryFeeAmount) || Number(entryFeeAmount) <= 0)) {
+			errors.entryFeeAmount = i18n.t('valid_event_price_error');
+		}
+		if ((entryFeeType === 'paid' || prizeType === 'cash') && !isVerified) {
+			errors.payment = i18n.t('paid_tournament_verified_error');
+		}
+
+		return errors;
+	});
+
+	function hasFieldError(field: string) {
+		return submitAttempted && Boolean(formErrors[field]);
+	}
+
 	async function handleCreateTournament() {
 		const user = auth.currentUser;
 
 		if (!user || !organization) return;
 
+		submitAttempted = true;
 		creating = true;
 		error = '';
 
@@ -331,7 +385,9 @@
 					{i18n.t('competitive_event')}
 				</p>
 
-				<h1 class="mt-1 text-3xl font-black tracking-tight text-slate-950 dark:text-slate-50 sm:text-4xl">
+				<h1
+					class="mt-1 text-3xl font-black tracking-tight text-slate-950 dark:text-slate-50 sm:text-4xl"
+				>
 					{i18n.t('create_tournament')}
 				</h1>
 
@@ -365,12 +421,22 @@
 					<h2 class={sectionTitleClass}>{i18n.t('tournament_details')}</h2>
 
 					<div class="mt-4 space-y-3 sm:mt-5 sm:space-y-4">
-						<input
-							bind:value={title}
-							maxlength={TEXT_LIMITS.eventTitle}
-							placeholder={i18n.t('tournament_name_placeholder')}
-							class={inputClass}
-						/>
+						<label class="block">
+							<span class={labelClass}
+								>{i18n.t('tournament_name_placeholder')}<span class={requiredAsteriskClass}>*</span
+								></span
+							>
+							<input
+								bind:value={title}
+								maxlength={TEXT_LIMITS.eventTitle}
+								placeholder={i18n.t('tournament_name_placeholder')}
+								aria-invalid={hasFieldError('title')}
+								class={`mt-2 ${inputClass} ${hasFieldError('title') ? invalidInputClass : ''}`}
+							/>
+							{#if hasFieldError('title')}
+								<p class={fieldErrorClass}>{formErrors.title}</p>
+							{/if}
+						</label>
 
 						<textarea
 							bind:value={description}
@@ -380,38 +446,39 @@
 							class={inputClass}
 						></textarea>
 
-							<div class="grid grid-cols-2 items-end gap-3 md:grid-cols-3">
-								<label class="block">
-									<span class={labelClass}>{i18n.t('sport')}</span>
-									<select
-										bind:value={sport}
-										class={`mt-2 ${inputClass}`}
-									>
-										{#each sports as option}
-											<option value={option.value}>{i18n.t(`sport_${option.value}`)}</option>
-										{/each}
-									</select>
-								</label>
+						<div class="grid grid-cols-2 items-end gap-3 md:grid-cols-3">
+							<label class="block">
+								<span class={labelClass}
+									>{i18n.t('sport')}<span class={requiredAsteriskClass}>*</span></span
+								>
+								<select bind:value={sport} class={`mt-2 ${inputClass}`}>
+									{#each sports as option (option.value)}
+										<option value={option.value}>{i18n.t(`sport_${option.value}`)}</option>
+									{/each}
+								</select>
+							</label>
 
-								<label class="block">
-									<span class={labelClass}>{i18n.t('level_label')}</span>
-									<select
-										bind:value={level}
-										class={`mt-2 ${inputClass}`}
-									>
-										{#each levels as option}
-											<option value={option.value}>{i18n.t(option.value)}</option>
-										{/each}
-									</select>
-								</label>
+							<label class="block">
+								<span class={labelClass}
+									>{i18n.t('level_label')}<span class={requiredAsteriskClass}>*</span></span
+								>
+								<select bind:value={level} class={`mt-2 ${inputClass}`}>
+									{#each levels as option (option.value)}
+										<option value={option.value}>{i18n.t(option.value)}</option>
+									{/each}
+								</select>
+							</label>
 
 							<label class="col-span-2 block md:col-span-1">
 								<span class={labelClass}>
-									{i18n.t('max_entries')}
+									{i18n.t('max_entries')}<span class={requiredAsteriskClass}>*</span>
 								</span>
 
 								<p class={compactHelpClass}>
-									{i18n.t('max_entries_help', { unit: registrationType === 'team' ? i18n.t('teams') : i18n.t('players_lowercase') })}
+									{i18n.t('max_entries_help', {
+										unit:
+											registrationType === 'team' ? i18n.t('teams') : i18n.t('players_lowercase')
+									})}
 								</p>
 
 								<input
@@ -422,8 +489,12 @@
 									placeholder={registrationType === 'team'
 										? i18n.t('example_teams', { count: 8 })
 										: i18n.t('example_players', { count: 16 })}
-									class={`mt-2 ${inputClass}`}
+									aria-invalid={hasFieldError('maxEntries')}
+									class={`mt-2 ${inputClass} ${hasFieldError('maxEntries') ? invalidInputClass : ''}`}
 								/>
+								{#if hasFieldError('maxEntries')}
+									<p class={fieldErrorClass}>{formErrors.maxEntries}</p>
+								{/if}
 							</label>
 						</div>
 					</div>
@@ -436,67 +507,107 @@
 
 					<div class="mt-4 space-y-3 sm:mt-5 sm:space-y-5">
 						<div class="grid grid-cols-2 gap-3">
-							<label class="min-w-0">
-								<span class="text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">{i18n.t('date_label')}</span>
+							<label class="relative min-w-0">
+								<span class="text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm"
+									>{i18n.t('date_label')}<span class={requiredAsteriskClass}>*</span></span
+								>
 								<input
 									bind:value={date}
 									type="date"
-									class={`mt-2 min-w-0 ${inputClass}`}
+									aria-invalid={hasFieldError('start')}
+									class={`peer mt-2 min-w-0 ${inputClass} ${hasFieldError('start') ? invalidInputClass : ''}`}
 								/>
+								{#if !date}
+									<span
+										class="pointer-events-none absolute left-3 top-[2.45rem] text-sm font-semibold text-slate-400 peer-focus:hidden dark:text-slate-500 sm:left-4 sm:top-[2.7rem] sm:text-base"
+									>
+										{i18n.t('select_date')}
+									</span>
+								{/if}
+								{#if hasFieldError('start')}
+									<p class={fieldErrorClass}>{formErrors.start}</p>
+								{/if}
 							</label>
 
 							<label class="min-w-0">
-								<span class="text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">{i18n.t('start_time_label')}</span>
-								<TimeSelect bind:value={startTime} placeholder={i18n.t('choose_time')} />
+								<span class="text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm"
+									>{i18n.t('start_time_label')}<span class={requiredAsteriskClass}>*</span></span
+								>
+								<TimeSelect
+									bind:value={startTime}
+									placeholder={i18n.t('choose_time')}
+									invalid={hasFieldError('start')}
+								/>
 							</label>
 						</div>
 
 						<div class="grid grid-cols-2 gap-3">
-							<label class="min-w-0">
+							<label class="relative min-w-0">
 								<span class="text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm"
 									>{i18n.t('deadline_date')}</span
 								>
 								<input
 									bind:value={registrationDeadlineDate}
 									type="date"
-									class={`mt-2 min-w-0 ${inputClass}`}
+									class={`peer mt-2 min-w-0 ${inputClass}`}
 								/>
+								{#if !registrationDeadlineDate}
+									<span
+										class="pointer-events-none absolute left-3 top-[2.45rem] text-sm font-semibold text-slate-400 peer-focus:hidden dark:text-slate-500 sm:left-4 sm:top-[2.7rem] sm:text-base"
+									>
+										{i18n.t('optional')}
+									</span>
+								{/if}
 							</label>
 
 							<label class="min-w-0">
 								<span class="text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm"
 									>{i18n.t('deadline_time')}</span
 								>
-								<TimeSelect bind:value={registrationDeadlineTime} placeholder={i18n.t('optional')} />
+								<TimeSelect
+									bind:value={registrationDeadlineTime}
+									placeholder={i18n.t('optional')}
+								/>
+								{#if hasFieldError('registrationDeadline')}
+									<p class={fieldErrorClass}>{formErrors.registrationDeadline}</p>
+								{/if}
 							</label>
 						</div>
 
-							{#if organization?.address}
-								<button
-									type="button"
-									onclick={() => (autofillAddress = organization!.address ?? '')}
-									class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-blue-700 dark:hover:bg-blue-950/30 dark:hover:text-blue-300 sm:px-4 sm:py-2.5 sm:text-sm"
+						{#if organization?.address}
+							<button
+								type="button"
+								onclick={() => (autofillAddress = organization!.address ?? '')}
+								class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-blue-700 dark:hover:bg-blue-950/30 dark:hover:text-blue-300 sm:px-4 sm:py-2.5 sm:text-sm"
+							>
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									class="h-4 w-4 shrink-0"
+									aria-hidden="true"
 								>
-									<svg
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="2"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										class="h-4 w-4 shrink-0"
-										aria-hidden="true"
-									>
-										<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-										<circle cx="12" cy="10" r="3" />
-									</svg>
-									{i18n.t('use_organization_address')}
-								</button>
-							{/if}
+									<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+									<circle cx="12" cy="10" r="3" />
+								</svg>
+								{i18n.t('use_organization_address')}
+							</button>
+						{/if}
 
-							<LocationPickerMap bind:lat bind:lng bind:address {autofillAddress} />
-						</div>
-					</section>
+						<p
+							class={`text-sm font-bold ${hasFieldError('location') ? 'text-red-600 dark:text-red-300' : 'text-slate-700 dark:text-slate-300'}`}
+						>
+							{i18n.t('location_schedule')}<span class={requiredAsteriskClass}>*</span>
+						</p>
+						<LocationPickerMap bind:lat bind:lng bind:address {autofillAddress} />
+						{#if hasFieldError('location')}
+							<p class={fieldErrorClass}>{formErrors.location}</p>
+						{/if}
+					</div>
+				</section>
 
 				<section class={cardClass}>
 					<h2 class={sectionTitleClass}>{i18n.t('rules')}</h2>
@@ -515,7 +626,9 @@
 				<section class={cardClass}>
 					<h2 class={sideTitleClass}>{i18n.t('format')}</h2>
 
-					<div class="mt-4 grid grid-cols-1 gap-2 min-[520px]:grid-cols-3 sm:mt-5 lg:grid-cols-1 lg:gap-3">
+					<div
+						class="mt-4 grid grid-cols-1 gap-2 min-[520px]:grid-cols-3 sm:mt-5 lg:grid-cols-1 lg:gap-3"
+					>
 						<label
 							class={`${choiceClass} ${
 								format === 'groups_playoff'
@@ -528,12 +641,14 @@
 								class="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 border-slate-400 dark:border-slate-500 sm:h-5 sm:w-5"
 							>
 								{#if format === 'groups_playoff'}
-									<span class="h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400 sm:h-2.5 sm:w-2.5"></span>
+									<span class="h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400 sm:h-2.5 sm:w-2.5"
+									></span>
 								{/if}
 							</span>
 							<span class="min-w-0">
 								<span class="block text-sm font-black sm:text-base">{i18n.t('groups')}</span>
-								<span class="mt-1 hidden text-xs text-slate-500 dark:text-slate-400 sm:block sm:text-sm"
+								<span
+									class="mt-1 hidden text-xs text-slate-500 dark:text-slate-400 sm:block sm:text-sm"
 									>{i18n.t('best_for_most_tournaments')}</span
 								>
 							</span>
@@ -551,12 +666,14 @@
 								class="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 border-slate-400 dark:border-slate-500 sm:h-5 sm:w-5"
 							>
 								{#if format === 'knockout'}
-									<span class="h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400 sm:h-2.5 sm:w-2.5"></span>
+									<span class="h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400 sm:h-2.5 sm:w-2.5"
+									></span>
 								{/if}
 							</span>
 							<span class="min-w-0">
 								<span class="block text-xs font-black sm:text-base">{i18n.t('knockout')}</span>
-								<span class="mt-1 hidden text-xs text-slate-500 dark:text-slate-400 sm:block sm:text-sm"
+								<span
+									class="mt-1 hidden text-xs text-slate-500 dark:text-slate-400 sm:block sm:text-sm"
 									>{i18n.t('direct_elimination_bracket')}</span
 								>
 							</span>
@@ -574,12 +691,14 @@
 								class="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 border-slate-400 dark:border-slate-500 sm:h-5 sm:w-5"
 							>
 								{#if format === 'league'}
-									<span class="h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400 sm:h-2.5 sm:w-2.5"></span>
+									<span class="h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400 sm:h-2.5 sm:w-2.5"
+									></span>
 								{/if}
 							</span>
 							<span class="min-w-0">
 								<span class="block text-sm font-black sm:text-base">{i18n.t('league')}</span>
-								<span class="mt-1 hidden text-xs text-slate-500 dark:text-slate-400 sm:block sm:text-sm"
+								<span
+									class="mt-1 hidden text-xs text-slate-500 dark:text-slate-400 sm:block sm:text-sm"
 									>{i18n.t('everyone_plays_everyone')}</span
 								>
 							</span>
@@ -590,7 +709,7 @@
 						<div class="mt-4 grid grid-cols-1 items-stretch gap-3 min-[430px]:grid-cols-2 sm:mt-5">
 							<label class="flex h-full flex-col">
 								<span class={labelClass}>
-									{i18n.t('number_of_groups')}
+									{i18n.t('number_of_groups')}<span class={requiredAsteriskClass}>*</span>
 								</span>
 
 								<p class={`${compactHelpClass} min-h-[2.5rem]`}>
@@ -603,8 +722,12 @@
 									min="2"
 									max="8"
 									placeholder={i18n.t('example_number', { count: 2 })}
-									class={`mt-auto ${inputClass}`}
+									aria-invalid={hasFieldError('groupCount')}
+									class={`mt-auto ${inputClass} ${hasFieldError('groupCount') ? invalidInputClass : ''}`}
 								/>
+								{#if hasFieldError('groupCount')}
+									<p class={fieldErrorClass}>{formErrors.groupCount}</p>
+								{/if}
 							</label>
 
 							<label class="flex h-full flex-col">
@@ -613,7 +736,10 @@
 								</span>
 
 								<p class={`${compactHelpClass} min-h-[2.5rem]`}>
-									{i18n.t('playoff_spots_help', { unit: registrationType === 'team' ? i18n.t('teams') : i18n.t('players_lowercase') })}
+									{i18n.t('playoff_spots_help', {
+										unit:
+											registrationType === 'team' ? i18n.t('teams') : i18n.t('players_lowercase')
+									})}
 								</p>
 
 								<input
@@ -632,7 +758,9 @@
 				<section class={cardClass}>
 					<h2 class={sideTitleClass}>{i18n.t('registration')}</h2>
 
-					<div class="mt-4 grid grid-cols-1 gap-2.5 min-[430px]:grid-cols-2 sm:mt-5 sm:gap-3 lg:grid-cols-1">
+					<div
+						class="mt-4 grid grid-cols-1 gap-2.5 min-[430px]:grid-cols-2 sm:mt-5 sm:gap-3 lg:grid-cols-1"
+					>
 						<label
 							class={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3 transition sm:p-4 ${
 								registrationType === 'team'
@@ -676,7 +804,9 @@
 					</div>
 
 					{#if registrationType === 'team'}
-						<div class="mt-4 grid grid-cols-1 gap-2 min-[520px]:grid-cols-3 sm:mt-5 sm:gap-3 lg:grid-cols-1">
+						<div
+							class="mt-4 grid grid-cols-1 gap-2 min-[520px]:grid-cols-3 sm:mt-5 sm:gap-3 lg:grid-cols-1"
+						>
 							<label class="block">
 								<span class={labelClass}>
 									{i18n.t('on_field')}
@@ -697,7 +827,7 @@
 
 							<label class="block">
 								<span class={labelClass}>
-									{i18n.t('min_team')}
+									{i18n.t('min_team')}<span class={requiredAsteriskClass}>*</span>
 								</span>
 
 								<p class={compactHelpClass}>
@@ -709,13 +839,17 @@
 									type="number"
 									min="1"
 									placeholder={i18n.t('example_number', { count: 5 })}
-									class={`mt-2 ${inputClass}`}
+									aria-invalid={hasFieldError('minTeamSize')}
+									class={`mt-2 ${inputClass} ${hasFieldError('minTeamSize') ? invalidInputClass : ''}`}
 								/>
+								{#if hasFieldError('minTeamSize')}
+									<p class={fieldErrorClass}>{formErrors.minTeamSize}</p>
+								{/if}
 							</label>
 
 							<label class="block">
 								<span class={labelClass}>
-									{i18n.t('max_team')}
+									{i18n.t('max_team')}<span class={requiredAsteriskClass}>*</span>
 								</span>
 
 								<p class={compactHelpClass}>
@@ -727,8 +861,12 @@
 									type="number"
 									min="1"
 									placeholder={i18n.t('example_number', { count: 8 })}
-									class={`mt-2 ${inputClass}`}
+									aria-invalid={hasFieldError('maxTeamSize')}
+									class={`mt-2 ${inputClass} ${hasFieldError('maxTeamSize') ? invalidInputClass : ''}`}
 								/>
+								{#if hasFieldError('maxTeamSize')}
+									<p class={fieldErrorClass}>{formErrors.maxTeamSize}</p>
+								{/if}
 							</label>
 
 							<label
@@ -738,7 +876,9 @@
 									<span class="block font-black text-slate-950 dark:text-slate-50"
 										>{i18n.t('allow_open_teams')}</span
 									>
-									<span class="mt-1 block text-[11px] font-bold leading-snug text-slate-500 dark:text-slate-400 sm:text-xs">
+									<span
+										class="mt-1 block text-[11px] font-bold leading-snug text-slate-500 dark:text-slate-400 sm:text-xs"
+									>
 										{i18n.t('allow_open_teams_help')}
 									</span>
 								</span>
@@ -775,7 +915,8 @@
 							<option value="free">{i18n.t('free_entry')}</option>
 							<option value="split">{i18n.t('split_cost')}</option>
 							<option value="paid" disabled={!isVerified}
-								>{i18n.t('paid_entry')} {isVerified ? '' : i18n.t('verified_only_parenthetical')}</option
+								>{i18n.t('paid_entry')}
+								{isVerified ? '' : i18n.t('verified_only_parenthetical')}</option
 							>
 						</select>
 
@@ -784,7 +925,8 @@
 							<option value="trophy">{i18n.t('trophy_medal')}</option>
 							<option value="product">{i18n.t('product_voucher')}</option>
 							<option value="cash" disabled={!isVerified}
-								>{i18n.t('cash_prize')} {isVerified ? '' : i18n.t('verified_only_parenthetical')}</option
+								>{i18n.t('cash_prize')}
+								{isVerified ? '' : i18n.t('verified_only_parenthetical')}</option
 							>
 							<option value="other">{i18n.t('other_prize')}</option>
 						</select>
@@ -792,11 +934,13 @@
 						{#if entryFeeType !== 'free'}
 							<label class="block">
 								<span class={labelClass}>
-									{i18n.t('entry_fee')}
+									{i18n.t('entry_fee')}<span class={requiredAsteriskClass}>*</span>
 								</span>
 
 								<p class={compactHelpClass}>
-									{i18n.t('entry_fee_amount_help', { unit: registrationType === 'team' ? i18n.t('team') : i18n.t('player') })}
+									{i18n.t('entry_fee_amount_help', {
+										unit: registrationType === 'team' ? i18n.t('team') : i18n.t('player')
+									})}
 								</p>
 
 								<div class="mt-2 grid grid-cols-[minmax(0,1fr)_6.5rem] gap-2">
@@ -808,14 +952,21 @@
 										placeholder={registrationType === 'team'
 											? i18n.t('example_fee_team')
 											: i18n.t('example_fee_player')}
-										class={inputClass}
+										aria-invalid={hasFieldError('entryFeeAmount')}
+										class={`${inputClass} ${hasFieldError('entryFeeAmount') ? invalidInputClass : ''}`}
 									/>
 									<select bind:value={currency} aria-label={i18n.t('currency')} class={inputClass}>
-										{#each currencyOptions as option}
+										{#each currencyOptions as option (option.value)}
 											<option value={option.value}>{option.label}</option>
 										{/each}
 									</select>
 								</div>
+								{#if hasFieldError('entryFeeAmount')}
+									<p class={fieldErrorClass}>{formErrors.entryFeeAmount}</p>
+								{/if}
+								{#if hasFieldError('payment')}
+									<p class={fieldErrorClass}>{formErrors.payment}</p>
+								{/if}
 							</label>
 						{/if}
 
@@ -850,8 +1001,9 @@
 
 				<button
 					type="submit"
-					disabled={creating || !canCreateTournament}
-					class="w-full rounded-2xl bg-red-600 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-red-600/25 transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-45 sm:py-4 sm:text-base"
+					disabled={creating}
+					aria-disabled={!canCreateTournament}
+					class="w-full rounded-2xl bg-blue-600 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-45 sm:py-4 sm:text-base"
 				>
 					{creating ? i18n.t('creating_tournament') : i18n.t('create_tournament')}
 				</button>

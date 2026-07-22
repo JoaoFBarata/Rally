@@ -2501,6 +2501,7 @@ class I18nService {
 			what_to_bring_placeholder: 'Football boots, water bottle, your own racket...',
 			location_name_label: 'Location name',
 			date_label: 'Date',
+			select_date: 'Select date',
 			start_time_label: 'Start',
 			duration_label: 'Duration',
 			duration_hours_aria: 'Duration in hours',
@@ -2564,6 +2565,9 @@ class I18nService {
 			could_not_find_approx_location:
 				'Could not find an approximate location. Try a street name, postal code, or click on the map.',
 			required_fields_error: 'Please fill in the required fields.',
+			min_participants_min_error: 'Minimum participants must be at least 1.',
+			min_greater_than_max_error:
+				'Minimum participants cannot be greater than maximum participants.',
 			future_date_error: 'The event must be scheduled in the future.',
 			end_after_start_error: 'The end time must be after the start time.',
 			valid_duration_error: 'Add a valid event duration.',
@@ -3412,6 +3416,7 @@ class I18nService {
 			what_to_bring_placeholder: 'Chuteiras, garrafa de água, a tua própria raquete...',
 			location_name_label: 'Nome do local',
 			date_label: 'Data',
+			select_date: 'Selecionar data',
 			start_time_label: 'Início',
 			duration_label: 'Duração',
 			duration_hours_aria: 'Duração em horas',
@@ -3476,6 +3481,8 @@ class I18nService {
 			could_not_find_approx_location:
 				'Não foi possível encontrar uma localização aproximada. Tenta um nome de rua, código postal, ou clica no mapa.',
 			required_fields_error: 'Por favor, preenche todos os campos obrigatórios.',
+			min_participants_min_error: 'O mínimo de participantes deve ser pelo menos 1.',
+			min_greater_than_max_error: 'O mínimo de participantes não pode ser maior do que o máximo.',
 			future_date_error: 'O evento tem de ser agendado no futuro.',
 			end_after_start_error: 'A hora de fim tem de ser depois da hora de início.',
 			valid_duration_error: 'Adiciona uma duração de evento válida.',
@@ -4336,6 +4343,7 @@ class I18nService {
 			what_to_bring_placeholder: 'Botas de fútbol, botella de agua, tu propia raqueta...',
 			location_name_label: 'Nombre del lugar',
 			date_label: 'Fecha',
+			select_date: 'Seleccionar fecha',
 			start_time_label: 'Inicio',
 			duration_label: 'Duración',
 			duration_hours_aria: 'Duración en horas',
@@ -4400,6 +4408,8 @@ class I18nService {
 			could_not_find_approx_location:
 				'No se pudo encontrar una ubicación aproximada. Intenta con un nombre de calle, código postal, o haz clic en el mapa.',
 			required_fields_error: 'Por favor, completa los campos requeridos.',
+			min_participants_min_error: 'El mínimo de participantes debe ser al menos 1.',
+			min_greater_than_max_error: 'El mínimo de participantes no puede ser mayor que el máximo.',
 			future_date_error: 'El evento debe ser programado en el futuro.',
 			end_after_start_error: 'La hora de fin debe ser posterior a la hora de inicio.',
 			valid_duration_error: 'Agrega una duración de evento válida.',
@@ -5270,6 +5280,7 @@ class I18nService {
 			what_to_bring_placeholder: "Chaussures de foot, gourde d'eau, votre propre raquette...",
 			location_name_label: 'Nom du lieu',
 			date_label: 'Date',
+			select_date: 'Sélectionner une date',
 			start_time_label: 'Début',
 			duration_label: 'Durée',
 			duration_hours_aria: 'Durée en heures',
@@ -5334,6 +5345,9 @@ class I18nService {
 			could_not_find_approx_location:
 				'Impossible de trouver un emplacement approximatif. Essayez un nom de rue, un code postal, ou cliquez sur la carte.',
 			required_fields_error: 'Veuillez remplir les champs obligatoires.',
+			min_participants_min_error: 'Le minimum de participants doit être au moins 1.',
+			min_greater_than_max_error:
+				'Le minimum de participants ne peut pas être supérieur au maximum.',
 			future_date_error: "L'événement doit être programmé dans le futur.",
 			end_after_start_error: "L'heure de fin doit être après l'heure de début.",
 			valid_duration_error: "Ajoutez une durée d'événement valide.",

@@ -5,12 +5,14 @@
 		id,
 		value = $bindable(''),
 		placeholder = '',
-		flush = false
+		flush = false,
+		invalid = false
 	}: {
 		id?: string;
 		value?: string;
 		placeholder?: string;
 		flush?: boolean;
+		invalid?: boolean;
 	} = $props();
 
 	const timeOptions = Array.from({ length: 96 }, (_, index) => {
@@ -25,10 +27,15 @@
 <select
 	{id}
 	bind:value
-	class={`${flush ? '' : 'mt-2'} w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-950 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:border-slate-500 dark:focus:bg-slate-800 dark:focus:ring-slate-700 sm:px-4 sm:py-3 sm:text-base`}
+	aria-invalid={invalid}
+	class={`${flush ? '' : 'mt-2'} w-full min-w-0 rounded-2xl border px-3 py-2.5 text-sm text-slate-950 outline-none transition sm:px-4 sm:py-3 sm:text-base ${
+		invalid
+			? 'border-red-400 bg-red-50/70 focus:border-red-500 focus:bg-white focus:ring-2 focus:ring-red-100 dark:border-red-700 dark:bg-red-950/30 dark:text-slate-50 dark:focus:bg-slate-800 dark:focus:ring-red-950'
+			: 'border-slate-200 bg-slate-50 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus:border-slate-500 dark:focus:bg-slate-800 dark:focus:ring-slate-700'
+	}`}
 >
 	<option value="" disabled>{placeholder || i18n.t('select_time')}</option>
-	{#each timeOptions as option}
+	{#each timeOptions as option (option)}
 		<option value={option}>{option}</option>
 	{/each}
 </select>

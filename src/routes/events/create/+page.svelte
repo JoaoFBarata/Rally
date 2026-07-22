@@ -63,6 +63,7 @@
 	let level = $state<SportLevel>('casual');
 	let loading = $state(false);
 	let error = $state('');
+	let submitAttempted = $state(false);
 	let showPublicPrivateProfileConfirm = $state(false);
 	let voiceLocationHint = $state('');
 	let step = $state<'choice' | 'form'>('form');
@@ -88,20 +89,19 @@
 		const hasValidMinimum =
 			!enableMinParticipants ||
 			Boolean(minParticipants && minParticipants >= 1 && minParticipants <= maxParticipants);
-		const hasValidPrice =
-			priceMode === 'free' || Boolean(priceValue !== null && priceValue > 0);
+		const hasValidPrice = priceMode === 'free' || Boolean(priceValue !== null && priceValue > 0);
 
 		return Boolean(
 			title.trim() &&
-				(sport !== 'other' || customSport.trim()) &&
-				address.trim() &&
-				lat !== null &&
-				lng !== null &&
-				hasValidStart &&
-				durationMinutes >= 15 &&
-				maxParticipants >= 2 &&
-				hasValidMinimum &&
-				hasValidPrice
+			(sport !== 'other' || customSport.trim()) &&
+			address.trim() &&
+			lat !== null &&
+			lng !== null &&
+			hasValidStart &&
+			durationMinutes >= 15 &&
+			maxParticipants >= 2 &&
+			hasValidMinimum &&
+			hasValidPrice
 		);
 	});
 
@@ -111,14 +111,22 @@
 		const start = new Date(`${startDate}T00:00:00`);
 		if (isNaN(start.getTime())) return '';
 
-		const end = new Date(start.getTime());
-
 		if (recurringFrequency === 'monthly') {
-			end.setMonth(end.getMonth() + (recurringOccurrences - 1));
-		} else {
-			const offsetDays = recurringFrequency === 'weekly' ? 7 : 14;
-			end.setDate(end.getDate() + offsetDays * (recurringOccurrences - 1));
+			const end = new Date(
+				start.getFullYear(),
+				start.getMonth() + recurringOccurrences - 1,
+				start.getDate()
+			);
+
+			return end.toLocaleDateString(getCurrentLocale(), {
+				day: 'numeric',
+				month: 'short',
+				year: 'numeric'
+			});
 		}
+
+		const offsetDays = recurringFrequency === 'weekly' ? 7 : 14;
+		const end = new Date(start.getTime() + offsetDays * (recurringOccurrences - 1) * 86_400_000);
 
 		return end.toLocaleDateString(getCurrentLocale(), {
 			day: 'numeric',
@@ -171,6 +179,10 @@
 	const inputClass =
 		'w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 dark:focus:ring-blue-950 sm:px-4 sm:py-3 sm:text-base';
 	const labelClass = 'text-xs font-bold text-slate-700 dark:text-slate-300 sm:text-sm';
+	const requiredAsteriskClass = 'ml-1 text-red-500';
+	const invalidInputClass =
+		'border-red-400 bg-red-50/70 focus:border-red-500 focus:ring-red-100 dark:border-red-700 dark:bg-red-950/30 dark:focus:ring-red-950';
+	const fieldErrorClass = 'mt-1.5 text-xs font-bold text-red-600 dark:text-red-300';
 	const currencyOptions: { value: EventCurrency; label: string }[] = [
 		{ value: 'EUR', label: 'EUR €' },
 		{ value: 'USD', label: 'USD $' },
@@ -189,6 +201,39 @@
 		if (durationMinutes > 0) setDurationFromMinutes(durationMinutes);
 	}
 
+	const formErrors = $derived.by(() => {
+		const startAt = startDate && startTime ? new Date(`${startDate}T${startTime}`) : null;
+		const errors: Record<string, string> = {};
+
+		if (!title.trim()) errors.title = i18n.t('add_event_title_error');
+		if (sport === 'other' && !customSport.trim()) errors.customSport = i18n.t('no_sport_error');
+		if (!startDate || !startTime) errors.start = i18n.t('choose_date_start_time_error');
+		else if (!startAt || Number.isNaN(startAt.getTime()) || startAt <= new Date()) {
+			errors.start = i18n.t('future_date_error');
+		}
+		if (!durationMinutes || durationMinutes < 15) errors.duration = i18n.t('valid_duration_error');
+		if (maxParticipants < 2) errors.maxParticipants = i18n.t('max_participants_range_error');
+		if (lat === null || lng === null || !address.trim()) {
+			errors.location = i18n.t('select_location_error');
+		}
+		if (enableMinParticipants) {
+			if (!minParticipants || minParticipants < 1) {
+				errors.minParticipants = i18n.t('min_participants_min_error');
+			} else if (minParticipants > maxParticipants) {
+				errors.minParticipants = i18n.t('min_greater_than_max_error');
+			}
+		}
+		if (priceMode !== 'free' && (!priceValue || priceValue <= 0)) {
+			errors.price = i18n.t('valid_event_price_error');
+		}
+
+		return errors;
+	});
+
+	function hasFieldError(field: string) {
+		return submitAttempted && Boolean(formErrors[field]);
+	}
+
 	let showInviteModal = $state(false);
 	let createdEventId = $state('');
 	let createdEventTitle = $state('');
@@ -198,6 +243,7 @@
 	let inviteError = $state('');
 
 	async function handleCreateEvent(publicExposureConfirmed = false) {
+		submitAttempted = true;
 		error = '';
 
 		const currentUser = auth.currentUser;
@@ -242,11 +288,13 @@
 
 		if (enableMinParticipants) {
 			if (!minParticipants || minParticipants < 1) {
-				error = 'Minimum participants must be at least 1.';
+				error = i18n.t('min_participants_min_error');
 				return;
 			}
 			if (minParticipants > maxParticipants) {
-				error = i18n.t('min_greater_than_max_error') || 'Minimum participants cannot be greater than maximum participants.';
+				error =
+					i18n.t('min_greater_than_max_error') ||
+					'Minimum participants cannot be greater than maximum participants.';
 				return;
 			}
 		}
@@ -278,7 +326,9 @@
 				endAt,
 				maxParticipants,
 				minParticipants: enableMinParticipants ? minParticipants : null,
-				minParticipantsDeadlineHours: enableMinParticipants ? (minParticipantsDeadlineHours ?? 8) : null,
+				minParticipantsDeadlineHours: enableMinParticipants
+					? (minParticipantsDeadlineHours ?? 8)
+					: null,
 				visibility,
 				priceTotal: priceMode === 'total_split' ? (priceValue ?? undefined) : undefined,
 				pricePerPerson: priceMode === 'per_person' ? (priceValue ?? undefined) : undefined,
@@ -449,6 +499,7 @@
 					<div>
 						<label for="title" class={labelClass}>
 							{i18n.t('event_title_label')}
+							<span class={requiredAsteriskClass}>*</span>
 						</label>
 
 						<input
@@ -456,8 +507,12 @@
 							bind:value={title}
 							maxlength={TEXT_LIMITS.eventTitle}
 							placeholder={i18n.t('event_title_placeholder')}
-							class={`mt-2 ${inputClass}`}
+							aria-invalid={hasFieldError('title')}
+							class={`mt-2 ${inputClass} ${hasFieldError('title') ? invalidInputClass : ''}`}
 						/>
+						{#if hasFieldError('title')}
+							<p class={fieldErrorClass}>{formErrors.title}</p>
+						{/if}
 					</div>
 
 					<div class="flex items-center gap-3 sm:gap-4">
@@ -512,7 +567,7 @@
 							</label>
 						</div>
 
-						<div class="min-w-0">
+						<div class="relative min-w-0">
 							<p class="text-sm font-bold text-slate-700 dark:text-slate-300">
 								{i18n.t('group_photo')}
 							</p>
@@ -523,9 +578,10 @@
 					</div>
 
 					<div class="grid grid-cols-2 gap-3 sm:gap-5">
-						<div class="min-w-0">
+						<div class="relative min-w-0">
 							<label for="sport" class={labelClass}>
 								{i18n.t('sport_label')}
+								<span class={requiredAsteriskClass}>*</span>
 							</label>
 
 							<select id="sport" bind:value={sport} class={`mt-2 ${inputClass}`}>
@@ -555,13 +611,18 @@
 									bind:value={customSport}
 									maxlength={TEXT_LIMITS.customSport}
 									placeholder={i18n.t('custom_sport_placeholder')}
-									class={`mt-3 ${inputClass}`}
+									aria-invalid={hasFieldError('customSport')}
+									class={`mt-3 ${inputClass} ${hasFieldError('customSport') ? invalidInputClass : ''}`}
 								/>
+								{#if hasFieldError('customSport')}
+									<p class={fieldErrorClass}>{formErrors.customSport}</p>
+								{/if}
 							{/if}
 						</div>
 						<div class="min-w-0">
 							<label for="level" class={labelClass}>
 								{i18n.t('level_label')}
+								<span class={requiredAsteriskClass}>*</span>
 							</label>
 
 							<select id="level" bind:value={level} class={`mt-2 ${inputClass}`}>
@@ -615,9 +676,10 @@
 					</div>
 
 					<div class="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5">
-						<div class="min-w-0">
+						<div class="relative min-w-0">
 							<label for="startDate" class={labelClass}>
 								{i18n.t('date_label')}
+								<span class={requiredAsteriskClass}>*</span>
 							</label>
 
 							<input
@@ -625,29 +687,43 @@
 								type="date"
 								bind:value={startDate}
 								min={todayStr}
-								class={`mt-2 min-w-0 ${inputClass}`}
+								aria-invalid={hasFieldError('start')}
+								class={`peer mt-2 min-w-0 ${inputClass} ${hasFieldError('start') ? invalidInputClass : ''}`}
 							/>
+							{#if !startDate}
+								<span
+									class="pointer-events-none absolute left-3 top-[2.45rem] text-sm font-semibold text-slate-400 peer-focus:hidden dark:text-slate-500 sm:left-4 sm:top-[2.7rem] sm:text-base"
+								>
+									{i18n.t('select_date')}
+								</span>
+							{/if}
+							{#if hasFieldError('start')}
+								<p class={fieldErrorClass}>{formErrors.start}</p>
+							{/if}
 						</div>
 
 						<div class="min-w-0">
 							<label for="startTime" class={labelClass}>
 								{i18n.t('start_time_label')}
+								<span class={requiredAsteriskClass}>*</span>
 							</label>
 
 							<TimeSelect
 								id="startTime"
 								bind:value={startTime}
 								placeholder={i18n.t('choose_time')}
+								invalid={hasFieldError('start')}
 							/>
 						</div>
 
 						<div class="min-w-0">
 							<label for="durationHoursValue" class={labelClass}>
 								{i18n.t('duration_label')}
+								<span class={requiredAsteriskClass}>*</span>
 							</label>
 
 							<div
-								class="mt-2 flex min-w-0 items-center gap-1 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-slate-950 transition focus-within:border-blue-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus-within:bg-slate-800 dark:focus-within:ring-blue-950 sm:px-4 sm:py-3"
+								class={`mt-2 flex min-w-0 items-center gap-1 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-slate-950 transition focus-within:border-blue-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:focus-within:bg-slate-800 dark:focus-within:ring-blue-950 sm:px-4 sm:py-3 ${hasFieldError('duration') ? invalidInputClass : ''}`}
 							>
 								<input
 									id="durationHoursValue"
@@ -678,11 +754,15 @@
 									>h</span
 								>
 							</div>
+							{#if hasFieldError('duration')}
+								<p class={fieldErrorClass}>{formErrors.duration}</p>
+							{/if}
 						</div>
 
 						<div class="min-w-0">
 							<label for="maxParticipants" class={labelClass}>
 								{i18n.t('max_players_label')}
+								<span class={requiredAsteriskClass}>*</span>
 							</label>
 
 							<input
@@ -690,12 +770,18 @@
 								type="number"
 								min="2"
 								bind:value={maxParticipants}
-								class={`mt-2 ${inputClass}`}
+								aria-invalid={hasFieldError('maxParticipants')}
+								class={`mt-2 ${inputClass} ${hasFieldError('maxParticipants') ? invalidInputClass : ''}`}
 							/>
+							{#if hasFieldError('maxParticipants')}
+								<p class={fieldErrorClass}>{formErrors.maxParticipants}</p>
+							{/if}
 						</div>
 					</div>
 
-					<div class="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800 sm:p-4">
+					<div
+						class="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800 sm:p-4"
+					>
 						<label class="flex cursor-pointer items-center justify-between gap-4">
 							<div>
 								<p class="text-sm font-bold text-slate-700 dark:text-slate-300">
@@ -718,6 +804,7 @@
 								<div>
 									<label for="minParticipants" class={labelClass}>
 										{i18n.t('min_participants')}
+										<span class={requiredAsteriskClass}>*</span>
 									</label>
 									<input
 										id="minParticipants"
@@ -726,8 +813,12 @@
 										max={maxParticipants}
 										bind:value={minParticipants}
 										placeholder="e.g. 4"
-										class={`mt-2 ${inputClass}`}
+										aria-invalid={hasFieldError('minParticipants')}
+										class={`mt-2 ${inputClass} ${hasFieldError('minParticipants') ? invalidInputClass : ''}`}
 									/>
+									{#if hasFieldError('minParticipants')}
+										<p class={fieldErrorClass}>{formErrors.minParticipants}</p>
+									{/if}
 								</div>
 								<div>
 									<label for="minParticipantsDeadlineHours" class={labelClass}>
@@ -741,7 +832,8 @@
 										<option value={1}>{i18n.t('hours_before_start', { hours: 1 })}</option>
 										<option value={2}>{i18n.t('hours_before_start', { hours: 2 })}</option>
 										<option value={4}>{i18n.t('hours_before_start', { hours: 4 })}</option>
-										<option value={8}>{i18n.t('hours_before_start', { hours: 8 })} (Default)</option>
+										<option value={8}>{i18n.t('hours_before_start', { hours: 8 })} (Default)</option
+										>
 										<option value={12}>{i18n.t('hours_before_start', { hours: 12 })}</option>
 										<option value={24}>{i18n.t('hours_before_start', { hours: 24 })}</option>
 										<option value={48}>{i18n.t('hours_before_start', { hours: 48 })}</option>
@@ -881,6 +973,7 @@
 									{priceMode === 'per_person'
 										? i18n.t('price_per_person_label')
 										: i18n.t('total_event_price_label')}
+									<span class={requiredAsteriskClass}>*</span>
 								</label>
 
 								<div
@@ -893,15 +986,18 @@
 										step="0.01"
 										bind:value={priceValue}
 										placeholder="0.00"
-										required
-										class={inputClass}
+										aria-invalid={hasFieldError('price')}
+										class={`${inputClass} ${hasFieldError('price') ? invalidInputClass : ''}`}
 									/>
 									<select bind:value={currency} aria-label={i18n.t('currency')} class={inputClass}>
-										{#each currencyOptions as option}
+										{#each currencyOptions as option (option.value)}
 											<option value={option.value}>{option.label}</option>
 										{/each}
 									</select>
 								</div>
+								{#if hasFieldError('price')}
+									<p class={fieldErrorClass}>{formErrors.price}</p>
+								{/if}
 							</div>
 						{/if}
 					</div>
@@ -949,7 +1045,15 @@
 					</div>
 
 					<div class="mt-4 sm:mt-8">
+						<p
+							class={`mb-2 text-sm font-bold ${hasFieldError('location') ? 'text-red-600 dark:text-red-300' : 'text-slate-700 dark:text-slate-300'}`}
+						>
+							{i18n.t('location_schedule')}<span class={requiredAsteriskClass}>*</span>
+						</p>
 						<LocationPickerMap bind:lat bind:lng bind:address autofillAddress={voiceLocationHint} />
+						{#if hasFieldError('location')}
+							<p class={fieldErrorClass}>{formErrors.location}</p>
+						{/if}
 					</div>
 					{#if (sport === 'running' || sport === 'cycling' || sport === 'hiking') && lat !== null && lng !== null}
 						<div class="mt-4">
@@ -961,8 +1065,9 @@
 					{/if}
 					<button
 						type="submit"
-						disabled={loading || groupPhotoUploading || !canCreateEvent}
-						class="mt-3 w-full rounded-2xl bg-red-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-red-600/25 transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-45 dark:shadow-red-950/40 sm:py-4 sm:text-base"
+						disabled={loading || groupPhotoUploading}
+						aria-disabled={!canCreateEvent}
+						class="mt-3 w-full rounded-2xl bg-blue-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-45 dark:shadow-blue-950/40 sm:py-4 sm:text-base"
 					>
 						{loading
 							? i18n.t('creating_btn')
@@ -984,12 +1089,27 @@
 			class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
 			onclick={() => (showPublicPrivateProfileConfirm = false)}
 		></button>
-		<section class="relative w-full max-w-md rounded-[2rem] border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 sm:p-7">
-			<div class="grid h-12 w-12 place-items-center rounded-2xl bg-amber-100 text-2xl dark:bg-amber-950/60">⚠️</div>
-			<h2 class="mt-4 text-xl font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{i18n.t('private_public_event_warning_title')}</h2>
-			<p class="mt-2 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{i18n.t('private_public_event_warning_message')}</p>
+		<section
+			class="relative w-full max-w-md rounded-[2rem] border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 sm:p-7"
+		>
+			<div
+				class="grid h-12 w-12 place-items-center rounded-2xl bg-amber-100 text-2xl dark:bg-amber-950/60"
+			>
+				⚠️
+			</div>
+			<h2 class="mt-4 text-xl font-black text-slate-950 dark:text-slate-50 sm:text-2xl">
+				{i18n.t('private_public_event_warning_title')}
+			</h2>
+			<p class="mt-2 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">
+				{i18n.t('private_public_event_warning_message')}
+			</p>
 			<div class="mt-6 grid grid-cols-2 gap-3">
-				<button type="button" onclick={() => (showPublicPrivateProfileConfirm = false)} class="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-black text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">{i18n.t('cancel')}</button>
+				<button
+					type="button"
+					onclick={() => (showPublicPrivateProfileConfirm = false)}
+					class="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-black text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+					>{i18n.t('cancel')}</button
+				>
 				<button
 					type="button"
 					onclick={() => {
@@ -997,7 +1117,8 @@
 						void handleCreateEvent(true);
 					}}
 					class="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700"
-				>{i18n.t('confirm_public_event')}</button>
+					>{i18n.t('confirm_public_event')}</button
+				>
 			</div>
 		</section>
 	</div>
