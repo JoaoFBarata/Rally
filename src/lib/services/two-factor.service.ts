@@ -26,7 +26,9 @@ function isBrowser() {
 }
 
 export function normalizeTwoFactorReturnTo(returnTo?: string | null) {
-	return returnTo?.startsWith('/') && returnTo !== '/' ? returnTo : '/dashboard';
+	return returnTo?.startsWith('/') && !returnTo.startsWith('//') && !returnTo.includes('\\') && returnTo !== '/'
+		? returnTo
+		: '/dashboard';
 }
 
 function recordCompletedChallenge(returnTo: string) {
