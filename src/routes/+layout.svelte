@@ -58,18 +58,22 @@
 				CapacitorApp.exitApp();
 			}
 		});
-		const openAppUrl = (url: string) => {
+		const openAppUrl = async (url: string) => {
 			try {
 				const appUrl = new URL(url);
 				if (appUrl.hostname !== 'synqo-rally.web.app') return;
-				void goto(`${appUrl.pathname}${appUrl.search}${appUrl.hash}`);
+				await goto(`${appUrl.pathname}${appUrl.search}${appUrl.hash}`);
+				// `goto` can reuse the current /verify-2fa component. Notify it so
+				// a newly-arrived Firebase oobCode is processed without requiring a
+				// reload (the normal case when an Android app link reopens Rally).
+				window.dispatchEvent(new CustomEvent('rally:app-url-opened'));
 			} catch (error) {
 				console.error('Invalid Rally app link:', error);
 			}
 		};
-		const appUrlListener = CapacitorApp.addListener('appUrlOpen', ({ url }) => openAppUrl(url));
+		const appUrlListener = CapacitorApp.addListener('appUrlOpen', ({ url }) => void openAppUrl(url));
 		void CapacitorApp.getLaunchUrl().then((launch) => {
-			if (launch?.url) openAppUrl(launch.url);
+			if (launch?.url) void openAppUrl(launch.url);
 		});
 		const handleDashboardReady = () => (nativeStartupPending = false);
 		window.addEventListener('rally:dashboard-ready', handleDashboardReady);

@@ -25,6 +25,9 @@
 	let confirmationEmail = $state('');
 	let needsEmailConfirmation = $state(false);
 	let verifiedReturnTo = $state('');
+	let completedReturnTo = $state('');
+	let processingUrl = false;
+	let lastProcessedLink = '';
 
 	function removeConsumedCodeFromAddressBar() {
 		const cleanUrl = new URL('/verify-2fa', window.location.origin);
@@ -42,9 +45,41 @@
 			!verifiedReturnTo &&
 			!currentUrlIsEmailTwoFactorLink()
 		) {
-			void goto(returnTo, { replaceState: true });
+			void goto(completedReturnTo || returnTo, { replaceState: true });
 		}
 	});
+
+	async function processCurrentUrl() {
+		if (!currentUrlIsEmailTwoFactorLink()) return;
+
+		const link = window.location.href;
+		if (processingUrl || lastProcessedLink === link) return;
+		processingUrl = true;
+		lastProcessedLink = link;
+		loading = true;
+		error = '';
+		success = '';
+
+		try {
+			const pending = getPendingTwoFactorChallenge();
+			pendingEmail = pending?.email ?? '';
+			if (!pending) {
+				needsEmailConfirmation = true;
+				return;
+			}
+
+			const result = await completeEmailTwoFactorChallenge();
+			verifiedReturnTo = result.returnTo || returnTo;
+			removeConsumedCodeFromAddressBar();
+			await goto(verifiedReturnTo, { replaceState: true });
+		} catch (err) {
+			console.error('Two-factor verification error:', err);
+			error = getFriendlyErrorMessage(err, 'Could not verify this login.');
+		} finally {
+			processingUrl = false;
+			loading = false;
+		}
+	}
 
 	onMount(() => {
 		const publicAppUrl = new URL(getPublicAppBaseUrl());
@@ -65,14 +100,17 @@
 
 			try {
 				const completed = JSON.parse(event.newValue) as { returnTo?: string };
-				const destination = normalizeTwoFactorReturnTo(completed.returnTo);
-				void goto(destination);
+				completedReturnTo = normalizeTwoFactorReturnTo(completed.returnTo);
+				if (authState.user) void goto(completedReturnTo, { replaceState: true });
 			} catch {
-				void goto(returnTo);
+				completedReturnTo = returnTo;
+				if (authState.user) void goto(returnTo, { replaceState: true });
 			}
 		}
+		const handleAppUrlOpened = () => void processCurrentUrl();
 
 		window.addEventListener('storage', handleCompletedChallenge);
+		window.addEventListener('rally:app-url-opened', handleAppUrlOpened);
 
 		void (async () => {
 			error = '';
@@ -83,14 +121,7 @@
 				pendingEmail = pending?.email ?? '';
 
 				if (currentUrlIsEmailTwoFactorLink()) {
-					if (!pending) {
-						needsEmailConfirmation = true;
-						return;
-					}
-					const result = await completeEmailTwoFactorChallenge();
-					verifiedReturnTo = result.returnTo || returnTo;
-					success = 'Login verified. You can close this page and return to the other Rally page.';
-					removeConsumedCodeFromAddressBar();
+					await processCurrentUrl();
 					return;
 				}
 
@@ -107,7 +138,10 @@
 			}
 		})();
 
-		return () => window.removeEventListener('storage', handleCompletedChallenge);
+		return () => {
+			window.removeEventListener('storage', handleCompletedChallenge);
+			window.removeEventListener('rally:app-url-opened', handleAppUrlOpened);
+		};
 	});
 
 	async function handleEmailConfirmation() {
@@ -122,9 +156,9 @@
 		try {
 			const result = await completeEmailTwoFactorChallenge({ email, returnTo });
 			verifiedReturnTo = result.returnTo || returnTo;
-			success = 'Login verified. You can close this page and return to the other Rally page.';
 			needsEmailConfirmation = false;
 			removeConsumedCodeFromAddressBar();
+			await goto(verifiedReturnTo, { replaceState: true });
 		} catch (err) {
 			console.error('Two-factor email confirmation error:', err);
 			error = getFriendlyErrorMessage(err, 'Could not verify this login. Check the email and try again.');
