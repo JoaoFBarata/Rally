@@ -32,6 +32,7 @@
 	import { getUserPointTransactions, RALLY_POINTS_CONFIG } from '$lib/services/points.service';
 	import {
 		getDeviceAccounts,
+		refreshDeviceAccounts,
 		rememberDeviceAccount,
 		type DeviceAccount
 	} from '$lib/services/device-accounts.service';
@@ -97,7 +98,7 @@
 	let fileInput = $state<HTMLInputElement | null>(null);
 	let friendToRemove = $state<UserProfile | null>(null);
 
-	const appAvatars = profileAvatarOptions.map((avatar) => avatar.src);
+	const appAvatars = profileAvatarOptions;
 
 	function sortByDisplayName(a: UserProfile, b: UserProfile) {
 		return (a.displayName ?? '').localeCompare(b.displayName ?? '', undefined, {
@@ -135,7 +136,7 @@
 			friends = rawFriends.sort(sortByDisplayName);
 
 			pointTransactions = await getUserPointTransactions(currentUser.uid, 5);
-			deviceAccounts = getDeviceAccounts();
+			deviceAccounts = await refreshDeviceAccounts();
 		} catch (err) {
 			console.error('Profile load error:', err);
 			error = getFriendlyErrorMessage(err, 'Could not load profile.');
@@ -1672,13 +1673,14 @@
 				{:else}
 					<div class="mt-6">
 						<div class="grid grid-cols-3 gap-3">
-							{#each appAvatars as avatar (avatar)}
+							{#each appAvatars as avatar (avatar.id)}
 								<button
 									type="button"
-									onclick={() => selectAppAvatar(avatar)}
+									onclick={() => selectAppAvatar(avatar.src)}
+									aria-label={i18n.t(avatar.labelKey)}
 									class="relative aspect-square overflow-hidden rounded-2xl border-2 border-slate-100 bg-slate-50 transition hover:scale-105 hover:border-blue-500 active:scale-95 dark:border-slate-800 dark:bg-slate-800/50 dark:hover:border-blue-400"
 								>
-									<img src={avatar} alt="App Avatar" class="h-full w-full object-cover" />
+									<img src={avatar.src} alt="" class="h-full w-full object-cover" />
 								</button>
 							{/each}
 						</div>

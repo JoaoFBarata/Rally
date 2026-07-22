@@ -17,7 +17,9 @@
 	import { i18n } from '$lib/services/i18n.svelte';
 	import {
 		canFastSwitchDeviceAccount,
+		getDeviceAccountPhotoURL,
 		getDeviceAccounts,
+		refreshDeviceAccounts,
 		rememberDeviceAccount,
 		removeDeviceAccount,
 		type DeviceAccount
@@ -96,7 +98,7 @@
 			}
 			canChangePassword = currentUser.providerData.some((p) => p.providerId === 'password');
 			deviceAccounts = rememberDeviceAccount(profile, currentUser);
-			deviceAccounts = getDeviceAccounts();
+			deviceAccounts = await refreshDeviceAccounts();
 		} catch (err) {
 			console.error('Settings load error:', err);
 			error = getFriendlyErrorMessage(err, 'Could not load settings.');
@@ -225,7 +227,8 @@
 			if (profile) deviceAccounts = rememberDeviceAccount(profile, auth.currentUser);
 
 			if (canFastSwitchDeviceAccount(account)) {
-				const { user: switchedUser, profile: switchedProfile } = await authService.signInWithGoogle();
+				const { user: switchedUser, profile: switchedProfile } =
+					await authService.signInWithGoogle();
 
 				if (switchedUser.uid !== account.id) {
 					deviceAccounts = getDeviceAccounts();
@@ -238,7 +241,7 @@
 						? {
 								...switchedProfile,
 								displayName: account.displayName,
-								photoURL: account.photoURL ?? null,
+								photoURL: getDeviceAccountPhotoURL(account),
 								rallyTag: account.rallyTag,
 								accountType: account.accountType,
 								activeOrganizationId: account.activeOrganizationId ?? null
@@ -246,7 +249,9 @@
 						: switchedProfile;
 				deviceAccounts = rememberDeviceAccount(accountProfile, switchedUser);
 				showAccountSwitcher = false;
-				await goto(getPostSwitchHref(deviceAccounts.find((item) => item.id === switchedUser.uid) ?? account));
+				await goto(
+					getPostSwitchHref(deviceAccounts.find((item) => item.id === switchedUser.uid) ?? account)
+				);
 				return;
 			}
 
@@ -291,7 +296,9 @@
 	</button>
 
 	<div>
-		<h1 class="text-3xl font-black text-slate-950 dark:text-slate-50">{i18n.t('settings_title')}</h1>
+		<h1 class="text-3xl font-black text-slate-950 dark:text-slate-50">
+			{i18n.t('settings_title')}
+		</h1>
 		<p class="mt-1 text-slate-500 dark:text-slate-400">
 			{i18n.t('settings_sub')}
 		</p>
@@ -309,7 +316,9 @@
 		<p class="font-bold text-slate-500 dark:text-slate-400">{i18n.t('loading_settings')}</p>
 	{:else}
 		<section>
-			<p class="mb-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+			<p
+				class="mb-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500"
+			>
 				{i18n.t('app')}
 			</p>
 
@@ -345,11 +354,11 @@
 					</div>
 				</div>
 
-					<label class="flex items-start justify-between gap-4 p-4">
-						<div class="min-w-0 flex-1">
-							<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('language')}</p>
-							<p class="text-xs text-slate-500 dark:text-slate-400">{i18n.t('select_language')}</p>
-						</div>
+				<label class="flex items-start justify-between gap-4 p-4">
+					<div class="min-w-0 flex-1">
+						<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('language')}</p>
+						<p class="text-xs text-slate-500 dark:text-slate-400">{i18n.t('select_language')}</p>
+					</div>
 					<select
 						value={selectedLanguage}
 						onchange={(e) => handleLanguageChange(e.currentTarget.value)}
@@ -360,26 +369,30 @@
 						<option value="es">Español</option>
 						<option value="fr">Français</option>
 					</select>
-					</label>
+				</label>
 
-					<a
-						href={resolve('/saved-events')}
-						class="flex items-center justify-between gap-4 p-4 transition hover:bg-slate-100 dark:hover:bg-slate-700"
-					>
-						<span class="min-w-0 flex-1">
-							<span class="block font-black text-slate-950 dark:text-slate-50">{i18n.t('saved_events')}</span>
-							<span class="block text-xs text-slate-500 dark:text-slate-400">
-								{i18n.t('saved_events_sub')}
-							</span>
+				<a
+					href={resolve('/saved-events')}
+					class="flex items-center justify-between gap-4 p-4 transition hover:bg-slate-100 dark:hover:bg-slate-700"
+				>
+					<span class="min-w-0 flex-1">
+						<span class="block font-black text-slate-950 dark:text-slate-50"
+							>{i18n.t('saved_events')}</span
+						>
+						<span class="block text-xs text-slate-500 dark:text-slate-400">
+							{i18n.t('saved_events_sub')}
 						</span>
-						<span class="shrink-0 text-slate-300">›</span>
-					</a>
-				</div>
-			</section>
+					</span>
+					<span class="shrink-0 text-slate-300">›</span>
+				</a>
+			</div>
+		</section>
 
 		{#if profile?.accountType === 'organization' && profile.activeOrganizationId}
 			<section>
-				<p class="mb-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+				<p
+					class="mb-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500"
+				>
 					{i18n.t('organization')}
 				</p>
 
@@ -421,7 +434,9 @@
 
 		{#if isPlatformAdmin}
 			<section>
-				<p class="mb-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+				<p
+					class="mb-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500"
+				>
 					{i18n.t('admin')}
 				</p>
 
@@ -445,37 +460,43 @@
 		{/if}
 
 		{#if profile?.accountType !== 'organization'}
-		<section>
-			<p class="mb-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-				{i18n.t('privacy')}
-			</p>
+			<section>
+				<p
+					class="mb-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500"
+				>
+					{i18n.t('privacy')}
+				</p>
 
-			<div class="overflow-hidden rounded-3xl bg-slate-50 dark:bg-slate-800">
-				<div class="flex items-center justify-between gap-4 p-4">
-					<div>
-						<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('private_profile')}</p>
-						<p class="text-xs text-slate-500 dark:text-slate-400">
-							{i18n.t('private_profile_sub')}
-						</p>
+				<div class="overflow-hidden rounded-3xl bg-slate-50 dark:bg-slate-800">
+					<div class="flex items-center justify-between gap-4 p-4">
+						<div>
+							<p class="font-black text-slate-950 dark:text-slate-50">
+								{i18n.t('private_profile')}
+							</p>
+							<p class="text-xs text-slate-500 dark:text-slate-400">
+								{i18n.t('private_profile_sub')}
+							</p>
+						</div>
+						<button
+							type="button"
+							onclick={handleTogglePrivate}
+							disabled={privacySaving}
+							class={`relative h-7 w-12 shrink-0 rounded-full transition disabled:opacity-60 ${profile?.isPrivate ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+							aria-label="Toggle private profile"
+						>
+							<span
+								class={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${profile?.isPrivate ? 'left-6' : 'left-1'}`}
+							></span>
+						</button>
 					</div>
-					<button
-						type="button"
-						onclick={handleTogglePrivate}
-						disabled={privacySaving}
-						class={`relative h-7 w-12 shrink-0 rounded-full transition disabled:opacity-60 ${profile?.isPrivate ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}
-						aria-label="Toggle private profile"
-					>
-						<span
-							class={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${profile?.isPrivate ? 'left-6' : 'left-1'}`}
-						></span>
-					</button>
 				</div>
-			</div>
-		</section>
+			</section>
 		{/if}
 
 		<section>
-			<p class="mb-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+			<p
+				class="mb-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500"
+			>
 				{i18n.t('security')}
 			</p>
 
@@ -515,7 +536,9 @@
 				{#if canChangePassword}
 					<div class="flex items-center justify-between gap-4 p-4">
 						<div>
-							<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('change_password')}</p>
+							<p class="font-black text-slate-950 dark:text-slate-50">
+								{i18n.t('change_password')}
+							</p>
 							<p class="text-xs text-slate-500 dark:text-slate-400">
 								{#if resetSent}
 									{i18n.t('password_reset_sent')}
@@ -530,7 +553,11 @@
 							disabled={resetLoading}
 							class="shrink-0 rounded-2xl bg-white px-4 py-2.5 text-sm font-black text-slate-900 shadow-sm transition hover:bg-slate-100 disabled:opacity-60 dark:bg-slate-900 dark:text-slate-50 dark:hover:bg-slate-700"
 						>
-							{resetLoading ? i18n.t('sending') : resetSent ? i18n.t('resend') : i18n.t('send_reset_email')}
+							{resetLoading
+								? i18n.t('sending')
+								: resetSent
+									? i18n.t('resend')
+									: i18n.t('send_reset_email')}
 						</button>
 					</div>
 				{:else}
@@ -572,7 +599,7 @@
 									class="flex min-w-0 flex-1 items-center gap-3 text-left disabled:opacity-60"
 								>
 									<UserAvatar
-										photoURL={account.photoURL}
+										photoURL={getDeviceAccountPhotoURL(account)}
 										displayName={account.displayName}
 										email={account.email}
 										size="md"
@@ -703,17 +730,50 @@
 
 {#if showDeleteAccountConfirm}
 	<div class="fixed inset-0 z-[70] flex items-center justify-center p-4">
-		<button type="button" aria-label={i18n.t('cancel')} class="absolute inset-0 bg-slate-950/65 backdrop-blur-sm" onclick={() => !deleteAccountLoading && (showDeleteAccountConfirm = false)}></button>
-		<section class="relative w-full max-w-md rounded-[2rem] border border-red-200 bg-white p-6 shadow-2xl dark:border-red-900/60 dark:bg-slate-900 sm:p-7">
-			<div class="grid h-12 w-12 place-items-center rounded-2xl bg-red-100 text-2xl dark:bg-red-950/60">⚠️</div>
-			<h2 class="mt-4 text-2xl font-black text-slate-950 dark:text-slate-50">{i18n.t('delete_account_confirm_title')}</h2>
-			<p class="mt-2 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{i18n.t('delete_account_confirm_message')}</p>
+		<button
+			type="button"
+			aria-label={i18n.t('cancel')}
+			class="absolute inset-0 bg-slate-950/65 backdrop-blur-sm"
+			onclick={() => !deleteAccountLoading && (showDeleteAccountConfirm = false)}
+		></button>
+		<section
+			class="relative w-full max-w-md rounded-[2rem] border border-red-200 bg-white p-6 shadow-2xl dark:border-red-900/60 dark:bg-slate-900 sm:p-7"
+		>
+			<div
+				class="grid h-12 w-12 place-items-center rounded-2xl bg-red-100 text-2xl dark:bg-red-950/60"
+			>
+				⚠️
+			</div>
+			<h2 class="mt-4 text-2xl font-black text-slate-950 dark:text-slate-50">
+				{i18n.t('delete_account_confirm_title')}
+			</h2>
+			<p class="mt-2 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">
+				{i18n.t('delete_account_confirm_message')}
+			</p>
 			{#if deleteAccountError}
-				<p class="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:bg-red-950/40 dark:text-red-300">{deleteAccountError}</p>
+				<p
+					class="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:bg-red-950/40 dark:text-red-300"
+				>
+					{deleteAccountError}
+				</p>
 			{/if}
 			<div class="mt-6 grid grid-cols-2 gap-3">
-				<button type="button" disabled={deleteAccountLoading} onclick={() => (showDeleteAccountConfirm = false)} class="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-black text-slate-600 disabled:opacity-60 dark:border-slate-700 dark:text-slate-300">{i18n.t('cancel')}</button>
-				<button type="button" disabled={deleteAccountLoading} onclick={handleDeleteAccount} class="rounded-2xl bg-red-600 px-4 py-3 text-sm font-black text-white transition hover:bg-red-700 disabled:opacity-60">{deleteAccountLoading ? i18n.t('deleting_account') : i18n.t('delete_account_forever')}</button>
+				<button
+					type="button"
+					disabled={deleteAccountLoading}
+					onclick={() => (showDeleteAccountConfirm = false)}
+					class="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-black text-slate-600 disabled:opacity-60 dark:border-slate-700 dark:text-slate-300"
+					>{i18n.t('cancel')}</button
+				>
+				<button
+					type="button"
+					disabled={deleteAccountLoading}
+					onclick={handleDeleteAccount}
+					class="rounded-2xl bg-red-600 px-4 py-3 text-sm font-black text-white transition hover:bg-red-700 disabled:opacity-60"
+					>{deleteAccountLoading
+						? i18n.t('deleting_account')
+						: i18n.t('delete_account_forever')}</button
+				>
 			</div>
 		</section>
 	</div>

@@ -23,6 +23,7 @@
 		getUserProfile,
 		getUserProfilesByIds,
 		updateUserOnboardingAvatar,
+		updateUserProfilePhoto,
 		updateUserSports
 	} from '$lib/services/user.service';
 	import { i18n } from '$lib/services/i18n.svelte';
@@ -57,6 +58,7 @@
 	import PromotedEventCarousel from '$lib/components/PromotedEventCarousel.svelte';
 	import RallyLogo from '$lib/components/RallyLogo.svelte';
 	import AvatarOnboardingModal from '$lib/components/AvatarOnboardingModal.svelte';
+	import { uploadUserProfilePhoto } from '$lib/services/storage.service';
 	import SportsOnboardingModal from '$lib/components/SportsOnboardingModal.svelte';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import {
@@ -127,6 +129,22 @@
 			gender: params.gender,
 			photoURL: params.avatar,
 			profilePhotoPath: null,
+			avatarOnboardingCompleted: true
+		};
+	}
+
+	async function completeAvatarPhotoOnboarding(file: File) {
+		if (!user || !profile) return;
+		const uploaded = await uploadUserProfilePhoto({ userId: user.uid, file });
+		await updateUserProfilePhoto({
+			userId: user.uid,
+			photoURL: uploaded.url,
+			profilePhotoPath: uploaded.path
+		});
+		profile = {
+			...profile,
+			photoURL: uploaded.url,
+			profilePhotoPath: uploaded.path,
 			avatarOnboardingCompleted: true
 		};
 	}
@@ -860,7 +878,10 @@
 	</div>
 {:else}
 	{#if profile && profile.accountType !== 'organization' && !profile.photoURL && !profile.avatarOnboardingCompleted}
-		<AvatarOnboardingModal onComplete={completeAvatarOnboarding} />
+		<AvatarOnboardingModal
+			onComplete={completeAvatarOnboarding}
+			onPhotoComplete={completeAvatarPhotoOnboarding}
+		/>
 	{:else if profile && !profile.sports?.length}
 		<SportsOnboardingModal onComplete={completeSportsOnboarding} />
 	{/if}

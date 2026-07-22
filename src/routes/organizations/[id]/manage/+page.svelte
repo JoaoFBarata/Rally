@@ -8,7 +8,13 @@
 	import { onAuthStateChanged } from 'firebase/auth';
 	import { auth } from '$lib/firebase';
 	import { authService } from '$lib/services/auth.service';
-	import type { EventStatus, Organization, OrganizationType, SportEvent, UserProfile } from '$lib/schema';
+	import type {
+		EventStatus,
+		Organization,
+		OrganizationType,
+		SportEvent,
+		UserProfile
+	} from '$lib/schema';
 	import LocationPickerMap from '$lib/components/maps/LocationPickerMap.svelte';
 	import NavIcon from '$lib/components/NavIcon.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
@@ -35,13 +41,20 @@
 	} from '$lib/services/realtime.service';
 	import {
 		canFastSwitchDeviceAccount,
+		getDeviceAccountPhotoURL,
 		getDeviceAccounts,
+		refreshDeviceAccounts,
 		rememberDeviceAccount,
 		removeDeviceAccount,
 		type DeviceAccount
 	} from '$lib/services/device-accounts.service';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
-	import { formatDate, formatSport, getCurrencySymbol, getSportBackgroundImage } from '$lib/utils/format.utils';
+	import {
+		formatDate,
+		formatSport,
+		getCurrencySymbol,
+		getSportBackgroundImage
+	} from '$lib/utils/format.utils';
 	import { getEventTemporalState } from '$lib/utils/event-lifecycle.utils';
 
 	let organization = $state<Organization | null>(null);
@@ -100,7 +113,8 @@
 		organizationEvents.filter((event) => !upcomingEvents.some((item) => item.id === event.id))
 	);
 	let highlightedManageEvents = $derived.by(() => {
-		const highlighted = upcomingEvents.find((event) => getEventTemporalState(event) === 'live') ?? upcomingEvents[0];
+		const highlighted =
+			upcomingEvents.find((event) => getEventTemporalState(event) === 'live') ?? upcomingEvents[0];
 		if (!highlighted) return [];
 		return [
 			highlighted,
@@ -251,12 +265,16 @@
 
 	function getStatusClasses(event: SportEvent) {
 		const temporalState = getEventTemporalState(event);
-		if (temporalState === 'live') return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300';
-		if (temporalState === 'starting_soon') return 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300';
+		if (temporalState === 'live')
+			return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300';
+		if (temporalState === 'starting_soon')
+			return 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300';
 		const status = getEffectiveStatus(event);
 		if (status === 'cancelled') return 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300';
-		if (status === 'finished') return 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300';
-		if (isPromotionActive(event)) return 'bg-orange-50 text-orange-700 dark:bg-orange-950 dark:text-orange-300';
+		if (status === 'finished')
+			return 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300';
+		if (isPromotionActive(event))
+			return 'bg-orange-50 text-orange-700 dark:bg-orange-950 dark:text-orange-300';
 		return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300';
 	}
 
@@ -435,14 +453,14 @@
 				nif,
 				logoURL: currentOrganization.logoURL ?? null,
 				logoPath: currentOrganization.logoPath ?? null,
-				galleryPhotoURLs: [...(currentOrganization.galleryPhotoURLs ?? []), ...uploads.map((item) => item.url)].slice(
-					0,
-					12
-				),
-				galleryPhotoPaths: [...(currentOrganization.galleryPhotoPaths ?? []), ...uploads.map((item) => item.path)].slice(
-					0,
-					12
-				)
+				galleryPhotoURLs: [
+					...(currentOrganization.galleryPhotoURLs ?? []),
+					...uploads.map((item) => item.url)
+				].slice(0, 12),
+				galleryPhotoPaths: [
+					...(currentOrganization.galleryPhotoPaths ?? []),
+					...uploads.map((item) => item.path)
+				].slice(0, 12)
 			});
 
 			success = 'Gallery updated.';
@@ -548,7 +566,8 @@
 			}
 
 			if (canFastSwitchDeviceAccount(account)) {
-				const { user: switchedUser, profile: switchedProfile } = await authService.signInWithGoogle();
+				const { user: switchedUser, profile: switchedProfile } =
+					await authService.signInWithGoogle();
 
 				if (switchedUser.uid !== account.id) {
 					deviceAccounts = getDeviceAccounts();
@@ -561,7 +580,7 @@
 						? {
 								...switchedProfile,
 								displayName: account.displayName,
-								photoURL: account.photoURL ?? null,
+								photoURL: getDeviceAccountPhotoURL(account),
 								rallyTag: account.rallyTag,
 								accountType: account.accountType,
 								activeOrganizationId: account.activeOrganizationId ?? null
@@ -570,7 +589,9 @@
 				deviceAccounts = rememberDeviceAccount(accountProfile, switchedUser);
 				showSettingsModal = false;
 				showAccountSwitcher = false;
-				await goto(getPostSwitchHref(deviceAccounts.find((item) => item.id === switchedUser.uid) ?? account));
+				await goto(
+					getPostSwitchHref(deviceAccounts.find((item) => item.id === switchedUser.uid) ?? account)
+				);
 				return;
 			}
 
@@ -628,6 +649,9 @@
 
 	onMount(() => {
 		deviceAccounts = getDeviceAccounts();
+		void refreshDeviceAccounts().then((accounts) => {
+			deviceAccounts = accounts;
+		});
 		let unsubscribeOrganization = () => {};
 		let unsubscribeEvents = () => {};
 		const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -671,7 +695,9 @@
 			{error}
 		</section>
 	{:else if organization}
-		<section class="relative flex flex-col gap-3 pr-12 md:flex-row md:items-center md:justify-between md:pr-0">
+		<section
+			class="relative flex flex-col gap-3 pr-12 md:flex-row md:items-center md:justify-between md:pr-0"
+		>
 			<div class="flex min-w-0 items-center gap-3 sm:gap-4">
 				<div
 					class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-xl font-black text-blue-600 shadow-sm dark:bg-slate-800 dark:text-blue-300 sm:h-20 sm:w-20 sm:text-3xl"
@@ -727,7 +753,9 @@
 			</div>
 		{/if}
 
-		<section class="mt-5 rounded-[1.5rem] bg-white p-1 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800 sm:mt-7">
+		<section
+			class="mt-5 rounded-[1.5rem] bg-white p-1 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800 sm:mt-7"
+		>
 			<div class="grid grid-cols-3 gap-1">
 				{#each ['overview', 'events', 'insights'] as tab}
 					<button
@@ -749,56 +777,215 @@
 		</section>
 
 		{#if activeManageTab === 'overview'}
-			<section class="mt-5 grid grid-cols-4 divide-x divide-slate-200 rounded-[1.4rem] border-y border-slate-200 bg-white/55 py-3 text-center shadow-sm dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900/45 sm:py-4">
+			<section
+				class="mt-5 grid grid-cols-4 divide-x divide-slate-200 rounded-[1.4rem] border-y border-slate-200 bg-white/55 py-3 text-center shadow-sm dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900/45 sm:py-4"
+			>
 				<div class="px-2">
-					<svg class="mx-auto h-5 w-5 text-slate-500 dark:text-slate-400 sm:h-6 sm:w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16 19a4 4 0 0 0-8 0M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM22 19a3.5 3.5 0 0 0-5-3.15M2 19a3.5 3.5 0 0 1 5-3.15" /></svg>
-					<p class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{displayedFollowersCount}</p>
-					<p class="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 sm:text-xs">{i18n.t('followers')}</p>
+					<svg
+						class="mx-auto h-5 w-5 text-slate-500 dark:text-slate-400 sm:h-6 sm:w-6"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2.2"
+						aria-hidden="true"
+						><path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							d="M16 19a4 4 0 0 0-8 0M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM22 19a3.5 3.5 0 0 0-5-3.15M2 19a3.5 3.5 0 0 1 5-3.15"
+						/></svg
+					>
+					<p class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">
+						{displayedFollowersCount}
+					</p>
+					<p
+						class="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 sm:text-xs"
+					>
+						{i18n.t('followers')}
+					</p>
 				</div>
 				<div class="px-2">
-					<svg class="mx-auto h-5 w-5 text-slate-500 dark:text-slate-400 sm:h-6 sm:w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M7 3v3M17 3v3M4 9h16M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" /></svg>
-					<p class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{upcomingEvents.length}</p>
-					<p class="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 sm:text-xs">{i18n.t('upcoming')}</p>
+					<svg
+						class="mx-auto h-5 w-5 text-slate-500 dark:text-slate-400 sm:h-6 sm:w-6"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2.2"
+						aria-hidden="true"
+						><path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							d="M7 3v3M17 3v3M4 9h16M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"
+						/></svg
+					>
+					<p class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">
+						{upcomingEvents.length}
+					</p>
+					<p
+						class="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 sm:text-xs"
+					>
+						{i18n.t('upcoming')}
+					</p>
 				</div>
 				<div class="px-2">
-					<svg class="mx-auto h-5 w-5 text-slate-500 dark:text-slate-400 sm:h-6 sm:w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 13h3l9 4V7l-9 4H4v2Zm3 0 1 6h3" /></svg>
-					<p class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{activePromotedEvents.length}</p>
-					<p class="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 sm:text-xs">{i18n.t('event_promoted') || 'Promoted'}</p>
+					<svg
+						class="mx-auto h-5 w-5 text-slate-500 dark:text-slate-400 sm:h-6 sm:w-6"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2.2"
+						aria-hidden="true"
+						><path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							d="M4 13h3l9 4V7l-9 4H4v2Zm3 0 1 6h3"
+						/></svg
+					>
+					<p class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">
+						{activePromotedEvents.length}
+					</p>
+					<p
+						class="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 sm:text-xs"
+					>
+						{i18n.t('event_promoted') || 'Promoted'}
+					</p>
 				</div>
 				<div class="px-2">
-					<svg class="mx-auto h-5 w-5 text-slate-500 dark:text-slate-400 sm:h-6 sm:w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 19V9M12 19V5M19 19v-7" /></svg>
-					<p class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{organizationEvents.length}</p>
-					<p class="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 sm:text-xs">{i18n.t('total') || 'Total'}</p>
+					<svg
+						class="mx-auto h-5 w-5 text-slate-500 dark:text-slate-400 sm:h-6 sm:w-6"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2.2"
+						aria-hidden="true"
+						><path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							d="M5 19V9M12 19V5M19 19v-7"
+						/></svg
+					>
+					<p class="mt-1 text-lg font-black text-slate-950 dark:text-slate-50 sm:text-2xl">
+						{organizationEvents.length}
+					</p>
+					<p
+						class="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 sm:text-xs"
+					>
+						{i18n.t('total') || 'Total'}
+					</p>
 				</div>
 			</section>
 
 			<section class="mt-6">
 				<div class="flex items-end justify-between gap-3">
 					<div>
-						<p class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">{i18n.t('quick_actions')}</p>
-						<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">{i18n.t('manage_your_club')}</h2>
+						<p
+							class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400"
+						>
+							{i18n.t('quick_actions')}
+						</p>
+						<h2 class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50">
+							{i18n.t('manage_your_club')}
+						</h2>
 					</div>
 				</div>
 
 				<div class="mt-4 grid grid-cols-5 gap-2 sm:gap-3">
-					<a href={resolve(`/organizations/${organization.id}/events/create`)} class="rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.4rem] sm:p-4">
-						<span class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-slate-50 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700 sm:h-10 sm:w-10 sm:rounded-2xl"><svg class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path stroke-linecap="round" d="M12 5v14M5 12h14" /></svg></span>
-						<span class="mt-2 block truncate text-[0.65rem] font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-xs">{i18n.t('event_btn')}</span>
+					<a
+						href={resolve(`/organizations/${organization.id}/events/create`)}
+						class="rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.4rem] sm:p-4"
+					>
+						<span
+							class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-slate-50 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700 sm:h-10 sm:w-10 sm:rounded-2xl"
+							><svg
+								class="h-4 w-4 sm:h-5 sm:w-5"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2.4"
+								aria-hidden="true"><path stroke-linecap="round" d="M12 5v14M5 12h14" /></svg
+							></span
+						>
+						<span
+							class="mt-2 block truncate text-[0.65rem] font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-xs"
+							>{i18n.t('event_btn')}</span
+						>
 					</a>
-					<a href={resolve(`/organizations/${organization.id}/tournaments/create`)} class="rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-orange-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.4rem] sm:p-4">
-						<span class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-slate-50 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700 sm:h-10 sm:w-10 sm:rounded-2xl"><svg class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4Zm0 2H4a3 3 0 0 0 3 3m10-3h3a3 3 0 0 1-3 3" /></svg></span>
-						<span class="mt-2 block truncate text-[0.65rem] font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-xs">{i18n.t('tourney_btn')}</span>
+					<a
+						href={resolve(`/organizations/${organization.id}/tournaments/create`)}
+						class="rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-orange-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.4rem] sm:p-4"
+					>
+						<span
+							class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-slate-50 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700 sm:h-10 sm:w-10 sm:rounded-2xl"
+							><svg
+								class="h-4 w-4 sm:h-5 sm:w-5"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2.2"
+								aria-hidden="true"
+								><path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4Zm0 2H4a3 3 0 0 0 3 3m10-3h3a3 3 0 0 1-3 3"
+								/></svg
+							></span
+						>
+						<span
+							class="mt-2 block truncate text-[0.65rem] font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-xs"
+							>{i18n.t('tourney_btn')}</span
+						>
 					</a>
-					<a href={resolve(`/organizations/${organization.id}`)} class="rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.4rem] sm:p-4">
-						<span class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-slate-50 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700 sm:h-10 sm:w-10 sm:rounded-2xl"><svg class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM5 21a7 7 0 0 1 14 0" /></svg></span>
-						<span class="mt-2 block truncate text-[0.65rem] font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-xs">{i18n.t('profile')}</span>
+					<a
+						href={resolve(`/organizations/${organization.id}`)}
+						class="rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.4rem] sm:p-4"
+					>
+						<span
+							class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-slate-50 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700 sm:h-10 sm:w-10 sm:rounded-2xl"
+							><svg
+								class="h-4 w-4 sm:h-5 sm:w-5"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2.2"
+								aria-hidden="true"
+								><path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									d="M15 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM5 21a7 7 0 0 1 14 0"
+								/></svg
+							></span
+						>
+						<span
+							class="mt-2 block truncate text-[0.65rem] font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-xs"
+							>{i18n.t('profile')}</span
+						>
 					</a>
-					<a href={resolve('/messages')} class="rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.4rem] sm:p-4">
-						<span class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-slate-50 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700 sm:h-10 sm:w-10 sm:rounded-2xl"><svg class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a8 8 0 0 1-8 8H7l-4 3v-6a8 8 0 1 1 18-5Z" /></svg></span>
-						<span class="mt-2 block truncate text-[0.65rem] font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-xs">{i18n.t('inbox_btn')}</span>
+					<a
+						href={resolve('/messages')}
+						class="rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.4rem] sm:p-4"
+					>
+						<span
+							class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-slate-50 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700 sm:h-10 sm:w-10 sm:rounded-2xl"
+							><svg
+								class="h-4 w-4 sm:h-5 sm:w-5"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2.2"
+								aria-hidden="true"
+								><path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									d="M21 12a8 8 0 0 1-8 8H7l-4 3v-6a8 8 0 1 1 18-5Z"
+								/></svg
+							></span
+						>
+						<span
+							class="mt-2 block truncate text-[0.65rem] font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-xs"
+							>{i18n.t('inbox_btn')}</span
+						>
 					</a>
-					<button 
-						type="button" 
+					<button
+						type="button"
 						onclick={() => {
 							if (organization?.verificationStatus === 'verified') {
 								isPromotingSelectFlow = true;
@@ -806,55 +993,118 @@
 							} else {
 								error = i18n.t('requires_verified_organization_promotion');
 							}
-						}} 
+						}}
 						class={`rounded-[1.1rem] bg-white p-2 text-center shadow-sm ring-1 ring-slate-200 transition dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.4rem] sm:p-4 ${
 							organization?.verificationStatus === 'verified'
-								? 'hover:-translate-y-0.5 hover:ring-orange-200 cursor-pointer' 
+								? 'hover:-translate-y-0.5 hover:ring-orange-200 cursor-pointer'
 								: 'opacity-50 grayscale cursor-not-allowed'
 						}`}
 					>
-						<span class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-slate-50 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700 sm:h-10 sm:w-10 sm:rounded-2xl"><svg class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 13h3l9 4V7l-9 4H4v2Zm3 0 1 6h3" /></svg></span>
-						<span class="mt-2 block truncate text-[0.65rem] font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-xs">{i18n.t('promote_btn')}</span>
+						<span
+							class="mx-auto grid h-8 w-8 place-items-center rounded-xl bg-slate-50 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700 sm:h-10 sm:w-10 sm:rounded-2xl"
+							><svg
+								class="h-4 w-4 sm:h-5 sm:w-5"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2.2"
+								aria-hidden="true"
+								><path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									d="M4 13h3l9 4V7l-9 4H4v2Zm3 0 1 6h3"
+								/></svg
+							></span
+						>
+						<span
+							class="mt-2 block truncate text-[0.65rem] font-black text-slate-950 dark:text-slate-50 sm:mt-3 sm:text-xs"
+							>{i18n.t('promote_btn')}</span
+						>
 					</button>
 				</div>
 			</section>
 
 			<section class="mt-5 grid gap-3 sm:mt-6 lg:grid-cols-[1fr_0.85fr]">
-				<div class="rounded-[1.35rem] bg-white p-3 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.7rem] sm:p-5">
+				<div
+					class="rounded-[1.35rem] bg-white p-3 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.7rem] sm:p-5"
+				>
 					<div class="flex items-center justify-between gap-3">
 						<div class="min-w-0">
-							<p class="text-[0.65rem] font-black uppercase tracking-[0.14em] text-orange-600 sm:text-xs sm:tracking-[0.18em]">{i18n.t('promotions_label') || 'Promotions'}</p>
-							<h2 class="mt-0.5 truncate text-base font-black text-slate-950 dark:text-slate-50 sm:mt-1 sm:text-xl">{i18n.t('advertising_snapshot') || 'Advertising snapshot'}</h2>
+							<p
+								class="text-[0.65rem] font-black uppercase tracking-[0.14em] text-orange-600 sm:text-xs sm:tracking-[0.18em]"
+							>
+								{i18n.t('promotions_label') || 'Promotions'}
+							</p>
+							<h2
+								class="mt-0.5 truncate text-base font-black text-slate-950 dark:text-slate-50 sm:mt-1 sm:text-xl"
+							>
+								{i18n.t('advertising_snapshot') || 'Advertising snapshot'}
+							</h2>
 						</div>
-						<button type="button" onclick={() => (activeManageTab = 'insights')} class="shrink-0 text-xs font-black text-blue-600 dark:text-blue-400 sm:text-sm">{i18n.t('details_btn') || 'Details'}</button>
+						<button
+							type="button"
+							onclick={() => (activeManageTab = 'insights')}
+							class="shrink-0 text-xs font-black text-blue-600 dark:text-blue-400 sm:text-sm"
+							>{i18n.t('details_btn') || 'Details'}</button
+						>
 					</div>
 					<div class="mt-3 grid grid-cols-4 gap-2 sm:mt-4">
 						<div>
-							<p class="text-base font-black text-slate-950 dark:text-slate-50 sm:text-lg">{totalPromotionViews}</p>
-							<p class="text-[0.65rem] font-bold text-slate-500 dark:text-slate-400 sm:text-xs">{i18n.t('views') || 'Views'}</p>
+							<p class="text-base font-black text-slate-950 dark:text-slate-50 sm:text-lg">
+								{totalPromotionViews}
+							</p>
+							<p class="text-[0.65rem] font-bold text-slate-500 dark:text-slate-400 sm:text-xs">
+								{i18n.t('views') || 'Views'}
+							</p>
 						</div>
 						<div>
-							<p class="text-base font-black text-slate-950 dark:text-slate-50 sm:text-lg">{totalPromotionClicks}</p>
-							<p class="text-[0.65rem] font-bold text-slate-500 dark:text-slate-400 sm:text-xs">{i18n.t('clicks') || 'Clicks'}</p>
+							<p class="text-base font-black text-slate-950 dark:text-slate-50 sm:text-lg">
+								{totalPromotionClicks}
+							</p>
+							<p class="text-[0.65rem] font-bold text-slate-500 dark:text-slate-400 sm:text-xs">
+								{i18n.t('clicks') || 'Clicks'}
+							</p>
 						</div>
 						<div>
-							<p class="text-base font-black text-slate-950 dark:text-slate-50 sm:text-lg">{averageCtr.toFixed(1)}%</p>
-							<p class="text-[0.65rem] font-bold text-slate-500 dark:text-slate-400 sm:text-xs">CTR</p>
+							<p class="text-base font-black text-slate-950 dark:text-slate-50 sm:text-lg">
+								{averageCtr.toFixed(1)}%
+							</p>
+							<p class="text-[0.65rem] font-bold text-slate-500 dark:text-slate-400 sm:text-xs">
+								CTR
+							</p>
 						</div>
 						<div>
-							<p class="text-base font-black text-slate-950 dark:text-slate-50 sm:text-lg">€{totalEstimatedSpend.toFixed(2)}</p>
-							<p class="text-[0.65rem] font-bold text-slate-500 dark:text-slate-400 sm:text-xs">{i18n.t('spend') || 'Spend'}</p>
+							<p class="text-base font-black text-slate-950 dark:text-slate-50 sm:text-lg">
+								€{totalEstimatedSpend.toFixed(2)}
+							</p>
+							<p class="text-[0.65rem] font-bold text-slate-500 dark:text-slate-400 sm:text-xs">
+								{i18n.t('spend') || 'Spend'}
+							</p>
 						</div>
 					</div>
 				</div>
 
-				<div class="rounded-[1.35rem] bg-white p-3 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.7rem] sm:p-5">
-					<p class="text-[0.65rem] font-black uppercase tracking-[0.14em] text-blue-600 sm:text-xs sm:tracking-[0.18em]">{i18n.t('verification')}</p>
-					<h2 class="mt-0.5 text-base font-black text-slate-950 dark:text-slate-50 sm:mt-1 sm:text-xl">{verificationLabel()}</h2>
+				<div
+					class="rounded-[1.35rem] bg-white p-3 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800 sm:rounded-[1.7rem] sm:p-5"
+				>
+					<p
+						class="text-[0.65rem] font-black uppercase tracking-[0.14em] text-blue-600 sm:text-xs sm:tracking-[0.18em]"
+					>
+						{i18n.t('verification')}
+					</p>
+					<h2
+						class="mt-0.5 text-base font-black text-slate-950 dark:text-slate-50 sm:mt-1 sm:text-xl"
+					>
+						{verificationLabel()}
+					</h2>
 					<p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-sm">
 						{i18n.t('verification_benefits')}
 					</p>
-					<button type="button" onclick={() => (activeManageTab = 'insights')} class="mt-3 w-full rounded-2xl bg-slate-950 px-4 py-2.5 text-xs font-black text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 sm:mt-4 sm:py-3 sm:text-sm">
+					<button
+						type="button"
+						onclick={() => (activeManageTab = 'insights')}
+						class="mt-3 w-full rounded-2xl bg-slate-950 px-4 py-2.5 text-xs font-black text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 sm:mt-4 sm:py-3 sm:text-sm"
+					>
 						{i18n.t('manage_verification') || 'Manage verification'}
 					</button>
 				</div>
@@ -862,11 +1112,19 @@
 
 			<section class="mt-6">
 				<div class="mb-3 flex items-center justify-between gap-3">
-					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">{i18n.t('upcoming_events')}</h2>
-					<button type="button" onclick={() => (activeManageTab = 'events')} class="text-sm font-black text-blue-600 dark:text-blue-400">{i18n.t('view_all')}</button>
+					<h2 class="text-xl font-black text-slate-950 dark:text-slate-50">
+						{i18n.t('upcoming_events')}
+					</h2>
+					<button
+						type="button"
+						onclick={() => (activeManageTab = 'events')}
+						class="text-sm font-black text-blue-600 dark:text-blue-400">{i18n.t('view_all')}</button
+					>
 				</div>
 				{#if highlightedManageEvents.length === 0}
-					<div class="rounded-[1.5rem] border border-dashed border-slate-300 bg-white p-6 text-center text-sm font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+					<div
+						class="rounded-[1.5rem] border border-dashed border-slate-300 bg-white p-6 text-center text-sm font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
+					>
 						{i18n.t('no_upcoming_events')}
 					</div>
 				{:else}
@@ -876,30 +1134,65 @@
 								href={resolve(`/events/${event.id}`)}
 								class="group flex gap-2.5 overflow-hidden rounded-[1.15rem] bg-white p-2 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800 sm:gap-4 sm:rounded-[1.45rem] sm:p-3.5"
 							>
-								<img src={getManageEventImage(event)} alt="" class="h-20 w-20 shrink-0 rounded-[0.95rem] object-cover sm:h-24 sm:w-36 sm:rounded-2xl lg:w-44" />
+								<img
+									src={getManageEventImage(event)}
+									alt=""
+									class="h-20 w-20 shrink-0 rounded-[0.95rem] object-cover sm:h-24 sm:w-36 sm:rounded-2xl lg:w-44"
+								/>
 								<div class="min-w-0 flex-1">
 									<div class="flex items-start justify-between gap-2 sm:gap-3">
 										<div class="min-w-0">
-											<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base">{event.title}</p>
-											<p class="mt-0.5 truncate text-[0.7rem] font-bold text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-xs">
+											<p
+												class="truncate text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base"
+											>
+												{event.title}
+											</p>
+											<p
+												class="mt-0.5 truncate text-[0.7rem] font-bold text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-xs"
+											>
 												{formatSportLabel(event.sport)} · {formatEventLocation(event)}
 											</p>
 										</div>
 										<div class="shrink-0 text-right">
-											<p class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-600 dark:bg-blue-950 dark:text-blue-300">{formatEventCapacity(event)}</p>
-											<p class="text-[0.68rem] font-bold text-slate-400">{i18n.t('players_lowercase') || 'players'}</p>
+											<p
+												class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-600 dark:bg-blue-950 dark:text-blue-300"
+											>
+												{formatEventCapacity(event)}
+											</p>
+											<p class="text-[0.68rem] font-bold text-slate-400">
+												{i18n.t('players_lowercase') || 'players'}
+											</p>
 										</div>
 									</div>
 									<div class="mt-1.5 flex items-center gap-1.5 overflow-hidden sm:gap-2">
-										<span class={`shrink-0 rounded-full px-2 py-0.5 text-[0.62rem] font-black sm:px-2.5 sm:py-1 sm:text-[0.68rem] ${getStatusClasses(event)}`}>{getStatusLabel(event)}</span>
+										<span
+											class={`shrink-0 rounded-full px-2 py-0.5 text-[0.62rem] font-black sm:px-2.5 sm:py-1 sm:text-[0.68rem] ${getStatusClasses(event)}`}
+											>{getStatusLabel(event)}</span
+										>
 										{#if isPromotionActive(event)}
-											<span class="shrink-0 rounded-full bg-orange-50 px-2 py-0.5 text-[0.62rem] font-black text-orange-700 dark:bg-orange-950 dark:text-orange-300 sm:px-2.5 sm:py-1 sm:text-[0.68rem]">{i18n.t('event_promoted') || 'Promoted'}</span>
+											<span
+												class="shrink-0 rounded-full bg-orange-50 px-2 py-0.5 text-[0.62rem] font-black text-orange-700 dark:bg-orange-950 dark:text-orange-300 sm:px-2.5 sm:py-1 sm:text-[0.68rem]"
+												>{i18n.t('event_promoted') || 'Promoted'}</span
+											>
 										{/if}
 									</div>
-									<div class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[0.68rem] font-bold text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-xs">
+									<div
+										class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[0.68rem] font-bold text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-xs"
+									>
 										<span class="inline-flex min-w-0 items-center gap-1.5 truncate">
-											<svg viewBox="0 0 24 24" class="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true">
-												<path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" />
+											<svg
+												viewBox="0 0 24 24"
+												class="h-3.5 w-3.5 shrink-0 text-slate-400"
+												aria-hidden="true"
+											>
+												<path
+													fill="none"
+													stroke="currentColor"
+													stroke-width="2"
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"
+												/>
 											</svg>
 											<span class="truncate">{formatEventDate(event.startAt)}</span>
 										</span>
@@ -915,21 +1208,25 @@
 			<section id="upcoming-events" class="mt-6 scroll-mt-8">
 				<div class="mb-3 flex items-center justify-between gap-3 sm:mb-4">
 					<div class="min-w-0">
-						<h2 class="text-xl font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{i18n.t('events')}</h2>
-						<p class="mt-0.5 truncate text-xs font-bold text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">{i18n.t('promote_manage_events_desc')}</p>
+						<h2 class="text-xl font-black text-slate-950 dark:text-slate-50 sm:text-2xl">
+							{i18n.t('events')}
+						</h2>
+						<p
+							class="mt-0.5 truncate text-xs font-bold text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm"
+						>
+							{i18n.t('promote_manage_events_desc')}
+						</p>
 					</div>
-					<a href={resolve(`/organizations/${organization.id}/events/create`)} class="shrink-0 rounded-2xl bg-blue-600 px-3 py-2 text-xs font-black text-white shadow-sm shadow-blue-600/25 transition hover:bg-blue-700 sm:px-5 sm:py-3 sm:text-sm">
+					<a
+						href={resolve(`/organizations/${organization.id}/events/create`)}
+						class="shrink-0 rounded-2xl bg-blue-600 px-3 py-2 text-xs font-black text-white shadow-sm shadow-blue-600/25 transition hover:bg-blue-700 sm:px-5 sm:py-3 sm:text-sm"
+					>
 						<span class="sm:hidden">{i18n.t('create_btn') || 'Create'}</span>
 						<span class="hidden sm:inline">{i18n.t('create_event')}</span>
 					</a>
 				</div>
 				<div class="mb-4 flex gap-2 overflow-x-auto pb-3 pt-0.5">
-					{#each [
-						{ key: 'upcoming', label: i18n.t('upcoming') || 'Upcoming', count: upcomingEvents.length },
-						{ key: 'promoted', label: i18n.t('event_promoted') || 'Promoted', count: activePromotedEvents.length },
-						{ key: 'past', label: i18n.t('past') || 'Past', count: pastEvents.length },
-						{ key: 'all', label: i18n.t('all_filter') || 'All', count: organizationEvents.length }
-					] as filter}
+					{#each [{ key: 'upcoming', label: i18n.t('upcoming') || 'Upcoming', count: upcomingEvents.length }, { key: 'promoted', label: i18n.t('event_promoted') || 'Promoted', count: activePromotedEvents.length }, { key: 'past', label: i18n.t('past') || 'Past', count: pastEvents.length }, { key: 'all', label: i18n.t('all_filter') || 'All', count: organizationEvents.length }] as filter}
 						<button
 							type="button"
 							onclick={() => (eventFilter = filter.key as 'upcoming' | 'promoted' | 'past' | 'all')}
@@ -944,7 +1241,9 @@
 					{/each}
 				</div>
 				{#if filteredManageEvents.length === 0}
-					<div class="rounded-[2rem] border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+					<div
+						class="rounded-[2rem] border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
+					>
 						{i18n.t('no_events_match_filter')}
 					</div>
 				{:else}
@@ -952,32 +1251,67 @@
 						{#each filteredManageEvents as event (event.id)}
 							<a
 								href={resolve(`/events/${event.id}${isPromotingSelectFlow ? '?promote=true' : ''}`)}
-							class="group flex gap-2.5 overflow-hidden rounded-[1.15rem] bg-white p-2 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800 sm:gap-4 sm:rounded-[1.45rem] sm:p-3.5"
+								class="group flex gap-2.5 overflow-hidden rounded-[1.15rem] bg-white p-2 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-blue-200 dark:bg-slate-900 dark:ring-slate-800 sm:gap-4 sm:rounded-[1.45rem] sm:p-3.5"
 							>
-								<img src={getManageEventImage(event)} alt="" class="h-20 w-20 shrink-0 rounded-[0.95rem] object-cover sm:h-24 sm:w-36 sm:rounded-2xl lg:w-44" />
+								<img
+									src={getManageEventImage(event)}
+									alt=""
+									class="h-20 w-20 shrink-0 rounded-[0.95rem] object-cover sm:h-24 sm:w-36 sm:rounded-2xl lg:w-44"
+								/>
 								<div class="min-w-0 flex-1">
 									<div class="flex items-start justify-between gap-2 sm:gap-3">
 										<div class="min-w-0">
-											<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base">{event.title}</p>
-											<p class="mt-0.5 truncate text-[0.7rem] font-bold text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-xs">
+											<p
+												class="truncate text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base"
+											>
+												{event.title}
+											</p>
+											<p
+												class="mt-0.5 truncate text-[0.7rem] font-bold text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-xs"
+											>
 												{formatSportLabel(event.sport)} · {formatEventLocation(event)}
 											</p>
 										</div>
 										<div class="shrink-0 text-right">
-											<p class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-600 dark:bg-blue-950 dark:text-blue-300">{formatEventCapacity(event)}</p>
-											<p class="text-[0.68rem] font-bold text-slate-400">{i18n.t('players_lowercase') || 'players'}</p>
+											<p
+												class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-600 dark:bg-blue-950 dark:text-blue-300"
+											>
+												{formatEventCapacity(event)}
+											</p>
+											<p class="text-[0.68rem] font-bold text-slate-400">
+												{i18n.t('players_lowercase') || 'players'}
+											</p>
 										</div>
 									</div>
 									<div class="mt-1.5 flex items-center gap-1.5 overflow-hidden sm:gap-2">
-										<span class={`shrink-0 rounded-full px-2 py-0.5 text-[0.62rem] font-black sm:px-2.5 sm:py-1 sm:text-[0.68rem] ${getStatusClasses(event)}`}>{getStatusLabel(event)}</span>
+										<span
+											class={`shrink-0 rounded-full px-2 py-0.5 text-[0.62rem] font-black sm:px-2.5 sm:py-1 sm:text-[0.68rem] ${getStatusClasses(event)}`}
+											>{getStatusLabel(event)}</span
+										>
 										{#if isPromotionActive(event)}
-											<span class="shrink-0 rounded-full bg-orange-50 px-2 py-0.5 text-[0.62rem] font-black text-orange-700 dark:bg-orange-950 dark:text-orange-300 sm:px-2.5 sm:py-1 sm:text-[0.68rem]">{i18n.t('event_promoted') || 'Promoted'}</span>
+											<span
+												class="shrink-0 rounded-full bg-orange-50 px-2 py-0.5 text-[0.62rem] font-black text-orange-700 dark:bg-orange-950 dark:text-orange-300 sm:px-2.5 sm:py-1 sm:text-[0.68rem]"
+												>{i18n.t('event_promoted') || 'Promoted'}</span
+											>
 										{/if}
 									</div>
-									<div class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[0.68rem] font-bold text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-xs">
+									<div
+										class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[0.68rem] font-bold text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-xs"
+									>
 										<span class="inline-flex min-w-0 items-center gap-1.5 truncate">
-											<svg viewBox="0 0 24 24" class="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true">
-												<path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" />
+											<svg
+												viewBox="0 0 24 24"
+												class="h-3.5 w-3.5 shrink-0 text-slate-400"
+												aria-hidden="true"
+											>
+												<path
+													fill="none"
+													stroke="currentColor"
+													stroke-width="2"
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"
+												/>
 											</svg>
 											<span class="truncate">{formatEventDate(event.startAt)}</span>
 										</span>
@@ -990,14 +1324,30 @@
 				{/if}
 			</section>
 		{:else}
-			<section class="mt-5 rounded-[1.35rem] border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:mt-6 sm:rounded-[2rem] sm:p-6">
+			<section
+				class="mt-5 rounded-[1.35rem] border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:mt-6 sm:rounded-[2rem] sm:p-6"
+			>
 				<div class="flex items-start justify-between gap-3">
 					<div class="min-w-0">
-						<p class="text-[0.65rem] font-black uppercase tracking-[0.16em] text-blue-600 dark:text-blue-400 sm:text-sm sm:tracking-[0.25em]">{i18n.t('insights')}</p>
-						<h2 class="mt-0.5 truncate text-lg font-black text-slate-950 dark:text-slate-50 sm:mt-1 sm:text-2xl">{i18n.t('performance_dashboard')}</h2>
-						<p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">{i18n.t('insights_description')}</p>
+						<p
+							class="text-[0.65rem] font-black uppercase tracking-[0.16em] text-blue-600 dark:text-blue-400 sm:text-sm sm:tracking-[0.25em]"
+						>
+							{i18n.t('insights')}
+						</p>
+						<h2
+							class="mt-0.5 truncate text-lg font-black text-slate-950 dark:text-slate-50 sm:mt-1 sm:text-2xl"
+						>
+							{i18n.t('performance_dashboard')}
+						</h2>
+						<p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">
+							{i18n.t('insights_description')}
+						</p>
 					</div>
-					<a href="#upcoming-events" onclick={() => (activeManageTab = 'events')} class="shrink-0 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 sm:px-5 sm:py-3 sm:text-base">
+					<a
+						href="#upcoming-events"
+						onclick={() => (activeManageTab = 'events')}
+						class="shrink-0 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 sm:px-5 sm:py-3 sm:text-base"
+					>
 						<span class="sm:hidden">{i18n.t('promote_btn')}</span>
 						<span class="hidden sm:inline">{i18n.t('choose_event_to_promote')}</span>
 					</a>
@@ -1005,39 +1355,103 @@
 
 				<div class="mt-3 grid grid-cols-2 gap-2 sm:mt-6 md:grid-cols-4 md:gap-4">
 					<div class="rounded-[1.1rem] bg-slate-50 p-2.5 dark:bg-slate-800 sm:rounded-2xl sm:p-4">
-						<p class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">{i18n.t('active') || 'Active'}</p>
-						<p class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl">{activePromotedEvents.length}</p>
+						<p
+							class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]"
+						>
+							{i18n.t('active') || 'Active'}
+						</p>
+						<p
+							class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl"
+						>
+							{activePromotedEvents.length}
+						</p>
 					</div>
 					<div class="rounded-[1.1rem] bg-slate-50 p-2.5 dark:bg-slate-800 sm:rounded-2xl sm:p-4">
-						<p class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">{i18n.t('views') || 'Views'}</p>
-						<p class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl">{totalPromotionViews}</p>
+						<p
+							class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]"
+						>
+							{i18n.t('views') || 'Views'}
+						</p>
+						<p
+							class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl"
+						>
+							{totalPromotionViews}
+						</p>
 					</div>
 					<div class="rounded-[1.1rem] bg-slate-50 p-2.5 dark:bg-slate-800 sm:rounded-2xl sm:p-4">
-						<p class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">{i18n.t('clicks') || 'Clicks'}</p>
-						<p class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl">{totalPromotionClicks}</p>
+						<p
+							class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]"
+						>
+							{i18n.t('clicks') || 'Clicks'}
+						</p>
+						<p
+							class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl"
+						>
+							{totalPromotionClicks}
+						</p>
 					</div>
 					<div class="rounded-[1.1rem] bg-slate-50 p-2.5 dark:bg-slate-800 sm:rounded-2xl sm:p-4">
-						<p class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">CTR / {i18n.t('spend') || 'Spend'}</p>
-						<p class="mt-1 text-base font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-lg">{averageCtr.toFixed(1)}% · €{totalEstimatedSpend.toFixed(2)}</p>
+						<p
+							class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]"
+						>
+							CTR / {i18n.t('spend') || 'Spend'}
+						</p>
+						<p
+							class="mt-1 text-base font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-lg"
+						>
+							{averageCtr.toFixed(1)}% · €{totalEstimatedSpend.toFixed(2)}
+						</p>
 					</div>
 				</div>
 
 				<div class="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-4">
 					<div class="rounded-[1.1rem] bg-slate-50 p-2.5 dark:bg-slate-800 sm:rounded-2xl sm:p-4">
-						<p class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">{i18n.t('total_events')}</p>
-						<p class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl">{organizationEvents.length}</p>
+						<p
+							class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]"
+						>
+							{i18n.t('total_events')}
+						</p>
+						<p
+							class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl"
+						>
+							{organizationEvents.length}
+						</p>
 					</div>
 					<div class="rounded-[1.1rem] bg-slate-50 p-2.5 dark:bg-slate-800 sm:rounded-2xl sm:p-4">
-						<p class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">{i18n.t('players')}</p>
-						<p class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl">{totalEventParticipants}</p>
+						<p
+							class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]"
+						>
+							{i18n.t('players')}
+						</p>
+						<p
+							class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl"
+						>
+							{totalEventParticipants}
+						</p>
 					</div>
 					<div class="rounded-[1.1rem] bg-slate-50 p-2.5 dark:bg-slate-800 sm:rounded-2xl sm:p-4">
-						<p class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">{i18n.t('avg_fill')}</p>
-						<p class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl">{averageFillRate.toFixed(0)}%</p>
+						<p
+							class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]"
+						>
+							{i18n.t('avg_fill')}
+						</p>
+						<p
+							class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl"
+						>
+							{averageFillRate.toFixed(0)}%
+						</p>
 					</div>
 					<div class="rounded-[1.1rem] bg-slate-50 p-2.5 dark:bg-slate-800 sm:rounded-2xl sm:p-4">
-						<p class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">{i18n.t('past_events') || 'Past events'}</p>
-						<p class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl">{pastEvents.length}</p>
+						<p
+							class="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs sm:tracking-[0.2em]"
+						>
+							{i18n.t('past_events') || 'Past events'}
+						</p>
+						<p
+							class="mt-1 text-xl font-black text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-2xl"
+						>
+							{pastEvents.length}
+						</p>
 					</div>
 				</div>
 
@@ -1045,78 +1459,162 @@
 					<div class="mt-4 space-y-2.5 sm:mt-6 sm:space-y-3">
 						{#each activePromotedEvents as promotedEvent (promotedEvent.id)}
 							{@const stats = calculatePromotionStats(promotedEvent)}
-							<div class="rounded-[1.1rem] border border-blue-100 bg-white p-3 dark:border-blue-900 dark:bg-slate-900 sm:rounded-2xl sm:p-4">
+							<div
+								class="rounded-[1.1rem] border border-blue-100 bg-white p-3 dark:border-blue-900 dark:bg-slate-900 sm:rounded-2xl sm:p-4"
+							>
 								<div class="flex flex-col gap-2.5 md:flex-row md:items-center md:justify-between">
 									<div class="min-w-0">
-										<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base">{promotedEvent.title}</p>
+										<p
+											class="truncate text-sm font-black text-slate-950 dark:text-slate-50 sm:text-base"
+										>
+											{promotedEvent.title}
+										</p>
 										<p class="mt-1 truncate text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
-											{promotedEvent.promotionPlan ?? 'boost'} · {stats.remainingImpressions ?? 0} {i18n.t('impressions_left')}
+											{promotedEvent.promotionPlan ?? 'boost'} · {stats.remainingImpressions ?? 0}
+											{i18n.t('impressions_left')}
 										</p>
 									</div>
-									<div class="flex flex-wrap gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">
+									<div
+										class="flex flex-wrap gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm"
+									>
 										<span>{stats.views} {i18n.t('views_lowercase') || 'views'}</span>
 										<span>{stats.clicks} {i18n.t('clicks_lowercase') || 'clicks'}</span>
 										<span>{stats.ctr.toFixed(1)}% CTR</span>
 									</div>
-									<button type="button" onclick={() => handleStopPromotion(promotedEvent.id)} disabled={stoppingPromotionId === promotedEvent.id} class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-800 transition hover:border-red-300 hover:bg-red-50 hover:text-red-700 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-red-900 dark:hover:bg-red-950 dark:hover:text-red-300 sm:px-4 sm:text-sm">
-										{stoppingPromotionId === promotedEvent.id ? i18n.t('stopping') : i18n.t('stop') || 'Stop'}
+									<button
+										type="button"
+										onclick={() => handleStopPromotion(promotedEvent.id)}
+										disabled={stoppingPromotionId === promotedEvent.id}
+										class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-800 transition hover:border-red-300 hover:bg-red-50 hover:text-red-700 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-red-900 dark:hover:bg-red-950 dark:hover:text-red-300 sm:px-4 sm:text-sm"
+									>
+										{stoppingPromotionId === promotedEvent.id
+											? i18n.t('stopping')
+											: i18n.t('stop') || 'Stop'}
 									</button>
 								</div>
 								<div class="mt-3 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-									<div class="h-full rounded-full bg-blue-600 transition-all" style={`width: ${stats.progress}%`}></div>
+									<div
+										class="h-full rounded-full bg-blue-600 transition-all"
+										style={`width: ${stats.progress}%`}
+									></div>
 								</div>
 							</div>
 						{/each}
 					</div>
 				{:else}
-					<div class="mt-6 rounded-2xl border border-dashed border-blue-200 bg-white/70 p-5 text-sm font-bold text-slate-500 dark:border-blue-900 dark:bg-slate-900/70 dark:text-slate-400">
+					<div
+						class="mt-6 rounded-2xl border border-dashed border-blue-200 bg-white/70 p-5 text-sm font-bold text-slate-500 dark:border-blue-900 dark:bg-slate-900/70 dark:text-slate-400"
+					>
 						{i18n.t('no_active_promotions')}
 					</div>
 				{/if}
 			</section>
 
-			<section class="mt-6 rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-6">
-				<h2 class="text-xl font-black text-slate-950 dark:text-slate-50 sm:text-2xl">{i18n.t('verification_centre')}</h2>
+			<section
+				class="mt-6 rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem] sm:p-6"
+			>
+				<h2 class="text-xl font-black text-slate-950 dark:text-slate-50 sm:text-2xl">
+					{i18n.t('verification_centre')}
+				</h2>
 				<p class="mt-1 text-xs text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-sm">
 					{i18n.t('verification_centre_desc')}
 				</p>
 				<div class="mt-4 rounded-2xl bg-slate-50 p-3 dark:bg-slate-800 sm:mt-5 sm:p-4">
-					<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">{i18n.t('current_status')}</p>
-					<p class="mt-1 font-black text-slate-950 dark:text-slate-50 sm:mt-2">{verificationLabel()}</p>
+					<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
+						{i18n.t('current_status')}
+					</p>
+					<p class="mt-1 font-black text-slate-950 dark:text-slate-50 sm:mt-2">
+						{verificationLabel()}
+					</p>
 				</div>
 				{#if organization.verificationStatus === 'rejected' && organization.verificationNote}
-					<div class="mt-3 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900/60 dark:bg-red-950/40 sm:p-4">
-						<p class="text-xs font-bold uppercase tracking-[0.2em] text-red-500 dark:text-red-400">{i18n.t('rejection_reason')}</p>
-						<p class="mt-1 font-bold text-red-700 dark:text-red-300">{organization.verificationNote}</p>
+					<div
+						class="mt-3 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900/60 dark:bg-red-950/40 sm:p-4"
+					>
+						<p class="text-xs font-bold uppercase tracking-[0.2em] text-red-500 dark:text-red-400">
+							{i18n.t('rejection_reason')}
+						</p>
+						<p class="mt-1 font-bold text-red-700 dark:text-red-300">
+							{organization.verificationNote}
+						</p>
 					</div>
 				{/if}
 				{#if organization.verificationStatus !== 'verified'}
 					<div class="mt-4 space-y-3 sm:mt-5">
-						<div class="rounded-2xl border border-slate-200 p-3 text-xs dark:border-slate-700 sm:p-4 sm:text-sm">
-							<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('required_identity_details')}</p>
-							<p class="mt-1 text-slate-500 dark:text-slate-400">{i18n.t('required_identity_details_help')}</p>
+						<div
+							class="rounded-2xl border border-slate-200 p-3 text-xs dark:border-slate-700 sm:p-4 sm:text-sm"
+						>
+							<p class="font-black text-slate-950 dark:text-slate-50">
+								{i18n.t('required_identity_details')}
+							</p>
+							<p class="mt-1 text-slate-500 dark:text-slate-400">
+								{i18n.t('required_identity_details_help')}
+							</p>
 						</div>
-						<input bind:value={legalName} class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50" placeholder={i18n.t('legal_name')} />
-						<input bind:value={nif} class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50" placeholder={i18n.t('nif') || 'NIF / VAT number'} />
-						<label class="flex cursor-pointer items-start gap-3 rounded-2xl bg-slate-50 p-4 dark:bg-slate-800">
+						<input
+							bind:value={legalName}
+							class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+							placeholder={i18n.t('legal_name')}
+						/>
+						<input
+							bind:value={nif}
+							class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+							placeholder={i18n.t('nif') || 'NIF / VAT number'}
+						/>
+						<label
+							class="flex cursor-pointer items-start gap-3 rounded-2xl bg-slate-50 p-4 dark:bg-slate-800"
+						>
 							<input type="checkbox" bind:checked={hasPublicVenue} class="mt-1 h-4 w-4" />
 							<span>
-								<span class="block font-black text-slate-950 dark:text-slate-50">{i18n.t('operates_public_venue')}</span>
-								<span class="mt-1 block text-xs text-slate-500 dark:text-slate-400 sm:text-sm">{i18n.t('public_venue_help')}</span>
+								<span class="block font-black text-slate-950 dark:text-slate-50"
+									>{i18n.t('operates_public_venue')}</span
+								>
+								<span class="mt-1 block text-xs text-slate-500 dark:text-slate-400 sm:text-sm"
+									>{i18n.t('public_venue_help')}</span
+								>
 							</span>
 						</label>
 						{#if hasPublicVenue}
-							<input bind:value={publicVenueName} class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50" placeholder={i18n.t('public_venue_name')} />
-							<LocationPickerMap bind:lat={publicVenueLat} bind:lng={publicVenueLng} bind:address={publicVenueAddress} autofillAddress={address} />
-							<input bind:value={googleMapsURL} class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50" placeholder={i18n.t('google_maps_link_placeholder')} />
+							<input
+								bind:value={publicVenueName}
+								class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+								placeholder={i18n.t('public_venue_name')}
+							/>
+							<LocationPickerMap
+								bind:lat={publicVenueLat}
+								bind:lng={publicVenueLng}
+								bind:address={publicVenueAddress}
+								autofillAddress={address}
+							/>
+							<input
+								bind:value={googleMapsURL}
+								class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+								placeholder={i18n.t('google_maps_link_placeholder')}
+							/>
 						{/if}
-						<textarea bind:value={verificationNote} rows="3" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50" placeholder={i18n.t('verification_notes_placeholder')}></textarea>
-						<button type="button" onclick={requestVerification} disabled={requesting || organization.verificationStatus === 'pending'} class="w-full rounded-2xl bg-slate-950 px-5 py-3 font-black text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200">
-							{requesting ? i18n.t('sending') : organization.verificationStatus === 'pending' ? i18n.t('review_pending') : i18n.t('request_verification_btn')}
+						<textarea
+							bind:value={verificationNote}
+							rows="3"
+							class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+							placeholder={i18n.t('verification_notes_placeholder')}
+						></textarea>
+						<button
+							type="button"
+							onclick={requestVerification}
+							disabled={requesting || organization.verificationStatus === 'pending'}
+							class="w-full rounded-2xl bg-slate-950 px-5 py-3 font-black text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+						>
+							{requesting
+								? i18n.t('sending')
+								: organization.verificationStatus === 'pending'
+									? i18n.t('review_pending')
+									: i18n.t('request_verification_btn')}
 						</button>
 					</div>
 				{:else}
-					<div class="mt-5 rounded-2xl bg-blue-50 p-4 text-sm font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+					<div
+						class="mt-5 rounded-2xl bg-blue-50 p-4 text-sm font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+					>
 						{i18n.t('verification_benefits')}
 					</div>
 				{/if}
@@ -1166,7 +1664,9 @@
 
 					<div class="mt-6 space-y-5">
 						<section>
-							<p class="mb-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+							<p
+								class="mb-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500"
+							>
 								{i18n.t('app') || 'App'}
 							</p>
 
@@ -1175,7 +1675,9 @@
 							>
 								<div class="flex items-start justify-between gap-4 p-4">
 									<div class="min-w-0 flex-1">
-										<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('notifications')}</p>
+										<p class="font-black text-slate-950 dark:text-slate-50">
+											{i18n.t('notifications')}
+										</p>
 										<p class="text-xs text-slate-500 dark:text-slate-400">
 											{i18n.t('notifications_help_manage')}
 										</p>
@@ -1194,7 +1696,9 @@
 
 								<div class="flex items-center justify-between gap-4 p-4">
 									<div>
-										<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('appearance')}</p>
+										<p class="font-black text-slate-950 dark:text-slate-50">
+											{i18n.t('appearance')}
+										</p>
 										<p class="text-xs text-slate-500 dark:text-slate-400">
 											{i18n.t('appearance_help_manage')}
 										</p>
@@ -1205,7 +1709,9 @@
 								<label class="flex items-center justify-between gap-4 p-4">
 									<div>
 										<p class="font-black text-slate-950 dark:text-slate-50">{i18n.t('language')}</p>
-										<p class="text-xs text-slate-500 dark:text-slate-400">{i18n.t('language_help_manage')}</p>
+										<p class="text-xs text-slate-500 dark:text-slate-400">
+											{i18n.t('language_help_manage')}
+										</p>
 									</div>
 									<select
 										bind:value={selectedLanguage}
@@ -1221,7 +1727,9 @@
 						</section>
 
 						<section>
-							<p class="mb-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+							<p
+								class="mb-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500"
+							>
 								{i18n.t('organization_label')}
 							</p>
 
@@ -1248,7 +1756,9 @@
 
 						<section>
 							<div class="mb-2 flex items-center justify-between gap-3">
-								<p class="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+								<p
+									class="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500"
+								>
 									{i18n.t('account')}
 								</p>
 								{#if showAccountSwitcher}
@@ -1274,7 +1784,7 @@
 													class="flex min-w-0 flex-1 items-center gap-3 text-left disabled:opacity-60"
 												>
 													<UserAvatar
-														photoURL={account.photoURL}
+														photoURL={getDeviceAccountPhotoURL(account)}
 														displayName={account.displayName}
 														email={account.email}
 														size="md"
@@ -1285,7 +1795,9 @@
 																{account.displayName}
 															</p>
 															{#if account.accountType === 'organization'}
-																<span class="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[0.65rem] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+																<span
+																	class="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[0.65rem] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+																>
 																	{i18n.t('org_admin_reply_label') || 'Org'}
 																</span>
 															{/if}
@@ -1294,7 +1806,9 @@
 															{account.rallyTag ? `@${account.rallyTag}` : account.email}
 														</p>
 														{#if account.id !== auth.currentUser?.uid}
-															<p class="mt-0.5 text-[0.68rem] font-bold text-slate-400 dark:text-slate-500">
+															<p
+																class="mt-0.5 text-[0.68rem] font-bold text-slate-400 dark:text-slate-500"
+															>
 																{#if switchingAccountId === account.id}
 																	{i18n.t('switching') || 'Switching...'}
 																{:else if canFastSwitchDeviceAccount(account)}
@@ -1308,7 +1822,9 @@
 												</button>
 
 												{#if account.id === auth.currentUser?.uid}
-													<span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-black text-white">
+													<span
+														class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-black text-white"
+													>
 														✓
 													</span>
 												{:else}
@@ -1316,7 +1832,8 @@
 														type="button"
 														onclick={() => handleForgetDeviceAccount(account.id)}
 														class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-white hover:text-red-500 dark:hover:bg-slate-900"
-														aria-label={i18n.t('forget_account_aria') || 'Forget account on this device'}
+														aria-label={i18n.t('forget_account_aria') ||
+															'Forget account on this device'}
 													>
 														×
 													</button>
@@ -1331,7 +1848,9 @@
 										disabled={logoutLoading}
 										class="flex w-full items-center gap-3 border-t border-slate-200 p-4 text-left transition hover:bg-slate-100 disabled:opacity-60 dark:border-slate-700 dark:hover:bg-slate-700"
 									>
-										<span class="flex h-11 w-11 items-center justify-center rounded-full bg-white text-2xl font-light text-slate-700 shadow-sm dark:bg-slate-900 dark:text-slate-200">
+										<span
+											class="flex h-11 w-11 items-center justify-center rounded-full bg-white text-2xl font-light text-slate-700 shadow-sm dark:bg-slate-900 dark:text-slate-200"
+										>
 											+
 										</span>
 										<span>

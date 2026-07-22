@@ -298,6 +298,7 @@ export async function updateUserProfilePhoto(params: {
 	await updateDoc(doc(db, 'users', params.userId), {
 		photoURL: params.photoURL,
 		profilePhotoPath: params.profilePhotoPath,
+		avatarOnboardingCompleted: true,
 		updatedAt: serverTimestamp()
 	});
 
