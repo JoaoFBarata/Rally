@@ -2,6 +2,7 @@ import { initializeApp, getApps } from 'firebase/app';
 import { browser, dev } from '$app/environment';
 import {
 	browserLocalPersistence,
+	browserPopupRedirectResolver,
 	getAuth,
 	indexedDBLocalPersistence,
 	initializeAuth
@@ -34,7 +35,8 @@ function createAuth() {
 	if (browser) {
 		try {
 			return initializeAuth(app, {
-				persistence: [indexedDBLocalPersistence, browserLocalPersistence]
+				persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+				popupRedirectResolver: browserPopupRedirectResolver
 			});
 		} catch {
 			// Auth was already initialized during hot reload.
