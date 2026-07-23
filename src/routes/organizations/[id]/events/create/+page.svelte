@@ -31,7 +31,7 @@
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
 	import { getCurrencySymbol } from '$lib/utils/format.utils';
-	import { TEXT_LIMITS } from '$lib/constants/text-limits';
+	import { EVENT_VALUE_LIMITS, TEXT_LIMITS } from '$lib/constants/text-limits';
 	import { i18n } from '$lib/services/i18n.svelte';
 	import VoiceRecordButton from '$lib/components/VoiceRecordButton.svelte';
 	import CreationTypeSwitch from '$lib/components/CreationTypeSwitch.svelte';
@@ -152,6 +152,7 @@
 			organization &&
 			title.trim() &&
 			(sport !== 'other' || customSport.trim()) &&
+			getCleanLocationName() &&
 			address.trim() &&
 			lat !== null &&
 			lng !== null &&
@@ -159,9 +160,10 @@
 			hasValidEnd &&
 			Number.isInteger(participants) &&
 			participants >= 2 &&
-			participants <= 500 &&
+			participants <= EVENT_VALUE_LIMITS.participantsMax &&
 			hasValidMinimum &&
-			(paymentMode === 'none' || Number(priceTotal) > 0) &&
+			(paymentMode === 'none' ||
+				(Number(priceTotal) > 0 && Number(priceTotal) <= EVENT_VALUE_LIMITS.priceMax)) &&
 			(paymentMode !== 'official' || isVerified) &&
 			(!promote || (isVerified && promotionTargetCountry))
 		);
@@ -205,20 +207,24 @@
 	}
 
 	function handleVoiceExtracted(fields: VoiceExtractedFields) {
-		if (fields.title) title = fields.title;
+		if (fields.title) title = fields.title.slice(0, TEXT_LIMITS.eventTitle);
 		if (fields.sport) sport = fields.sport;
-		if (fields.customSport) customSport = fields.customSport;
+		if (fields.customSport) customSport = fields.customSport.slice(0, TEXT_LIMITS.customSport);
 		if (fields.level) level = fields.level;
-		if (fields.description) description = fields.description;
+		if (fields.description) description = fields.description.slice(0, TEXT_LIMITS.eventDescription);
 		if (fields.location) {
-			locationName = fields.location;
-			autofillAddress = fields.location;
+			locationName = fields.location.slice(0, TEXT_LIMITS.locationName);
+			autofillAddress = fields.location.slice(0, TEXT_LIMITS.address);
 		}
 		if (fields.date) date = fields.date;
 		if (fields.time) startTime = fields.time;
-		if (fields.maxParticipants) maxParticipants = fields.maxParticipants.toString();
+		if (fields.maxParticipants)
+			maxParticipants = Math.min(
+				fields.maxParticipants,
+				EVENT_VALUE_LIMITS.participantsMax
+			).toString();
 		if (fields.priceTotal !== null && fields.priceTotal !== undefined) {
-			priceTotal = fields.priceTotal.toString();
+			priceTotal = Math.min(fields.priceTotal, EVENT_VALUE_LIMITS.priceMax).toString();
 			setEventKind('paid');
 		}
 	}
@@ -259,14 +265,14 @@
 		const cleanAddress = address.trim();
 
 		if (locationName.trim()) {
-			return locationName.trim();
+			return locationName.trim().slice(0, TEXT_LIMITS.locationName);
 		}
 
 		if (cleanAddress.includes(',')) {
-			return cleanAddress.split(',')[0].trim();
+			return cleanAddress.split(',')[0].trim().slice(0, TEXT_LIMITS.locationName);
 		}
 
-		return cleanAddress;
+		return cleanAddress.slice(0, TEXT_LIMITS.locationName);
 	}
 
 	function validateForm() {
@@ -274,13 +280,17 @@
 			throw new Error(i18n.t('add_event_title_error'));
 		}
 
-		if (!address.trim() || lat === null || lng === null) {
+		if (!address.trim() || !getCleanLocationName() || lat === null || lng === null) {
 			throw new Error(i18n.t('choose_event_location_error'));
 		}
 
 		const participants = Number(maxParticipants);
 
-		if (!Number.isInteger(participants) || participants < 2 || participants > 500) {
+		if (
+			!Number.isInteger(participants) ||
+			participants < 2 ||
+			participants > EVENT_VALUE_LIMITS.participantsMax
+		) {
 			throw new Error(i18n.t('max_participants_range_error'));
 		}
 
@@ -301,7 +311,7 @@
 		if (paymentMode !== 'none') {
 			const total = Number(priceTotal);
 
-			if (!total || total <= 0) {
+			if (!total || total <= 0 || total > EVENT_VALUE_LIMITS.priceMax) {
 				throw new Error(i18n.t('valid_event_price_error'));
 			}
 		}
@@ -327,7 +337,7 @@
 		if (!title.trim()) errors.title = i18n.t('add_event_title_error');
 		if (sport === 'other' && !customSport.trim())
 			errors.customSport = i18n.t('specify_sport_error');
-		if (!address.trim() || lat === null || lng === null) {
+		if (!address.trim() || !getCleanLocationName() || lat === null || lng === null) {
 			errors.location = i18n.t('choose_event_location_error');
 		}
 		if (!date || !startTime) errors.start = i18n.t('choose_date_start_time_error');
@@ -337,7 +347,11 @@
 		if (endTime && (!end || !start || end.getTime() <= start.getTime())) {
 			errors.endTime = i18n.t('end_after_start_error');
 		}
-		if (!Number.isInteger(participants) || participants < 2 || participants > 500) {
+		if (
+			!Number.isInteger(participants) ||
+			participants < 2 ||
+			participants > EVENT_VALUE_LIMITS.participantsMax
+		) {
 			errors.maxParticipants = i18n.t('max_participants_range_error');
 		}
 		if (enableMinParticipants) {
@@ -345,7 +359,12 @@
 			if (!min || min < 1) errors.minParticipants = i18n.t('min_participants_min_error');
 			else if (min > participants) errors.minParticipants = i18n.t('min_greater_than_max_error');
 		}
-		if (paymentMode !== 'none' && (!Number(priceTotal) || Number(priceTotal) <= 0)) {
+		if (
+			paymentMode !== 'none' &&
+			(!Number(priceTotal) ||
+				Number(priceTotal) <= 0 ||
+				Number(priceTotal) > EVENT_VALUE_LIMITS.priceMax)
+		) {
 			errors.price = i18n.t('valid_event_price_error');
 		}
 		if (paymentMode === 'official' && !isVerified) {
@@ -379,22 +398,26 @@
 			const endAt = buildEndDate(startAt);
 
 			const createdEvent = await createSportEvent({
-				title: title.trim(),
-				description: description.trim(),
+				title: title.trim().slice(0, TEXT_LIMITS.eventTitle),
+				description: description.trim().slice(0, TEXT_LIMITS.eventDescription),
 				sport,
-				customSport: sport === 'other' ? customSport.trim() : undefined,
+				customSport:
+					sport === 'other' ? customSport.trim().slice(0, TEXT_LIMITS.customSport) : undefined,
 				level,
 				creatorId: user.uid,
 				hostType: 'organization',
 				organizationId: organization.id,
 				locationName: getCleanLocationName(),
-				address: address.trim(),
-				route: sport === 'running' || sport === 'cycling' || sport === 'hiking' ? route : null,
+				address: address.trim().slice(0, TEXT_LIMITS.address),
+				route:
+					sport === 'running' || sport === 'cycling' || sport === 'hiking'
+						? route.slice(0, EVENT_VALUE_LIMITS.routePointsMax)
+						: null,
 				lat: lat ?? undefined,
 				lng: lng ?? undefined,
 				startAt,
 				endAt,
-				maxParticipants: Number(maxParticipants),
+				maxParticipants: Math.min(Number(maxParticipants), EVENT_VALUE_LIMITS.participantsMax),
 				minParticipants: enableMinParticipants ? Number(minParticipants) : null,
 				minParticipantsDeadlineHours: enableMinParticipants
 					? Number(minParticipantsDeadlineHours)
@@ -634,7 +657,8 @@
 							maxlength={TEXT_LIMITS.eventDescription}
 							rows="3"
 							placeholder={i18n.t('organization_event_description_placeholder')}
-							class={inputClass}
+							class={`max-h-72 overflow-y-auto ${inputClass}`}
+							style="field-sizing: content;"
 						></textarea>
 
 						<div class="grid grid-cols-2 items-end gap-3 md:grid-cols-3">
@@ -683,7 +707,7 @@
 									bind:value={maxParticipants}
 									type="number"
 									min="2"
-									max="500"
+									max={EVENT_VALUE_LIMITS.participantsMax}
 									placeholder="e.g. 20"
 									aria-invalid={hasFieldError('maxParticipants')}
 									class={`${inputClass} ${hasFieldError('maxParticipants') ? invalidInputClass : ''}`}
@@ -958,6 +982,7 @@
 									bind:value={priceTotal}
 									type="number"
 									min="1"
+									max={EVENT_VALUE_LIMITS.priceMax}
 									step="0.01"
 									placeholder={i18n.t('total_price')}
 									aria-invalid={hasFieldError('price')}

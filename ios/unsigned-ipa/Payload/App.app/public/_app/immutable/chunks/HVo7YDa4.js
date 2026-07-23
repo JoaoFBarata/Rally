@@ -1,0 +1,1 @@
+var e=[`duarte.v.ayres@gmail.com`,`guilherme.martins.e.silva@gmail.com`];function t(t){let n=t?.trim().toLowerCase();return e.some(e=>e===n)}export{t};

@@ -1429,6 +1429,7 @@ exports.onMessageCreated = onDocumentCreated(
 				if (!userDoc.exists) continue;
 
 				const userData = userDoc.data();
+				if (userData.notificationsEnabled === false) continue;
 				const text = pushTextFor(userData.language);
 				const notificationBody = rawText || text.attachment;
 

@@ -15,7 +15,7 @@
 	import { createTournamentEvent } from '$lib/services/event.service';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
-	import { TEXT_LIMITS } from '$lib/constants/text-limits';
+	import { EVENT_VALUE_LIMITS, TEXT_LIMITS } from '$lib/constants/text-limits';
 	import { i18n } from '$lib/services/i18n.svelte';
 	import CreationTypeSwitch from '$lib/components/CreationTypeSwitch.svelte';
 	import type {
@@ -158,14 +158,16 @@
 					Number.isInteger(maximumTeamSize) &&
 					maximumTeamSize >= minimumTeamSize)) &&
 			deadlineIsComplete &&
-			(entryFeeType === 'free' || Number(entryFeeAmount) > 0) &&
+			(entryFeeType === 'free' ||
+				(Number(entryFeeAmount) > 0 && Number(entryFeeAmount) <= EVENT_VALUE_LIMITS.priceMax)) &&
 			((entryFeeType !== 'paid' && prizeType !== 'cash') || isVerified)
 		);
 	});
 
 	function getLocationName() {
 		if (!address.trim()) return i18n.t('tournament_location');
-		return address.includes(',') ? address.split(',')[0].trim() : address.trim();
+		const name = address.includes(',') ? address.split(',')[0].trim() : address.trim();
+		return name.slice(0, TEXT_LIMITS.locationName);
 	}
 
 	function buildDateTime(value: string) {
@@ -224,6 +226,20 @@
 		if ((entryFeeType === 'paid' || prizeType === 'cash') && !isVerified) {
 			throw new Error(i18n.t('paid_tournament_verified_error'));
 		}
+		if (
+			entryFeeType !== 'free' &&
+			(!Number(entryFeeAmount) ||
+				Number(entryFeeAmount) <= 0 ||
+				Number(entryFeeAmount) > EVENT_VALUE_LIMITS.priceMax)
+		) {
+			throw new Error(i18n.t('valid_event_price_error'));
+		}
+		if (
+			prizeValue &&
+			(Number(prizeValue) < 0 || Number(prizeValue) > EVENT_VALUE_LIMITS.priceMax)
+		) {
+			throw new Error(i18n.t('valid_event_price_error'));
+		}
 	}
 
 	const formErrors = $derived.by(() => {
@@ -260,8 +276,19 @@
 		) {
 			errors.registrationDeadline = i18n.t('choose_deadline_datetime_error');
 		}
-		if (entryFeeType !== 'free' && (!Number(entryFeeAmount) || Number(entryFeeAmount) <= 0)) {
+		if (
+			entryFeeType !== 'free' &&
+			(!Number(entryFeeAmount) ||
+				Number(entryFeeAmount) <= 0 ||
+				Number(entryFeeAmount) > EVENT_VALUE_LIMITS.priceMax)
+		) {
 			errors.entryFeeAmount = i18n.t('valid_event_price_error');
+		}
+		if (
+			prizeValue &&
+			(Number(prizeValue) < 0 || Number(prizeValue) > EVENT_VALUE_LIMITS.priceMax)
+		) {
+			errors.prizeValue = i18n.t('valid_event_price_error');
 		}
 		if ((entryFeeType === 'paid' || prizeType === 'cash') && !isVerified) {
 			errors.payment = i18n.t('paid_tournament_verified_error');
@@ -292,14 +319,14 @@
 			if (!startAt) throw new Error(i18n.t('choose_tournament_datetime_error'));
 
 			const createdTournament = await createTournamentEvent({
-				title: title.trim(),
-				description: description.trim(),
+				title: title.trim().slice(0, TEXT_LIMITS.eventTitle),
+				description: description.trim().slice(0, TEXT_LIMITS.eventDescription),
 				sport,
 				level,
 				creatorId: user.uid,
 				organizationId: organization.id,
 				locationName: getLocationName(),
-				address: address.trim(),
+				address: address.trim().slice(0, TEXT_LIMITS.address),
 				lat: lat ?? undefined,
 				lng: lng ?? undefined,
 				startAt,
@@ -318,9 +345,9 @@
 				entryFeeAmount: entryFeeType === 'free' ? null : Number(entryFeeAmount || 0),
 				currency,
 				prizeType,
-				prizeDescription: prizeDescription.trim(),
+				prizeDescription: prizeDescription.trim().slice(0, TEXT_LIMITS.whatToBring),
 				prizeValue: prizeValue ? Number(prizeValue) : null,
-				rules: rules.trim()
+				rules: rules.trim().slice(0, TEXT_LIMITS.eventDescription)
 			});
 
 			await goto(resolve(`/events/${createdTournament.id}`));
@@ -443,7 +470,8 @@
 							maxlength={TEXT_LIMITS.eventDescription}
 							rows="3"
 							placeholder={i18n.t('tournament_description_placeholder')}
-							class={inputClass}
+							class={`max-h-72 overflow-y-auto ${inputClass}`}
+							style="field-sizing: content;"
 						></textarea>
 
 						<div class="grid grid-cols-2 items-end gap-3 md:grid-cols-3">
@@ -617,7 +645,8 @@
 						maxlength={TEXT_LIMITS.eventDescription}
 						rows="4"
 						placeholder={i18n.t('tournament_rules_placeholder')}
-						class={`mt-4 sm:mt-5 ${inputClass}`}
+						class={`mt-4 max-h-72 overflow-y-auto sm:mt-5 ${inputClass}`}
+						style="field-sizing: content;"
 					></textarea>
 				</section>
 			</div>
@@ -948,6 +977,7 @@
 										bind:value={entryFeeAmount}
 										type="number"
 										min="0"
+										max={EVENT_VALUE_LIMITS.priceMax}
 										step="0.01"
 										placeholder={registrationType === 'team'
 											? i18n.t('example_fee_team')
@@ -990,6 +1020,7 @@
 									bind:value={prizeValue}
 									type="number"
 									min="0"
+									max={EVENT_VALUE_LIMITS.priceMax}
 									step="0.01"
 									placeholder={i18n.t('example_prize_value')}
 									class={`mt-2 ${inputClass}`}

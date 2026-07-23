@@ -1,0 +1,1 @@
+import{o as e,s as t}from"./BjBbENya.js";import"./xihTtKlq.js";import{t as n}from"./OmF3YCsw.js";function r(r,i){let a=e(i,[`$$slots`,`$$events`,`$$legacy`]),o=[[`rect`,{width:`20`,height:`14`,x:`2`,y:`5`,rx:`2`}],[`line`,{x1:`2`,x2:`22`,y1:`10`,y2:`10`}]];n(r,t({name:`credit-card`},()=>a,{get iconNode(){return o}}))}export{r as t};

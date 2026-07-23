@@ -20,7 +20,7 @@
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import { goBack } from '$lib/utils/navigation';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
-	import { TEXT_LIMITS } from '$lib/constants/text-limits';
+	import { EVENT_VALUE_LIMITS, TEXT_LIMITS } from '$lib/constants/text-limits';
 	import { getCurrentLocale } from '$lib/utils/format.utils';
 	import type {
 		Sport,
@@ -89,17 +89,21 @@
 		const hasValidMinimum =
 			!enableMinParticipants ||
 			Boolean(minParticipants && minParticipants >= 1 && minParticipants <= maxParticipants);
-		const hasValidPrice = priceMode === 'free' || Boolean(priceValue !== null && priceValue > 0);
+		const hasValidPrice =
+			priceMode === 'free' ||
+			Boolean(priceValue !== null && priceValue > 0 && priceValue <= EVENT_VALUE_LIMITS.priceMax);
 
 		return Boolean(
 			title.trim() &&
 			(sport !== 'other' || customSport.trim()) &&
+			getCleanLocationName() &&
 			address.trim() &&
 			lat !== null &&
 			lng !== null &&
 			hasValidStart &&
 			durationMinutes >= 15 &&
 			maxParticipants >= 2 &&
+			maxParticipants <= EVENT_VALUE_LIMITS.participantsMax &&
 			hasValidMinimum &&
 			hasValidPrice
 		);
@@ -201,6 +205,15 @@
 		if (durationMinutes > 0) setDurationFromMinutes(durationMinutes);
 	}
 
+	function limitText(value: string, limit: number) {
+		return value.trim().slice(0, limit);
+	}
+
+	function getCleanLocationName() {
+		const fallback = address.includes(',') ? address.split(',')[0] : address;
+		return limitText(locationName || fallback, TEXT_LIMITS.locationName);
+	}
+
 	const formErrors = $derived.by(() => {
 		const startAt = startDate && startTime ? new Date(`${startDate}T${startTime}`) : null;
 		const errors: Record<string, string> = {};
@@ -212,8 +225,9 @@
 			errors.start = i18n.t('future_date_error');
 		}
 		if (!durationMinutes || durationMinutes < 15) errors.duration = i18n.t('valid_duration_error');
-		if (maxParticipants < 2) errors.maxParticipants = i18n.t('max_participants_range_error');
-		if (lat === null || lng === null || !address.trim()) {
+		if (maxParticipants < 2 || maxParticipants > EVENT_VALUE_LIMITS.participantsMax)
+			errors.maxParticipants = i18n.t('max_participants_range_error');
+		if (lat === null || lng === null || !address.trim() || !getCleanLocationName()) {
 			errors.location = i18n.t('select_location_error');
 		}
 		if (enableMinParticipants) {
@@ -223,7 +237,10 @@
 				errors.minParticipants = i18n.t('min_greater_than_max_error');
 			}
 		}
-		if (priceMode !== 'free' && (!priceValue || priceValue <= 0)) {
+		if (
+			priceMode !== 'free' &&
+			(!priceValue || priceValue <= 0 || priceValue > EVENT_VALUE_LIMITS.priceMax)
+		) {
 			errors.price = i18n.t('valid_event_price_error');
 		}
 
@@ -253,7 +270,15 @@
 			return;
 		}
 
-		if (!title.trim() || !startDate || !startTime || maxParticipants < 2 || !visibility || !level) {
+		if (
+			!title.trim() ||
+			!startDate ||
+			!startTime ||
+			maxParticipants < 2 ||
+			maxParticipants > EVENT_VALUE_LIMITS.participantsMax ||
+			!visibility ||
+			!level
+		) {
 			error = i18n.t('required_fields_error');
 			return;
 		}
@@ -281,7 +306,7 @@
 			return;
 		}
 
-		if (!address.trim()) {
+		if (!address.trim() || !getCleanLocationName()) {
 			error = i18n.t('add_address_error');
 			return;
 		}
@@ -299,6 +324,14 @@
 			}
 		}
 
+		if (
+			priceMode !== 'free' &&
+			(!priceValue || priceValue <= 0 || priceValue > EVENT_VALUE_LIMITS.priceMax)
+		) {
+			error = i18n.t('valid_event_price_error');
+			return;
+		}
+
 		let creatorProfile: UserProfile | null = null;
 		if (visibility === 'public') {
 			creatorProfile = await getUserProfile(currentUser.uid);
@@ -312,19 +345,22 @@
 
 		try {
 			const baseParams = {
-				title,
-				description,
+				title: limitText(title, TEXT_LIMITS.eventTitle),
+				description: limitText(description, TEXT_LIMITS.eventDescription),
 				sport,
 				level,
 				creatorId: currentUser.uid,
-				locationName,
+				locationName: getCleanLocationName(),
 				lat,
 				lng,
-				address,
-				route: sport === 'running' || sport === 'cycling' || sport === 'hiking' ? route : null,
+				address: limitText(address, TEXT_LIMITS.address),
+				route:
+					sport === 'running' || sport === 'cycling' || sport === 'hiking'
+						? route.slice(0, EVENT_VALUE_LIMITS.routePointsMax)
+						: null,
 				startAt,
 				endAt,
-				maxParticipants,
+				maxParticipants: Math.min(maxParticipants, EVENT_VALUE_LIMITS.participantsMax),
 				minParticipants: enableMinParticipants ? minParticipants : null,
 				minParticipantsDeadlineHours: enableMinParticipants
 					? (minParticipantsDeadlineHours ?? 8)
@@ -335,7 +371,7 @@
 				currency,
 				groupPhotoURL,
 				groupPhotoPath,
-				whatToBring: whatToBring.trim() || undefined,
+				whatToBring: limitText(whatToBring, TEXT_LIMITS.whatToBring) || undefined,
 				joinPolicy
 			};
 
@@ -382,22 +418,23 @@
 	}
 
 	function handleVoiceExtracted(fields: VoiceExtractedFields) {
-		if (fields.title) title = fields.title;
+		if (fields.title) title = fields.title.slice(0, TEXT_LIMITS.eventTitle);
 		if (fields.sport) sport = fields.sport;
-		if (fields.customSport) customSport = fields.customSport;
+		if (fields.customSport) customSport = fields.customSport.slice(0, TEXT_LIMITS.customSport);
 		if (fields.level) level = fields.level;
-		if (fields.description) description = fields.description;
+		if (fields.description) description = fields.description.slice(0, TEXT_LIMITS.eventDescription);
 		if (fields.location) {
-			locationName = fields.location;
-			voiceLocationHint = fields.location;
+			locationName = fields.location.slice(0, TEXT_LIMITS.locationName);
+			voiceLocationHint = fields.location.slice(0, TEXT_LIMITS.address);
 		}
 		if (fields.date) startDate = fields.date;
 		if (fields.time) startTime = fields.time;
 		if (fields.durationMinutes) setDurationFromMinutes(fields.durationMinutes);
-		if (fields.maxParticipants) maxParticipants = fields.maxParticipants;
+		if (fields.maxParticipants)
+			maxParticipants = Math.min(fields.maxParticipants, EVENT_VALUE_LIMITS.participantsMax);
 		if (fields.priceTotal !== null && fields.priceTotal !== undefined) {
 			priceMode = 'total_split';
-			priceValue = fields.priceTotal;
+			priceValue = Math.min(fields.priceTotal, EVENT_VALUE_LIMITS.priceMax);
 		}
 
 		step = 'form';
@@ -643,7 +680,8 @@
 							bind:value={description}
 							maxlength={TEXT_LIMITS.eventDescription}
 							placeholder={i18n.t('description_placeholder')}
-							class={`mt-2 min-h-24 sm:min-h-28 ${inputClass}`}
+							class={`mt-2 min-h-24 max-h-72 overflow-y-auto sm:min-h-28 ${inputClass}`}
+							style="field-sizing: content;"
 						></textarea>
 					</div>
 
@@ -657,7 +695,8 @@
 							bind:value={whatToBring}
 							maxlength={TEXT_LIMITS.whatToBring}
 							placeholder={i18n.t('what_to_bring_placeholder')}
-							class={`mt-2 min-h-16 sm:min-h-20 ${inputClass}`}
+							class={`mt-2 min-h-16 max-h-56 overflow-y-auto sm:min-h-20 ${inputClass}`}
+							style="field-sizing: content;"
 						></textarea>
 					</div>
 
@@ -769,6 +808,7 @@
 								id="maxParticipants"
 								type="number"
 								min="2"
+								max={EVENT_VALUE_LIMITS.participantsMax}
 								bind:value={maxParticipants}
 								aria-invalid={hasFieldError('maxParticipants')}
 								class={`mt-2 ${inputClass} ${hasFieldError('maxParticipants') ? invalidInputClass : ''}`}
@@ -983,6 +1023,7 @@
 										id="price"
 										type="number"
 										min="0"
+										max={EVENT_VALUE_LIMITS.priceMax}
 										step="0.01"
 										bind:value={priceValue}
 										placeholder="0.00"
