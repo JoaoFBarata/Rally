@@ -1,0 +1,21 @@
+moduledependenciestarget: \
+  /Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos/AppCheckCore.modulemap \
+  /Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/SourcePackages/checkouts/app-check/AppCheckCore/Sources/Public/AppCheckCore/AppCheckCore.h \
+  /Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/SourcePackages/checkouts/app-check/AppCheckCore/Sources/Public/AppCheckCore/GACAppCheck.h \
+  /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk/System/Library/Frameworks/Foundation.framework/Modules/module.modulemap \
+  /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk/usr/include/DarwinFoundation1.modulemap \
+  /Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/SourcePackages/checkouts/app-check/AppCheckCore/Sources/Public/AppCheckCore/GACAppCheckErrors.h \
+  /Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/SourcePackages/checkouts/app-check/AppCheckCore/Sources/Public/AppCheckCore/GACAppCheckLogger.h \
+  /Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/SourcePackages/checkouts/app-check/AppCheckCore/Sources/Public/AppCheckCore/GACAppCheckProvider.h \
+  /Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/SourcePackages/checkouts/app-check/AppCheckCore/Sources/Public/AppCheckCore/GACAppCheckSettings.h \
+  /Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/SourcePackages/checkouts/app-check/AppCheckCore/Sources/Public/AppCheckCore/GACAppCheckToken.h \
+  /Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/SourcePackages/checkouts/app-check/AppCheckCore/Sources/Public/AppCheckCore/GACAppCheckTokenDelegate.h \
+  /Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/SourcePackages/checkouts/app-check/AppCheckCore/Sources/Public/AppCheckCore/GACAppCheckTokenResult.h \
+  /Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/SourcePackages/checkouts/app-check/AppCheckCore/Sources/Public/AppCheckCore/GACAppCheckDebugProvider.h \
+  /Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/SourcePackages/checkouts/app-check/AppCheckCore/Sources/Public/AppCheckCore/GACDeviceCheckProvider.h \
+  /Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/SourcePackages/checkouts/app-check/AppCheckCore/Sources/Public/AppCheckCore/GACAppCheckAvailability.h \
+  /Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/SourcePackages/checkouts/app-check/AppCheckCore/Sources/Public/AppCheckCore/GACAppAttestProvider.h \
+  /Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/SourcePackages/checkouts/app-check/AppCheckCore/Sources/Public/AppCheckCore/_GACAppCheckAPIService.h \
+  /Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/SourcePackages/checkouts/app-check/AppCheckCore/Sources/Public/AppCheckCore/_GACAppCheckBackoffWrapper.h \
+  /Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/SourcePackages/checkouts/app-check/AppCheckCore/Sources/Public/AppCheckCore/_GACAppCheckErrorUtil.h \
+  /Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/SourcePackages/checkouts/app-check/AppCheckCore/Sources/Public/AppCheckCore/_GACURLSessionDataResponse.h

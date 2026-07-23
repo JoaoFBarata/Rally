@@ -1,0 +1,4 @@
+module third_party_IsAppEncrypted {
+umbrella "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/SourcePackages/checkouts/GoogleUtilities/third_party/IsAppEncrypted/Public"
+export *
+}

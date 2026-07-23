@@ -1,0 +1,16 @@
+{
+  "" : {
+    "const-values" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorShare.build/Release-iphoneos/SharePlugin.build/Objects-normal/arm64/SharePlugin-primary.swiftconstvalues",
+    "dependencies" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorShare.build/Release-iphoneos/SharePlugin.build/Objects-normal/arm64/SharePlugin-primary.d",
+    "diagnostics" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorShare.build/Release-iphoneos/SharePlugin.build/Objects-normal/arm64/SharePlugin-primary.dia",
+    "emit-module-dependencies" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorShare.build/Release-iphoneos/SharePlugin.build/Objects-normal/arm64/SharePlugin-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorShare.build/Release-iphoneos/SharePlugin.build/Objects-normal/arm64/SharePlugin-primary-emit-module.dia",
+    "pch" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorShare.build/Release-iphoneos/SharePlugin.build/Objects-normal/arm64/SharePlugin-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorShare.build/Release-iphoneos/SharePlugin.build/Objects-normal/arm64/SharePlugin-primary.swiftdeps"
+  },
+  "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/node_modules/.pnpm/@capacitor+share@8.0.1_@capacitor+core@8.4.1/node_modules/@capacitor/share/ios/Sources/SharePlugin/SharePlugin.swift" : {
+    "index-unit-output-path" : "/CapacitorShare.build/Release-iphoneos/SharePlugin.build/Objects-normal/arm64/SharePlugin.o",
+    "llvm-bc" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorShare.build/Release-iphoneos/SharePlugin.build/Objects-normal/arm64/SharePlugin.bc",
+    "object" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorShare.build/Release-iphoneos/SharePlugin.build/Objects-normal/arm64/SharePlugin.o"
+  }
+}

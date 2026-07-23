@@ -1,0 +1,25 @@
+{
+	"appId": "adc.fct.rally",
+	"appName": "rally",
+	"webDir": "build",
+	"plugins": {
+		"StatusBar": {
+			"overlaysWebView": false,
+			"style": "DEFAULT"
+		},
+		"PushNotifications": {
+			"presentationOptions": [
+				"badge",
+				"sound",
+				"alert"
+			]
+		}
+	},
+	"packageClassList": [
+		"AppPlugin",
+		"PushNotificationsPlugin",
+		"SharePlugin",
+		"StatusBarPlugin",
+		"GoogleSignInPlugin"
+	]
+}

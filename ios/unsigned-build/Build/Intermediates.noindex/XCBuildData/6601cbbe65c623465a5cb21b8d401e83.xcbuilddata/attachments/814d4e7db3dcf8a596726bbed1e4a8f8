@@ -1,0 +1,36 @@
+{
+  "" : {
+    "const-values" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/StatusBarPlugin-primary.swiftconstvalues",
+    "dependencies" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/StatusBarPlugin-primary.d",
+    "diagnostics" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/StatusBarPlugin-primary.dia",
+    "emit-module-dependencies" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/StatusBarPlugin-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/StatusBarPlugin-primary-emit-module.dia",
+    "pch" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/StatusBarPlugin-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/StatusBarPlugin-primary.swiftdeps"
+  },
+  "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/node_modules/.pnpm/@capacitor+status-bar@8.0.3_@capacitor+core@8.4.1/node_modules/@capacitor/status-bar/ios/Sources/StatusBarPlugin/StatusBar.swift" : {
+    "index-unit-output-path" : "/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/StatusBar.o",
+    "llvm-bc" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/StatusBar.bc",
+    "object" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/StatusBar.o"
+  },
+  "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/node_modules/.pnpm/@capacitor+status-bar@8.0.3_@capacitor+core@8.4.1/node_modules/@capacitor/status-bar/ios/Sources/StatusBarPlugin/StatusBarConfig.swift" : {
+    "index-unit-output-path" : "/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/StatusBarConfig.o",
+    "llvm-bc" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/StatusBarConfig.bc",
+    "object" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/StatusBarConfig.o"
+  },
+  "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/node_modules/.pnpm/@capacitor+status-bar@8.0.3_@capacitor+core@8.4.1/node_modules/@capacitor/status-bar/ios/Sources/StatusBarPlugin/StatusBarInfo.swift" : {
+    "index-unit-output-path" : "/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/StatusBarInfo.o",
+    "llvm-bc" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/StatusBarInfo.bc",
+    "object" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/StatusBarInfo.o"
+  },
+  "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/node_modules/.pnpm/@capacitor+status-bar@8.0.3_@capacitor+core@8.4.1/node_modules/@capacitor/status-bar/ios/Sources/StatusBarPlugin/StatusBarPlugin.swift" : {
+    "index-unit-output-path" : "/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/StatusBarPlugin.o",
+    "llvm-bc" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/StatusBarPlugin.bc",
+    "object" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/StatusBarPlugin.o"
+  },
+  "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/node_modules/.pnpm/@capacitor+status-bar@8.0.3_@capacitor+core@8.4.1/node_modules/@capacitor/status-bar/ios/Sources/StatusBarPlugin/UIColor.swift" : {
+    "index-unit-output-path" : "/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/UIColor.o",
+    "llvm-bc" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/UIColor.bc",
+    "object" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/UIColor.o"
+  }
+}

@@ -1,0 +1,1 @@
+function e(e){return new Worker(``+new URL(`../workers/mapbox-gl-csp-worker-BlOEkh-T.js`,import.meta.url).href,{name:e?.name})}export{e as t};

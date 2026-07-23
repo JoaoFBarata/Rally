@@ -1,0 +1,1 @@
+import{kt as e}from"../chunks/BjBbENya.js";import{r as t}from"../chunks/BuFlayix.js";import"../chunks/xihTtKlq.js";function n(e,n){throw new t(e,n.toString())}var r=e({load:()=>i,ssr:()=>!1});function i(){n(307,`/explore?mode=venues`)}function a(e){}export{a as component,r as universal};
