@@ -1,6 +1,6 @@
 {
 	"appId": "adc.fct.rally",
-	"appName": "rally",
+	"appName": "Rally",
 	"webDir": "build",
 	"plugins": {
 		"StatusBar": {

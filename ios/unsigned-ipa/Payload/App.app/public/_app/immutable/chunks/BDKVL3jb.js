@@ -1,0 +1,1 @@
+import{t as e}from"./D4djB6ch.js";import"./DjSnati5.js";async function t(t=`/dashboard`){if(window.history.length>1){window.history.back();return}await e(t)}export{t};

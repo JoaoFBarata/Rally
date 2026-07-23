@@ -2,12 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CAPACITOR_DEBUG</key>
+	<key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>rally</string>
+	<string>Rally</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,13 +15,15 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>$(PRODUCT_NAME)</string>
+	<string>Rally</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>GIDClientID</key>
+	<string>906417673342-t376kmhankd2e03u9omf9nlj964o98f6.apps.googleusercontent.com</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
@@ -62,12 +64,12 @@
 		<dict>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
-			<key>CFBundleURLName</key>
-			<string>com.googleusercontent.apps.906417673342-m5sqdvar26pvo85ld97sk84bdg0l7ei0</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>com.googleusercontent.apps.906417673342-m5sqdvar26pvo85ld97sk84bdg0l7ei0</string>
-			</array>
+				<key>CFBundleURLName</key>
+				<string>com.googleusercontent.apps.906417673342-t376kmhankd2e03u9omf9nlj964o98f6</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>com.googleusercontent.apps.906417673342-t376kmhankd2e03u9omf9nlj964o98f6</string>
+				</array>
 		</dict>
 		<dict>
 			<key>CFBundleTypeRole</key>

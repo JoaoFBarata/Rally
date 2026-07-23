@@ -1,9 +1,16 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { browserLocalPersistence, getAuth, setPersistence } from 'firebase/auth';
+import { browser, dev } from '$app/environment';
+import { Capacitor } from '@capacitor/core';
+import {
+	browserLocalPersistence,
+	getAuth,
+	indexedDBLocalPersistence,
+	initializeAuth,
+	setPersistence
+} from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
-import { dev } from '$app/environment';
 
 import {
 	PUBLIC_FIREBASE_API_KEY,
@@ -25,9 +32,23 @@ const firebaseConfig = {
 
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 
-export const auth = getAuth(app);
+function createAuth() {
+	if (browser && Capacitor.isNativePlatform()) {
+		try {
+			return initializeAuth(app, {
+				persistence: [browserLocalPersistence, indexedDBLocalPersistence]
+			});
+		} catch {
+			return getAuth(app);
+		}
+	}
+
+	return getAuth(app);
+}
+
+export const auth = createAuth();
 export const authPersistenceReady =
-	typeof window === 'undefined'
+	!browser || Capacitor.isNativePlatform()
 		? Promise.resolve()
 		: setPersistence(auth, browserLocalPersistence).catch((error) => {
 				console.error('Could not enable persistent Firebase session:', error);

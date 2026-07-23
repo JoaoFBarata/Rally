@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
 	appId: 'adc.fct.rally',
-	appName: 'rally',
+	appName: 'Rally',
 	webDir: 'build',
 	plugins: {
 		StatusBar: {

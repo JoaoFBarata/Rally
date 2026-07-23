@@ -80,8 +80,18 @@
 
 	// Client-side route protection and initial root navigation
 	$effect(() => {
+		if (Capacitor.getPlatform() === 'web' || page.url.pathname !== '/') return;
+
+		const currentUser = authState.user ?? auth.currentUser;
+		void goto(currentUser ? '/dashboard' : '/login', { replaceState: true });
+	});
+
+	$effect(() => {
 		if (!authState.loading) {
 			const currentUser = authState.user ?? auth.currentUser;
+			const switchingAccount =
+				page.url.searchParams.has('switchAccount') ||
+				page.url.searchParams.get('mode') === 'addAccount';
 			const isPasswordAccount = Boolean(
 				currentUser?.providerData.some((provider) => provider.providerId === 'password')
 			);
@@ -103,6 +113,11 @@
 			}
 
 			if (!Capacitor.isNativePlatform() && page.url.pathname === '/' && currentUser) {
+				void goto('/dashboard', { replaceState: true });
+				return;
+			}
+
+			if (page.url.pathname === '/login' && currentUser && !switchingAccount) {
 				void goto('/dashboard', { replaceState: true });
 				return;
 			}

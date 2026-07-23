@@ -2,8 +2,14 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CLIENT_ID</key>
+	<string>906417673342-t376kmhankd2e03u9omf9nlj964o98f6.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.906417673342-t376kmhankd2e03u9omf9nlj964o98f6</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>906417673342-2edpq6uojce17d52lv9igkfi8ett4p73.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
-	<string>AIzaSyD7F5QFDnLH3_1gaMTGawM37t2hkuTSwqA</string>
+	<string>AIzaSyCHPJiMUKHVu8PnuS3KZTQlp_VZ2dDoik8</string>
 	<key>GCM_SENDER_ID</key>
 	<string>906417673342</string>
 	<key>PLIST_VERSION</key>
@@ -15,20 +21,16 @@
 	<key>STORAGE_BUCKET</key>
 	<string>rally-5ddd6.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
-	<false/>
+	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
-	<false/>
+	<false></false>
 	<key>IS_APPINVITE_ENABLED</key>
-	<true/>
+	<true></true>
 	<key>IS_GCM_ENABLED</key>
-	<true/>
+	<true></true>
 	<key>IS_SIGNIN_ENABLED</key>
-	<true/>
+	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:906417673342:ios:018515a314501e27c7b42f</string>
-	<key>CLIENT_ID</key>
-	<string>906417673342-m5sqdvar26pvo85ld97sk84bdg0l7ei0.apps.googleusercontent.com</string>
-	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.906417673342-m5sqdvar26pvo85ld97sk84bdg0l7ei0</string>
+	<string>1:906417673342:ios:7070ad1baa5ae558c7b42f</string>
 </dict>
 </plist>

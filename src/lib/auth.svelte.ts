@@ -1,9 +1,10 @@
 import { auth, authPersistenceReady, db } from '$lib/firebase';
+import { Capacitor } from '@capacitor/core';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 
 /**
- * Gestão de estado reativa para o utilizador (Svelte 5 Runes)
+ * Gestao de estado reativa para o utilizador (Svelte 5 Runes)
  */
 class AuthState {
 	user = $state<User | null>(null);
@@ -12,6 +13,16 @@ class AuthState {
 	private revision = 0;
 
 	constructor() {
+		if (typeof window !== 'undefined') {
+			const loadingFallbackMs = Capacitor.isNativePlatform() ? 350 : 1500;
+			window.setTimeout(() => {
+				if (this.loading) {
+					console.warn('Auth state loading fallback timeout reached.');
+					this.loading = false;
+				}
+			}, loadingFallbackMs);
+		}
+
 		void authPersistenceReady.then(() =>
 			onAuthStateChanged(auth, async (u) => {
 				const revision = ++this.revision;
@@ -55,6 +66,13 @@ class AuthState {
 		}
 
 		if (revision === this.revision) this.loading = false;
+	}
+
+	setAuthenticatedUser(user: User, requiresEmailVerification = false) {
+		this.revision += 1;
+		this.user = user;
+		this.requiresEmailVerification = requiresEmailVerification;
+		this.loading = false;
 	}
 }
 

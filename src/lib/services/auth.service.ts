@@ -205,7 +205,6 @@ export const authService = {
 	async login(email: string, password: string) {
 		await authPersistenceReady;
 		const credential = await signInWithEmailAndPassword(auth, email, password);
-		authState.user = credential.user;
 		const profile = await ensureUserProfile(credential.user);
 
 		if (
@@ -215,6 +214,8 @@ export const authService = {
 		) {
 			throw new Error('auth/email-not-verified');
 		}
+
+		authState.setAuthenticatedUser(credential.user, false);
 
 		return {
 			user: credential.user,
@@ -247,12 +248,6 @@ export const authService = {
 				clientId
 			});
 
-			try {
-				await GoogleSignIn.signOut();
-			} catch {
-				// No native Google session to clear.
-			}
-
 			const result = await GoogleSignIn.signIn();
 			if (!result.idToken) {
 				throw new Error('No idToken returned from Google Sign-In');
@@ -260,12 +255,12 @@ export const authService = {
 
 			const credential = GoogleAuthProvider.credential(result.idToken);
 			const userCredential = await signInWithCredential(auth, credential);
-			authState.user = userCredential.user;
 
 			const profile = await disableTwoFactorForGoogleOnlyAccount(
 				userCredential.user,
 				await ensureUserProfile(userCredential.user)
 			);
+			authState.setAuthenticatedUser(userCredential.user, false);
 			return { user: userCredential.user, profile };
 		} else {
 			const provider = new GoogleAuthProvider();
@@ -275,12 +270,12 @@ export const authService = {
 			});
 
 			const result = await signInWithPopup(auth, provider);
-			authState.user = result.user;
 
 			const profile = await disableTwoFactorForGoogleOnlyAccount(
 				result.user,
 				await ensureUserProfile(result.user)
 			);
+			authState.setAuthenticatedUser(result.user, false);
 
 			return { user: result.user, profile };
 		}

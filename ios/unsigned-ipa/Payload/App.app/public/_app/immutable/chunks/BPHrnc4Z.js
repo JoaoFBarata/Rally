@@ -1,0 +1,1 @@
+import{t as e}from"./CcNSlqNf.js";import"./Crad7iN2.js";async function t(t=`/dashboard`){if(window.history.length>1){window.history.back();return}await e(t)}export{t};

@@ -3,15 +3,17 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { fade } from 'svelte/transition';
-	import { authState } from '$lib/auth.svelte';
 	import { Capacitor } from '@capacitor/core';
+	import { authState } from '$lib/auth.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import CardSwap from '$lib/components/CardSwap.svelte';
+	import LoginPage from './login/+page.svelte';
 
 	let contentVisible = $state(false);
 	let activePersona = $state(0);
 	let activeStep = $state(0);
 	let isMobileViewport = $state(false);
+	let nativeApp = $state(false);
 
 	$effect(() => {
 		if (authState.loading) return;
@@ -25,12 +27,17 @@
 	});
 
 	onMount(() => {
+		nativeApp = Capacitor.isNativePlatform();
 		const mobileMedia = window.matchMedia('(max-width: 767px)');
 		const syncMobileViewport = () => {
 			isMobileViewport = mobileMedia.matches;
 		};
 		syncMobileViewport();
 		mobileMedia.addEventListener('change', syncMobileViewport);
+
+		if (nativeApp && !authState.user) {
+			void goto(resolve('/login'), { replaceState: true });
+		}
 
 		const t = setTimeout(() => (contentVisible = true), 1000);
 		return () => {
@@ -184,6 +191,9 @@
 	];
 </script>
 
+{#if (nativeApp || isMobileViewport) && !authState.user}
+	<LoginPage />
+{:else}
 <main class="hidden min-h-screen bg-white dark:bg-slate-950 md:block">
 	<!-- ─── HERO ─────────────────────────────────────────────────────────── -->
 	<section class="relative h-screen min-h-[600px] overflow-hidden">
@@ -810,6 +820,7 @@
 		{/if}
 	</div>
 </main>
+{/if}
 
 <style>
 	@keyframes marquee {

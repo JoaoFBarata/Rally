@@ -166,12 +166,15 @@
 	}
 
 	function shouldHideNavigation() {
+		const unauthenticatedNativeSession =
+			Capacitor.getPlatform() !== 'web' && !authState.user;
 		const focusedPage =
 			/^\/messages\/[^/]+$/.test(pathname) ||
 			pathname === '/events/create' ||
 			/^\/organizations\/[^/]+\/(events|tournaments)\/create$/.test(pathname);
 
 		return (
+			unauthenticatedNativeSession ||
 			pathname === '/' ||
 			pathname === '/login' ||
 			pathname === '/verify-email' ||

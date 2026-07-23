@@ -1,0 +1,1 @@
+import{t as e}from"./DSats98T.js";import"./B3hOMcnj.js";async function t(t=`/dashboard`){if(window.history.length>1){window.history.back();return}await e(t)}export{t};

@@ -5,6 +5,91 @@
 	<key>logFormatVersion</key>
 	<integer>12</integer>
 	<key>logs</key>
-	<dict/>
+	<dict>
+		<key>3FF3252F-3569-4EC1-B330-AD004F77A079</key>
+		<dict>
+			<key>className</key>
+			<string>IDECommandLineBuildLog</string>
+			<key>documentTypeString</key>
+			<string>&lt;nil&gt;</string>
+			<key>domainType</key>
+			<string>Xcode.IDEActivityLogDomainType.BuildLog</string>
+			<key>fileName</key>
+			<string>3FF3252F-3569-4EC1-B330-AD004F77A079.xcactivitylog</string>
+			<key>hasPrimaryLog</key>
+			<true/>
+			<key>primaryObservable</key>
+			<dict>
+				<key>highLevelStatus</key>
+				<string>S</string>
+				<key>totalNumberOfAnalyzerIssues</key>
+				<integer>0</integer>
+				<key>totalNumberOfErrors</key>
+				<integer>0</integer>
+				<key>totalNumberOfTestFailures</key>
+				<integer>0</integer>
+				<key>totalNumberOfWarnings</key>
+				<integer>0</integer>
+			</dict>
+			<key>schemeIdentifier-containerName</key>
+			<string>App project</string>
+			<key>schemeIdentifier-schemeName</key>
+			<string>App</string>
+			<key>schemeIdentifier-sharedScheme</key>
+			<integer>1</integer>
+			<key>signature</key>
+			<string>Building project App with scheme App and configuration Release</string>
+			<key>timeStartedRecording</key>
+			<real>806521406.33039701</real>
+			<key>timeStoppedRecording</key>
+			<real>806521407.48333204</real>
+			<key>title</key>
+			<string>Building project App with scheme App and configuration Release</string>
+			<key>uniqueIdentifier</key>
+			<string>3FF3252F-3569-4EC1-B330-AD004F77A079</string>
+		</dict>
+		<key>5D921FFE-8169-4E98-8BC5-562EDA2859CE</key>
+		<dict>
+			<key>className</key>
+			<string>IDECommandLineBuildLog</string>
+			<key>documentTypeString</key>
+			<string>&lt;nil&gt;</string>
+			<key>domainType</key>
+			<string>Xcode.IDEActivityLogDomainType.BuildLog</string>
+			<key>fileName</key>
+			<string>5D921FFE-8169-4E98-8BC5-562EDA2859CE.xcactivitylog</string>
+			<key>hasPrimaryLog</key>
+			<true/>
+			<key>primaryObservable</key>
+			<dict>
+				<key>highLevelStatus</key>
+				<string>S</string>
+				<key>totalNumberOfAnalyzerIssues</key>
+				<integer>0</integer>
+				<key>totalNumberOfErrors</key>
+				<integer>0</integer>
+				<key>totalNumberOfTestFailures</key>
+				<integer>0</integer>
+				<key>totalNumberOfWarnings</key>
+				<integer>0</integer>
+			</dict>
+			<key>schemeIdentifier-containerName</key>
+			<string>App project</string>
+			<key>schemeIdentifier-schemeName</key>
+			<string>App</string>
+			<key>schemeIdentifier-sharedScheme</key>
+			<integer>1</integer>
+			<key>signature</key>
+			<string>Building project App with scheme App and configuration Release</string>
+			<key>timeStartedRecording</key>
+			<real>806520792.51594198</real>
+			<key>timeStoppedRecording</key>
+			<real>806520793.74570405</real>
+			<key>title</key>
+			<string>Building project App with scheme App and configuration Release</string>
+			<key>uniqueIdentifier</key>
+			<string>5D921FFE-8169-4E98-8BC5-562EDA2859CE</string>
+		</dict>
+	</dict>
 </dict>
 </plist>
