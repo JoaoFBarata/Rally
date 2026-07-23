@@ -213,6 +213,24 @@ export async function updateUserPrivacy(userId: string, isPrivate: boolean) {
 	});
 }
 
+export async function updateUserNotificationsEnabled(userId: string, enabled: boolean) {
+	await updateDoc(doc(db, 'users', userId), {
+		notificationsEnabled: enabled,
+		updatedAt: serverTimestamp()
+	});
+}
+
+export async function setOrganizationNotificationsMuted(
+	userId: string,
+	organizationId: string,
+	muted: boolean
+) {
+	await updateDoc(doc(db, 'users', userId), {
+		mutedOrganizationIds: muted ? arrayUnion(organizationId) : arrayRemove(organizationId),
+		updatedAt: serverTimestamp()
+	});
+}
+
 export async function updateUserTwoFactorSettings(
 	userId: string,
 	params: {

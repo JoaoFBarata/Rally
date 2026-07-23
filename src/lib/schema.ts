@@ -102,6 +102,8 @@ export interface UserProfile {
 	rallyPointsTotal?: number;
 
 	isPrivate?: boolean;
+	notificationsEnabled?: boolean;
+	mutedOrganizationIds?: string[];
 	requiresEmailVerification?: boolean;
 	twoFactorEnabled?: boolean;
 	twoFactorMethods?: TwoFactorMethod[];
