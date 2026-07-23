@@ -23,6 +23,7 @@
 		getOrganizationLogo
 	} from '$lib/services/organization.service';
 	import { getFriendsForUser } from '$lib/services/social.service';
+	import { getUserProfile, setOrganizationNotificationsMuted } from '$lib/services/user.service';
 	import { uploadOrganizationLogo } from '$lib/services/storage.service';
 	import ImageCropperModal from '$lib/components/ImageCropperModal.svelte';
 	import { getEventsCreatedByOrganization } from '$lib/services/event.service';
@@ -572,10 +573,18 @@
 		}
 	}
 
-	function toggleOrganizationNotifications() {
-		orgNotificationsEnabled = !orgNotificationsEnabled;
-		if (typeof localStorage !== 'undefined') {
-			localStorage.setItem('rally-org-notifications', orgNotificationsEnabled ? 'on' : 'off');
+	async function toggleOrganizationNotifications() {
+		if (!organization || !currentUserId) return;
+
+		const nextValue = !orgNotificationsEnabled;
+		orgNotificationsEnabled = nextValue;
+
+		try {
+			await setOrganizationNotificationsMuted(currentUserId, organization.id, !nextValue);
+		} catch (err) {
+			console.error('Toggle organization notifications error:', err);
+			orgNotificationsEnabled = !nextValue;
+			error = getFriendlyErrorMessage(err, 'Could not update notification settings for this organization.');
 		}
 	}
 
@@ -616,19 +625,22 @@
 				loadedReviews,
 				ownReview,
 				friends,
-				loadedFollowerIds
+				loadedFollowerIds,
+				viewerProfile
 			] = await Promise.all([
 				getEventsCreatedByOrganization(loadedOrganization.id),
 				isFollowingOrganization({ organizationId: loadedOrganization.id, userId }),
 				getOrganizationReviews(loadedOrganization.id),
 				getUserOrganizationReview({ organizationId: loadedOrganization.id, userId }),
 				getFriendsForUser(userId),
-				getOrganizationFollowerIds(loadedOrganization.id)
+				getOrganizationFollowerIds(loadedOrganization.id),
+				getUserProfile(userId)
 			]);
 
 			events = loadedEvents;
 			following = loadedFollowing;
 			reviews = loadedReviews;
+			orgNotificationsEnabled = !viewerProfile?.mutedOrganizationIds?.includes(loadedOrganization.id);
 			reviewPage = 0;
 			reviewRating = ownReview?.rating ?? 0;
 			reviewComment = ownReview?.comment ?? '';
@@ -764,7 +776,6 @@
 
 	onMount(() => {
 		orgDarkModeEnabled = document.documentElement.classList.contains('dark');
-		orgNotificationsEnabled = localStorage.getItem('rally-org-notifications') !== 'off';
 
 		let unsubscribeOrganization = () => {};
 		let unsubscribeEvents = () => {};

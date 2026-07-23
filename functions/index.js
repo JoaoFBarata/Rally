@@ -8,7 +8,6 @@ const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestor
 const { getAuth } = require('firebase-admin/auth');
 const { getMessaging } = require('firebase-admin/messaging');
 const { getStorage } = require('firebase-admin/storage');
-const { GoogleGenAI, Type } = require('@google/genai');
 const Stripe = require('stripe');
 
 initializeApp();
@@ -16,7 +15,6 @@ const db = getFirestore();
 const messaging = getMessaging();
 
 const openaiApiKey = defineSecret('OPENAI_API_KEY');
-const geminiApiKey = defineSecret('GEMINI_API_KEY');
 const stripeApiKey = defineSecret('STRIPE_API_KEY');
 
 async function deleteQueryDocuments(query) {
@@ -1174,11 +1172,20 @@ exports.addFriendByQrCode = onCall(async (request) => {
 	return { status: 'friends' };
 });
 
-async function sendPushToUser(userId, payload) {
+async function sendPushToUser(userId, payload, { organizationId = null } = {}) {
 	const userDoc = await db.collection('users').doc(userId).get();
 	if (!userDoc.exists) return;
 
 	const userData = userDoc.data();
+	if (userData.notificationsEnabled === false) return;
+	if (
+		organizationId &&
+		Array.isArray(userData.mutedOrganizationIds) &&
+		userData.mutedOrganizationIds.includes(organizationId)
+	) {
+		return;
+	}
+
 	let tokens = Array.isArray(userData.fcmTokens) ? userData.fcmTokens : [];
 	tokens = tokens.filter((t) => typeof t === 'string' && t.trim() !== '');
 
@@ -1223,19 +1230,20 @@ const VOICE_EVENT_LEVELS = ['beginner', 'casual', 'intermediate', 'advanced'];
 // JSON schema for structured extraction of event fields from a voice transcript.
 // Every field is nullable — the model must leave unmentioned details as null rather than guessing.
 const VOICE_EVENT_SCHEMA = {
-	type: Type.OBJECT,
+	type: 'object',
+	additionalProperties: false,
 	properties: {
-		title: { type: Type.STRING, nullable: true },
-		sport: { type: Type.STRING, enum: VOICE_EVENT_SPORTS, nullable: true },
-		customSport: { type: Type.STRING, nullable: true },
-		level: { type: Type.STRING, enum: VOICE_EVENT_LEVELS, nullable: true },
-		description: { type: Type.STRING, nullable: true },
-		location: { type: Type.STRING, nullable: true },
-		date: { type: Type.STRING, nullable: true },
-		time: { type: Type.STRING, nullable: true },
-		durationMinutes: { type: Type.INTEGER, nullable: true },
-		maxParticipants: { type: Type.INTEGER, nullable: true },
-		priceTotal: { type: Type.NUMBER, nullable: true }
+		title: { type: ['string', 'null'] },
+		sport: { type: ['string', 'null'], enum: [...VOICE_EVENT_SPORTS, null] },
+		customSport: { type: ['string', 'null'] },
+		level: { type: ['string', 'null'], enum: [...VOICE_EVENT_LEVELS, null] },
+		description: { type: ['string', 'null'] },
+		location: { type: ['string', 'null'] },
+		date: { type: ['string', 'null'] },
+		time: { type: ['string', 'null'] },
+		durationMinutes: { type: ['integer', 'null'] },
+		maxParticipants: { type: ['integer', 'null'] },
+		priceTotal: { type: ['number', 'null'] }
 	},
 	required: [
 		'title',
@@ -1254,7 +1262,7 @@ const VOICE_EVENT_SCHEMA = {
 
 // Callable: transcribes a recorded voice clip and extracts structured event fields from it.
 exports.transcribeVoiceEvent = onCall(
-	{ secrets: [openaiApiKey, geminiApiKey] },
+	{ secrets: [openaiApiKey] },
 	async (request) => {
 		if (!request.auth) {
 			throw new HttpsError('unauthenticated', 'You must be signed in to use voice event creation.');
@@ -1297,23 +1305,44 @@ exports.transcribeVoiceEvent = onCall(
 		}
 
 		try {
-			const genAI = new GoogleGenAI({ apiKey: geminiApiKey.value() });
 			const today = new Date().toISOString().slice(0, 10);
 
-			const response = await genAI.models.generateContent({
-				model: 'gemini-2.5-flash',
-				contents: transcript,
-				config: {
-					systemInstruction:
-						'Extract sport event details from a spoken transcript describing an event someone wants to create. ' +
-						`Today's date is ${today} (YYYY-MM-DD) — resolve relative dates like "tomorrow" or "next Saturday" against it. ` +
-						'Only fill in fields explicitly stated or clearly implied in the transcript. Set anything unmentioned to null — never invent details.',
-					responseMimeType: 'application/json',
-					responseSchema: VOICE_EVENT_SCHEMA
-				}
+			const extractionResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+				method: 'POST',
+				headers: {
+					Authorization: `Bearer ${openaiApiKey.value()}`,
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					model: 'gpt-4o-mini',
+					messages: [
+						{
+							role: 'system',
+							content:
+								'Extract sport event details from a spoken transcript describing an event someone wants to create. ' +
+								`Today's date is ${today} (YYYY-MM-DD) — resolve relative dates like "tomorrow" or "next Saturday" against it. ` +
+								'Only fill in fields explicitly stated or clearly implied in the transcript. Set anything unmentioned to null — never invent details.'
+						},
+						{ role: 'user', content: transcript }
+					],
+					response_format: {
+						type: 'json_schema',
+						json_schema: {
+							name: 'voice_event_fields',
+							schema: VOICE_EVENT_SCHEMA,
+							strict: true
+						}
+					}
+				})
 			});
 
-			const fields = JSON.parse(response.text);
+			if (!extractionResponse.ok) {
+				console.error('Field extraction failed:', await extractionResponse.text());
+				throw new Error('Extraction request failed.');
+			}
+
+			const extractionResult = await extractionResponse.json();
+			const fields = JSON.parse(extractionResult.choices[0].message.content);
 
 			return { transcript, fields };
 		} catch (err) {
@@ -1582,58 +1611,33 @@ exports.onInviteCreated = onDocumentCreated('eventInvites/{inviteId}', async (ev
 
 		// Get event details
 		const eventDoc = await db.collection('events').doc(eventId).get();
-		const eventTitle = eventDoc.exists
-			? eventDoc.data().title || PUSH_TEXT.pt.eventFallback
-			: PUSH_TEXT.pt.eventFallback;
+		const eventData = eventDoc.exists ? eventDoc.data() : null;
+		const eventTitle = eventData?.title || PUSH_TEXT.pt.eventFallback;
 
 		// Get recipient profile details
 		const recipientDoc = await db.collection('users').doc(toUserId).get();
 		if (!recipientDoc.exists) return;
 
-		const recipientData = recipientDoc.data();
-		const text = pushTextFor(recipientData.language);
+		const text = pushTextFor(recipientDoc.data().language);
 
-		let tokens = Array.isArray(recipientData.fcmTokens) ? recipientData.fcmTokens : [];
-		tokens = tokens.filter((t) => typeof t === 'string' && t.trim() !== '');
-		if (tokens.length === 0) return;
-
-		const payload = {
-			notification: {
-				title: text.eventInviteTitle,
-				body: text.eventInviteBody(senderName, eventTitle)
-			},
-			data: {
-				path: `/events/${eventId}`
-			},
-			android: {
+		await sendPushToUser(
+			toUserId,
+			{
 				notification: {
-					channelId: 'rally_default_channel'
+					title: text.eventInviteTitle,
+					body: text.eventInviteBody(senderName, eventTitle)
+				},
+				data: {
+					path: `/events/${eventId}`
+				},
+				android: {
+					notification: {
+						channelId: 'rally_default_channel'
+					}
 				}
-			}
-		};
-
-		for (const token of tokens) {
-			try {
-				await messaging.send({
-					token: token,
-					...payload
-				});
-				console.log('Invite notification sent successfully');
-			} catch (sendError) {
-				console.error(`Error sending invite push:`, sendError);
-				if (
-					sendError.code === 'messaging/invalid-registration-token' ||
-					sendError.code === 'messaging/registration-token-not-registered'
-				) {
-					await db
-						.collection('users')
-						.doc(toUserId)
-						.update({
-							fcmTokens: FieldValue.arrayRemove(token)
-						});
-				}
-			}
-		}
+			},
+			{ organizationId: eventData?.organizationId || null }
+		);
 	} catch (error) {
 		console.error('Error in onInviteCreated Cloud Function:', error);
 	}
@@ -1673,20 +1677,24 @@ exports.sendEventStartingSoonReminders = onSchedule('every 5 minutes', async () 
 					if (!userDoc.exists) return;
 
 					const text = pushTextFor(userDoc.data().language);
-					await sendPushToUser(userId, {
-						notification: {
-							title: text.eventStartingSoonTitle,
-							body: text.eventStartingSoonBody(eventData.title || text.eventFallback)
-						},
-						data: {
-							path: `/events/${eventDoc.id}`
-						},
-						android: {
+					await sendPushToUser(
+						userId,
+						{
 							notification: {
-								channelId: 'rally_default_channel'
+								title: text.eventStartingSoonTitle,
+								body: text.eventStartingSoonBody(eventData.title || text.eventFallback)
+							},
+							data: {
+								path: `/events/${eventDoc.id}`
+							},
+							android: {
+								notification: {
+									channelId: 'rally_default_channel'
+								}
 							}
-						}
-					});
+						},
+						{ organizationId: eventData.organizationId || null }
+					);
 				})
 			);
 
@@ -1736,14 +1744,18 @@ exports.processEventLifecycle = onSchedule('every 5 minutes', async () => {
 					const userDoc = await db.collection('users').doc(userId).get();
 					if (!userDoc.exists) return;
 					const text = pushTextFor(userDoc.data().language);
-					await sendPushToUser(userId, {
-						notification: {
-							title: text.eventStartedTitle,
-							body: text.eventStartedBody(data.title || text.eventFallback)
+					await sendPushToUser(
+						userId,
+						{
+							notification: {
+								title: text.eventStartedTitle,
+								body: text.eventStartedBody(data.title || text.eventFallback)
+							},
+							data: { path: `/events/${eventDoc.id}` },
+							android: { notification: { channelId: 'rally_default_channel' } }
 						},
-						data: { path: `/events/${eventDoc.id}` },
-						android: { notification: { channelId: 'rally_default_channel' } }
-					});
+						{ organizationId: data.organizationId || null }
+					);
 				})
 			);
 			await eventDoc.ref.update({ startedNotificationSentAt: FieldValue.serverTimestamp() });
@@ -1806,14 +1818,18 @@ exports.processEventLifecycle = onSchedule('every 5 minutes', async () => {
 						const userDoc = await db.collection('users').doc(userId).get();
 						if (!userDoc.exists) return;
 						const text = pushTextFor(userDoc.data().language);
-						await sendPushToUser(userId, {
-							notification: {
-								title: text.eventAutoCancelledTitle,
-								body: text.eventAutoCancelledBody(data.title || text.eventFallback, minParticipants)
+						await sendPushToUser(
+							userId,
+							{
+								notification: {
+									title: text.eventAutoCancelledTitle,
+									body: text.eventAutoCancelledBody(data.title || text.eventFallback, minParticipants)
+								},
+								data: { path: `/events/${eventDoc.id}` },
+								android: { notification: { channelId: 'rally_default_channel' } }
 							},
-							data: { path: `/events/${eventDoc.id}` },
-							android: { notification: { channelId: 'rally_default_channel' } }
-						});
+							{ organizationId: data.organizationId || null }
+						);
 					})
 				);
 			}
@@ -2054,14 +2070,18 @@ exports.onEventUpdated = onDocumentUpdated('events/{eventId}', async (event) => 
 				const name = participantDoc.exists
 					? participantDoc.data().displayName || text.someone
 					: text.someone;
-				await sendPushToUser(after.creatorId, {
-					notification: {
-						title: text.participantJoinedTitle,
-						body: text.participantJoinedBody(name, eventTitle)
+				await sendPushToUser(
+					after.creatorId,
+					{
+						notification: {
+							title: text.participantJoinedTitle,
+							body: text.participantJoinedBody(name, eventTitle)
+						},
+						data: { path: `/events/${eventId}` },
+						android: { notification: { channelId: 'rally_default_channel' } }
 					},
-					data: { path: `/events/${eventId}` },
-					android: { notification: { channelId: 'rally_default_channel' } }
-				});
+					{ organizationId: after.organizationId || null }
+				);
 			}
 			for (const participantId of leftIds) {
 				if (participantId === after.creatorId) continue;
@@ -2069,14 +2089,18 @@ exports.onEventUpdated = onDocumentUpdated('events/{eventId}', async (event) => 
 				const name = participantDoc.exists
 					? participantDoc.data().displayName || text.someone
 					: text.someone;
-				await sendPushToUser(after.creatorId, {
-					notification: {
-						title: text.participantLeftTitle,
-						body: text.participantLeftBody(name, eventTitle)
+				await sendPushToUser(
+					after.creatorId,
+					{
+						notification: {
+							title: text.participantLeftTitle,
+							body: text.participantLeftBody(name, eventTitle)
+						},
+						data: { path: `/events/${eventId}` },
+						android: { notification: { channelId: 'rally_default_channel' } }
 					},
-					data: { path: `/events/${eventId}` },
-					android: { notification: { channelId: 'rally_default_channel' } }
-				});
+					{ organizationId: after.organizationId || null }
+				);
 			}
 		}
 	}
@@ -2099,14 +2123,18 @@ exports.onEventUpdated = onDocumentUpdated('events/{eventId}', async (event) => 
 					const userDoc = await db.collection('users').doc(participantId).get();
 					if (userDoc.exists) {
 						const text = pushTextFor(userDoc.data().language);
-						await sendPushToUser(participantId, {
-							notification: {
-								title: text.eventCancelledTitle,
-								body: text.eventCancelledBody(eventTitle)
+						await sendPushToUser(
+							participantId,
+							{
+								notification: {
+									title: text.eventCancelledTitle,
+									body: text.eventCancelledBody(eventTitle)
+								},
+								data: { path: `/events/${eventId}` },
+								android: { notification: { channelId: 'rally_default_channel' } }
 							},
-							data: { path: `/events/${eventId}` },
-							android: { notification: { channelId: 'rally_default_channel' } }
-						});
+							{ organizationId }
+						);
 					}
 				} catch (err) {
 					console.error(`Error sending cancellation system message to user ${participantId}:`, err);
@@ -2128,14 +2156,18 @@ exports.onEventUpdated = onDocumentUpdated('events/{eventId}', async (event) => 
 					const userDoc = await db.collection('users').doc(participantId).get();
 					if (userDoc.exists) {
 						const text = pushTextFor(userDoc.data().language);
-						await sendPushToUser(participantId, {
-							notification: {
-								title: text.eventFinishedTitle,
-								body: text.eventFinishedBody(eventTitle)
+						await sendPushToUser(
+							participantId,
+							{
+								notification: {
+									title: text.eventFinishedTitle,
+									body: text.eventFinishedBody(eventTitle)
+								},
+								data: { path: `/events/${eventId}` },
+								android: { notification: { channelId: 'rally_default_channel' } }
 							},
-							data: { path: `/events/${eventId}` },
-							android: { notification: { channelId: 'rally_default_channel' } }
-						});
+							{ organizationId }
+						);
 					}
 				} catch (err) {
 					console.error(`Error sending completion system message to user ${participantId}:`, err);

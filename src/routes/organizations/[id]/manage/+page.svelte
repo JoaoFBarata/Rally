@@ -34,6 +34,7 @@
 		stopEventPromotion
 	} from '$lib/services/event.service';
 	import { uploadOrganizationLogo } from '$lib/services/storage.service';
+	import { getUserProfile, setOrganizationNotificationsMuted } from '$lib/services/user.service';
 	import ImageCropperModal from '$lib/components/ImageCropperModal.svelte';
 	import {
 		subscribeToEventCatalogChanges,
@@ -70,6 +71,7 @@
 	let logoutLoading = $state(false);
 	let showSettingsModal = $state(false);
 	let notificationsEnabled = $state(true);
+	let currentManageUserId = $state('');
 	let selectedLanguage = $state('en');
 	let showAccountSwitcher = $state(false);
 	let deviceAccounts = $state<DeviceAccount[]>([]);
@@ -313,6 +315,7 @@
 	async function loadManagePage(userId: string) {
 		loading = true;
 		error = '';
+		currentManageUserId = userId;
 
 		try {
 			const organizationIdFromUrl = page.params.id;
@@ -325,14 +328,16 @@
 				userId
 			});
 
-			const [loadedEvents, loadedFollowerIds] = await Promise.all([
+			const [loadedEvents, loadedFollowerIds, viewerProfile] = await Promise.all([
 				getEventsCreatedByOrganization(loadedOrganization.id),
-				getOrganizationFollowerIds(loadedOrganization.id)
+				getOrganizationFollowerIds(loadedOrganization.id),
+				getUserProfile(userId)
 			]);
 
 			organization = loadedOrganization;
 			organizationEvents = loadedEvents;
 			followerIds = loadedFollowerIds;
+			notificationsEnabled = !viewerProfile?.mutedOrganizationIds?.includes(loadedOrganization.id);
 			resetForm(loadedOrganization);
 			const currentDeviceProfile = getCurrentOrganizationDeviceProfile();
 			if (currentDeviceProfile) {
@@ -343,6 +348,21 @@
 			error = getFriendlyErrorMessage(err, 'Could not load organization.');
 		} finally {
 			loading = false;
+		}
+	}
+
+	async function toggleManageNotifications() {
+		if (!organization || !currentManageUserId) return;
+
+		const nextValue = !notificationsEnabled;
+		notificationsEnabled = nextValue;
+
+		try {
+			await setOrganizationNotificationsMuted(currentManageUserId, organization.id, !nextValue);
+		} catch (err) {
+			console.error('Toggle organization notifications error:', err);
+			notificationsEnabled = !nextValue;
+			error = getFriendlyErrorMessage(err, 'Could not update notification settings for this organization.');
 		}
 	}
 
@@ -1684,7 +1704,7 @@
 									</div>
 									<button
 										type="button"
-										onclick={() => (notificationsEnabled = !notificationsEnabled)}
+										onclick={toggleManageNotifications}
 										class={`relative mt-1 h-7 w-12 shrink-0 rounded-full transition ${notificationsEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}
 										aria-label={i18n.t('toggle_notifications')}
 									>

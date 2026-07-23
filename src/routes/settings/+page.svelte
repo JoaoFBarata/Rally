@@ -12,6 +12,7 @@
 		ensureUserProfile,
 		updateUserPrivacy,
 		updateUserLanguage,
+		updateUserNotificationsEnabled,
 		updateUserTwoFactorSettings
 	} from '$lib/services/user.service';
 	import { i18n } from '$lib/services/i18n.svelte';
@@ -44,7 +45,7 @@
 	let deleteAccountLoading = $state(false);
 	let deleteAccountError = $state('');
 
-	let notificationsEnabled = $state(true);
+	let notificationsSaving = $state(false);
 	let selectedLanguage = $state<string>(i18n.currentLang);
 	let isPlatformAdmin = $derived(isPlatformAdminEmail(auth.currentUser?.email));
 
@@ -140,6 +141,24 @@
 			error = getFriendlyErrorMessage(err, 'Could not update your privacy setting.');
 		} finally {
 			privacySaving = false;
+		}
+	}
+
+	async function handleToggleNotifications() {
+		if (!profile) return;
+
+		const nextValue = !(profile.notificationsEnabled ?? true);
+		notificationsSaving = true;
+		error = '';
+
+		try {
+			await updateUserNotificationsEnabled(profile.id, nextValue);
+			profile = { ...profile, notificationsEnabled: nextValue };
+		} catch (err) {
+			console.error('Update notifications error:', err);
+			error = getFriendlyErrorMessage(err, 'Could not update your notification setting.');
+		} finally {
+			notificationsSaving = false;
 		}
 	}
 
@@ -334,12 +353,13 @@
 					</div>
 					<button
 						type="button"
-						onclick={() => (notificationsEnabled = !notificationsEnabled)}
-						class={`relative mt-1 h-7 w-12 shrink-0 rounded-full transition ${notificationsEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+						onclick={handleToggleNotifications}
+						disabled={notificationsSaving}
+						class={`relative mt-1 h-7 w-12 shrink-0 rounded-full transition disabled:opacity-60 ${(profile?.notificationsEnabled ?? true) ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}
 						aria-label={i18n.t('toggle_notifications')}
 					>
 						<span
-							class={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${notificationsEnabled ? 'left-6' : 'left-1'}`}
+							class={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${(profile?.notificationsEnabled ?? true) ? 'left-6' : 'left-1'}`}
 						></span>
 					</button>
 				</div>
