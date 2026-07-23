@@ -1,5 +1,6 @@
 <!-- C:\Users\henri\Fct3Ano\ADC\Rally\src\routes\+layout.svelte -->
 <script lang="ts">
+	import { auth } from '$lib/firebase';
 	import { authState } from '$lib/auth.svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -77,15 +78,16 @@
 	// Client-side route protection and initial root navigation
 	$effect(() => {
 		if (!authState.loading) {
+			const currentUser = authState.user ?? auth.currentUser;
 			const isPasswordAccount = Boolean(
-				authState.user?.providerData.some((provider) => provider.providerId === 'password')
+				currentUser?.providerData.some((provider) => provider.providerId === 'password')
 			);
 			const isUnverifiedPasswordAccount =
-				Boolean(authState.user) && isPasswordAccount && !authState.user?.emailVerified;
+				Boolean(currentUser) && isPasswordAccount && !currentUser?.emailVerified;
 			const requiresEmailVerification =
 				isUnverifiedPasswordAccount &&
 				authState.requiresEmailVerification &&
-				!authState.user?.emailVerified;
+				!currentUser?.emailVerified;
 			const emailVerificationAllowedRoute =
 				page.url.pathname === '/' ||
 				page.url.pathname === '/login' ||
@@ -93,11 +95,11 @@
 				page.url.pathname.startsWith('/register');
 
 			if (Capacitor.getPlatform() !== 'web' && page.url.pathname === '/') {
-				void goto(authState.user ? '/dashboard' : '/login', { replaceState: true });
+				void goto(currentUser ? '/dashboard' : '/login', { replaceState: true });
 				return;
 			}
 
-			if (page.url.pathname === '/' && !authState.user) {
+			if (page.url.pathname === '/' && !currentUser) {
 				void goto('/login', { replaceState: true });
 				return;
 			}
@@ -108,12 +110,12 @@
 				page.url.pathname.startsWith('/messages') ||
 				page.url.pathname.startsWith('/profile');
 
-			if (protectedRoutes && !authState.user) {
+			if (protectedRoutes && !currentUser) {
 				void goto('/login');
 				return;
 			}
 
-			if (page.url.pathname === '/verify-email' && !authState.user) {
+			if (page.url.pathname === '/verify-email' && !currentUser) {
 				void goto('/login');
 				return;
 			}
@@ -125,8 +127,8 @@
 
 			if (
 				page.url.pathname === '/verify-email' &&
-				authState.user &&
-				(!isPasswordAccount || authState.user.emailVerified)
+				currentUser &&
+				(!isPasswordAccount || currentUser.emailVerified)
 			) {
 				void goto('/dashboard');
 			}

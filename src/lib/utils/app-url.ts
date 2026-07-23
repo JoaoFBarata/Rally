@@ -1,11 +1,11 @@
-import { env } from '$env/dynamic/public';
+import { PUBLIC_FIREBASE_AUTH_DOMAIN, PUBLIC_RALLY_APP_URL } from '$env/static/public';
 
 function normalizeBaseUrl(url: string) {
 	return url.replace(/\/+$/, '');
 }
 
 export function getPublicAppBaseUrl() {
-	const configuredUrl = env.PUBLIC_RALLY_APP_URL?.trim();
+	const configuredUrl = PUBLIC_RALLY_APP_URL?.trim();
 
 	if (configuredUrl) {
 		return normalizeBaseUrl(configuredUrl);
@@ -23,7 +23,7 @@ export function getPublicAppBaseUrl() {
 		}
 	}
 
-	const firebaseAuthDomain = env.PUBLIC_FIREBASE_AUTH_DOMAIN?.trim();
+	const firebaseAuthDomain = PUBLIC_FIREBASE_AUTH_DOMAIN?.trim();
 
 	if (firebaseAuthDomain) {
 		return `https://${firebaseAuthDomain}`;

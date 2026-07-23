@@ -21,11 +21,13 @@ import {
 } from '$lib/services/user.service';
 import { Capacitor } from '@capacitor/core';
 import { GoogleSignIn } from '@capawesome/capacitor-google-sign-in';
-import { env } from '$env/dynamic/public';
+import { PUBLIC_GOOGLE_CLIENT_ID } from '$env/static/public';
 import { createOrganization } from '$lib/services/organization.service';
 import { sendRallySystemMessage } from '$lib/services/chat.service';
 import type { OrganizationType, UserProfile } from '$lib/schema';
 import { createAppUrl } from '$lib/utils/app-url';
+
+import { authState } from '$lib/auth.svelte';
 
 function isPasswordUser(user = auth.currentUser) {
 	return Boolean(user?.providerData.some((provider) => provider.providerId === 'password'));
@@ -200,6 +202,7 @@ export const authService = {
 
 	async login(email: string, password: string) {
 		const credential = await signInWithEmailAndPassword(auth, email, password);
+		authState.user = credential.user;
 		const profile = await ensureUserProfile(credential.user);
 
 		if (
@@ -232,10 +235,9 @@ export const authService = {
 		await removeCurrentFcmToken();
 
 		if (Capacitor.getPlatform() !== 'web') {
-			const clientId = env.PUBLIC_GOOGLE_CLIENT_ID;
-			if (!clientId) {
-				throw new Error('Google Sign-In is not configured for the native app.');
-			}
+			const clientId =
+				PUBLIC_GOOGLE_CLIENT_ID ||
+				'906417673342-m5sqdvar26pvo85ld97sk84bdg0l7ei0.apps.googleusercontent.com';
 
 			await GoogleSignIn.initialize({
 				clientId
@@ -254,6 +256,7 @@ export const authService = {
 
 			const credential = GoogleAuthProvider.credential(result.idToken);
 			const userCredential = await signInWithCredential(auth, credential);
+			authState.user = userCredential.user;
 
 			const profile = await disableTwoFactorForGoogleOnlyAccount(
 				userCredential.user,
@@ -268,6 +271,7 @@ export const authService = {
 			});
 
 			const result = await signInWithPopup(auth, provider);
+			authState.user = result.user;
 
 			const profile = await disableTwoFactorForGoogleOnlyAccount(
 				result.user,
