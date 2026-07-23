@@ -12,6 +12,8 @@
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
 	import { createAppUrl } from '$lib/utils/app-url';
+	import { Capacitor } from '@capacitor/core';
+	import { Share } from '@capacitor/share';
 	import type { SportEvent, UserProfile } from '$lib/schema';
 	import { i18n } from '$lib/services/i18n.svelte';
 
@@ -77,19 +79,26 @@
 
 	async function shareInviteLink() {
 		const url = getInviteLink();
-		if (!navigator.share) {
-			await copyInviteLink();
-			return;
-		}
+		const shareData = {
+			title: event?.title ?? 'Rally',
+			text: i18n.t('invite_link_share_text', { title: event?.title ?? '' }),
+			url
+		};
 
 		try {
-			await navigator.share({
-				title: event?.title ?? 'Rally',
-				text: i18n.t('invite_link_share_text', { title: event?.title ?? '' }),
-				url
-			});
+			if (Capacitor.getPlatform() !== 'web') {
+				await Share.share({
+					...shareData,
+					dialogTitle: i18n.t('share_event_aria')
+				});
+			} else if (navigator.share) {
+				await navigator.share(shareData);
+			} else {
+				await copyInviteLink();
+			}
 		} catch (err) {
-			if ((err as DOMException)?.name !== 'AbortError') console.error('Could not share invite link:', err);
+			if ((err as DOMException)?.name !== 'AbortError')
+				console.error('Could not share invite link:', err);
 		}
 	}
 
@@ -173,15 +182,15 @@
 	}
 </script>
 
-	<div class="mx-auto w-full max-w-3xl px-5 pb-28 sm:px-0 sm:pb-0">
-		<button
-			type="button"
-			onclick={() => goBack(resolve(`/events/${eventId}`))}
-			class="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-black text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
-		>
-			<span class="leading-none">←</span>
-			<span>{i18n.t('back')}</span>
-		</button>
+<div class="mx-auto w-full max-w-3xl px-5 pb-28 sm:px-0 sm:pb-0">
+	<button
+		type="button"
+		onclick={() => goBack(resolve(`/events/${eventId}`))}
+		class="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-black text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+	>
+		<span class="leading-none">←</span>
+		<span>{i18n.t('back')}</span>
+	</button>
 
 	<div class="mt-6">
 		<p class="text-sm font-bold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">
@@ -224,9 +233,7 @@
 			{i18n.t('loading_friends')}
 		</div>
 	{:else if !canInvite}
-		<div
-			class="mt-8 rounded-3xl bg-slate-50 p-8 text-center dark:bg-slate-900"
-		>
+		<div class="mt-8 rounded-3xl bg-slate-50 p-8 text-center dark:bg-slate-900">
 			<p class="text-4xl">🔒</p>
 			<h2 class="mt-3 text-xl font-black text-slate-950 dark:text-white">
 				{i18n.t('cannot_invite_people_title')}
@@ -236,24 +243,40 @@
 			</p>
 		</div>
 	{:else}
-		<section class="mt-8 rounded-[1.75rem] border border-blue-100 bg-blue-50/70 p-4 dark:border-blue-900/60 dark:bg-blue-950/25 sm:p-5">
+		<section
+			class="mt-8 rounded-[1.75rem] border border-blue-100 bg-blue-50/70 p-4 dark:border-blue-900/60 dark:bg-blue-950/25 sm:p-5"
+		>
 			<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<div>
-					<h2 class="text-lg font-black text-slate-950 dark:text-white">{i18n.t('invite_by_link')}</h2>
-					<p class="mt-1 text-sm text-slate-600 dark:text-slate-300">{i18n.t('invite_by_link_sub')}</p>
+					<h2 class="text-lg font-black text-slate-950 dark:text-white">
+						{i18n.t('invite_by_link')}
+					</h2>
+					<p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
+						{i18n.t('invite_by_link_sub')}
+					</p>
 				</div>
 				<div class="flex shrink-0 gap-2">
-					<button type="button" onclick={copyInviteLink} class="rounded-xl bg-white px-4 py-2.5 text-sm font-black text-blue-700 shadow-sm ring-1 ring-blue-100 transition hover:bg-blue-100 dark:bg-slate-900 dark:text-blue-300 dark:ring-blue-900">
+					<button
+						type="button"
+						onclick={copyInviteLink}
+						class="rounded-xl bg-white px-4 py-2.5 text-sm font-black text-blue-700 shadow-sm ring-1 ring-blue-100 transition hover:bg-blue-100 dark:bg-slate-900 dark:text-blue-300 dark:ring-blue-900"
+					>
 						{linkCopied ? i18n.t('event_link_copied') : i18n.t('copy_invite_link')}
 					</button>
-					<button type="button" onclick={shareInviteLink} class="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700">
+					<button
+						type="button"
+						onclick={shareInviteLink}
+						class="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
+					>
 						{i18n.t('share_invite_link')}
 					</button>
 				</div>
 			</div>
 		</section>
 
-		<div class="mt-8 overflow-hidden rounded-[1.75rem] bg-white/70 p-4 shadow-sm shadow-slate-200/50 ring-1 ring-slate-200/70 dark:bg-slate-900/60 dark:shadow-none dark:ring-slate-800">
+		<div
+			class="mt-8 overflow-hidden rounded-[1.75rem] bg-white/70 p-4 shadow-sm shadow-slate-200/50 ring-1 ring-slate-200/70 dark:bg-slate-900/60 dark:shadow-none dark:ring-slate-800"
+		>
 			<div class="mb-4 flex items-center justify-between gap-4">
 				<div>
 					<h2 class="text-lg font-black text-slate-950 dark:text-white">
@@ -294,7 +317,9 @@
 					</p>
 				</div>
 			{:else}
-				<div class="max-h-[27.5rem] overflow-y-auto overscroll-contain pr-1 divide-y divide-slate-100 dark:divide-slate-800 sm:max-h-[34rem]">
+				<div
+					class="max-h-[27.5rem] overflow-y-auto overscroll-contain pr-1 divide-y divide-slate-100 dark:divide-slate-800 sm:max-h-[34rem]"
+				>
 					{#each availableFriends as friend (friend.id)}
 						<button
 							type="button"

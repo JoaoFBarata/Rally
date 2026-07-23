@@ -18,3 +18,11 @@ export const TEXT_LIMITS = {
 	address: 140,
 	taxId: 30
 } as const;
+
+export const EVENT_VALUE_LIMITS = {
+	priceMax: 10000,
+	participantsMax: 500,
+	tournamentParticipantsMax: 1024,
+	durationMinutesMax: 12 * 60 + 45,
+	routePointsMax: 200
+} as const;

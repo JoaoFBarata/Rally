@@ -47,6 +47,7 @@ import { sendRallySystemMessage } from '$lib/services/chat.service';
 import { getUserProfile } from '$lib/services/user.service';
 import { getCurrentLocale } from '$lib/utils/format.utils';
 import { getEventStartMs, getEventTemporalState } from '$lib/utils/event-lifecycle.utils';
+import { EVENT_VALUE_LIMITS, TEXT_LIMITS } from '$lib/constants/text-limits';
 
 export const PROMOTION_PLANS: Record<
 	EventPromotionPlan,
@@ -98,6 +99,45 @@ export function getAvailablePromotionPlanOptions() {
 			(typeof PROMOTION_PLANS)[EventPromotionPlan]
 		][]
 	).filter(([plan]) => plan !== 'featured');
+}
+
+function cleanLimitedText(value: string | undefined | null, limit: number) {
+	return (value ?? '').trim().slice(0, limit);
+}
+
+function validateEventCoreFields(params: {
+	title: string;
+	description?: string;
+	locationName: string;
+	address?: string;
+	maxParticipants: number;
+	priceTotal?: number | null;
+	pricePerPerson?: number | null;
+	route?: SportEvent['route'];
+	whatToBring?: string;
+	maxParticipantsLimit?: number;
+}) {
+	const maxParticipantsLimit = params.maxParticipantsLimit ?? EVENT_VALUE_LIMITS.participantsMax;
+	if (!cleanLimitedText(params.title, TEXT_LIMITS.eventTitle)) {
+		throw new Error('Add an event title.');
+	}
+	if (!cleanLimitedText(params.locationName, TEXT_LIMITS.locationName)) {
+		throw new Error('Add a location name.');
+	}
+	if (!cleanLimitedText(params.address, TEXT_LIMITS.address)) {
+		throw new Error('Add an address for the location.');
+	}
+	if (params.maxParticipants < 2 || params.maxParticipants > maxParticipantsLimit) {
+		throw new Error(`Max participants must be between 2 and ${maxParticipantsLimit}.`);
+	}
+	for (const price of [params.priceTotal, params.pricePerPerson]) {
+		if (price != null && (price <= 0 || price > EVENT_VALUE_LIMITS.priceMax)) {
+			throw new Error(`Price must be between 0.01 and ${EVENT_VALUE_LIMITS.priceMax}.`);
+		}
+	}
+	if ((params.route?.length ?? 0) > EVENT_VALUE_LIMITS.routePointsMax) {
+		throw new Error(`Route cannot have more than ${EVENT_VALUE_LIMITS.routePointsMax} points.`);
+	}
 }
 
 function getEventPaymentAttendeeIds(event: SportEvent) {
@@ -488,6 +528,15 @@ export async function createSportEvent(params: {
 	recurringTotal?: number | null;
 	recurringFrequency?: RecurringFrequency | null;
 }) {
+	validateEventCoreFields(params);
+
+	const title = cleanLimitedText(params.title, TEXT_LIMITS.eventTitle);
+	const description = cleanLimitedText(params.description, TEXT_LIMITS.eventDescription);
+	const locationName = cleanLimitedText(params.locationName, TEXT_LIMITS.locationName);
+	const address = cleanLimitedText(params.address, TEXT_LIMITS.address);
+	const customSport = cleanLimitedText(params.customSport, TEXT_LIMITS.customSport);
+	const whatToBring = cleanLimitedText(params.whatToBring, TEXT_LIMITS.whatToBring);
+	const route = (params.route ?? null)?.slice(0, EVENT_VALUE_LIMITS.routePointsMax) ?? null;
 	const hostType = params.hostType ?? 'user';
 	const paymentMode: EventPaymentMode =
 		params.paymentMode ?? (params.priceTotal || params.pricePerPerson ? 'split' : 'none');
@@ -553,20 +602,20 @@ export async function createSportEvent(params: {
 	}
 
 	const eventData = {
-		title: params.title,
-		description: params.description ?? '',
+		title,
+		description,
 		sport: params.sport,
-		...(params.sport === 'other' ? { customSport: params.customSport ?? '' } : {}),
+		...(params.sport === 'other' ? { customSport } : {}),
 		level: params.level ?? 'casual',
 		creatorId: params.creatorId,
 		hostType,
 		...organizationSnapshot,
 		groupPhotoURL: params.groupPhotoURL ?? null,
 		groupPhotoPath: params.groupPhotoPath ?? null,
-		route: params.route ?? null,
-		routeDistanceKm: calculateRouteDistanceKm(params.route),
+		route,
+		routeDistanceKm: calculateRouteDistanceKm(route),
 
-		whatToBring: params.whatToBring ?? '',
+		whatToBring,
 		joinPolicy: params.joinPolicy ?? 'open',
 
 		recurringGroupId: params.recurringGroupId ?? null,
@@ -575,8 +624,8 @@ export async function createSportEvent(params: {
 		recurringFrequency: params.recurringFrequency ?? null,
 
 		location: {
-			name: params.locationName,
-			address: params.address ?? '',
+			name: locationName,
+			address,
 			lat: params.lat ?? null,
 			lng: params.lng ?? null
 		},
@@ -716,6 +765,8 @@ export async function updateSportEvent(params: {
 	whatToBring?: string;
 	joinPolicy?: EventJoinPolicy;
 }): Promise<void> {
+	validateEventCoreFields(params);
+
 	const event = await getEventById(params.eventId);
 
 	if (!event) throw new Error('Event not found.');
@@ -747,17 +798,24 @@ export async function updateSportEvent(params: {
 			: params.priceTotal && params.maxParticipants > 0
 				? params.priceTotal / params.maxParticipants
 				: null;
-	const route = params.route ?? event.route ?? null;
+	const title = cleanLimitedText(params.title, TEXT_LIMITS.eventTitle);
+	const description = cleanLimitedText(params.description, TEXT_LIMITS.eventDescription);
+	const locationName = cleanLimitedText(params.locationName, TEXT_LIMITS.locationName);
+	const address = cleanLimitedText(params.address, TEXT_LIMITS.address);
+	const customSport = cleanLimitedText(params.customSport, TEXT_LIMITS.customSport);
+	const route =
+		(params.route ?? event.route ?? null)?.slice(0, EVENT_VALUE_LIMITS.routePointsMax) ?? null;
+	const whatToBring = cleanLimitedText(params.whatToBring, TEXT_LIMITS.whatToBring);
 
 	await updateDoc(doc(db, 'events', params.eventId), {
-		title: params.title,
-		description: params.description ?? '',
+		title,
+		description,
 		sport: params.sport,
-		customSport: params.sport === 'other' ? (params.customSport ?? '') : null,
+		customSport: params.sport === 'other' ? customSport : null,
 		level: params.level ?? 'casual',
 		location: {
-			name: params.locationName,
-			address: params.address ?? '',
+			name: locationName,
+			address,
 			lat: params.lat ?? null,
 			lng: params.lng ?? null
 		},
@@ -778,14 +836,14 @@ export async function updateSportEvent(params: {
 		groupPhotoPath: params.groupPhotoPath ?? event.groupPhotoPath ?? null,
 		route,
 		routeDistanceKm: calculateRouteDistanceKm(route),
-		whatToBring: params.whatToBring ?? '',
+		whatToBring,
 		joinPolicy: params.joinPolicy ?? event.joinPolicy ?? 'open',
 		updatedAt: serverTimestamp()
 	});
 
 	await syncEventGroupConversation({
 		...event,
-		title: params.title,
+		title,
 		groupPhotoURL: params.groupPhotoURL ?? event.groupPhotoURL ?? null,
 		groupPhotoPath: params.groupPhotoPath ?? event.groupPhotoPath ?? null
 	});
@@ -1473,6 +1531,43 @@ export async function createTournamentEvent(params: {
 
 	rules?: string;
 }) {
+	const title = cleanLimitedText(params.title, TEXT_LIMITS.eventTitle);
+	const description = cleanLimitedText(params.description, TEXT_LIMITS.eventDescription);
+	const locationName = cleanLimitedText(params.locationName, TEXT_LIMITS.locationName);
+	const address = cleanLimitedText(params.address, TEXT_LIMITS.address);
+	const prizeDescription = cleanLimitedText(params.prizeDescription, TEXT_LIMITS.whatToBring);
+	const tournamentRules = cleanLimitedText(params.rules, TEXT_LIMITS.eventDescription);
+
+	validateEventCoreFields({
+		title,
+		description,
+		locationName,
+		address,
+		maxParticipants:
+			params.registrationType === 'team'
+				? params.maxEntries * Math.max(params.maxTeamSize ?? params.teamSize ?? 1, 1)
+				: params.maxEntries,
+		priceTotal: null,
+		maxParticipantsLimit: EVENT_VALUE_LIMITS.tournamentParticipantsMax
+	});
+
+	if (
+		(params.registrationType === 'team'
+			? params.maxEntries * Math.max(params.maxTeamSize ?? params.teamSize ?? 1, 1)
+			: params.maxEntries) > EVENT_VALUE_LIMITS.tournamentParticipantsMax
+	) {
+		throw new Error(
+			`Tournament cannot have more than ${EVENT_VALUE_LIMITS.tournamentParticipantsMax} participants.`
+		);
+	}
+
+	if (params.entryFeeAmount != null && params.entryFeeAmount > EVENT_VALUE_LIMITS.priceMax) {
+		throw new Error(`Entry fee must be ${EVENT_VALUE_LIMITS.priceMax} or less.`);
+	}
+	if (params.prizeValue != null && params.prizeValue > EVENT_VALUE_LIMITS.priceMax) {
+		throw new Error(`Prize value must be ${EVENT_VALUE_LIMITS.priceMax} or less.`);
+	}
+
 	const organization = await getOrganizationById(params.organizationId);
 
 	if (!organization) {
@@ -1493,15 +1588,15 @@ export async function createTournamentEvent(params: {
 	const paymentMode = paymentModeFromEntryFee(params.entryFeeType);
 
 	const createdEvent = await createSportEvent({
-		title: params.title,
-		description: params.description,
+		title,
+		description,
 		sport: params.sport,
 		level: params.level,
 		creatorId: params.creatorId,
 		hostType: 'organization',
 		organizationId: params.organizationId,
-		locationName: params.locationName,
-		address: params.address,
+		locationName,
+		address,
 		lat: params.lat,
 		lng: params.lng,
 		startAt: params.startAt,
@@ -1549,10 +1644,10 @@ export async function createTournamentEvent(params: {
 		currency: params.currency ?? 'EUR',
 
 		prizeType: params.prizeType,
-		prizeDescription: params.prizeDescription ?? '',
+		prizeDescription,
 		prizeValue: params.prizeValue ?? null,
 
-		tournamentRules: params.rules ?? '',
+		tournamentRules,
 		updatedAt: serverTimestamp()
 	});
 
@@ -1614,6 +1709,35 @@ export async function updateTournamentEvent(params: {
 		params.registrationType === 'team'
 			? params.maxEntries * Math.max(params.maxTeamSize ?? params.teamSize ?? 1, 1)
 			: params.maxEntries;
+	const title = cleanLimitedText(params.title, TEXT_LIMITS.eventTitle);
+	const description = cleanLimitedText(params.description, TEXT_LIMITS.eventDescription);
+	const locationName = cleanLimitedText(params.locationName, TEXT_LIMITS.locationName);
+	const address = cleanLimitedText(params.address, TEXT_LIMITS.address);
+	const prizeDescription = cleanLimitedText(params.prizeDescription, TEXT_LIMITS.whatToBring);
+	const tournamentRules = cleanLimitedText(params.rules, TEXT_LIMITS.eventDescription);
+
+	validateEventCoreFields({
+		title,
+		description,
+		locationName,
+		address,
+		maxParticipants,
+		priceTotal: null,
+		maxParticipantsLimit: EVENT_VALUE_LIMITS.tournamentParticipantsMax
+	});
+
+	if (maxParticipants > EVENT_VALUE_LIMITS.tournamentParticipantsMax) {
+		throw new Error(
+			`Tournament cannot have more than ${EVENT_VALUE_LIMITS.tournamentParticipantsMax} participants.`
+		);
+	}
+
+	if (params.entryFeeAmount != null && params.entryFeeAmount > EVENT_VALUE_LIMITS.priceMax) {
+		throw new Error(`Entry fee must be ${EVENT_VALUE_LIMITS.priceMax} or less.`);
+	}
+	if (params.prizeValue != null && params.prizeValue > EVENT_VALUE_LIMITS.priceMax) {
+		throw new Error(`Prize value must be ${EVENT_VALUE_LIMITS.priceMax} or less.`);
+	}
 
 	if (maxParticipants < event.participantIds.length) {
 		throw new Error(
@@ -1626,13 +1750,13 @@ export async function updateTournamentEvent(params: {
 	const paymentMode = paymentModeFromEntryFee(params.entryFeeType);
 
 	await updateDoc(doc(db, 'events', params.eventId), {
-		title: params.title,
-		description: params.description ?? '',
+		title,
+		description,
 		sport: params.sport,
 		level: params.level ?? 'casual',
 		location: {
-			name: params.locationName,
-			address: params.address ?? '',
+			name: locationName,
+			address,
 			lat: params.lat ?? null,
 			lng: params.lng ?? null
 		},
@@ -1663,15 +1787,15 @@ export async function updateTournamentEvent(params: {
 		entryFeeType: params.entryFeeType,
 		entryFeeAmount: params.entryFeeAmount ?? null,
 		prizeType: params.prizeType,
-		prizeDescription: params.prizeDescription ?? '',
+		prizeDescription,
 		prizeValue: params.prizeValue ?? null,
-		tournamentRules: params.rules ?? '',
+		tournamentRules,
 		updatedAt: serverTimestamp()
 	});
 
 	await syncEventGroupConversation({
 		...event,
-		title: params.title
+		title
 	});
 }
 

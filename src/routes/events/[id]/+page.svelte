@@ -64,7 +64,12 @@
 	import { getTypingLabel } from '$lib/utils/chat-typing.utils';
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { goBack } from '$lib/utils/navigation';
-	import { getCurrentLocale, formatSport, getCurrencySymbol, getSportBackgroundImage } from '$lib/utils/format.utils';
+	import {
+		getCurrentLocale,
+		formatSport,
+		getCurrencySymbol,
+		getSportBackgroundImage
+	} from '$lib/utils/format.utils';
 	import {
 		getEventEndMs,
 		getEventStartMs,
@@ -84,6 +89,9 @@
 	import TournamentPanel from '$lib/components/tournaments/TournamentPanel.svelte';
 	import { getOrganizationReviews } from '$lib/services/organization.service';
 	import { TEXT_LIMITS } from '$lib/constants/text-limits';
+	import { createAppUrl } from '$lib/utils/app-url';
+	import { Capacitor } from '@capacitor/core';
+	import { Share } from '@capacitor/share';
 	import {
 		Calendar,
 		Clock,
@@ -287,9 +295,7 @@
 	});
 
 	let googleCalendarUrl = $derived(event ? getGoogleCalendarUrl(event) : '');
-	let canAddToGoogleCalendar = $derived(
-		!!googleCalendarUrl && (isCreator || isParticipant)
-	);
+	let canAddToGoogleCalendar = $derived(!!googleCalendarUrl && (isCreator || isParticipant));
 
 	let participantById = $derived.by(() => {
 		return Object.fromEntries(
@@ -316,10 +322,16 @@
 	let paymentSummary = $derived.by(() => (event ? getEventPaymentSummary(event) : null));
 	let organizationAverageRating = $derived.by(() => {
 		if (!organizationReviews.length) return 0;
-		return organizationReviews.reduce((sum, review) => sum + review.rating, 0) / organizationReviews.length;
+		return (
+			organizationReviews.reduce((sum, review) => sum + review.rating, 0) /
+			organizationReviews.length
+		);
 	});
 
-	function getPromotionPlanTranslationKey(plan: EventPromotionPlan, field: 'label' | 'description' | 'placement') {
+	function getPromotionPlanTranslationKey(
+		plan: EventPromotionPlan,
+		field: 'label' | 'description' | 'placement'
+	) {
 		const keyByPlan = {
 			local: {
 				label: 'regional_boost',
@@ -371,7 +383,8 @@
 			!!event &&
 			event.hostType === 'organization' &&
 			!!event.organizationId &&
-			(event.creatorId === currentUser.uid || event.organizationId === currentUserProfile?.activeOrganizationId)
+			(event.creatorId === currentUser.uid ||
+				event.organizationId === currentUserProfile?.activeOrganizationId)
 		);
 	});
 
@@ -493,7 +506,10 @@
 	}
 
 	function formatGoogleCalendarDate(date: Date) {
-		return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+		return date
+			.toISOString()
+			.replace(/[-:]/g, '')
+			.replace(/\.\d{3}/, '');
 	}
 
 	function getGoogleCalendarUrl(currentEvent: SportEvent) {
@@ -503,9 +519,7 @@
 
 		const suppliedEnd = timestampToDate(currentEvent.endAt);
 		const end =
-			suppliedEnd && suppliedEnd > start
-				? suppliedEnd
-				: new Date(start.getTime() + 60 * 60 * 1000);
+			suppliedEnd && suppliedEnd > start ? suppliedEnd : new Date(start.getTime() + 60 * 60 * 1000);
 		const location = [currentEvent.location.name, currentEvent.location.address]
 			.filter(Boolean)
 			.join(', ');
@@ -523,8 +537,10 @@
 
 	function formatPriceLabel(currentEvent: SportEvent) {
 		const currencySymbol = getCurrencySymbol(currentEvent.currency);
-		if (currentEvent.pricePerPerson) return `${currencySymbol}${currentEvent.pricePerPerson.toFixed(2)} ${i18n.t('per_person_label')}`;
-		if (currentEvent.priceTotal) return `${currencySymbol}${currentEvent.priceTotal.toFixed(2)}${i18n.t('total_label')}`;
+		if (currentEvent.pricePerPerson)
+			return `${currencySymbol}${currentEvent.pricePerPerson.toFixed(2)} ${i18n.t('per_person_label')}`;
+		if (currentEvent.priceTotal)
+			return `${currencySymbol}${currentEvent.priceTotal.toFixed(2)}${i18n.t('total_label')}`;
 		return i18n.t('free_not_defined');
 	}
 
@@ -553,15 +569,21 @@
 
 	async function shareEvent() {
 		if (!event || typeof window === 'undefined') return;
-		const url = `${window.location.origin}${resolve(`/events/${event.id}`)}`;
+		const url = createAppUrl(resolve(`/events/${event.id}`));
+		const shareData = {
+			title: event.title,
+			text: `Check this event on Rally: ${event.title}`,
+			url
+		};
 
 		try {
-			if (navigator.share) {
-				await navigator.share({
-					title: event.title,
-					text: `Check this event on Rally: ${event.title}`,
-					url
+			if (Capacitor.getPlatform() !== 'web') {
+				await Share.share({
+					...shareData,
+					dialogTitle: i18n.t('share_event_aria')
 				});
+			} else if (navigator.share) {
+				await navigator.share(shareData);
 			} else {
 				await navigator.clipboard?.writeText(url);
 				error = i18n.t('event_link_copied');
@@ -1076,7 +1098,12 @@
 	async function handlePayForCurrentUser(participantId: string) {
 		const currentUser = auth.currentUser;
 
-		if (!currentUser || !event || participantId !== currentUser.uid || !paymentSummary?.splitAmount) {
+		if (
+			!currentUser ||
+			!event ||
+			participantId !== currentUser.uid ||
+			!paymentSummary?.splitAmount
+		) {
 			return;
 		}
 
@@ -1309,7 +1336,12 @@
 	});
 
 	$effect(() => {
-		if (page.url.searchParams.get('promote') === 'true' && event && canPromoteThisEvent && event.organizationVerificationStatus === 'verified') {
+		if (
+			page.url.searchParams.get('promote') === 'true' &&
+			event &&
+			canPromoteThisEvent &&
+			event.organizationVerificationStatus === 'verified'
+		) {
 			const cleanUrl = new URL(window.location.href);
 			cleanUrl.searchParams.delete('promote');
 			window.history.replaceState({}, '', cleanUrl.toString());
@@ -1332,14 +1364,22 @@
 <div class="min-h-screen bg-white text-black dark:bg-[#161616] dark:text-white pb-32 md:pb-36">
 	{#if loading}
 		<div class="mx-auto max-w-5xl px-4 pt-12">
-			<div class="relative overflow-hidden rounded-3xl bg-slate-50 p-12 text-center shadow-sm dark:bg-[#242424]">
-				<div class="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent dark:border-blue-400"></div>
-				<p class="mt-4 font-semibold text-slate-500 dark:text-slate-400">{i18n.t('loading_event')}</p>
+			<div
+				class="relative overflow-hidden rounded-3xl bg-slate-50 p-12 text-center shadow-sm dark:bg-[#242424]"
+			>
+				<div
+					class="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent dark:border-blue-400"
+				></div>
+				<p class="mt-4 font-semibold text-slate-500 dark:text-slate-400">
+					{i18n.t('loading_event')}
+				</p>
 			</div>
 		</div>
 	{:else if error && !event}
 		<div class="mx-auto max-w-4xl px-4 pt-12">
-			<div class="rounded-3xl border border-red-200 bg-red-50/90 p-8 text-center shadow-sm dark:border-red-900/50 dark:bg-red-950/40">
+			<div
+				class="rounded-3xl border border-red-200 bg-red-50/90 p-8 text-center shadow-sm dark:border-red-900/50 dark:bg-red-950/40"
+			>
 				<AlertCircle class="mx-auto h-12 w-12 text-red-500" />
 				<h3 class="mt-3 text-lg font-bold text-red-900 dark:text-red-200">{error}</h3>
 				<button
@@ -1356,14 +1396,18 @@
 		<!-- MOBILE-FIRST HERO HEADER (< md) -->
 		<div class="mb-4 block md:hidden">
 			<!-- Hero Image Cover Container -->
-			<div class="relative h-[230px] w-full overflow-hidden bg-slate-900 shadow-md dark:bg-[#242424]">
+			<div
+				class="relative h-[230px] w-full overflow-hidden bg-slate-900 shadow-md dark:bg-[#242424]"
+			>
 				<img
 					src={getEventHeroImage(event)}
 					alt={event.title}
 					class="h-full w-full object-cover object-center"
 					loading="eager"
 				/>
-				<div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent"></div>
+				<div
+					class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent"
+				></div>
 
 				<!-- Mobile Glass Top Controls -->
 				<div class="absolute top-3 inset-x-3 flex items-center justify-between z-10">
@@ -1378,9 +1422,17 @@
 
 					<div class="flex items-center gap-2">
 						{#if isCreator || isParticipant}
-							<label class="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-white/90 text-slate-900 shadow-md backdrop-blur-md active:scale-95 dark:bg-slate-900/90 dark:text-white">
+							<label
+								class="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-white/90 text-slate-900 shadow-md backdrop-blur-md active:scale-95 dark:bg-slate-900/90 dark:text-white"
+							>
 								<Camera class="h-4 w-4 text-blue-600 dark:text-blue-400" />
-								<input type="file" accept="image/*" class="hidden" onchange={handleGroupPhotoFileChange} disabled={groupPhotoSaving} />
+								<input
+									type="file"
+									accept="image/*"
+									class="hidden"
+									onchange={handleGroupPhotoFileChange}
+									disabled={groupPhotoSaving}
+								/>
 							</label>
 						{/if}
 						<button
@@ -1409,19 +1461,25 @@
 				<!-- Mobile Title & Badges Overlay -->
 				<div class="absolute bottom-3 inset-x-4 flex flex-col gap-1.5 z-10">
 					<div class="flex flex-wrap items-center gap-1.5">
-						<span class="inline-flex items-center gap-1 rounded-full bg-blue-600 px-2.5 py-0.5 text-[11px] font-black uppercase text-white shadow-sm">
+						<span
+							class="inline-flex items-center gap-1 rounded-full bg-blue-600 px-2.5 py-0.5 text-[11px] font-black uppercase text-white shadow-sm"
+						>
 							<Flame class="h-3 w-3" />
-							{event.eventKind === 'tournament' ? i18n.t('status_tournament') : formatSport(event.sport)}
+							{event.eventKind === 'tournament'
+								? i18n.t('status_tournament')
+								: formatSport(event.sport)}
 						</span>
-						<span class={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold capitalize ${
-							effectiveStatus === 'cancelled'
-								? 'bg-red-600 text-white'
-								: effectiveStatus === 'finished'
-									? 'bg-slate-700 text-white'
-									: effectiveStatus === 'full'
-										? 'bg-purple-600 text-white'
-										: 'bg-emerald-600 text-white'
-						}`}>
+						<span
+							class={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold capitalize ${
+								effectiveStatus === 'cancelled'
+									? 'bg-red-600 text-white'
+									: effectiveStatus === 'finished'
+										? 'bg-slate-700 text-white'
+										: effectiveStatus === 'full'
+											? 'bg-purple-600 text-white'
+											: 'bg-emerald-600 text-white'
+							}`}
+						>
 							{effectiveStatus}
 						</span>
 					</div>
@@ -1433,7 +1491,9 @@
 		</div>
 
 		<!-- DESKTOP HERO BANNER (hidden md:block) -->
-		<div class="hidden md:block relative w-auto -mx-8 lg:-mx-12 xl:-mx-16 mt-0 mb-6 bg-slate-900 dark:bg-[#161616]">
+		<div
+			class="hidden md:block relative w-auto -mx-8 lg:-mx-12 xl:-mx-16 mt-0 mb-6 bg-slate-900 dark:bg-[#161616]"
+		>
 			<!-- Hero Cover Image -->
 			<div class="relative h-[340px] w-full overflow-hidden">
 				<img
@@ -1443,10 +1503,14 @@
 					loading="eager"
 				/>
 				<!-- Gradient Overlay matching exact page background color -->
-				<div class="absolute inset-0 bg-gradient-to-t from-white via-white/60 to-transparent dark:from-[#161616] dark:via-[#161616]/60 dark:to-transparent"></div>
+				<div
+					class="absolute inset-0 bg-gradient-to-t from-white via-white/60 to-transparent dark:from-[#161616] dark:via-[#161616]/60 dark:to-transparent"
+				></div>
 
 				<!-- Top Floating Glass Navigation Controls -->
-				<div class="absolute top-4 inset-x-8 max-w-6xl mx-auto flex items-center justify-between z-10">
+				<div
+					class="absolute top-4 inset-x-8 max-w-6xl mx-auto flex items-center justify-between z-10"
+				>
 					<button
 						type="button"
 						onclick={() => goBack(resolve('/dashboard'))}
@@ -1459,9 +1523,17 @@
 
 					<div class="flex items-center gap-2">
 						{#if isCreator || isParticipant}
-							<label class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-white/90 text-slate-900 shadow-md backdrop-blur-md transition hover:bg-slate-900 hover:text-white dark:bg-slate-900/90 dark:text-white dark:hover:bg-white dark:hover:text-slate-900 active:scale-95">
+							<label
+								class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-white/90 text-slate-900 shadow-md backdrop-blur-md transition hover:bg-slate-900 hover:text-white dark:bg-slate-900/90 dark:text-white dark:hover:bg-white dark:hover:text-slate-900 active:scale-95"
+							>
 								<Camera class="h-4 w-4 text-blue-600 dark:text-blue-400" />
-								<input type="file" accept="image/*" class="hidden" onchange={handleGroupPhotoFileChange} disabled={groupPhotoSaving} />
+								<input
+									type="file"
+									accept="image/*"
+									class="hidden"
+									onchange={handleGroupPhotoFileChange}
+									disabled={groupPhotoSaving}
+								/>
 							</label>
 						{/if}
 						<button
@@ -1490,36 +1562,48 @@
 				<!-- Hero Badges & Title Overlay -->
 				<div class="absolute bottom-4 inset-x-8 max-w-6xl mx-auto flex flex-col gap-2 z-10">
 					<div class="flex flex-wrap items-center gap-2">
-						<span class="inline-flex items-center gap-1.5 rounded-full bg-blue-600 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-white shadow-md">
+						<span
+							class="inline-flex items-center gap-1.5 rounded-full bg-blue-600 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-white shadow-md"
+						>
 							<Flame class="h-3.5 w-3.5" />
-							{event.eventKind === 'tournament' ? i18n.t('status_tournament') : formatSport(event.sport)}
+							{event.eventKind === 'tournament'
+								? i18n.t('status_tournament')
+								: formatSport(event.sport)}
 						</span>
 
-						<span class={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold capitalize ${
-							effectiveStatus === 'cancelled'
-								? 'bg-red-600 text-white'
-								: effectiveStatus === 'finished'
-									? 'bg-slate-700 text-slate-200'
-									: effectiveStatus === 'full'
-										? 'bg-purple-600 text-white'
-										: 'bg-emerald-600 text-white'
-						}`}>
+						<span
+							class={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold capitalize ${
+								effectiveStatus === 'cancelled'
+									? 'bg-red-600 text-white'
+									: effectiveStatus === 'finished'
+										? 'bg-slate-700 text-slate-200'
+										: effectiveStatus === 'full'
+											? 'bg-purple-600 text-white'
+											: 'bg-emerald-600 text-white'
+							}`}
+						>
 							{effectiveStatus}
 						</span>
 
-						<span class="inline-flex items-center rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-900 dark:bg-slate-800 dark:text-white">
+						<span
+							class="inline-flex items-center rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-900 dark:bg-slate-800 dark:text-white"
+						>
 							{getLevelLabel(event.level)}
 						</span>
 
 						{#if isPromotionActive(event)}
-							<span class="inline-flex items-center gap-1 rounded-full bg-amber-500 px-3 py-1 text-xs font-bold text-slate-950 shadow-md">
+							<span
+								class="inline-flex items-center gap-1 rounded-full bg-amber-500 px-3 py-1 text-xs font-bold text-slate-950 shadow-md"
+							>
 								<Zap class="h-3.5 w-3.5" />
 								{i18n.t('event_promoted')}
 							</span>
 						{/if}
 					</div>
 
-					<h1 class="text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
+					<h1
+						class="text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight"
+					>
 						{event.title}
 					</h1>
 				</div>
@@ -1528,37 +1612,43 @@
 
 		<!-- Main Container -->
 		<div class="mx-auto max-w-6xl px-4 sm:px-6 md:px-0 space-y-6">
-
 			<!-- Global Alerts -->
 			{#if error}
-				<div class="flex items-center justify-between rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/50 dark:text-red-300">
+				<div
+					class="flex items-center justify-between rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/50 dark:text-red-300"
+				>
 					<div class="flex items-center gap-2">
 						<AlertTriangle class="h-5 w-5 shrink-0 text-red-500" />
 						<span>{error}</span>
 					</div>
-					<button type="button" onclick={() => (error = '')} class="text-red-500 hover:text-red-700"><X class="h-4 w-4" /></button>
+					<button type="button" onclick={() => (error = '')} class="text-red-500 hover:text-red-700"
+						><X class="h-4 w-4" /></button
+					>
 				</div>
 			{/if}
 
 			{#if reminderSuccess}
-				<div class="flex items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/50 dark:text-emerald-300">
+				<div
+					class="flex items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/50 dark:text-emerald-300"
+				>
 					<div class="flex items-center gap-2">
 						<CheckCircle2 class="h-5 w-5 shrink-0 text-emerald-500" />
 						<span>{reminderSuccess}</span>
 					</div>
-					<button type="button" onclick={() => (reminderSuccess = '')} class="text-emerald-500 hover:text-emerald-700"><X class="h-4 w-4" /></button>
+					<button
+						type="button"
+						onclick={() => (reminderSuccess = '')}
+						class="text-emerald-500 hover:text-emerald-700"><X class="h-4 w-4" /></button
+					>
 				</div>
 			{/if}
 
 			<!-- Navigation Sections Menu (Sleek Segmented Pill Menu) -->
 			<div class="sticky top-2 z-30 mb-6">
-				<div class="flex items-center gap-1.5 overflow-x-auto rounded-2xl bg-slate-100/90 p-1.5 shadow-sm backdrop-blur-md dark:bg-[#242424]/90 no-scrollbar">
-					{#each [
-						{ id: 'overview', label: i18n.t('overview'), icon: Compass },
-						{ id: 'players', label: i18n.t('players'), icon: Users, badge: pendingJoinRequests.length },
-						...(isTournament ? [{ id: 'tournament', label: 'Tournament', icon: Trophy }] : []),
-						...(canAccessGroupChat ? [{ id: 'chat', label: i18n.t('chat'), icon: MessageSquare }] : [])
-					] as tab}
+				<div
+					class="flex items-center gap-1.5 overflow-x-auto rounded-2xl bg-slate-100/90 p-1.5 shadow-sm backdrop-blur-md dark:bg-[#242424]/90 no-scrollbar"
+				>
+					{#each [{ id: 'overview', label: i18n.t('overview'), icon: Compass }, { id: 'players', label: i18n.t('players'), icon: Users, badge: pendingJoinRequests.length }, ...(isTournament ? [{ id: 'tournament', label: 'Tournament', icon: Trophy }] : []), ...(canAccessGroupChat ? [{ id: 'chat', label: i18n.t('chat'), icon: MessageSquare }] : [])] as tab}
 						<button
 							type="button"
 							onclick={() => (activeEventTab = tab.id as typeof activeEventTab)}
@@ -1571,7 +1661,9 @@
 							<tab.icon class="h-4 w-4 shrink-0" />
 							<span class="truncate">{tab.label}</span>
 							{#if tab.badge}
-								<span class="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black text-white">
+								<span
+									class="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black text-white"
+								>
 									{tab.badge}
 								</span>
 							{/if}
@@ -1582,7 +1674,9 @@
 
 			<!-- Mobile Header Inline Actions Bar (Replaces Bottom Floating Bar on Mobile) -->
 			<div class="mt-3 space-y-3 rounded-2xl md:hidden">
-				<div class="flex items-center justify-between text-xs px-1 font-bold text-slate-700 dark:text-slate-300">
+				<div
+					class="flex items-center justify-between text-xs px-1 font-bold text-slate-700 dark:text-slate-300"
+				>
 					<div class="flex items-center gap-1.5">
 						<Calendar class="h-4 w-4 text-blue-600 dark:text-blue-400" />
 						<span>{formatShortDate(event.startAt)} · {formatShortTime(event.startAt)}</span>
@@ -1598,13 +1692,19 @@
 						<!-- Compact host controls stay distinct from player actions without taking over the header. -->
 						<section class="rounded-xl border border-blue-200/80 p-2.5 dark:border-blue-900/60">
 							<div class="mb-2 flex items-center justify-between px-0.5">
-								<p class="text-[10px] font-black uppercase tracking-wider text-blue-700 dark:text-blue-300">Event controls</p>
-								<span class="inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+								<p
+									class="text-[10px] font-black uppercase tracking-wider text-blue-700 dark:text-blue-300"
+								>
+									Event controls
+								</p>
+								<span
+									class="inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400"
+								>
 									<ShieldCheck class="h-3 w-3 text-blue-600 dark:text-blue-400" />
 									HOST
 								</span>
 							</div>
-	
+
 							<div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2.75rem] gap-2">
 								<a
 									href={resolve(`/events/${event.id}/edit`)}
@@ -1613,7 +1713,7 @@
 									<Edit3 class="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
 									<span class="truncate">{i18n.t('edit_event')}</span>
 								</a>
-	
+
 								<button
 									type="button"
 									onclick={handleFinishEvent}
@@ -1623,7 +1723,7 @@
 									<CheckCircle2 class="h-4 w-4 shrink-0" />
 									<span class="truncate">{i18n.t('finish_event')}</span>
 								</button>
-	
+
 								<button
 									type="button"
 									onclick={handleCancelEvent}
@@ -1636,7 +1736,7 @@
 							</div>
 						</section>
 					{/if}
-	
+
 					{#if canJoin}
 						<button
 							type="button"
@@ -1645,7 +1745,13 @@
 							class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/30 active:scale-95 disabled:opacity-60"
 						>
 							<UserPlus class="h-4 w-4" />
-							<span>{actionLoading ? i18n.t('joining') : (paymentSummary?.isUpfront && paymentSummary?.splitAmount != null ? `Pay & Join (${formatPaymentAmount(paymentSummary.splitAmount)})` : i18n.t('join_event'))}</span>
+							<span
+								>{actionLoading
+									? i18n.t('joining')
+									: paymentSummary?.isUpfront && paymentSummary?.splitAmount != null
+										? `Pay & Join (${formatPaymentAmount(paymentSummary.splitAmount)})`
+										: i18n.t('join_event')}</span
+							>
 						</button>
 					{:else if canRequestJoin}
 						<button
@@ -1658,12 +1764,15 @@
 							<span>{actionLoading ? i18n.t('requesting') : i18n.t('request_to_join')}</span>
 						</button>
 					{:else if hasPendingJoinRequest}
-						<button disabled class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-slate-200 py-3 text-sm font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+						<button
+							disabled
+							class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-slate-200 py-3 text-sm font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+						>
 							<Clock class="h-4 w-4" />
 							<span>{i18n.t('request_pending')}</span>
 						</button>
 					{/if}
-	
+
 					{#if isParticipant && !isCreator && effectiveStatus !== 'cancelled' && effectiveStatus !== 'finished'}
 						<button
 							type="button"
@@ -1686,89 +1795,152 @@
 						<!-- Key Details Grid -->
 						<div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
 							<!-- Date Card -->
-							<div class="md:flex items-center hidden gap-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 p-4 dark:bg-[#242424] dark:border-slate-800">
-								<div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
+							<div
+								class="md:flex items-center hidden gap-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 p-4 dark:bg-[#242424] dark:border-slate-800"
+							>
+								<div
+									class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400"
+								>
 									<Calendar class="h-5 w-5" />
 								</div>
 								<div class="min-w-0">
-									<p class="text-[10px] font-black uppercase tracking-wider text-slate-400">{i18n.t('date')}</p>
-									<p class="truncate text-sm font-bold text-slate-900 dark:text-white">{formatShortDate(event.startAt)}</p>
-									<p class="text-xs font-medium text-slate-500 dark:text-slate-400">{formatShortTime(event.startAt)}</p>
+									<p class="text-[10px] font-black uppercase tracking-wider text-slate-400">
+										{i18n.t('date')}
+									</p>
+									<p class="truncate text-sm font-bold text-slate-900 dark:text-white">
+										{formatShortDate(event.startAt)}
+									</p>
+									<p class="text-xs font-medium text-slate-500 dark:text-slate-400">
+										{formatShortTime(event.startAt)}
+									</p>
 								</div>
 							</div>
 
 							<!-- Duration Card -->
-							<div class="col-span-2 flex items-center gap-3.5 rounded-2xl border border-slate-200/80 bg-slate-50 p-4 sm:col-span-3 md:col-span-1 dark:bg-[#242424] dark:border-slate-800">
-								<div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
+							<div
+								class="col-span-2 flex items-center gap-3.5 rounded-2xl border border-slate-200/80 bg-slate-50 p-4 sm:col-span-3 md:col-span-1 dark:bg-[#242424] dark:border-slate-800"
+							>
+								<div
+									class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400"
+								>
 									<Clock class="h-5 w-5" />
 								</div>
 								<div class="min-w-0">
-									<p class="text-[10px] font-black uppercase tracking-wider text-slate-400">{i18n.t('duration')}</p>
-									<p class="truncate text-sm font-bold text-slate-900 dark:text-white">{formatEventDuration(event)}</p>
-									<p class="text-xs font-medium text-slate-500 dark:text-slate-400">{getLevelLabel(event.level)}</p>
+									<p class="text-[10px] font-black uppercase tracking-wider text-slate-400">
+										{i18n.t('duration')}
+									</p>
+									<p class="truncate text-sm font-bold text-slate-900 dark:text-white">
+										{formatEventDuration(event)}
+									</p>
+									<p class="text-xs font-medium text-slate-500 dark:text-slate-400">
+										{getLevelLabel(event.level)}
+									</p>
 								</div>
 							</div>
 
 							<!-- Price / Entry Fee Card -->
-							<div class="col-span-2 sm:col-span-1 flex items-center gap-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 p-4 dark:bg-[#242424] dark:border-slate-800">
-								<div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
+							<div
+								class="col-span-2 sm:col-span-1 flex items-center gap-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 p-4 dark:bg-[#242424] dark:border-slate-800"
+							>
+								<div
+									class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400"
+								>
 									<DollarSign class="h-5 w-5" />
 								</div>
 								<div class="min-w-0">
-									<p class="text-[10px] font-black uppercase tracking-wider text-slate-400">{priceTitleLabel}</p>
-									<p class="truncate text-sm font-bold text-slate-900 dark:text-white">{formatPriceLabel(event)}</p>
+									<p class="text-[10px] font-black uppercase tracking-wider text-slate-400">
+										{priceTitleLabel}
+									</p>
+									<p class="truncate text-sm font-bold text-slate-900 dark:text-white">
+										{formatPriceLabel(event)}
+									</p>
 								</div>
 							</div>
 						</div>
 
 						<!-- Minimum Threshold Countdown Widget -->
 						{#if hasMinParticipantsReq}
-							<div class="overflow-hidden rounded-2xl bg-slate-50 border border-slate-200/80 p-5 dark:bg-[#242424] dark:border-slate-800">
+							<div
+								class="overflow-hidden rounded-2xl bg-slate-50 border border-slate-200/80 p-5 dark:bg-[#242424] dark:border-slate-800"
+							>
 								<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 									<div>
 										<div class="flex items-center gap-2">
 											<Users class="h-4 w-4 text-blue-600 dark:text-blue-400" />
-											<h4 class="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">{i18n.t('min_participants')}</h4>
+											<h4
+												class="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white"
+											>
+												{i18n.t('min_participants')}
+											</h4>
 										</div>
 										<p class="mt-1 text-sm font-medium text-slate-600 dark:text-slate-300">
-											{participants.length} / {minParticipantsCount} {i18n.t('confirmed')}
+											{participants.length} / {minParticipantsCount}
+											{i18n.t('confirmed')}
 										</p>
 									</div>
 
-									<span class={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold shrink-0 ${
-										minRequirementMet
-											? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-											: minDeadlinePassed
-												? 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300'
-												: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-									}`}>
+									<span
+										class={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold shrink-0 ${
+											minRequirementMet
+												? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+												: minDeadlinePassed
+													? 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300'
+													: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+										}`}
+									>
 										{#if minRequirementMet}
 											<CheckCircle2 class="h-4 w-4" />
-											<span>{i18n.t('min_participants_met', { current: participants.length, min: minParticipantsCount })}</span>
+											<span
+												>{i18n.t('min_participants_met', {
+													current: participants.length,
+													min: minParticipantsCount
+												})}</span
+											>
 										{:else if minDeadlinePassed}
 											<AlertCircle class="h-4 w-4" />
-											<span>{i18n.t('auto_cancelled_min_participants', { min: minParticipantsCount })}</span>
+											<span
+												>{i18n.t('auto_cancelled_min_participants', {
+													min: minParticipantsCount
+												})}</span
+											>
 										{:else}
 											<Clock class="h-4 w-4 animate-spin" />
-											<span>{i18n.t('min_participants_unmet', { remaining: Math.max(0, minParticipantsCount - participants.length) })}</span>
+											<span
+												>{i18n.t('min_participants_unmet', {
+													remaining: Math.max(0, minParticipantsCount - participants.length)
+												})}</span
+											>
 										{/if}
 									</span>
 								</div>
 
 								<!-- Progress bar -->
-								<div class="mt-4 h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+								<div
+									class="mt-4 h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800"
+								>
 									<div
 										class={`h-full rounded-full transition-all duration-500 ${
-											minRequirementMet ? 'bg-emerald-500' : minDeadlinePassed ? 'bg-red-500' : 'bg-amber-500'
+											minRequirementMet
+												? 'bg-emerald-500'
+												: minDeadlinePassed
+													? 'bg-red-500'
+													: 'bg-amber-500'
 										}`}
 										style={`width: ${Math.min(100, (participants.length / minParticipantsCount) * 100)}%`}
 									></div>
 								</div>
 
 								{#if minDeadlineFormatted && !minRequirementMet && !minDeadlinePassed}
-									<div class="mt-3 flex items-center gap-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
+									<div
+										class="mt-3 flex items-center gap-2 text-xs font-semibold text-amber-600 dark:text-amber-400"
+									>
 										<Clock class="h-4 w-4 text-amber-500" />
-										<span>{i18n.t('cancellation_deadline')}: {minDeadlineFormatted} ({i18n.t('hours_before_start', { hours: event.minParticipantsDeadlineHours ?? 8 })})</span>
+										<span
+											>{i18n.t('cancellation_deadline')}: {minDeadlineFormatted} ({i18n.t(
+												'hours_before_start',
+												{ hours: event.minParticipantsDeadlineHours ?? 8 }
+											)})</span
+										>
 									</div>
 								{/if}
 							</div>
@@ -1790,18 +1962,28 @@
 						</div>
 
 						<!-- Description & Requirements Card -->
-						<div class="space-y-4 rounded-2xl bg-slate-50 border border-slate-200/80 p-6 dark:bg-[#242424] dark:border-slate-800">
+						<div
+							class="space-y-4 rounded-2xl bg-slate-50 border border-slate-200/80 p-6 dark:bg-[#242424] dark:border-slate-800"
+						>
 							<div>
-								<h3 class="text-xs font-black uppercase tracking-widest text-slate-400">{i18n.t('description')}</h3>
-								<p class="mt-2 text-sm leading-relaxed text-slate-700 dark:text-slate-300 whitespace-pre-line">
+								<h3 class="text-xs font-black uppercase tracking-widest text-slate-400">
+									{i18n.t('description')}
+								</h3>
+								<p
+									class="mt-2 max-h-72 overflow-y-auto text-sm leading-relaxed text-slate-700 dark:text-slate-300 whitespace-pre-line"
+								>
 									{event.description || i18n.t('no_description')}
 								</p>
 							</div>
 
 							{#if event.whatToBring}
 								<div class="pt-4 border-t border-slate-200 dark:border-slate-800">
-									<h4 class="text-xs font-black uppercase tracking-widest text-slate-400">{i18n.t('what_to_bring')}</h4>
-									<p class="mt-1 text-sm font-medium text-slate-600 dark:text-slate-400 whitespace-pre-line">
+									<h4 class="text-xs font-black uppercase tracking-widest text-slate-400">
+										{i18n.t('what_to_bring')}
+									</h4>
+									<p
+										class="mt-1 max-h-56 overflow-y-auto text-sm font-medium text-slate-600 dark:text-slate-400 whitespace-pre-line"
+									>
 										{event.whatToBring}
 									</p>
 								</div>
@@ -1809,11 +1991,19 @@
 						</div>
 
 						<!-- EMBEDDED LOCATION & WEATHER SECTION (Integrated in Overview) -->
-						<div class="space-y-5 rounded-2xl bg-slate-50 border border-slate-200/80 p-6 dark:bg-[#242424] dark:border-slate-800">
-							<div class="flex items-center justify-between border-b border-slate-200 pb-3 dark:border-slate-800">
+						<div
+							class="space-y-5 rounded-2xl bg-slate-50 border border-slate-200/80 p-6 dark:bg-[#242424] dark:border-slate-800"
+						>
+							<div
+								class="flex items-center justify-between border-b border-slate-200 pb-3 dark:border-slate-800"
+							>
 								<div class="flex items-center gap-2">
 									<MapPin class="h-5 w-5 text-blue-600 dark:text-blue-400" />
-									<h3 class="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">{i18n.t('location')}</h3>
+									<h3
+										class="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white"
+									>
+										{i18n.t('location')}
+									</h3>
 								</div>
 								{#if event.location.lat && event.location.lng}
 									<a
@@ -1829,15 +2019,28 @@
 							</div>
 
 							<div>
-								<h4 class="text-base font-bold text-slate-900 dark:text-white">{event.location.name}</h4>
+								<h4 class="text-base font-bold text-slate-900 dark:text-white">
+									{event.location.name}
+								</h4>
 								{#if event.location.address}
-									<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{event.location.address}</p>
+									<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+										{event.location.address}
+									</p>
 								{/if}
 							</div>
 
 							<!-- Mapbox Map Component -->
-							<div class="mb-8 my-4 h-[280px] overflow-hidden border border-slate-200 bg-slate-200 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-								<EventMap lat={event.location.lat ?? null} lng={event.location.lng ?? null} name={event.location.name} address={event.location.address ?? ''} showHeader={false} />
+							<div
+								class="mb-8 my-4 h-[280px] overflow-hidden border border-slate-200 bg-slate-200 shadow-sm dark:border-slate-700 dark:bg-slate-800"
+							>
+								<EventMap
+									lat={event.location.lat ?? null}
+									lng={event.location.lng ?? null}
+									name={event.location.name}
+									address={event.location.address ?? ''}
+									route={event.route ?? []}
+									showHeader={false}
+								/>
 							</div>
 
 							<!-- Weather Widget -->
@@ -1846,7 +2049,12 @@
 									<SunMedium class="h-4 w-4 text-amber-500" />
 									<h5 class="text-xs font-black uppercase tracking-wider">{i18n.t('weather')}</h5>
 								</div>
-								<EventWeather lat={event.location.lat} lng={event.location.lng} startAt={event.startAt} size="md" />
+								<EventWeather
+									lat={event.location.lat}
+									lng={event.location.lng}
+									startAt={event.startAt}
+									size="md"
+								/>
 							</div>
 						</div>
 					</div>
@@ -1854,34 +2062,67 @@
 					<!-- Sidebar Column (Host, Roster Preview, Promotion) -->
 					<div class="flex flex-col gap-6">
 						<!-- Organizer Card -->
-						<div class="order-2 rounded-2xl bg-slate-50 border border-slate-200/80 p-5 dark:bg-[#242424] dark:border-slate-800 space-y-4 lg:order-1">
-							<p class="text-xs font-black uppercase tracking-widest text-slate-400">{i18n.t('host')}</p>
+						<div
+							class="order-2 rounded-2xl bg-slate-50 border border-slate-200/80 p-5 dark:bg-[#242424] dark:border-slate-800 space-y-4 lg:order-1"
+						>
+							<p class="text-xs font-black uppercase tracking-widest text-slate-400">
+								{i18n.t('host')}
+							</p>
 
 							{#if event.hostType === 'organization'}
-								<a href={resolve(`/organizations/${event.organizationId}`)} class="flex items-center gap-3.5 group">
-									<div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-100 font-bold text-blue-600 dark:bg-blue-950 dark:text-blue-300">
+								<a
+									href={resolve(`/organizations/${event.organizationId}`)}
+									class="flex items-center gap-3.5 group"
+								>
+									<div
+										class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-100 font-bold text-blue-600 dark:bg-blue-950 dark:text-blue-300"
+									>
 										{#if event.organizationLogoURL}
-											<img src={event.organizationLogoURL} alt={event.organizationName ?? 'Organization'} class="h-full w-full object-cover" />
+											<img
+												src={event.organizationLogoURL}
+												alt={event.organizationName ?? 'Organization'}
+												class="h-full w-full object-cover"
+											/>
 										{:else}
 											{event.organizationName?.charAt(0).toUpperCase() ?? 'O'}
 										{/if}
 									</div>
 									<div class="min-w-0 flex-1">
 										<div class="flex items-center gap-1.5">
-											<p class="truncate text-base font-bold text-slate-900 dark:text-white group-hover:text-blue-600 transition">{event.organizationName ?? 'Organization'}</p>
+											<p
+												class="truncate text-base font-bold text-slate-900 dark:text-white group-hover:text-blue-600 transition"
+											>
+												{event.organizationName ?? 'Organization'}
+											</p>
 											{#if event.organizationVerificationStatus === 'verified'}
 												<ShieldCheck class="h-4 w-4 text-blue-500 shrink-0" />
 											{/if}
 										</div>
-										<p class="text-xs font-medium text-slate-500 dark:text-slate-400">{formatReviewSummary()}</p>
+										<p class="text-xs font-medium text-slate-500 dark:text-slate-400">
+											{formatReviewSummary()}
+										</p>
 									</div>
 								</a>
 							{:else if hostProfile}
-								<a href={resolve(`/users/${hostProfile.id}`)} class="flex items-center gap-3.5 group">
-									<UserAvatar photoURL={hostProfile.photoURL} displayName={hostProfile.displayName} email={hostProfile.email} size="md" />
+								<a
+									href={resolve(`/users/${hostProfile.id}`)}
+									class="flex items-center gap-3.5 group"
+								>
+									<UserAvatar
+										photoURL={hostProfile.photoURL}
+										displayName={hostProfile.displayName}
+										email={hostProfile.email}
+										size="md"
+									/>
 									<div class="min-w-0 flex-1">
-										<p class="truncate text-base font-bold text-slate-900 dark:text-white group-hover:text-blue-600 transition">{hostProfile.displayName}</p>
-										<p class="text-xs font-medium text-slate-500 dark:text-slate-400">{i18n.t('host')}</p>
+										<p
+											class="truncate text-base font-bold text-slate-900 dark:text-white group-hover:text-blue-600 transition"
+										>
+											{hostProfile.displayName}
+										</p>
+										<p class="text-xs font-medium text-slate-500 dark:text-slate-400">
+											{i18n.t('host')}
+										</p>
 									</div>
 								</a>
 							{/if}
@@ -1902,10 +2143,14 @@
 							{#if canPromoteThisEvent}
 								<div class="pt-3 border-t border-slate-200 dark:border-slate-800">
 									{#if isPromotionActive(event)}
-										<div class="rounded-xl bg-blue-50 p-3.5 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-900/50">
+										<div
+											class="rounded-xl bg-blue-50 p-3.5 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-900/50"
+										>
 											<div class="flex items-center justify-between gap-2">
 												<div>
-													<p class="text-xs font-black text-blue-700 dark:text-blue-300">{i18n.t('promotion_active')}</p>
+													<p class="text-xs font-black text-blue-700 dark:text-blue-300">
+														{i18n.t('promotion_active')}
+													</p>
 													{#if promotionStats}
 														<p class="text-[11px] font-semibold text-slate-600 dark:text-slate-400">
 															{promotionStats.views} views · {promotionStats.clicks} clicks
@@ -1926,7 +2171,9 @@
 										{@const isOrgVerified = event.organizationVerificationStatus === 'verified'}
 										<button
 											type="button"
-											onclick={() => { if (isOrgVerified) showPromoteModal = true; }}
+											onclick={() => {
+												if (isOrgVerified) showPromoteModal = true;
+											}}
 											disabled={!isOrgVerified}
 											class={`flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-black text-white shadow-md transition ${
 												isOrgVerified
@@ -1943,19 +2190,30 @@
 						</div>
 
 						<!-- Participant Roster Preview Card -->
-						<div class="order-3 rounded-2xl bg-slate-50 border border-slate-200/80 p-5 dark:bg-[#242424] dark:border-slate-800 space-y-4 lg:order-2">
+						<div
+							class="order-3 rounded-2xl bg-slate-50 border border-slate-200/80 p-5 dark:bg-[#242424] dark:border-slate-800 space-y-4 lg:order-2"
+						>
 							<div class="flex items-start justify-between gap-3">
 								<div>
-									<h4 class="text-sm font-bold text-slate-900 dark:text-white">{i18n.t('players')}</h4>
-									<p class="text-xs font-medium text-slate-500 dark:text-slate-400">{participants.length}/{event.maxParticipants} {i18n.t('confirmed')}</p>
+									<h4 class="text-sm font-bold text-slate-900 dark:text-white">
+										{i18n.t('players')}
+									</h4>
+									<p class="text-xs font-medium text-slate-500 dark:text-slate-400">
+										{participants.length}/{event.maxParticipants}
+										{i18n.t('confirmed')}
+									</p>
 								</div>
 								<div class="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
-									<span class={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold ${
-										effectiveStatus === 'full'
-											? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300'
-											: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-									}`}>
-										{effectiveStatus === 'full' ? i18n.t('event_full_msg') : i18n.t('spots_available')}
+									<span
+										class={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold ${
+											effectiveStatus === 'full'
+												? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300'
+												: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+										}`}
+									>
+										{effectiveStatus === 'full'
+											? i18n.t('event_full_msg')
+											: i18n.t('spots_available')}
 									</span>
 									<button
 										type="button"
@@ -1970,10 +2228,17 @@
 							<!-- Avatar Stack -->
 							<div class="flex -space-x-2 overflow-hidden py-1">
 								{#each participants.slice(0, 6) as participant (participant.id)}
-									<UserAvatar photoURL={participant.photoURL} displayName={participant.displayName} email={participant.email} size="sm" />
+									<UserAvatar
+										photoURL={participant.photoURL}
+										displayName={participant.displayName}
+										email={participant.email}
+										size="sm"
+									/>
 								{/each}
 								{#if participants.length > 6}
-									<span class="flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-slate-200 text-xs font-black text-slate-700 dark:border-slate-900 dark:bg-slate-800 dark:text-slate-300">
+									<span
+										class="flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-slate-200 text-xs font-black text-slate-700 dark:border-slate-900 dark:bg-slate-800 dark:text-slate-300"
+									>
 										+{participants.length - 6}
 									</span>
 								{/if}
@@ -1989,27 +2254,43 @@
 							>
 								<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 									<div class="flex items-start gap-3">
-										<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
+										<div
+											class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"
+										>
 											<CreditCard class="h-5 w-5" />
 										</div>
 										<div>
-											<p class="text-xs font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-400">{i18n.t('payments')}</p>
+											<p
+												class="text-xs font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-400"
+											>
+												{i18n.t('payments')}
+											</p>
 											<p class="mt-1 text-lg font-black text-slate-900 dark:text-white">
-												{formatPaymentAmount(paymentSummary.splitAmount)} <span class="text-xs font-semibold text-slate-600 dark:text-slate-400">/ player</span>
+												{formatPaymentAmount(paymentSummary.splitAmount)}
+												<span class="text-xs font-semibold text-slate-600 dark:text-slate-400"
+													>/ player</span
+												>
 											</p>
 										</div>
 									</div>
 
 									<div class="flex items-center gap-2 self-start sm:self-auto">
-										<span class="rounded-full bg-white/80 px-2.5 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200 dark:bg-slate-900/70 dark:text-emerald-300 dark:ring-emerald-900">
-											{paymentSummary.paidCount}/{paymentSummary.payerIds.length} {i18n.t('paid')}
+										<span
+											class="rounded-full bg-white/80 px-2.5 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200 dark:bg-slate-900/70 dark:text-emerald-300 dark:ring-emerald-900"
+										>
+											{paymentSummary.paidCount}/{paymentSummary.payerIds.length}
+											{i18n.t('paid')}
 										</span>
 										<ChevronRight class="h-4 w-4 text-emerald-700 dark:text-emerald-300" />
 									</div>
 								</div>
 
 								{#if paymentSummary.pendingCount > 0}
-									<p class="mt-3 text-xs font-medium text-slate-600 dark:text-slate-300">{paymentSummary.pendingCount} payment{paymentSummary.pendingCount === 1 ? '' : 's'} pending</p>
+									<p class="mt-3 text-xs font-medium text-slate-600 dark:text-slate-300">
+										{paymentSummary.pendingCount} payment{paymentSummary.pendingCount === 1
+											? ''
+											: 's'} pending
+									</p>
 								{/if}
 							</button>
 						{/if}
@@ -2022,14 +2303,25 @@
 				<div class="space-y-6">
 					<!-- Cost Split / Upfront Payment Header -->
 					{#if paymentSummary?.splitAmount != null && (effectiveStatus === 'finished' || paymentSummary.isUpfront || paymentSummary.isPricePerPerson)}
-						<div class="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+						<div
+							class="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5 dark:border-emerald-900/50 dark:bg-emerald-950/30"
+						>
 							<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 								<div>
-									<span class="text-xs font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-400">
-										{paymentSummary.isUpfront ? 'Upfront Entry Fee' : paymentSummary.isPricePerPerson ? 'Per Person Price' : 'Cost Settlement'}
+									<span
+										class="text-xs font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-400"
+									>
+										{paymentSummary.isUpfront
+											? 'Upfront Entry Fee'
+											: paymentSummary.isPricePerPerson
+												? 'Per Person Price'
+												: 'Cost Settlement'}
 									</span>
 									<h3 class="text-xl font-black text-slate-900 dark:text-white mt-1">
-										{formatPaymentAmount(paymentSummary.splitAmount)} <span class="text-sm font-normal text-slate-600 dark:text-slate-400">/ player</span>
+										{formatPaymentAmount(paymentSummary.splitAmount)}
+										<span class="text-sm font-normal text-slate-600 dark:text-slate-400"
+											>/ player</span
+										>
 									</h3>
 									<p class="text-xs font-medium text-slate-600 dark:text-slate-300 mt-1">
 										{paymentSummary.isUpfront
@@ -2057,19 +2349,32 @@
 
 					<!-- Pending Approval Join Requests (Host view) -->
 					{#if isCreator && pendingJoinRequests.length > 0}
-						<div class="rounded-2xl border border-amber-200 bg-amber-50/80 p-5 dark:border-amber-900/50 dark:bg-amber-950/30 space-y-4">
+						<div
+							class="rounded-2xl border border-amber-200 bg-amber-50/80 p-5 dark:border-amber-900/50 dark:bg-amber-950/30 space-y-4"
+						>
 							<div class="flex items-center gap-2 text-amber-900 dark:text-amber-300">
 								<UserPlus class="h-5 w-5" />
-								<h3 class="text-sm font-black uppercase tracking-wider">Pending Join Requests ({pendingJoinRequests.length})</h3>
+								<h3 class="text-sm font-black uppercase tracking-wider">
+									Pending Join Requests ({pendingJoinRequests.length})
+								</h3>
 							</div>
 
 							<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 								{#each pendingJoinRequests as req (req.id)}
 									{@const requester = pendingRequesters.find((p) => p.id === req.userId)}
-									<div class="flex items-center justify-between gap-3 rounded-xl bg-white p-3 shadow-sm ring-1 ring-amber-200/50 dark:bg-slate-900 dark:ring-amber-900/40">
+									<div
+										class="flex items-center justify-between gap-3 rounded-xl bg-white p-3 shadow-sm ring-1 ring-amber-200/50 dark:bg-slate-900 dark:ring-amber-900/40"
+									>
 										<div class="flex items-center gap-2.5 min-w-0">
-											<UserAvatar photoURL={requester?.photoURL} displayName={requester?.displayName} email={requester?.email} size="sm" />
-											<span class="truncate text-sm font-bold text-slate-900 dark:text-white">{requester?.displayName ?? 'User'}</span>
+											<UserAvatar
+												photoURL={requester?.photoURL}
+												displayName={requester?.displayName}
+												email={requester?.email}
+												size="sm"
+											/>
+											<span class="truncate text-sm font-bold text-slate-900 dark:text-white"
+												>{requester?.displayName ?? 'User'}</span
+											>
 										</div>
 
 										<div class="flex items-center gap-1 shrink-0">
@@ -2097,20 +2402,32 @@
 					{/if}
 
 					<!-- Roster List -->
-					<div class="rounded-2xl bg-slate-50 border border-slate-200/80 p-6 dark:bg-[#242424] dark:border-slate-800 space-y-4">
-						<div class="flex items-center justify-between gap-3 border-b border-slate-200 pb-4 dark:border-slate-800">
+					<div
+						class="rounded-2xl bg-slate-50 border border-slate-200/80 p-6 dark:bg-[#242424] dark:border-slate-800 space-y-4"
+					>
+						<div
+							class="flex items-center justify-between gap-3 border-b border-slate-200 pb-4 dark:border-slate-800"
+						>
 							<div>
-								<h3 class="text-base font-bold text-slate-900 dark:text-white">{i18n.t('players')}</h3>
-								<p class="text-xs font-medium text-slate-500 dark:text-slate-400">{participants.length} of {event.maxParticipants} confirmed participants</p>
+								<h3 class="text-base font-bold text-slate-900 dark:text-white">
+									{i18n.t('players')}
+								</h3>
+								<p class="text-xs font-medium text-slate-500 dark:text-slate-400">
+									{participants.length} of {event.maxParticipants} confirmed participants
+								</p>
 							</div>
 
 							<div class="flex items-center gap-2">
-								<span class={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold ${
-									effectiveStatus === 'full'
-										? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300'
-										: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-								}`}>
-									{effectiveStatus === 'full' ? i18n.t('event_full_msg') : i18n.t('spots_available')}
+								<span
+									class={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold ${
+										effectiveStatus === 'full'
+											? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300'
+											: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+									}`}
+								>
+									{effectiveStatus === 'full'
+										? i18n.t('event_full_msg')
+										: i18n.t('spots_available')}
 								</span>
 
 								{#if canInvite}
@@ -2132,19 +2449,34 @@
 								{@const isSelf = participant.id === currentUserId}
 
 								<div class="flex items-center justify-between py-3.5 gap-3">
-									<a href={resolve(`/users/${participant.id}`)} class="flex items-center gap-3 min-w-0 group">
-										<UserAvatar photoURL={participant.photoURL} displayName={participant.displayName} email={participant.email} size="md" />
+									<a
+										href={resolve(`/users/${participant.id}`)}
+										class="flex items-center gap-3 min-w-0 group"
+									>
+										<UserAvatar
+											photoURL={participant.photoURL}
+											displayName={participant.displayName}
+											email={participant.email}
+											size="md"
+										/>
 										<div class="min-w-0">
 											<div class="flex items-center gap-2">
-												<span class="truncate text-sm font-bold text-slate-900 dark:text-white group-hover:text-blue-600 transition">{participant.displayName}</span>
+												<span
+													class="truncate text-sm font-bold text-slate-900 dark:text-white group-hover:text-blue-600 transition"
+													>{participant.displayName}</span
+												>
 												{#if isHost}
-													<span class="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+													<span
+														class="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+													>
 														HOST
 													</span>
 												{/if}
 											</div>
 											<p class="text-xs font-medium text-slate-500 dark:text-slate-400">
-												{participant.sports?.[0] ? formatSport(participant.sports[0]) : 'Rally Member'}
+												{participant.sports?.[0]
+													? formatSport(participant.sports[0])
+													: 'Rally Member'}
 											</p>
 										</div>
 									</a>
@@ -2153,7 +2485,9 @@
 									<div class="flex items-center gap-2 shrink-0">
 										{#if paymentSummary?.splitAmount != null && !isHost}
 											{#if paymentStatus === 'paid'}
-												<span class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+												<span
+													class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+												>
 													<CheckCircle2 class="h-3.5 w-3.5" />
 													<span>Paid</span>
 												</span>
@@ -2199,28 +2533,40 @@
 
 			<!-- TOURNAMENT TAB -->
 			{#if activeEventTab === 'tournament' && isTournament}
-				<div class="rounded-2xl bg-slate-50 border border-slate-200/80 p-6 dark:bg-[#242424] dark:border-slate-800">
+				<div
+					class="rounded-2xl bg-slate-50 border border-slate-200/80 p-6 dark:bg-[#242424] dark:border-slate-800"
+				>
 					<TournamentPanel {event} {currentUserId} canManage={canManageTournament} />
 				</div>
 			{/if}
 
 			<!-- CHAT TAB -->
 			{#if activeEventTab === 'chat' && canAccessGroupChat}
-				<div class="flex flex-col h-[550px] rounded-2xl bg-slate-50 border border-slate-200/80 dark:bg-[#242424] dark:border-slate-800 overflow-hidden">
+				<div
+					class="flex flex-col h-[550px] rounded-2xl bg-slate-50 border border-slate-200/80 dark:bg-[#242424] dark:border-slate-800 overflow-hidden"
+				>
 					<!-- Chat Header -->
-					<div class="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800 bg-white dark:bg-slate-900">
+					<div
+						class="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800 bg-white dark:bg-slate-900"
+					>
 						<div class="flex items-center gap-3">
-							<div class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+							<div
+								class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400"
+							>
 								<MessageSquare class="h-5 w-5" />
 							</div>
 							<div>
 								<h3 class="text-sm font-bold text-slate-900 dark:text-white">Event Group Chat</h3>
-								<p class="text-xs font-medium text-slate-500 dark:text-slate-400">{participants.length} members</p>
+								<p class="text-xs font-medium text-slate-500 dark:text-slate-400">
+									{participants.length} members
+								</p>
 							</div>
 						</div>
 
 						{#if groupTypingLabel}
-							<span class="text-xs font-medium text-blue-600 animate-pulse dark:text-blue-400">{groupTypingLabel}</span>
+							<span class="text-xs font-medium text-blue-600 animate-pulse dark:text-blue-400"
+								>{groupTypingLabel}</span
+							>
 						{/if}
 					</div>
 
@@ -2228,20 +2574,34 @@
 					<div bind:this={messagesContainer} class="flex-1 overflow-y-auto p-6 space-y-4">
 						{#if groupChatLoading}
 							<div class="flex justify-center py-8">
-								<div class="h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent dark:border-blue-400"></div>
+								<div
+									class="h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent dark:border-blue-400"
+								></div>
 							</div>
 						{:else if groupMessages.length === 0}
-							<div class="flex flex-col items-center justify-center text-center h-full text-slate-400 space-y-2">
+							<div
+								class="flex flex-col items-center justify-center text-center h-full text-slate-400 space-y-2"
+							>
 								<MessageSquare class="h-10 w-10 text-slate-300 dark:text-slate-700" />
 								<p class="text-sm font-medium">No messages yet. Say hello to the team!</p>
 							</div>
 						{:else}
-							<ChatMessageList messages={groupMessages} {currentUserId} getSenderProfile={(id) => participantById[id]} />
+							<ChatMessageList
+								messages={groupMessages}
+								{currentUserId}
+								getSenderProfile={(id) => participantById[id]}
+							/>
 						{/if}
 					</div>
 
 					<!-- Chat Input Bar -->
-					<form onsubmit={(e) => { e.preventDefault(); handleSendGroupMessage(); }} class="flex items-center gap-2 border-t border-slate-200 p-4 dark:border-slate-800 bg-white dark:bg-slate-900">
+					<form
+						onsubmit={(e) => {
+							e.preventDefault();
+							handleSendGroupMessage();
+						}}
+						class="flex items-center gap-2 border-t border-slate-200 p-4 dark:border-slate-800 bg-white dark:bg-slate-900"
+					>
 						<input
 							type="text"
 							bind:value={groupMessageText}
@@ -2262,7 +2622,9 @@
 		</div>
 
 		<!-- DESKTOP FLOATING BOTTOM ACTION BAR (hidden md:block) -->
-		<div class="hidden md:block fixed bottom-6 md:left-[calc(17.75rem+2rem)] md:right-8 lg:right-12 xl:right-16 z-40 rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-2xl backdrop-blur-xl dark:border-slate-800 dark:bg-[#161616]/95">
+		<div
+			class="hidden md:block fixed bottom-6 md:left-[calc(17.75rem+2rem)] md:right-8 lg:right-12 xl:right-16 z-40 rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-2xl backdrop-blur-xl dark:border-slate-800 dark:bg-[#161616]/95"
+		>
 			<div class="mx-auto max-w-6xl flex items-center justify-between gap-4">
 				<!-- Left info summary -->
 				<div>
@@ -2282,7 +2644,13 @@
 							class="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/30 transition hover:bg-blue-700 active:scale-95 disabled:opacity-60"
 						>
 							<UserPlus class="h-4 w-4" />
-							<span>{actionLoading ? i18n.t('joining') : (paymentSummary?.isUpfront && paymentSummary?.splitAmount != null ? `Pay & Join (${formatPaymentAmount(paymentSummary.splitAmount)})` : i18n.t('join_event'))}</span>
+							<span
+								>{actionLoading
+									? i18n.t('joining')
+									: paymentSummary?.isUpfront && paymentSummary?.splitAmount != null
+										? `Pay & Join (${formatPaymentAmount(paymentSummary.splitAmount)})`
+										: i18n.t('join_event')}</span
+							>
 						</button>
 					{:else if canRequestJoin}
 						<button
@@ -2295,7 +2663,10 @@
 							<span>{actionLoading ? i18n.t('requesting') : i18n.t('request_to_join')}</span>
 						</button>
 					{:else if hasPendingJoinRequest}
-						<button disabled class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-100 px-6 py-3 text-sm font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+						<button
+							disabled
+							class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-100 px-6 py-3 text-sm font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+						>
 							<Clock class="h-4 w-4" />
 							<span>{i18n.t('request_pending')}</span>
 						</button>
@@ -2350,10 +2721,16 @@
 
 <!-- CONFIRM DIALOG MODAL -->
 {#if confirmDialog}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm animate-in fade-in">
-		<div class="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200/80 dark:bg-slate-900 dark:ring-slate-800 space-y-4">
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm animate-in fade-in"
+	>
+		<div
+			class="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200/80 dark:bg-slate-900 dark:ring-slate-800 space-y-4"
+		>
 			<div class="flex items-center gap-3">
-				<div class={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${confirmDialog.danger ? 'bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400' : 'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400'}`}>
+				<div
+					class={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${confirmDialog.danger ? 'bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400' : 'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400'}`}
+				>
 					<AlertTriangle class="h-5 w-5" />
 				</div>
 				<h3 class="text-base font-bold text-slate-900 dark:text-white">{confirmDialog.title}</h3>
@@ -2387,19 +2764,34 @@
 
 <!-- EVENT PROMOTION MODAL -->
 {#if showPromoteModal && event}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-md animate-in fade-in">
-		<div class="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white p-6 sm:p-8 shadow-2xl ring-1 ring-slate-200/80 dark:bg-slate-900 dark:ring-slate-800 space-y-6">
-			<div class="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-md animate-in fade-in"
+	>
+		<div
+			class="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white p-6 sm:p-8 shadow-2xl ring-1 ring-slate-200/80 dark:bg-slate-900 dark:ring-slate-800 space-y-6"
+		>
+			<div
+				class="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800"
+			>
 				<div class="flex items-center gap-2.5">
 					<Sparkles class="h-6 w-6 text-blue-600 dark:text-blue-400" />
-					<h3 class="text-lg font-black text-slate-900 dark:text-white">{i18n.t('promote_event')}</h3>
+					<h3 class="text-lg font-black text-slate-900 dark:text-white">
+						{i18n.t('promote_event')}
+					</h3>
 				</div>
-				<button type="button" onclick={() => (showPromoteModal = false)} class="text-slate-400 hover:text-slate-600 dark:hover:text-white"><X class="h-5 w-5" /></button>
+				<button
+					type="button"
+					onclick={() => (showPromoteModal = false)}
+					class="text-slate-400 hover:text-slate-600 dark:hover:text-white"
+					><X class="h-5 w-5" /></button
+				>
 			</div>
 
 			<!-- Plan Selector -->
 			<div class="space-y-3">
-				<p class="text-xs font-black uppercase tracking-wider text-slate-400">Select Campaign Plan</p>
+				<p class="text-xs font-black uppercase tracking-wider text-slate-400">
+					Select Campaign Plan
+				</p>
 				<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
 					{#each promotionPlanOptions as [planKey, planDef]}
 						<button
@@ -2412,10 +2804,16 @@
 							}`}
 						>
 							<div>
-								<span class="text-sm font-black block">{i18n.t(getPromotionPlanTranslationKey(planKey, 'label'))}</span>
-								<span class="text-xs text-slate-500 mt-1 block leading-tight">{i18n.t(getPromotionPlanTranslationKey(planKey, 'description'))}</span>
+								<span class="text-sm font-black block"
+									>{i18n.t(getPromotionPlanTranslationKey(planKey, 'label'))}</span
+								>
+								<span class="text-xs text-slate-500 mt-1 block leading-tight"
+									>{i18n.t(getPromotionPlanTranslationKey(planKey, 'description'))}</span
+								>
 							</div>
-							<span class="text-xs font-bold text-blue-600 dark:text-blue-400 mt-3 block">${planDef.cpm.toFixed(2)} CPM</span>
+							<span class="text-xs font-bold text-blue-600 dark:text-blue-400 mt-3 block"
+								>${planDef.cpm.toFixed(2)} CPM</span
+							>
 						</button>
 					{/each}
 				</div>
@@ -2424,7 +2822,11 @@
 			<!-- Budget & Duration -->
 			<div class="grid grid-cols-2 gap-4">
 				<div>
-					<label for="promotion-budget-input" class="text-xs font-black uppercase tracking-wider text-slate-400 block mb-1.5">Budget (€)</label>
+					<label
+						for="promotion-budget-input"
+						class="text-xs font-black uppercase tracking-wider text-slate-400 block mb-1.5"
+						>Budget (€)</label
+					>
 					<input
 						id="promotion-budget-input"
 						type="number"
@@ -2435,7 +2837,11 @@
 					/>
 				</div>
 				<div>
-					<label for="promotion-duration-input" class="text-xs font-black uppercase tracking-wider text-slate-400 block mb-1.5">Duration (Days)</label>
+					<label
+						for="promotion-duration-input"
+						class="text-xs font-black uppercase tracking-wider text-slate-400 block mb-1.5"
+						>Duration (Days)</label
+					>
 					<input
 						id="promotion-duration-input"
 						type="number"
@@ -2448,9 +2854,13 @@
 			</div>
 
 			<!-- Estimated Reach Card -->
-			<div class="rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white shadow-md space-y-1">
+			<div
+				class="rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white shadow-md space-y-1"
+			>
 				<p class="text-xs font-bold uppercase tracking-wider text-blue-200">Estimated Reach</p>
-				<p class="text-2xl font-black">{promotionImpressionsPreview.toLocaleString()} Impressions</p>
+				<p class="text-2xl font-black">
+					{promotionImpressionsPreview.toLocaleString()} Impressions
+				</p>
 				<p class="text-xs text-blue-100">Estimated audience targeted across Rally network.</p>
 			</div>
 
