@@ -206,8 +206,22 @@
 		}
 	});
 
+	let pushNotificationListeners: Promise<{ remove: () => Promise<void> }>[] = [];
+
+	async function removePushListeners() {
+		for (const listenerPromise of pushNotificationListeners) {
+			try {
+				const listener = await listenerPromise;
+				await listener.remove();
+			} catch {
+				// Ignore cleanup error
+			}
+		}
+		pushNotificationListeners = [];
+	}
+
 	async function registerPushNotifications(userId: string) {
-		if (!Capacitor.isNativePlatform()) {
+		if (Capacitor.getPlatform() === 'web') {
 			return;
 		}
 
@@ -236,35 +250,43 @@
 				});
 			}
 
-			await PushNotifications.removeAllListeners();
+			await removePushListeners();
 
-			await PushNotifications.addListener('registration', async (token) => {
-				console.log('Push registration success, token:', token.value);
-				localStorage.setItem('rally_fcm_token', token.value);
-				localStorage.setItem('rally_fcm_token_user_id', userId);
-				currentPushUserId = userId;
-				try {
-					await saveUserFcmToken(userId, token.value);
-				} catch (err) {
-					console.error('Error saving FCM token to Firestore:', err);
-				}
-			});
+			pushNotificationListeners.push(
+				PushNotifications.addListener('registration', async (token) => {
+					console.log('Push registration success, token:', token.value);
+					localStorage.setItem('rally_fcm_token', token.value);
+					localStorage.setItem('rally_fcm_token_user_id', userId);
+					currentPushUserId = userId;
+					try {
+						await saveUserFcmToken(userId, token.value);
+					} catch (err) {
+						console.error('Error saving FCM token to Firestore:', err);
+					}
+				})
+			);
 
-			await PushNotifications.addListener('registrationError', (error: any) => {
-				console.error('Error on push registration:', JSON.stringify(error));
-			});
+			pushNotificationListeners.push(
+				PushNotifications.addListener('registrationError', (error: any) => {
+					console.error('Error on push registration:', JSON.stringify(error));
+				})
+			);
 
-			await PushNotifications.addListener('pushNotificationReceived', (notification) => {
-				console.log('Push notification received in foreground:', notification);
-			});
+			pushNotificationListeners.push(
+				PushNotifications.addListener('pushNotificationReceived', (notification) => {
+					console.log('Push notification received in foreground:', notification);
+				})
+			);
 
-			await PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-				console.log('Push notification action performed:', notification);
-				const data = notification.notification.data;
-				if (data && data.path) {
-					goto(resolve(data.path));
-				}
-			});
+			pushNotificationListeners.push(
+				PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+					console.log('Push notification action performed:', notification);
+					const data = notification.notification.data;
+					if (data && data.path) {
+						goto(resolve(data.path));
+					}
+				})
+			);
 
 			await PushNotifications.register();
 		} catch (err) {
@@ -363,8 +385,8 @@
 				}
 			} else {
 				stopNotifications();
-				if (Capacitor.isNativePlatform()) {
-					PushNotifications.removeAllListeners();
+				if (Capacitor.getPlatform() !== 'web') {
+					void removePushListeners();
 				}
 				localStorage.removeItem('rally_fcm_token_user_id');
 				loadingProfile = false;
@@ -376,8 +398,8 @@
 				unsubscribeUserDoc();
 			}
 			stopNotifications();
-			if (Capacitor.isNativePlatform()) {
-				PushNotifications.removeAllListeners();
+			if (Capacitor.getPlatform() !== 'web') {
+				void removePushListeners();
 			}
 		};
 	});

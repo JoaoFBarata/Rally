@@ -48,7 +48,7 @@
 		if (!friendShareLink) return;
 
 		try {
-			if (Capacitor.isNativePlatform()) {
+			if (Capacitor.getPlatform() !== 'web') {
 				await Share.share({
 					title: 'Rally',
 					text: i18n.t('friend_link_share_text'),

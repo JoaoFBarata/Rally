@@ -15,14 +15,14 @@
 	import { onMount } from 'svelte';
 
 	let { children } = $props();
-	let shouldBypassLanding = $state(Capacitor.isNativePlatform());
-	let nativeStartupPending = $state(Capacitor.isNativePlatform());
-	let isNativeRoot = $derived(Capacitor.isNativePlatform() && page.url.pathname === '/');
+	let shouldBypassLanding = $state(Capacitor.getPlatform() !== 'web');
+	let nativeStartupPending = $state(Capacitor.getPlatform() !== 'web');
+	let isNativeRoot = $derived(Capacitor.getPlatform() !== 'web' && page.url.pathname === '/');
 	let showStartupLoader = $derived(
 		authState.loading ||
 			isNativeRoot ||
 			(shouldBypassLanding && page.url.pathname === '/' && !authState.user) ||
-			(Capacitor.isNativePlatform() && nativeStartupPending)
+			(Capacitor.getPlatform() !== 'web' && nativeStartupPending)
 	);
 	let pageTitle = $derived.by(() => {
 		const pathname = page.url.pathname;
@@ -49,15 +49,18 @@
 	onMount(() => {
 		initTheme();
 		shouldBypassLanding =
-			Capacitor.isNativePlatform() || window.matchMedia('(max-width: 767px)').matches;
+			Capacitor.getPlatform() !== 'web' || window.matchMedia('(max-width: 767px)').matches;
 
-		const backButtonListener = CapacitorApp.addListener('backButton', ({ canGoBack }) => {
-			if (window.history.state !== null || canGoBack) {
-				window.history.back();
-			} else {
-				CapacitorApp.exitApp();
-			}
-		});
+		let backButtonListener: Promise<{ remove: () => Promise<void> }> | null = null;
+		if (Capacitor.getPlatform() === 'android') {
+			backButtonListener = CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+				if (window.history.state !== null || canGoBack) {
+					window.history.back();
+				} else {
+					CapacitorApp.exitApp();
+				}
+			});
+		}
 		const openAppUrl = async (url: string) => {
 			try {
 				const appUrl = new URL(url);
@@ -82,7 +85,7 @@
 		return () => {
 			window.removeEventListener('rally:dashboard-ready', handleDashboardReady);
 			window.clearTimeout(startupSafetyTimeout);
-			void backButtonListener.then((listener) => listener.remove());
+			if (backButtonListener) void backButtonListener.then((listener) => listener.remove());
 			void appUrlListener.then((listener) => listener.remove());
 		};
 	});
@@ -105,16 +108,18 @@
 				page.url.pathname === '/verify-email' ||
 				page.url.pathname.startsWith('/register');
 
-			if (!authState.user || (page.url.pathname !== '/' && page.url.pathname !== '/dashboard')) {
+			if (!authState.user || page.url.pathname !== '/') {
 				nativeStartupPending = false;
 			}
 
-			if (Capacitor.isNativePlatform() && page.url.pathname === '/') {
+			if (Capacitor.getPlatform() !== 'web' && page.url.pathname === '/') {
+				nativeStartupPending = false;
 				void goto(resolve(authState.user ? '/dashboard' : '/login'), { replaceState: true });
 				return;
 			}
 
 			if (shouldBypassLanding && page.url.pathname === '/' && !authState.user) {
+				nativeStartupPending = false;
 				void goto(resolve('/login'), { replaceState: true });
 				return;
 			}
@@ -151,7 +156,7 @@
 	});
 
 	$effect(() => {
-		if (!Capacitor.isNativePlatform()) return;
+		if (Capacitor.getPlatform() === 'web') return;
 
 		const useDarkStatusBar = $themeState;
 		const statusBarColor = useDarkStatusBar ? '#161616' : '#FFFFFF';

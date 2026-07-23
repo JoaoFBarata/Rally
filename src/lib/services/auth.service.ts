@@ -231,7 +231,7 @@ export const authService = {
 	async signInWithGoogle() {
 		await removeCurrentFcmToken();
 
-		if (Capacitor.isNativePlatform()) {
+		if (Capacitor.getPlatform() !== 'web') {
 			const clientId = env.PUBLIC_GOOGLE_CLIENT_ID;
 			if (!clientId) {
 				throw new Error('Google Sign-In is not configured for the native app.');
