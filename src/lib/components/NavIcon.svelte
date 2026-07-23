@@ -1,31 +1,50 @@
 <script lang="ts">
-	import { Building2, Calendar, Cog, Compass, House, MapPin, Send, ShieldUser, Search, User, Plus, CreditCard } from '@lucide/svelte';
+	import {
+		ArrowRight,
+		Bookmark,
+		Building2,
+		Calendar,
+		Cog,
+		Compass,
+		House,
+		MapPin,
+		Send,
+		ShieldUser,
+		Search,
+		User,
+		Plus,
+		CreditCard
+	} from '@lucide/svelte';
 
 	let { name } = $props<{ name: string; class?: string }>();
 </script>
 
 {#if name === 'explore'}
-	<Compass/>
+	<Compass />
 {:else if name === 'discover'}
-	<Search/>
+	<Search />
 {:else if name === 'create'}
 	<Plus />
 {:else if name === 'organization'}
-	<Building2/>
+	<Building2 />
 {:else if name === 'messages'}
-	<Send/>
+	<Send />
 {:else if name === 'myevents'}
-	<Calendar/>
+	<Calendar />
 {:else if name === 'dashboard'}
-	<House/>
+	<House />
 {:else if name === 'profile'}
-	<User/>
+	<User />
 {:else if name === 'payments'}
-	<CreditCard/>
+	<CreditCard />
+{:else if name === 'saved'}
+	<Bookmark />
+{:else if name === 'arrow_right'}
+	<ArrowRight />
 {:else if name === 'admin'}
-	<ShieldUser/>
+	<ShieldUser />
 {:else if name === 'settings'}
-	<Cog/>
+	<Cog />
 {:else if name === 'locations'}
-	<MapPin/>
+	<MapPin />
 {/if}

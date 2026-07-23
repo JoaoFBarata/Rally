@@ -390,21 +390,6 @@
 						<option value="fr">Français</option>
 					</select>
 				</label>
-
-				<a
-					href={resolve('/saved-events')}
-					class="flex items-center justify-between gap-4 p-4 transition hover:bg-slate-100 dark:hover:bg-slate-700"
-				>
-					<span class="min-w-0 flex-1">
-						<span class="block font-black text-slate-950 dark:text-slate-50"
-							>{i18n.t('saved_events')}</span
-						>
-						<span class="block text-xs text-slate-500 dark:text-slate-400">
-							{i18n.t('saved_events_sub')}
-						</span>
-					</span>
-					<span class="shrink-0 text-slate-300">›</span>
-				</a>
 			</div>
 		</section>
 

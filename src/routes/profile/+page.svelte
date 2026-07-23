@@ -540,7 +540,9 @@
 						</div>
 
 						<div>
-							<label for="mobile-birth-date" class="text-sm font-bold text-slate-700 dark:text-slate-300"
+							<label
+								for="mobile-birth-date"
+								class="text-sm font-bold text-slate-700 dark:text-slate-300"
 								>{i18n.t('birth_date')}</label
 							>
 							<input
@@ -893,6 +895,30 @@
 			</div>
 
 			<div class="mt-6 space-y-3 px-2 pb-6">
+				<a
+					href={resolve('/saved-events')}
+					class="flex w-full items-center justify-between rounded-[1.6rem] border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 active:scale-[0.99]"
+				>
+					<div class="flex items-center gap-3">
+						<div
+							class="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-400"
+						>
+							<NavIcon name="saved" />
+						</div>
+						<div>
+							<span class="block text-sm font-black text-slate-950 dark:text-slate-50">
+								{i18n.t('saved_events')}
+							</span>
+							<span class="block text-xs text-slate-500 dark:text-slate-400">
+								{i18n.t('saved_events_sub')}
+							</span>
+						</div>
+					</div>
+					<div class="text-slate-400">
+						<NavIcon name="arrow_right" />
+					</div>
+				</a>
+
 				<!-- Mobile-only Payments Access Card -->
 				<div class="md:hidden">
 					<a
@@ -1122,7 +1148,10 @@
 								</div>
 
 								<div>
-									<label for="birth-date" class="text-sm font-bold text-slate-700 dark:text-slate-300">
+									<label
+										for="birth-date"
+										class="text-sm font-bold text-slate-700 dark:text-slate-300"
+									>
 										{i18n.t('birth_date')}
 									</label>
 									<input
@@ -1260,6 +1289,30 @@
 					{/if}
 				</section>
 			</div>
+
+			<a
+				href={resolve('/saved-events')}
+				class="flex items-center justify-between rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-amber-200 hover:bg-amber-50/40 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-amber-900 dark:hover:bg-amber-950/20 sm:p-6"
+			>
+				<div class="flex items-center gap-4">
+					<div
+						class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-400"
+					>
+						<NavIcon name="saved" />
+					</div>
+					<div>
+						<h2 class="text-lg font-black text-slate-950 dark:text-slate-50">
+							{i18n.t('saved_events')}
+						</h2>
+						<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+							{i18n.t('saved_events_sub')}
+						</p>
+					</div>
+				</div>
+				<span class="h-5 w-5 shrink-0 text-slate-400">
+					<NavIcon name="arrow_right" />
+				</span>
+			</a>
 
 			<!-- Add a friend (full width) -->
 			<section
