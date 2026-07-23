@@ -20,6 +20,7 @@
 	import { getFriendlyErrorMessage } from '$lib/utils/error-message.utils';
 	import { TEXT_LIMITS } from '$lib/constants/text-limits';
 	import EventCard from '$lib/components/EventCard.svelte';
+	import BookmarkButton from '$lib/components/BookmarkButton.svelte';
 	import { i18n } from '$lib/services/i18n.svelte';
 	import { VENUE_REWARD, redeemVenueDiscount } from '$lib/services/points.service';
 	import type { PointRedemption } from '$lib/schema';
@@ -244,6 +245,7 @@
 
 				<div class="mt-5 grid gap-4 sm:grid-cols-[1fr_11rem]">
 					<div class="flex flex-wrap items-center gap-3">
+						<BookmarkButton kind="venue" id={venue.id} />
 						<a
 							href={`${resolve('/events/create')}?venueName=${encodeURIComponent(venue.name)}&address=${encodeURIComponent(`${venue.address}, ${venue.city}`)}&lat=${venue.lat}&lng=${venue.lng}&sport=${venue.sports[0]}`}
 							class="rounded-full bg-blue-600 px-4 py-2 text-xs font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700"

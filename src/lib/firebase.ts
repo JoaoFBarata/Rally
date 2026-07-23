@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { browserLocalPersistence, getAuth, setPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
@@ -26,6 +26,12 @@ const firebaseConfig = {
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
+export const authPersistenceReady =
+	typeof window === 'undefined'
+		? Promise.resolve()
+		: setPersistence(auth, browserLocalPersistence).catch((error) => {
+				console.error('Could not enable persistent Firebase session:', error);
+			});
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const functions = getFunctions(app);

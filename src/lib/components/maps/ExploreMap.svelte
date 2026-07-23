@@ -7,6 +7,7 @@
 	import { themeState } from '$lib/theme.svelte';
 	import EventCard from '$lib/components/EventCard.svelte';
 	import VenueCard from '$lib/components/VenueCard.svelte';
+	import BookmarkButton from '$lib/components/BookmarkButton.svelte';
 	import { isPromotionActive, getEventStartAtMillis } from '$lib/services/event.service';
 	import {
 		formatDate,
@@ -2180,12 +2181,15 @@
 					{formatSelectedPrice(selectedEvent)}
 				</p>
 
-				<a
-					href={getEventHref(selectedEvent)}
-					class="shrink-0 rounded-xl bg-blue-600 px-3 py-2 text-center text-xs font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 md:rounded-2xl md:px-4 md:py-2.5 md:text-sm"
-				>
-					{i18n.t('view_event')}
-				</a>
+				<div class="flex items-center gap-2">
+					<BookmarkButton kind="event" id={selectedEvent.id} />
+					<a
+						href={getEventHref(selectedEvent)}
+						class="shrink-0 rounded-xl bg-blue-600 px-3 py-2 text-center text-xs font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 md:rounded-2xl md:px-4 md:py-2.5 md:text-sm"
+					>
+						{i18n.t('view_event')}
+					</a>
+				</div>
 			</div>
 		</aside>
 	{/if}
@@ -2299,12 +2303,15 @@
 				</div>
 			{/if}
 
-			<a
-				href={getVenueHref(selectedVenue)}
-				class="mt-3 block rounded-xl bg-blue-600 px-3 py-2 text-center text-xs font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 md:rounded-2xl md:px-4 md:py-2.5 md:text-sm"
-			>
-				{i18n.t('view_venue')}
-			</a>
+			<div class="mt-3 flex items-center gap-2">
+				<BookmarkButton kind="venue" id={selectedVenue.id} />
+				<a
+					href={getVenueHref(selectedVenue)}
+					class="block flex-1 rounded-xl bg-blue-600 px-3 py-2 text-center text-xs font-black text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 md:rounded-2xl md:px-4 md:py-2.5 md:text-sm"
+				>
+					{i18n.t('view_venue')}
+				</a>
+			</div>
 		</aside>
 	{/if}
 

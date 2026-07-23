@@ -90,6 +90,7 @@
 	import { getOrganizationReviews } from '$lib/services/organization.service';
 	import { TEXT_LIMITS } from '$lib/constants/text-limits';
 	import { createAppUrl } from '$lib/utils/app-url';
+	import { bookmarkState } from '$lib/services/bookmark-state.svelte';
 	import { Capacitor } from '@capacitor/core';
 	import { Share } from '@capacitor/share';
 	import {
@@ -156,7 +157,7 @@
 	let unsubscribeJoinRequests: Unsubscribe | null = null;
 	let organizationReviews = $state<OrganizationReview[]>([]);
 	let activeEventTab = $state<'overview' | 'players' | 'chat' | 'tournament'>('overview');
-	let isSavedEvent = $state(false);
+	let isSavedEvent = $derived(event ? bookmarkState.isSaved('event', event.id) : false);
 	let currentUserProfile = $state<UserProfile | null>(null);
 	let paymentConfirming = $state(false);
 	let lastConfirmedPaymentSessionId = '';
@@ -549,22 +550,9 @@
 		return getSportBackgroundImage(currentEvent.sport);
 	}
 
-	function syncSavedEventState(eventId: string) {
-		if (typeof localStorage === 'undefined') return;
-		const saved = JSON.parse(localStorage.getItem('rally-saved-events') ?? '[]') as string[];
-		isSavedEvent = saved.includes(eventId);
-	}
-
 	function toggleSavedEvent() {
-		if (!event || typeof localStorage === 'undefined') return;
-		const currentEvent = event;
-		const saved = JSON.parse(localStorage.getItem('rally-saved-events') ?? '[]') as string[];
-		const nextSaved = saved.includes(currentEvent.id)
-			? saved.filter((id) => id !== currentEvent.id)
-			: [...saved, currentEvent.id];
-
-		localStorage.setItem('rally-saved-events', JSON.stringify(nextSaved));
-		isSavedEvent = nextSaved.includes(currentEvent.id);
+		if (!event) return;
+		bookmarkState.toggle('event', event.id);
 	}
 
 	async function shareEvent() {
@@ -828,7 +816,6 @@
 			organizationReviews = loadedEvent.organizationId
 				? await getOrganizationReviews(loadedEvent.organizationId)
 				: [];
-			syncSavedEventState(loadedEvent.id);
 			syncJoinRequestsListener(loadedEvent, currentUser.uid);
 
 			if (

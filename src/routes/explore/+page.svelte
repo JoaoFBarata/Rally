@@ -80,6 +80,7 @@
 	let venuesLoaded = $state(false);
 	let venuesLoading = $state(false);
 	let venueError = $state('');
+	let venueSearchTerm = $state('');
 	let selectedVenueSport = $state<Sport | null>(null);
 	let selectedVenueCity = $state<string | null>(null);
 	let selectedSports = $state<Sport[]>(getListParam<Sport>('sports'));
@@ -160,9 +161,18 @@
 	});
 
 	let filteredVenues = $derived.by(() => {
+		const query = venueSearchTerm.trim().toLocaleLowerCase();
 		return venues.filter((venue) => {
 			if (selectedVenueSport && !venue.sports.includes(selectedVenueSport)) return false;
 			if (selectedVenueCity && venue.city !== selectedVenueCity) return false;
+			if (
+				query &&
+				![venue.name, venue.address, venue.city, ...venue.sports]
+					.filter(Boolean)
+					.some((value) => String(value).toLocaleLowerCase().includes(query))
+			) {
+				return false;
+			}
 			return true;
 		});
 	});
@@ -716,6 +726,33 @@
 			{i18n.t('explore_venues_tab')}
 		</button>
 	</div>
+
+	{#if contentMode === 'venues'}
+		<label
+			class="flex h-12 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-100/90 px-4 shadow-inner shadow-white/70 dark:border-slate-700 dark:bg-slate-800/80 dark:shadow-none"
+		>
+			<svg
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2.4"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				class="h-5 w-5 shrink-0 text-slate-400"
+				aria-hidden="true"
+			>
+				<circle cx="11" cy="11" r="7" />
+				<path d="m20 20-3.5-3.5" />
+			</svg>
+			<span class="sr-only">{i18n.t('search_venues_placeholder')}</span>
+			<input
+				type="search"
+				bind:value={venueSearchTerm}
+				placeholder={i18n.t('search_venues_placeholder')}
+				class="min-w-0 flex-1 appearance-none border-0 bg-transparent p-0 text-sm font-black text-slate-900 outline-none ring-0 placeholder:font-bold placeholder:text-slate-400 focus:border-0 focus:outline-none focus:ring-0 dark:text-slate-100"
+			/>
+		</label>
+	{/if}
 
 	{#if loading}
 		<section

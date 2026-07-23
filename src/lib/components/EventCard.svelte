@@ -12,6 +12,7 @@
 		trackEventPromotionView
 	} from '$lib/services/event.service';
 	import EventWeather from '$lib/components/EventWeather.svelte';
+	import BookmarkButton from '$lib/components/BookmarkButton.svelte';
 	import { getUserProfile } from '$lib/services/user.service';
 	import {
 		formatDate,
@@ -294,6 +295,7 @@
 							{currentUserRelationshipLabel}
 						</span>
 					{/if}
+					<BookmarkButton kind="event" id={event.id} />
 				</div>
 			</div>
 
@@ -351,8 +353,9 @@
 	<a
 		href={eventHref}
 		onclick={handleClick}
-		class={`group flex max-w-full overflow-hidden rounded-[1.45rem] shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${promotedOverlay ? 'min-h-32 gap-4 p-4' : 'gap-3 p-3 sm:p-4'} ${getCardClasses()}`}
+		class={`group relative flex max-w-full overflow-hidden rounded-[1.45rem] shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${promotedOverlay ? 'min-h-32 gap-4 p-4' : 'gap-3 p-3 sm:p-4'} ${getCardClasses()}`}
 	>
+		<BookmarkButton kind="event" id={event.id} class="absolute bottom-2 right-2" />
 		{#if showImage}
 			<div
 				class={`relative shrink-0 overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800 ${promotedOverlay ? 'h-28 w-36' : 'h-20 w-20 sm:h-24 sm:w-32'}`}
@@ -406,7 +409,7 @@
 		<a
 			href={eventHref}
 			onclick={handleClick}
-			class="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:hover:shadow-none"
+			class="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/70 dark:border-slate-800 dark:bg-slate-900 dark:hover:shadow-none"
 		>
 			{#if showImage}
 				<div
@@ -478,11 +481,14 @@
 			{/if}
 
 			<div class="flex flex-1 flex-col p-4">
-				<span
-					class="text-[10px] font-black uppercase tracking-wide text-blue-600 dark:text-blue-400"
-				>
-					{formattedSportLabel}
-				</span>
+				<div class="flex items-center justify-between gap-2">
+					<span
+						class="text-[10px] font-black uppercase tracking-wide text-blue-600 dark:text-blue-400"
+					>
+						{formattedSportLabel}
+					</span>
+					<BookmarkButton kind="event" id={event.id} />
+				</div>
 
 				<h3
 					class="mt-1 line-clamp-1 text-base font-black leading-tight text-slate-950 dark:text-slate-50"
@@ -529,8 +535,9 @@
 		<a
 			href={eventHref}
 			onclick={handleClick}
-			class={`group flex h-full min-h-[6.7rem] overflow-hidden rounded-[1.35rem] border shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg sm:min-h-[8.25rem] sm:rounded-[1.5rem] ${getCardClasses()}`}
+			class={`group relative flex h-full min-h-[6.7rem] overflow-hidden rounded-[1.35rem] border shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg sm:min-h-[8.25rem] sm:rounded-[1.5rem] ${getCardClasses()}`}
 		>
+			<BookmarkButton kind="event" id={event.id} class="absolute bottom-2 right-2" />
 			{#if showImage}
 				<div
 					class={`relative w-20 shrink-0 overflow-hidden bg-blue-50 dark:bg-blue-950/40 sm:w-32 lg:w-40 ${

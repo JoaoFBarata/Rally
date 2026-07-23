@@ -1,4 +1,4 @@
-import { auth } from '$lib/firebase';
+import { auth, authPersistenceReady } from '$lib/firebase';
 import {
 	createUserWithEmailAndPassword,
 	deleteUser,
@@ -92,6 +92,7 @@ async function removeCurrentFcmToken() {
 
 export const authService = {
 	async register(email: string, password: string, displayName: string, language?: string) {
+		await authPersistenceReady;
 		const credential = await createUserWithEmailAndPassword(auth, email, password);
 
 		try {
@@ -141,6 +142,7 @@ export const authService = {
 		nif?: string;
 		language?: string;
 	}) {
+		await authPersistenceReady;
 		const credential = await createUserWithEmailAndPassword(auth, params.email, params.password);
 
 		let organization;
@@ -201,6 +203,7 @@ export const authService = {
 	},
 
 	async login(email: string, password: string) {
+		await authPersistenceReady;
 		const credential = await signInWithEmailAndPassword(auth, email, password);
 		authState.user = credential.user;
 		const profile = await ensureUserProfile(credential.user);
@@ -232,6 +235,7 @@ export const authService = {
 	},
 
 	async signInWithGoogle() {
+		await authPersistenceReady;
 		await removeCurrentFcmToken();
 
 		if (Capacitor.getPlatform() !== 'web') {

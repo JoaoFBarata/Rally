@@ -907,10 +907,10 @@
 						</div>
 						<div>
 							<span class="block text-sm font-black text-slate-950 dark:text-slate-50">
-								{i18n.t('saved_events')}
+								{i18n.t('saved_events_venues')}
 							</span>
 							<span class="block text-xs text-slate-500 dark:text-slate-400">
-								{i18n.t('saved_events_sub')}
+								{i18n.t('saved_events_venues_sub')}
 							</span>
 						</div>
 					</div>
@@ -1302,10 +1302,10 @@
 					</div>
 					<div>
 						<h2 class="text-lg font-black text-slate-950 dark:text-slate-50">
-							{i18n.t('saved_events')}
+							{i18n.t('saved_events_venues')}
 						</h2>
 						<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-							{i18n.t('saved_events_sub')}
+							{i18n.t('saved_events_venues_sub')}
 						</p>
 					</div>
 				</div>

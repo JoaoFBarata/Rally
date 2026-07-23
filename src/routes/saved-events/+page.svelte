@@ -1,114 +1,122 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
-	import { getEventById, getEffectiveEventStatus } from '$lib/services/event.service';
-	import type { SportEvent } from '$lib/schema';
+	import { getEventById } from '$lib/services/event.service';
+	import { getVenueById } from '$lib/services/venue.service';
+	import { getSavedBookmarkIds } from '$lib/services/bookmark.service';
+	import type { SportEvent, Venue } from '$lib/schema';
 	import { goBack } from '$lib/utils/navigation';
-	import { formatDate, formatSport } from '$lib/utils/format.utils';
 	import { i18n } from '$lib/services/i18n.svelte';
+	import EventCard from '$lib/components/EventCard.svelte';
+	import VenueCard from '$lib/components/VenueCard.svelte';
 
 	let loading = $state(true);
+	let activeTab = $state<'events' | 'venues'>('events');
 	let savedEvents = $state<SportEvent[]>([]);
+	let savedVenues = $state<Venue[]>([]);
+	let refreshVersion = 0;
 
-	function getSavedIds() {
-		if (typeof localStorage === 'undefined') return [];
-		try {
-			const saved = JSON.parse(localStorage.getItem('rally-saved-events') ?? '[]') as string[];
-			return Array.isArray(saved) ? saved : [];
-		} catch {
-			return [];
-		}
-	}
-
-	function toDate(value: unknown) {
-		if (!value) return null;
-		if (value instanceof Date) return value;
-
-		if (typeof value === 'string' || typeof value === 'number') {
-			const date = new Date(value);
-			return Number.isNaN(date.getTime()) ? null : date;
-		}
-
-		const timestamp = value as {
-			toDate?: () => Date;
-			toMillis?: () => number;
-			seconds?: number;
-		};
-
-		if (typeof timestamp.toDate === 'function') return timestamp.toDate();
-		if (typeof timestamp.toMillis === 'function') return new Date(timestamp.toMillis());
-		if (typeof timestamp.seconds === 'number') return new Date(timestamp.seconds * 1000);
-
-		return null;
-	}
-
-	function formatShortDate(value: unknown) {
-		return formatDate(value);
-	}
-
-	function getStatusLabel(event: SportEvent) {
-		const status = getEffectiveEventStatus(event);
-		if (status === 'cancelled') return i18n.t('status_cancelled');
-		if (status === 'finished') return i18n.t('status_finished');
-		if (status === 'full') return i18n.t('status_full');
-		if (status === 'open') return i18n.t('status_open');
-		return status;
-	}
-
-	onMount(async () => {
-		const ids = getSavedIds();
-		const events = await Promise.all(ids.map((id) => getEventById(id).catch(() => null)));
+	async function loadSavedItems() {
+		const version = ++refreshVersion;
+		loading = true;
+		const [events, venues] = await Promise.all([
+			Promise.all(getSavedBookmarkIds('event').map((id) => getEventById(id).catch(() => null))),
+			Promise.all(getSavedBookmarkIds('venue').map((id) => getVenueById(id).catch(() => null)))
+		]);
+		if (version !== refreshVersion) return;
 		savedEvents = events.filter((item): item is SportEvent => Boolean(item));
+		savedVenues = venues.filter((item): item is Venue => Boolean(item));
 		loading = false;
+	}
+
+	onMount(() => {
+		void loadSavedItems();
+		const refresh = () => void loadSavedItems();
+		window.addEventListener('rally:bookmarks-changed', refresh);
+		window.addEventListener('storage', refresh);
+		return () => {
+			window.removeEventListener('rally:bookmarks-changed', refresh);
+			window.removeEventListener('storage', refresh);
+		};
 	});
 </script>
 
-<div class="mx-auto w-full max-w-3xl px-5 pb-28 pt-5 sm:px-0 sm:pb-10 sm:pt-8">
+<div class="mx-auto w-full max-w-4xl px-5 pb-28 pt-5 sm:px-0 sm:pb-10 sm:pt-8">
 	<button
 		type="button"
-		onclick={() => goBack(resolve('/settings'))}
+		onclick={() => goBack(resolve('/profile'))}
 		class="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-black text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
 	>
 		← {i18n.t('back')}
 	</button>
 
 	<div class="mt-5">
-		<p class="text-xs font-black uppercase tracking-[0.24em] text-blue-600 dark:text-blue-400">{i18n.t('saved')}</p>
-		<h1 class="mt-1 text-3xl font-black tracking-tight text-slate-950 dark:text-slate-50">{i18n.t('saved_events')}</h1>
+		<p class="text-xs font-black uppercase tracking-[0.24em] text-blue-600 dark:text-blue-400">
+			{i18n.t('saved')}
+		</p>
+		<h1 class="mt-1 text-3xl font-black tracking-tight text-slate-950 dark:text-slate-50">
+			{i18n.t('saved_events_venues')}
+		</h1>
 		<p class="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
-			{i18n.t('saved_events_device_sub')}
+			{i18n.t('saved_events_venues_sub')}
 		</p>
 	</div>
 
+	<div class="mt-6 grid grid-cols-2 rounded-2xl bg-slate-100 p-1 dark:bg-slate-800">
+		<button
+			type="button"
+			onclick={() => (activeTab = 'events')}
+			class={`rounded-xl px-4 py-2.5 text-sm font-black transition ${activeTab === 'events' ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}
+		>
+			{i18n.t('saved_events')} ({savedEvents.length})
+		</button>
+		<button
+			type="button"
+			onclick={() => (activeTab = 'venues')}
+			class={`rounded-xl px-4 py-2.5 text-sm font-black transition ${activeTab === 'venues' ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}
+		>
+			{i18n.t('saved_venues')} ({savedVenues.length})
+		</button>
+	</div>
+
 	{#if loading}
-		<p class="mt-8 font-bold text-slate-500 dark:text-slate-400">{i18n.t('loading_saved_events')}</p>
-	{:else if savedEvents.length === 0}
-		<section class="mt-8 rounded-[1.75rem] border border-dashed border-slate-300 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
-			<p class="text-lg font-black text-slate-950 dark:text-slate-50">{i18n.t('no_saved_events')}</p>
+		<p class="mt-8 font-bold text-slate-500 dark:text-slate-400">
+			{i18n.t('loading_saved_events')}
+		</p>
+	{:else if activeTab === 'events'}
+		{#if savedEvents.length === 0}
+			<section
+				class="mt-8 rounded-[1.75rem] border border-dashed border-slate-300 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900"
+			>
+				<p class="text-lg font-black text-slate-950 dark:text-slate-50">
+					{i18n.t('no_saved_events')}
+				</p>
+				<p class="mt-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
+					{i18n.t('save_events_hint')}
+				</p>
+			</section>
+		{:else}
+			<div class="mt-6 grid gap-4 md:grid-cols-2">
+				{#each savedEvents as event (event.id)}
+					<EventCard {event} variant="profile" />
+				{/each}
+			</div>
+		{/if}
+	{:else if savedVenues.length === 0}
+		<section
+			class="mt-8 rounded-[1.75rem] border border-dashed border-slate-300 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900"
+		>
+			<p class="text-lg font-black text-slate-950 dark:text-slate-50">
+				{i18n.t('no_saved_venues')}
+			</p>
 			<p class="mt-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
-				{i18n.t('save_events_hint')}
+				{i18n.t('save_venues_hint')}
 			</p>
 		</section>
 	{:else}
-		<div class="mt-6 divide-y divide-slate-200 overflow-hidden rounded-[1.75rem] bg-white shadow-sm ring-1 ring-slate-200/70 dark:divide-slate-800 dark:bg-slate-900 dark:ring-slate-800">
-			{#each savedEvents as event (event.id)}
-				<a href={resolve(`/events/${event.id}`)} class="flex min-w-0 items-center gap-3 p-4 transition hover:bg-slate-50 dark:hover:bg-slate-800 sm:gap-4">
-					<div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-blue-50 text-lg font-black text-blue-600 dark:bg-blue-950 dark:text-blue-300">
-						{event.title.slice(0, 1).toUpperCase()}
-					</div>
-					<div class="min-w-0 flex-1">
-						<div class="flex min-w-0 items-start gap-2">
-							<p class="min-w-0 flex-1 truncate text-base font-black text-slate-950 dark:text-slate-50">{event.title}</p>
-							<span class="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-								{getStatusLabel(event)}
-							</span>
-						</div>
-						<p class="mt-1 truncate text-sm font-semibold text-slate-500 dark:text-slate-400">
-							{formatSport(event.customSport ?? event.sport)} · {formatShortDate(event.startAt)} · {event.location.name}
-						</p>
-					</div>
-					<span class="shrink-0 text-2xl text-slate-300">›</span>
-				</a>
+		<div class="mt-6 grid gap-4 md:grid-cols-2">
+			{#each savedVenues as venue (venue.id)}
+				<VenueCard {venue} variant="profile" />
 			{/each}
 		</div>
 	{/if}
