@@ -75,7 +75,7 @@
 	let bio = $state('');
 	let city = $state('');
 	let country = $state('');
-	let age = $state<string | number>('');
+	let birthDate = $state('');
 	let sports = $state<Sport[]>([]);
 
 	let friendTag = $state('');
@@ -106,12 +106,27 @@
 		});
 	}
 
+	function getProfileAge(value: UserProfile) {
+		if (!value.birthDate) return value.age ?? null;
+
+		const today = new Date();
+		const date = new Date(`${value.birthDate}T00:00:00`);
+		let calculatedAge = today.getFullYear() - date.getFullYear();
+		if (
+			today.getMonth() < date.getMonth() ||
+			(today.getMonth() === date.getMonth() && today.getDate() < date.getDate())
+		) {
+			calculatedAge--;
+		}
+		return calculatedAge;
+	}
+
 	function resetFormFromProfile(nextProfile: UserProfile) {
 		displayName = nextProfile.displayName ?? '';
 		bio = nextProfile.bio ?? '';
 		city = nextProfile.city ?? '';
 		country = nextProfile.country ?? '';
-		age = nextProfile.age ? String(nextProfile.age) : '';
+		birthDate = nextProfile.birthDate ?? '';
 		sports = nextProfile.sports ?? [];
 	}
 
@@ -175,12 +190,21 @@
 			return;
 		}
 
-		const cleanAge = String(age ?? '').trim();
-		const parsedAge = cleanAge === '' ? null : Number(cleanAge);
-
-		if (parsedAge !== null && (!Number.isInteger(parsedAge) || parsedAge < 13 || parsedAge > 100)) {
-			error = 'Please enter a valid age between 13 and 100.';
-			return;
+		const cleanBirthDate = birthDate.trim();
+		if (cleanBirthDate) {
+			const date = new Date(`${cleanBirthDate}T00:00:00`);
+			const today = new Date();
+			let calculatedAge = today.getFullYear() - date.getFullYear();
+			if (
+				today.getMonth() < date.getMonth() ||
+				(today.getMonth() === date.getMonth() && today.getDate() < date.getDate())
+			) {
+				calculatedAge--;
+			}
+			if (Number.isNaN(date.getTime()) || calculatedAge < 13 || calculatedAge > 100) {
+				error = 'Please enter a valid date of birth (age must be between 13 and 100).';
+				return;
+			}
 		}
 
 		saving = true;
@@ -193,7 +217,7 @@
 				bio,
 				city,
 				country,
-				age: parsedAge,
+				birthDate: cleanBirthDate || null,
 				sports
 			});
 
@@ -516,15 +540,13 @@
 						</div>
 
 						<div>
-							<label for="mobile-age" class="text-sm font-bold text-slate-700 dark:text-slate-300"
-								>{i18n.t('age')}</label
+							<label for="mobile-birth-date" class="text-sm font-bold text-slate-700 dark:text-slate-300"
+								>{i18n.t('birth_date')}</label
 							>
 							<input
-								id="mobile-age"
-								type="number"
-								min="13"
-								max="100"
-								bind:value={age}
+								id="mobile-birth-date"
+								type="date"
+								bind:value={birthDate}
 								class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
 							/>
 						</div>
@@ -657,7 +679,7 @@
 								</button>
 							</div>
 
-							{#if profile.city || profile.country || profile.age}
+							{#if profile.city || profile.country || getProfileAge(profile)}
 								<p
 									class="mt-2 flex items-center gap-1.5 truncate text-sm text-slate-500 dark:text-slate-400"
 								>
@@ -679,11 +701,11 @@
 										</svg>
 										<span class="truncate">{formatProfileLocation(profile)}</span>
 									{/if}
-									{#if profile.age}
+									{#if getProfileAge(profile)}
 										<span class="shrink-0"
 											>{profile.city || profile.country
-												? `· ${profile.age} ${i18n.t('years_old')}`
-												: `${profile.age} ${i18n.t('years_old')}`}</span
+												? `· ${getProfileAge(profile)} ${i18n.t('years_old')}`
+												: `${getProfileAge(profile)} ${i18n.t('years_old')}`}</span
 										>
 									{/if}
 								</p>
@@ -1100,16 +1122,13 @@
 								</div>
 
 								<div>
-									<label for="age" class="text-sm font-bold text-slate-700 dark:text-slate-300">
-										{i18n.t('age')}
+									<label for="birth-date" class="text-sm font-bold text-slate-700 dark:text-slate-300">
+										{i18n.t('birth_date')}
 									</label>
 									<input
-										id="age"
-										type="number"
-										min="13"
-										max="100"
-										bind:value={age}
-										placeholder="21"
+										id="birth-date"
+										type="date"
+										bind:value={birthDate}
 										class="mt-2 w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500"
 									/>
 								</div>
@@ -1182,8 +1201,8 @@
 										{i18n.t('age')}
 									</p>
 									<p class="mt-1 text-sm font-black text-slate-950 dark:text-slate-50">
-										{profile.age
-											? `${profile.age} ${i18n.t('years_old')}`
+										{getProfileAge(profile)
+											? `${getProfileAge(profile)} ${i18n.t('years_old')}`
 											: i18n.t('not_added_yet')}
 									</p>
 								</div>

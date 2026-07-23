@@ -100,6 +100,7 @@ export interface UserProfile {
 	city?: string;
 	country?: string;
 	age?: number | null;
+	birthDate?: string | null;
 	sports: Sport[];
 
 	rallyPointsTotal?: number;

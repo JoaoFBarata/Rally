@@ -62,6 +62,7 @@ export async function createUserProfile(params: {
 		city: '',
 		country: '',
 		age: null,
+		birthDate: null,
 		sports: params.sports ?? [],
 		gender: null,
 		avatarOnboardingCompleted: Boolean(params.photoURL),
@@ -114,6 +115,7 @@ export async function ensureUserProfile(user: User) {
 		data.city === undefined ||
 		data.country === undefined ||
 		data.age === undefined ||
+		data.birthDate === undefined ||
 		data.sports === undefined ||
 		data.photoURL === undefined ||
 		data.profilePhotoPath === undefined ||
@@ -137,6 +139,7 @@ export async function ensureUserProfile(user: User) {
 			city: data.city ?? '',
 			country: data.country ?? '',
 			age: data.age ?? null,
+			birthDate: data.birthDate ?? null,
 			sports: data.sports ?? [],
 			photoURL: nextPhotoURL,
 			profilePhotoPath: data.profilePhotoPath ?? null,
@@ -286,16 +289,19 @@ export async function updateUserProfileDetails(
 		bio: string;
 		city: string;
 		country: string;
-		age: number | null;
+		birthDate: string | null;
 		sports: Sport[];
 	}
 ) {
+	const age = params.birthDate ? calculateAge(params.birthDate) : null;
+
 	await updateDoc(doc(db, 'users', userId), {
 		displayName: params.displayName,
 		bio: params.bio,
 		city: params.city,
 		country: params.country,
-		age: params.age,
+		age,
+		birthDate: params.birthDate,
 		sports: params.sports,
 		updatedAt: serverTimestamp()
 	});
@@ -306,6 +312,18 @@ export async function updateUserProfileDetails(
 		});
 		await authState.refresh();
 	}
+}
+
+function calculateAge(birthDate: string) {
+	const today = new Date();
+	const date = new Date(`${birthDate}T00:00:00`);
+	let age = today.getFullYear() - date.getFullYear();
+	const birthdayHasPassed =
+		today.getMonth() > date.getMonth() ||
+		(today.getMonth() === date.getMonth() && today.getDate() >= date.getDate());
+
+	if (!birthdayHasPassed) age--;
+	return age;
 }
 
 export async function updateUserProfilePhoto(params: {

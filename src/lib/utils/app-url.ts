@@ -1,5 +1,7 @@
 import { env } from '$env/dynamic/public';
 
+const PUBLIC_APP_URL = 'https://synqo-rally.web.app';
+
 function normalizeBaseUrl(url: string) {
 	return url.replace(/\/+$/, '');
 }
@@ -23,17 +25,7 @@ export function getPublicAppBaseUrl() {
 		}
 	}
 
-	const firebaseAuthDomain = env.PUBLIC_FIREBASE_AUTH_DOMAIN?.trim();
-
-	if (firebaseAuthDomain) {
-		return `https://${firebaseAuthDomain}`;
-	}
-
-	if (typeof window !== 'undefined') {
-		return normalizeBaseUrl(window.location.origin);
-	}
-
-	return '';
+	return PUBLIC_APP_URL;
 }
 
 export function createAppUrl(path: string) {
