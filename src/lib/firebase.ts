@@ -1,12 +1,10 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { browser, dev } from '$app/environment';
-import { Capacitor } from '@capacitor/core';
 import {
 	browserLocalPersistence,
 	getAuth,
 	indexedDBLocalPersistence,
-	initializeAuth,
-	setPersistence
+	initializeAuth
 } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
@@ -33,12 +31,13 @@ const firebaseConfig = {
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 
 function createAuth() {
-	if (browser && Capacitor.isNativePlatform()) {
+	if (browser) {
 		try {
 			return initializeAuth(app, {
-				persistence: [browserLocalPersistence, indexedDBLocalPersistence]
+				persistence: [indexedDBLocalPersistence, browserLocalPersistence]
 			});
 		} catch {
+			// Auth was already initialized during hot reload.
 			return getAuth(app);
 		}
 	}
@@ -47,12 +46,6 @@ function createAuth() {
 }
 
 export const auth = createAuth();
-export const authPersistenceReady =
-	!browser || Capacitor.isNativePlatform()
-		? Promise.resolve()
-		: setPersistence(auth, browserLocalPersistence).catch((error) => {
-				console.error('Could not enable persistent Firebase session:', error);
-			});
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const functions = getFunctions(app);

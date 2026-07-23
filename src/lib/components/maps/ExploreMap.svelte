@@ -62,10 +62,12 @@
 		venueSportOptions = [],
 		selectedVenueSport = null,
 		selectedVenueCity = null,
+		venueSearchTerm = '',
 		venuesLoading = false,
 		venueError = '',
 		onToggleVenueSport,
 		onVenueCityChange,
+		onVenueSearchChange,
 		onSelectedVenueChange,
 		getVenueHref = (venue: Venue) => `/locations/${venue.id}`
 	} = $props<{
@@ -117,15 +119,18 @@
 		venueSportOptions?: Sport[];
 		selectedVenueSport?: Sport | null;
 		selectedVenueCity?: string | null;
+		venueSearchTerm?: string;
 		venuesLoading?: boolean;
 		venueError?: string;
 		onToggleVenueSport?: (sport: Sport) => void;
 		onVenueCityChange?: (city: string | null) => void;
+		onVenueSearchChange?: (value: string) => void;
 		onSelectedVenueChange?: (venueId: string | null) => void;
 		getVenueHref?: (venue: Venue) => string;
 	}>();
 
 	let mapContainer: HTMLDivElement;
+	let exploreContainer: HTMLElement;
 	let map = $state<mapboxgl.Map | null>(null);
 	let mapReady = $state(false);
 	let satelliteMode = $state(false);
@@ -144,7 +149,9 @@
 	let routeEndpointMarkers: mapboxgl.Marker[] = [];
 	let svelteMarkers: any[] = [];
 	let showFilters = $state(false);
-	let venueFilterCount = $derived((selectedVenueSport ? 1 : 0) + (selectedVenueCity ? 1 : 0));
+	let venueFilterCount = $derived(
+		(selectedVenueSport ? 1 : 0) + (selectedVenueCity ? 1 : 0) + (venueSearchTerm.trim() ? 1 : 0)
+	);
 	let displayedFilterCount = $derived(mode === 'venues' ? venueFilterCount : activeFilterCount);
 	const routeSourceId = 'selected-event-route';
 	let mapResizeFrame: number | null = null;
@@ -257,6 +264,7 @@
 		...feedGeneralEvents
 	]);
 	let searchPreviewEvents = $derived(localSearchTerm.trim() ? events.slice(0, 6) : []);
+	let searchPreviewVenues = $derived(venueSearchTerm.trim() ? venues.slice(0, 6) : []);
 
 	function getVenueRatingLabel(venue: Venue) {
 		const rating = venueRatings[venue.id];
@@ -531,6 +539,16 @@
 		selectEvent(event, getNearbyEventGroup(event));
 	}
 
+	function handleVenueSearchInput(value: string) {
+		onVenueSearchChange?.(value);
+		clearSelectedVenue();
+	}
+
+	function selectVenueSearchResult(venue: Venue) {
+		showFilters = false;
+		selectVenue(venue, getNearbyVenueGroup(venue), true);
+	}
+
 	function toggleLevelFilter(level: SportLevel) {
 		onToggleLevel?.(level);
 		clearSelectedEvent();
@@ -544,6 +562,7 @@
 	function clearVenueFilters() {
 		if (selectedVenueSport) onToggleVenueSport?.(selectedVenueSport);
 		if (selectedVenueCity) onVenueCityChange?.(selectedVenueCity);
+		if (venueSearchTerm) onVenueSearchChange?.('');
 		clearSelectedVenue();
 	}
 
@@ -1129,7 +1148,7 @@
 		});
 
 		map.addControl(new mapboxgl.NavigationControl(), 'top-right');
-		map.addControl(new mapboxgl.FullscreenControl(), 'top-right');
+		map.addControl(new mapboxgl.FullscreenControl({ container: exploreContainer }), 'top-right');
 		const satelliteControl = {
 			onAdd() {
 				const container = document.createElement('div');
@@ -1184,19 +1203,19 @@
 </script>
 
 <section
-	class="relative flex min-w-0 w-full max-w-full flex-col md:min-h-0 md:flex-1 {viewMode === 'map'
+	bind:this={exploreContainer}
+	class="explore-map-shell relative flex min-w-0 w-full max-w-full flex-col md:min-h-0 md:flex-1 {viewMode ===
+	'map'
 		? 'overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900'
 		: ''}"
 >
 	<div
 		bind:this={mapContainer}
-		class="relative h-[60dvh] min-h-[420px] w-full flex-none md:h-[calc(100vh-240px)] md:min-h-[620px]"
+		class="explore-map-canvas relative h-[60dvh] min-h-[420px] w-full flex-none md:h-[calc(100vh-240px)] md:min-h-[620px]"
 		class:hidden={viewMode !== 'map'}
 	>
 		{#if viewMode === 'map'}
-			<div
-				class="absolute inset-x-3 top-3 z-20 flex items-center gap-2 md:hidden fullscreen-force-show"
-			>
+			<div class="absolute inset-x-3 top-3 z-20 flex items-center gap-2 fullscreen-force-show">
 				<button
 					type="button"
 					onclick={() => (showFilters = !showFilters)}
@@ -1275,7 +1294,9 @@
 	<!-- Floating Filters Modal Card (Mobile Only) -->
 	{#if showFilters}
 		<div
-			class="fixed inset-x-4 bottom-20 z-[9999] max-h-[65dvh] overflow-y-auto rounded-3xl border border-slate-200/50 bg-white/95 p-5 shadow-2xl backdrop-blur-md dark:border-slate-800/50 dark:bg-slate-900/95 md:hidden fullscreen-force-block"
+			class={viewMode === 'feed'
+				? 'relative z-30 mx-3 mt-3 max-h-[70dvh] overflow-y-auto rounded-3xl border border-slate-200/50 bg-white/95 p-5 shadow-xl backdrop-blur-md dark:border-slate-800/50 dark:bg-slate-900/95 sm:mx-4 md:mx-8'
+				: 'fixed inset-x-4 bottom-20 z-[9999] max-h-[65dvh] overflow-y-auto rounded-3xl border border-slate-200/50 bg-white/95 p-5 shadow-2xl backdrop-blur-md dark:border-slate-800/50 dark:bg-slate-900/95 md:absolute md:bottom-auto md:left-4 md:right-auto md:top-16 md:max-h-[calc(100%-5rem)] md:w-[min(46rem,calc(100%-2rem))] fullscreen-force-block'}
 		>
 			<div
 				class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800"
@@ -1306,6 +1327,71 @@
 
 			{#if mode === 'venues'}
 				<div class="mt-4">
+					<label class="sr-only" for="venue-explore-search">
+						{i18n.t('search_venues_placeholder')}
+					</label>
+					<div
+						class="flex items-center gap-3 rounded-2xl bg-slate-100/90 px-3.5 py-2.5 shadow-inner shadow-white/70 backdrop-blur dark:bg-slate-800/80 dark:shadow-none"
+					>
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.4"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500"
+						>
+							<circle cx="11" cy="11" r="7" />
+							<path d="m20 20-3.5-3.5" />
+						</svg>
+						<input
+							id="venue-explore-search"
+							type="search"
+							value={venueSearchTerm}
+							placeholder={i18n.t('search_venues_placeholder')}
+							oninput={(event) =>
+								handleVenueSearchInput((event.currentTarget as HTMLInputElement).value)}
+							class="min-w-0 flex-1 appearance-none border-0 bg-transparent p-0 text-sm font-black text-slate-900 outline-none ring-0 shadow-none placeholder:font-bold placeholder:text-slate-400 focus:border-0 focus:outline-none focus:ring-0 dark:text-slate-100"
+						/>
+					</div>
+
+					{#if venueSearchTerm.trim()}
+						<div class="mt-3 grid gap-2 md:grid-cols-2">
+							{#if searchPreviewVenues.length}
+								{#each searchPreviewVenues as venue (venue.id)}
+									<button
+										type="button"
+										onclick={() => selectVenueSearchResult(venue)}
+										class="flex min-w-0 items-center gap-2.5 rounded-2xl border border-slate-200 bg-white p-2 text-left shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50/60 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-emerald-900 dark:hover:bg-emerald-950/30"
+									>
+										<img
+											src={venue.photoURL || getSportBackgroundImage(venue.sports[0])}
+											alt={venue.name}
+											class="h-11 w-14 shrink-0 rounded-xl object-cover"
+										/>
+										<div class="min-w-0 flex-1">
+											<p class="truncate text-sm font-black text-slate-950 dark:text-slate-50">
+												{venue.name}
+											</p>
+											<p class="truncate text-xs font-bold text-slate-500 dark:text-slate-400">
+												{venue.address} · {venue.city}
+											</p>
+										</div>
+									</button>
+								{/each}
+							{:else}
+								<p
+									class="rounded-2xl border border-dashed border-slate-200 p-3 text-sm font-bold text-slate-500 dark:border-slate-700 dark:text-slate-400"
+								>
+									{i18n.t('venue_not_found')}
+								</p>
+							{/if}
+						</div>
+					{/if}
+				</div>
+
+				<div class="mt-5 border-t border-slate-100 pt-4 dark:border-slate-800">
 					<p class="text-xs font-black uppercase tracking-wider text-slate-400">
 						{i18n.t('sport_label')}
 					</p>
@@ -1642,9 +1728,7 @@
 
 	<!-- Desktop Filters Bar (Web Only) -->
 	{#if mode === 'events'}
-		<div
-			class="hidden md:block border-t border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900 shrink-0"
-		>
+		<div class="hidden">
 			<div class="flex items-center justify-between gap-3">
 				<div class="flex items-center gap-4">
 					<button
@@ -1981,56 +2065,6 @@
 		</div>
 	{/if}
 
-	{#if mode === 'venues'}
-		<div
-			class="{viewMode === 'map'
-				? 'hidden md:block'
-				: 'block'} shrink-0 border-t border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900"
-		>
-			<div class="flex items-center justify-between gap-3">
-				<span class="text-xs font-black uppercase tracking-wider text-slate-400">
-					{formatShowingLocations(venues.length)}
-				</span>
-			</div>
-			<div
-				class="mt-3 flex gap-2 overflow-x-auto px-0.5 pt-0.5 pb-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-			>
-				{#each venueSportOptions as sport (sport)}
-					<button
-						type="button"
-						onclick={() => onToggleVenueSport?.(sport)}
-						class={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold capitalize transition ${
-							selectedVenueSport === sport
-								? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
-								: 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-blue-950'
-						}`}
-					>
-						{formatSport(sport)}
-					</button>
-				{/each}
-			</div>
-			{#if venueCities.length > 1}
-				<div
-					class="mt-2 flex gap-2 overflow-x-auto px-0.5 pt-0.5 pb-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-				>
-					{#each venueCities as city (city)}
-						<button
-							type="button"
-							onclick={() => onVenueCityChange?.(city)}
-							class={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold transition ${
-								selectedVenueCity === city
-									? 'bg-slate-950 text-white dark:bg-white dark:text-slate-950'
-									: 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
-							}`}
-						>
-							{city}
-						</button>
-					{/each}
-				</div>
-			{/if}
-		</div>
-	{/if}
-
 	{#if viewMode === 'map' && mode === 'events' && selectedEvent}
 		<aside
 			class="absolute inset-x-3 bottom-0 z-[100] max-h-[34dvh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2.5 shadow-xl shadow-slate-300/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none md:inset-x-auto md:bottom-auto md:left-5 md:top-5 md:m-0 md:max-h-[70dvh] md:w-[24rem] md:rounded-[1.75rem] md:p-4 md:shadow-2xl md:shadow-slate-300/70"
@@ -2320,45 +2354,44 @@
 		<div
 			class="min-w-0 w-full max-w-full flex-1 overflow-x-hidden overflow-y-auto px-3 py-6 sm:px-4 md:px-8"
 		>
-			{#if mode === 'events'}
-				<div class="mb-4 flex items-center justify-between gap-3 md:hidden">
-					<button
-						type="button"
-						onclick={() => (showFilters = !showFilters)}
-						class="flex min-w-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 shadow-sm transition active:scale-95 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+			<div class="mb-4 flex items-center justify-between gap-3">
+				<button
+					type="button"
+					onclick={() => (showFilters = !showFilters)}
+					class="flex min-w-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 shadow-sm transition active:scale-95 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+				>
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400"
 					>
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2.5"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							class="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400"
+						<path d="M3 5h18" />
+						<path d="M7 12h10" />
+						<path d="M10 19h4" />
+					</svg>
+					<span class="truncate">{i18n.t('filters_label')}</span>
+					{#if displayedFilterCount > 0}
+						<span
+							class="shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white"
 						>
-							<path d="M3 5h18" />
-							<path d="M7 12h10" />
-							<path d="M10 19h4" />
-						</svg>
+							{displayedFilterCount}
+						</span>
+					{/if}
+				</button>
+				<span
+					class="min-w-0 truncate text-right text-[11px] font-black uppercase tracking-wide text-slate-400"
+				>
+					{mode === 'events'
+						? formatShowingEvents(shownFeedCount)
+						: formatShowingLocations(venues.length)}
+				</span>
+			</div>
 
-						<span class="truncate">{i18n.t('filters_label')}</span>
-
-						{#if activeFilterCount > 0}
-							<span
-								class="shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white"
-							>
-								{activeFilterCount}
-							</span>
-						{/if}
-					</button>
-
-					<span
-						class="min-w-0 truncate text-right text-[11px] font-black uppercase tracking-wide text-slate-400"
-					>
-						{formatShowingEvents(shownFeedCount)}
-					</span>
-				</div>
-
+			{#if mode === 'events'}
 				{#if shownFeedCount === 0}
 					<div class="flex flex-col items-center justify-center py-20 text-center">
 						<div class="rounded-full bg-slate-100 p-4 dark:bg-slate-800 text-3xl mb-4">🔍</div>
@@ -2424,6 +2457,26 @@
 </section>
 
 <style>
+	:global(.explore-map-shell:fullscreen),
+	:global(.explore-map-shell:-webkit-full-screen) {
+		height: 100dvh;
+		width: 100vw;
+		max-width: none;
+		border: 0;
+		border-radius: 0;
+		background: white;
+	}
+	:global(.dark .explore-map-shell:fullscreen),
+	:global(.dark .explore-map-shell:-webkit-full-screen) {
+		background: #0f172a;
+	}
+	:global(.explore-map-shell:fullscreen > .explore-map-canvas),
+	:global(.explore-map-shell:-webkit-full-screen > .explore-map-canvas) {
+		height: 100dvh !important;
+		min-height: 0 !important;
+		flex: 1 1 auto;
+	}
+
 	/* Force display mobile filters controls inside native fullscreen container */
 	:global(:fullscreen) .fullscreen-force-show {
 		display: flex !important;

@@ -25,7 +25,13 @@ export function toggleBookmark(kind: BookmarkKind, id: string) {
 	const ids = getSavedBookmarkIds(kind);
 	const saved = ids.includes(id);
 	const nextIds = saved ? ids.filter((savedId) => savedId !== id) : [...ids, id];
-	localStorage.setItem(storageKeys[kind], JSON.stringify(nextIds));
-	window.dispatchEvent(new CustomEvent('rally:bookmarks-changed', { detail: { kind, id } }));
+	setSavedBookmarkIds(kind, nextIds, id);
 	return !saved;
+}
+
+export function setSavedBookmarkIds(kind: BookmarkKind, ids: string[], changedId = '') {
+	localStorage.setItem(storageKeys[kind], JSON.stringify(ids));
+	window.dispatchEvent(
+		new CustomEvent('rally:bookmarks-changed', { detail: { kind, id: changedId } })
+	);
 }

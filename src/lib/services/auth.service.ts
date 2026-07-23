@@ -1,5 +1,6 @@
-import { auth, authPersistenceReady } from '$lib/firebase';
+import { auth } from '$lib/firebase';
 import {
+	browserLocalPersistence,
 	createUserWithEmailAndPassword,
 	deleteUser,
 	GoogleAuthProvider,
@@ -9,6 +10,7 @@ import {
 	signInWithPopup,
 	signInWithCredential,
 	signOut,
+	setPersistence,
 	updateProfile,
 	type User
 } from 'firebase/auth';
@@ -28,6 +30,10 @@ import type { OrganizationType, UserProfile } from '$lib/schema';
 import { createAppUrl } from '$lib/utils/app-url';
 
 import { authState } from '$lib/auth.svelte';
+
+async function usePersistentSession() {
+	await setPersistence(auth, browserLocalPersistence);
+}
 
 function isPasswordUser(user = auth.currentUser) {
 	return Boolean(user?.providerData.some((provider) => provider.providerId === 'password'));
@@ -92,7 +98,7 @@ async function removeCurrentFcmToken() {
 
 export const authService = {
 	async register(email: string, password: string, displayName: string, language?: string) {
-		await authPersistenceReady;
+		await usePersistentSession();
 		const credential = await createUserWithEmailAndPassword(auth, email, password);
 
 		try {
@@ -142,7 +148,7 @@ export const authService = {
 		nif?: string;
 		language?: string;
 	}) {
-		await authPersistenceReady;
+		await usePersistentSession();
 		const credential = await createUserWithEmailAndPassword(auth, params.email, params.password);
 
 		let organization;
@@ -203,7 +209,7 @@ export const authService = {
 	},
 
 	async login(email: string, password: string) {
-		await authPersistenceReady;
+		await usePersistentSession();
 		const credential = await signInWithEmailAndPassword(auth, email, password);
 		const profile = await ensureUserProfile(credential.user);
 
@@ -236,7 +242,7 @@ export const authService = {
 	},
 
 	async signInWithGoogle() {
-		await authPersistenceReady;
+		await usePersistentSession();
 		await removeCurrentFcmToken();
 
 		if (Capacitor.getPlatform() !== 'web') {

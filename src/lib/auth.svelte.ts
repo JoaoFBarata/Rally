@@ -1,5 +1,4 @@
-import { auth, authPersistenceReady, db } from '$lib/firebase';
-import { Capacitor } from '@capacitor/core';
+import { auth, db } from '$lib/firebase';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -13,39 +12,26 @@ class AuthState {
 	private revision = 0;
 
 	constructor() {
-		if (typeof window !== 'undefined') {
-			const loadingFallbackMs = Capacitor.isNativePlatform() ? 350 : 1500;
-			window.setTimeout(() => {
-				if (this.loading) {
-					console.warn('Auth state loading fallback timeout reached.');
-					this.loading = false;
-				}
-			}, loadingFallbackMs);
-		}
+		onAuthStateChanged(auth, async (u) => {
+			const revision = ++this.revision;
+			this.user = u;
+			this.requiresEmailVerification = false;
 
-		void authPersistenceReady.then(() =>
-			onAuthStateChanged(auth, async (u) => {
-				const revision = ++this.revision;
-				this.user = u;
-				this.requiresEmailVerification = false;
+			// The first observer result is emitted only after Firebase has
+			// restored its persisted session, so route guards can safely run.
+			this.loading = false;
 
-				// Firebase Auth has already restored the local session at this
-				// point. Do not keep the whole native app behind the splash while
-				// waiting for a separate Firestore profile request.
-				this.loading = false;
-
-				if (u) {
-					try {
-						const snap = await getDoc(doc(db, 'users', u.uid));
-						if (revision === this.revision) {
-							this.requiresEmailVerification = snap.data()?.requiresEmailVerification === true;
-						}
-					} catch (err) {
-						console.error('Could not load auth verification requirement:', err);
+			if (u) {
+				try {
+					const snap = await getDoc(doc(db, 'users', u.uid));
+					if (revision === this.revision) {
+						this.requiresEmailVerification = snap.data()?.requiresEmailVerification === true;
 					}
+				} catch (err) {
+					console.error('Could not load auth verification requirement:', err);
 				}
-			})
-		);
+			}
+		});
 	}
 
 	async refresh() {

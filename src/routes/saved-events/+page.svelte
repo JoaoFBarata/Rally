@@ -3,7 +3,7 @@
 	import { resolve } from '$app/paths';
 	import { getEventById } from '$lib/services/event.service';
 	import { getVenueById } from '$lib/services/venue.service';
-	import { getSavedBookmarkIds } from '$lib/services/bookmark.service';
+	import { bookmarkState } from '$lib/services/bookmark-state.svelte';
 	import type { SportEvent, Venue } from '$lib/schema';
 	import { goBack } from '$lib/utils/navigation';
 	import { i18n } from '$lib/services/i18n.svelte';
@@ -20,8 +20,12 @@
 		const version = ++refreshVersion;
 		loading = true;
 		const [events, venues] = await Promise.all([
-			Promise.all(getSavedBookmarkIds('event').map((id) => getEventById(id).catch(() => null))),
-			Promise.all(getSavedBookmarkIds('venue').map((id) => getVenueById(id).catch(() => null)))
+			Promise.all(
+				bookmarkState.getSavedIds('event').map((id) => getEventById(id).catch(() => null))
+			),
+			Promise.all(
+				bookmarkState.getSavedIds('venue').map((id) => getVenueById(id).catch(() => null))
+			)
 		]);
 		if (version !== refreshVersion) return;
 		savedEvents = events.filter((item): item is SportEvent => Boolean(item));
@@ -31,13 +35,11 @@
 
 	onMount(() => {
 		void loadSavedItems();
-		const refresh = () => void loadSavedItems();
-		window.addEventListener('rally:bookmarks-changed', refresh);
-		window.addEventListener('storage', refresh);
-		return () => {
-			window.removeEventListener('rally:bookmarks-changed', refresh);
-			window.removeEventListener('storage', refresh);
-		};
+	});
+
+	$effect(() => {
+		bookmarkState.version;
+		if (bookmarkState.ready) void loadSavedItems();
 	});
 </script>
 

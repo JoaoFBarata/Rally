@@ -994,56 +994,7 @@
 							</button>
 						</div>
 
-						<div class="flex w-9 shrink-0 justify-end">
-							{#if editMode}
-								<button
-									type="button"
-									onclick={cancelEdit}
-									class="rounded-full bg-slate-100 p-2 text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-									title={i18n.t('cancel')}
-									aria-label={i18n.t('cancel')}
-								>
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="2.4"
-										class="h-4 w-4"
-									>
-										<path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-									</svg>
-								</button>
-							{:else}
-								<button
-									type="button"
-									onclick={() => (editMode = true)}
-									class="rounded-full bg-slate-100 p-2 text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-									title={i18n.t('edit_profile')}
-									aria-label={i18n.t('edit_profile')}
-								>
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="2.4"
-										class="h-4 w-4"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"
-										/>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											d="M19.5 13.5v4.875c0 .621-.504 1.125-1.125 1.125H5.625a1.125 1.125 0 0 1-1.125-1.125V6.375c0-.621.504-1.125 1.125-1.125h4.875"
-										/>
-									</svg>
-								</button>
-							{/if}
-						</div>
+						<div class="w-9"></div>
 					</div>
 
 					<div class="relative mt-5 h-40 w-40 shrink-0">
@@ -1099,9 +1050,42 @@
 				<section
 					class="min-w-0 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:rounded-4xl sm:p-6"
 				>
-					<h2 class="text-lg font-black text-slate-950 dark:text-slate-50">
-						{i18n.t('bio_details_title')}
-					</h2>
+					<div class="flex items-start justify-between gap-3">
+						<h2 class="text-lg font-black text-slate-950 dark:text-slate-50">
+							{i18n.t('bio_details_title')}
+						</h2>
+						<button
+							type="button"
+							onclick={() => (editMode ? cancelEdit() : (editMode = true))}
+							class="shrink-0 rounded-full bg-slate-100 p-2 text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+							title={editMode ? i18n.t('cancel') : i18n.t('edit_profile')}
+							aria-label={editMode ? i18n.t('cancel') : i18n.t('edit_profile')}
+						>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2.4"
+								class="h-4 w-4"
+							>
+								{#if editMode}
+									<path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+								{:else}
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"
+									/>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										d="M19.5 13.5v4.875c0 .621-.504 1.125-1.125 1.125H5.625a1.125 1.125 0 0 1-1.125-1.125V6.375c0-.621.504-1.125 1.125-1.125h4.875"
+									/>
+								{/if}
+							</svg>
+						</button>
+					</div>
 
 					{#if editMode}
 						<div class="mt-5 grid gap-4">

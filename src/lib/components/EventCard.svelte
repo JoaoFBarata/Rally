@@ -295,7 +295,6 @@
 							{currentUserRelationshipLabel}
 						</span>
 					{/if}
-					<BookmarkButton kind="event" id={event.id} />
 				</div>
 			</div>
 
@@ -334,17 +333,20 @@
 					>
 						{routeDistanceLabel ? `${routeDistanceLabel} · ${formattedPrice}` : formattedPrice}
 					</span>
-					{#if heroCtaLabel}
-						<span
-							class={`shrink-0 rounded-2xl font-black shadow-lg transition ${miniHero ? 'px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm' : 'px-4 py-2 text-sm'} ${
-								heroCtaTone === 'muted'
-									? 'bg-white/90 text-slate-950 shadow-slate-950/15'
-									: 'bg-blue-600 text-white shadow-blue-950/25 group-hover:bg-blue-500'
-							}`}
-						>
-							{heroCtaLabel}
-						</span>
-					{/if}
+					<div class="flex shrink-0 items-center gap-2">
+						{#if heroCtaLabel}
+							<span
+								class={`shrink-0 rounded-2xl font-black shadow-lg transition ${miniHero ? 'px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm' : 'px-4 py-2 text-sm'} ${
+									heroCtaTone === 'muted'
+										? 'bg-white/90 text-slate-950 shadow-slate-950/15'
+										: 'bg-blue-600 text-white shadow-blue-950/25 group-hover:bg-blue-500'
+								}`}
+							>
+								{heroCtaLabel}
+							</span>
+						{/if}
+						<BookmarkButton kind="event" id={event.id} />
+					</div>
 				</div>
 			</div>
 		</div>

@@ -101,6 +101,8 @@ export interface UserProfile {
 	country?: string;
 	age?: number | null;
 	birthDate?: string | null;
+	savedEventIds?: string[];
+	savedVenueIds?: string[];
 	sports: Sport[];
 
 	rallyPointsTotal?: number;

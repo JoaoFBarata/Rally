@@ -1,10 +1,12 @@
 import { auth } from '$lib/firebase';
 import { FirebaseError } from 'firebase/app';
 import {
+	browserLocalPersistence,
 	isSignInWithEmailLink,
 	sendSignInLinkToEmail,
 	signInWithEmailLink,
-	signOut
+	signOut,
+	setPersistence
 } from 'firebase/auth';
 import { createAppUrl } from '$lib/utils/app-url';
 import { ensureUserProfile } from '$lib/services/user.service';
@@ -26,7 +28,10 @@ function isBrowser() {
 }
 
 export function normalizeTwoFactorReturnTo(returnTo?: string | null) {
-	return returnTo?.startsWith('/') && !returnTo.startsWith('//') && !returnTo.includes('\\') && returnTo !== '/'
+	return returnTo?.startsWith('/') &&
+		!returnTo.startsWith('//') &&
+		!returnTo.includes('\\') &&
+		returnTo !== '/'
 		? returnTo
 		: '/dashboard';
 }
@@ -133,6 +138,7 @@ export async function completeEmailTwoFactorChallenge(params?: {
 
 	let user;
 	try {
+		await setPersistence(auth, browserLocalPersistence);
 		const credential = await signInWithEmailLink(auth, email, window.location.href);
 		user = credential.user;
 	} catch (error) {
