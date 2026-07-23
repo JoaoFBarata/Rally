@@ -10,7 +10,23 @@ export interface Toast {
 class ToastState {
 	toasts = $state<Toast[]>([]);
 
-	add(title: string, message: string, type: Toast['type']) {
+	add(title: string, message: string, type: Toast['type'], dedupeKey?: string) {
+		if (dedupeKey && typeof localStorage !== 'undefined') {
+			const storageKey = 'rally_seen_in_app_notifications';
+			let storedKeys: string[] = [];
+			try {
+				const storedValue = JSON.parse(localStorage.getItem(storageKey) ?? '[]');
+				if (Array.isArray(storedValue)) storedKeys = storedValue;
+			} catch {
+				localStorage.removeItem(storageKey);
+			}
+			const seen = new Set<string>(storedKeys);
+			if (seen.has(dedupeKey)) return;
+
+			seen.add(dedupeKey);
+			localStorage.setItem(storageKey, JSON.stringify([...seen].slice(-500)));
+		}
+
 		const id = Math.random().toString(36).substring(2);
 		this.toasts.push({ id, title, message, type });
 

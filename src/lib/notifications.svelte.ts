@@ -154,7 +154,8 @@ export function startNotifications(userId: string) {
 							toastState.add(
 								i18n.t('new_message_from', { name: senderName }),
 								textPreview,
-								'message'
+								'message',
+								`${userId}:message:${conversation.id}:${lastTime}`
 							);
 						});
 					}
@@ -214,7 +215,8 @@ export function startNotifications(userId: string) {
 					toastState.add(
 						i18n.t('new_event_invite_title'),
 						i18n.t('new_event_invite_body', { title: event.title ?? i18n.t('event_invite_label') }),
-						'invite'
+						'invite',
+						`${userId}:event-invite:${invite.id}`
 					);
 				}
 			}
@@ -265,7 +267,8 @@ export function startNotifications(userId: string) {
 					toastState.add(
 						i18n.t('friend_request_title'),
 						i18n.t('friend_request_body', { name: senderName }),
-						'invite'
+						'invite',
+						`${userId}:friend-request:${request.id}`
 					);
 				});
 			}
@@ -318,7 +321,8 @@ export function startNotifications(userId: string) {
 						toastState.add(
 							i18n.t('friend_activity'),
 							i18n.t('friend_created_event', { name: creatorName, title: eventTitle }),
-							'event'
+							'event',
+							`${userId}:friend-event:${change.doc.id}`
 						);
 					});
 				}

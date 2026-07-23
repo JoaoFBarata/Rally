@@ -40,7 +40,6 @@ import { calculateRouteDistanceKm } from '$lib/utils/route.utils';
 import {
 	canCreateOfficialPaidEvents,
 	getOrganizationById,
-	getOrganizationFollowerIds,
 	isOrganizationAdmin
 } from '$lib/services/organization.service';
 import { sendRallySystemMessage } from '$lib/services/chat.service';
@@ -392,25 +391,6 @@ async function syncEventGroupConversation(event: SportEvent) {
 	);
 }
 
-async function notifyOrganizationFollowers(
-	event: SportEvent,
-	message: string,
-	options: { includeParticipants?: boolean } = {}
-) {
-	if (event.hostType !== 'organization' || !event.organizationId || event.visibility !== 'public') {
-		return;
-	}
-
-	const followerIds = await getOrganizationFollowerIds(event.organizationId);
-	const excludedIds = new Set<string>([
-		event.creatorId,
-		...(options.includeParticipants ? [] : (event.participantIds ?? []))
-	]);
-	const recipients = followerIds.filter((userId) => !excludedIds.has(userId));
-
-	await Promise.allSettled(recipients.map((userId) => sendRallySystemMessage(userId, message)));
-}
-
 async function syncTournamentTeamConversation(
 	event: SportEvent,
 	entry: TournamentEntry,
@@ -675,15 +655,6 @@ export async function createSportEvent(params: {
 	} as unknown as SportEvent;
 
 	await syncEventGroupConversation(createdEvent);
-
-	if (hostType === 'organization' && !params.recurringGroupId) {
-		const dateLabel = formatEventDate(createdEvent.startAt);
-		const organizationName = createdEvent.organizationName ?? 'An organization you follow';
-		void notifyOrganizationFollowers(
-			createdEvent,
-			`${organizationName} created "${createdEvent.title}"${dateLabel ? ` on ${dateLabel}` : ''}.`
-		).catch((error) => console.error('Follower event notification error:', error));
-	}
 
 	return createdEvent;
 }
@@ -1361,10 +1332,6 @@ export async function promoteEvent(params: {
 		`Promotion started for "${event.title}". You can follow its views, clicks and spend in the organization dashboard.`
 	).catch((error) => console.error('Promotion notification error:', error));
 
-	void notifyOrganizationFollowers(
-		event,
-		`${event.organizationName ?? 'An organization you follow'} is promoting "${event.title}" in Rally.`
-	).catch((error) => console.error('Follower promotion notification error:', error));
 }
 
 export async function stopEventPromotion(params: { eventId: string; userId: string }) {
