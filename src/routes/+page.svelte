@@ -4,22 +4,39 @@
 	import { resolve } from '$app/paths';
 	import { fade } from 'svelte/transition';
 	import { authState } from '$lib/auth.svelte';
+	import { Capacitor } from '@capacitor/core';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import CardSwap from '$lib/components/CardSwap.svelte';
 
 	let contentVisible = $state(false);
 	let activePersona = $state(0);
 	let activeStep = $state(0);
+	let isMobileViewport = $state(false);
 
 	$effect(() => {
-		if (!authState.loading && authState.user) {
-			void goto(resolve('/dashboard'), { replaceState: true });
+		if (authState.loading) return;
+
+		if (Capacitor.isNativePlatform() || isMobileViewport) {
+			void goto(resolve(authState.user ? '/dashboard' : '/login'), { replaceState: true });
+			return;
 		}
+
+		if (authState.user) void goto(resolve('/dashboard'), { replaceState: true });
 	});
 
 	onMount(() => {
+		const mobileMedia = window.matchMedia('(max-width: 767px)');
+		const syncMobileViewport = () => {
+			isMobileViewport = mobileMedia.matches;
+		};
+		syncMobileViewport();
+		mobileMedia.addEventListener('change', syncMobileViewport);
+
 		const t = setTimeout(() => (contentVisible = true), 1000);
-		return () => clearTimeout(t);
+		return () => {
+			clearTimeout(t);
+			mobileMedia.removeEventListener('change', syncMobileViewport);
+		};
 	});
 
 	function reveal(node: HTMLElement, options: { delay?: number } = {}) {

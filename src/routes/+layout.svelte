@@ -64,7 +64,10 @@
 				console.error('Invalid Rally app link:', error);
 			}
 		};
-		const appUrlListener = CapacitorApp.addListener('appUrlOpen', ({ url }) => void openAppUrl(url));
+		const appUrlListener = CapacitorApp.addListener(
+			'appUrlOpen',
+			({ url }) => void openAppUrl(url)
+		);
 		void CapacitorApp.getLaunchUrl().then((launch) => {
 			if (launch?.url) void openAppUrl(launch.url);
 		});
@@ -94,13 +97,13 @@
 				page.url.pathname === '/verify-email' ||
 				page.url.pathname.startsWith('/register');
 
-			if (Capacitor.getPlatform() !== 'web' && page.url.pathname === '/') {
+			if (Capacitor.isNativePlatform() && page.url.pathname === '/') {
 				void goto(currentUser ? '/dashboard' : '/login', { replaceState: true });
 				return;
 			}
 
-			if (page.url.pathname === '/' && !currentUser) {
-				void goto('/login', { replaceState: true });
+			if (!Capacitor.isNativePlatform() && page.url.pathname === '/' && currentUser) {
+				void goto('/dashboard', { replaceState: true });
 				return;
 			}
 

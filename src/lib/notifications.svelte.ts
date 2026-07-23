@@ -1,5 +1,14 @@
 import type { Unsubscribe } from 'firebase/firestore';
-import { collection, doc, getDoc, onSnapshot, query, where } from 'firebase/firestore';
+import {
+	collection,
+	doc,
+	getDoc,
+	onSnapshot,
+	query,
+	runTransaction,
+	serverTimestamp,
+	where
+} from 'firebase/firestore';
 import { db } from '$lib/firebase';
 import { listenConversationsForUser } from '$lib/services/chat.service';
 import { listenFriendRequestsForUser } from '$lib/services/social.service';
@@ -65,7 +74,10 @@ function getTimestampMillis(value: unknown) {
 	}
 }
 
-function mergeNotificationPreviews(type: NotificationPreview['type'], previews: NotificationPreview[]) {
+function mergeNotificationPreviews(
+	type: NotificationPreview['type'],
+	previews: NotificationPreview[]
+) {
 	const existing = notificationState.previews.filter((item) => item.type !== type);
 	const combined = [...existing, ...previews];
 	const seen = new Set<string>();
@@ -76,15 +88,38 @@ function mergeNotificationPreviews(type: NotificationPreview['type'], previews: 
 			unique.push(item);
 		}
 	}
-	notificationState.previews = unique
-		.sort((a, b) => b.createdAtMs - a.createdAtMs)
-		.slice(0, 30);
+	notificationState.previews = unique.sort((a, b) => b.createdAtMs - a.createdAtMs).slice(0, 30);
 }
 
 function translateSystemPreview(message: string | undefined | null, conversationType?: string) {
 	if (!message) return i18n.t('new_message');
 	if (conversationType === 'rally_system') return translateRallySystemMessage(message);
 	return message;
+}
+
+async function showToastOnceForAccount(
+	userId: string,
+	notificationKey: string,
+	title: string,
+	message: string,
+	type: 'message' | 'invite' | 'event'
+) {
+	try {
+		const receiptRef = doc(db, 'users', userId, 'seenInAppNotifications', notificationKey);
+		const claimed = await runTransaction(db, async (transaction) => {
+			const receipt = await transaction.get(receiptRef);
+			if (receipt.exists()) return false;
+
+			transaction.set(receiptRef, { seenAt: serverTimestamp() });
+			return true;
+		});
+
+		if (claimed) {
+			toastState.add(title, message, type, `${userId}:${notificationKey}`);
+		}
+	} catch (error) {
+		console.error('Could not record in-app notification receipt:', error);
+	}
 }
 
 export function startNotifications(userId: string) {
@@ -95,79 +130,89 @@ export function startNotifications(userId: string) {
 	const lastMessageTimes = new Map<string, number>();
 	let conversationPreviewVersion = 0;
 
-	const unsubscribeConversations = listenConversationsForUser(userId, (conversations: ChatConversation[]) => {
-		const unreadConversations = conversations.filter((conversation) => {
-			const directCount = conversation.unreadCounts?.[userId];
-			return typeof directCount === 'number'
-				? directCount > 0
-				: conversation.unreadFor?.includes(userId);
-		});
+	const unsubscribeConversations = listenConversationsForUser(
+		userId,
+		(conversations: ChatConversation[]) => {
+			const unreadConversations = conversations.filter((conversation) => {
+				const directCount = conversation.unreadCounts?.[userId];
+				return typeof directCount === 'number'
+					? directCount > 0
+					: conversation.unreadFor?.includes(userId);
+			});
 
-		notificationState.unreadMessages = unreadConversations.length;
+			notificationState.unreadMessages = unreadConversations.length;
 
-		const previewVersion = ++conversationPreviewVersion;
-		void Promise.all(
-			unreadConversations.map(async (conversation) => {
-				let title = conversation.title || i18n.t('new_message');
-				let photoURL = conversation.photoURL ?? conversation.organizationLogoURL ?? null;
+			const previewVersion = ++conversationPreviewVersion;
+			void Promise.all(
+				unreadConversations.map(async (conversation) => {
+					let title = conversation.title || i18n.t('new_message');
+					let photoURL = conversation.photoURL ?? conversation.organizationLogoURL ?? null;
 
-				if (conversation.type === 'direct') {
-					const otherUserId = conversation.memberIds.find((id) => id !== userId);
-					const profile = otherUserId ? await getUserProfile(otherUserId) : null;
-					title = profile?.displayName ?? i18n.t('rally_user');
-					photoURL = profile?.photoURL ?? null;
-				} else if (conversation.type === 'organization_direct') {
-					title = conversation.organizationName ?? conversation.title ?? i18n.t('organization_fallback');
-				} else if (conversation.type === 'rally_system') {
-					title = 'Rally';
-				}
+					if (conversation.type === 'direct') {
+						const otherUserId = conversation.memberIds.find((id) => id !== userId);
+						const profile = otherUserId ? await getUserProfile(otherUserId) : null;
+						title = profile?.displayName ?? i18n.t('rally_user');
+						photoURL = profile?.photoURL ?? null;
+					} else if (conversation.type === 'organization_direct') {
+						title =
+							conversation.organizationName ??
+							conversation.title ??
+							i18n.t('organization_fallback');
+					} else if (conversation.type === 'rally_system') {
+						title = 'Rally';
+					}
 
-				return {
-					id: `message-${conversation.id}`,
-					type: 'message' as const,
-					title,
-					body: translateSystemPreview(conversation.lastMessage, conversation.type),
-					href: `/messages/${conversation.id}`,
-					createdAtMs: getTimestampMillis(conversation.lastMessageAt),
-					photoURL
-				};
-			})
-		).then((previews) => {
-			if (previewVersion !== conversationPreviewVersion) return;
-			mergeNotificationPreviews('message', previews);
-		});
+					return {
+						id: `message-${conversation.id}`,
+						type: 'message' as const,
+						title,
+						body: translateSystemPreview(conversation.lastMessage, conversation.type),
+						href: `/messages/${conversation.id}`,
+						createdAtMs: getTimestampMillis(conversation.lastMessageAt),
+						photoURL
+					};
+				})
+			).then((previews) => {
+				if (previewVersion !== conversationPreviewVersion) return;
+				mergeNotificationPreviews('message', previews);
+			});
 
-		for (const conversation of conversations) {
-			const lastTime = conversation.lastMessageAt?.toMillis() ?? 0;
-			const oldTime = lastMessageTimes.get(conversation.id);
+			for (const conversation of conversations) {
+				const lastTime = conversation.lastMessageAt?.toMillis() ?? 0;
+				const oldTime = lastMessageTimes.get(conversation.id);
 
-			if (conversationsInitialized && oldTime !== undefined && lastTime > oldTime) {
-				if (
-					conversation.lastSenderId !== userId &&
-					conversation.lastSenderId !== 'rally-system'
-				) {
-					const senderId = conversation.lastSenderId;
-					if (senderId) {
-						getUserProfile(senderId).then((profile) => {
-							const senderName = profile?.displayName || i18n.t('someone');
-							const textPreview = translateSystemPreview(conversation.lastMessage, conversation.type);
-							toastState.add(
-								i18n.t('new_message_from', { name: senderName }),
-								textPreview,
-								'message',
-								`${userId}:message:${conversation.id}:${lastTime}`
-							);
-						});
+				if (conversationsInitialized && oldTime !== undefined && lastTime > oldTime) {
+					if (
+						conversation.lastSenderId !== userId &&
+						conversation.lastSenderId !== 'rally-system'
+					) {
+						const senderId = conversation.lastSenderId;
+						if (senderId) {
+							getUserProfile(senderId).then((profile) => {
+								const senderName = profile?.displayName || i18n.t('someone');
+								const textPreview = translateSystemPreview(
+									conversation.lastMessage,
+									conversation.type
+								);
+								void showToastOnceForAccount(
+									userId,
+									`message-${conversation.id}-${lastTime}`,
+									i18n.t('new_message_from', { name: senderName }),
+									textPreview,
+									'message'
+								);
+							});
+						}
 					}
 				}
+				lastMessageTimes.set(conversation.id, lastTime);
 			}
-			lastMessageTimes.set(conversation.id, lastTime);
-		}
 
-		conversationsInitialized = true;
-		updateTotal();
-		notificationState.ready = true;
-	});
+			conversationsInitialized = true;
+			updateTotal();
+			notificationState.ready = true;
+		}
+	);
 
 	// ─── Event Invites ──────────────────────────────────────────────────────────
 	let invitesInitialized = false;
@@ -212,11 +257,14 @@ export function startNotifications(userId: string) {
 
 			for (const { invite, event } of filteredInvites) {
 				if (invitesInitialized && !currentInviteIds.has(invite.id)) {
-					toastState.add(
+					void showToastOnceForAccount(
+						userId,
+						`event-invite-${invite.id}`,
 						i18n.t('new_event_invite_title'),
-						i18n.t('new_event_invite_body', { title: event.title ?? i18n.t('event_invite_label') }),
-						'invite',
-						`${userId}:event-invite:${invite.id}`
+						i18n.t('new_event_invite_body', {
+							title: event.title ?? i18n.t('event_invite_label')
+						}),
+						'invite'
 					);
 				}
 			}
@@ -237,52 +285,56 @@ export function startNotifications(userId: string) {
 	const currentRequestIds = new Set<string>();
 	let friendRequestPreviewVersion = 0;
 
-	const unsubscribeFriendRequests = listenFriendRequestsForUser(userId, (requests: FriendRequest[]) => {
-		const pendingRequests = requests.filter((request) => request.status === 'pending');
-		notificationState.pendingFriendRequests = pendingRequests.length;
-		const previewVersion = ++friendRequestPreviewVersion;
+	const unsubscribeFriendRequests = listenFriendRequestsForUser(
+		userId,
+		(requests: FriendRequest[]) => {
+			const pendingRequests = requests.filter((request) => request.status === 'pending');
+			notificationState.pendingFriendRequests = pendingRequests.length;
+			const previewVersion = ++friendRequestPreviewVersion;
 
-		void Promise.all(
-			pendingRequests.map(async (request) => {
-				const profile = await getUserProfile(request.fromUserId);
-				return {
-					id: `friend-request-${request.id}`,
-					type: 'friend_request' as const,
-					title: profile?.displayName ?? i18n.t('rally_user'),
-					body: i18n.t('sent_friend_request'),
-					href: '/messages',
-					createdAtMs: getTimestampMillis(request.createdAt),
-					photoURL: profile?.photoURL ?? null
-				};
-			})
-		).then((previews) => {
-			if (previewVersion !== friendRequestPreviewVersion) return;
-			mergeNotificationPreviews('friend_request', previews);
-		});
+			void Promise.all(
+				pendingRequests.map(async (request) => {
+					const profile = await getUserProfile(request.fromUserId);
+					return {
+						id: `friend-request-${request.id}`,
+						type: 'friend_request' as const,
+						title: profile?.displayName ?? i18n.t('rally_user'),
+						body: i18n.t('sent_friend_request'),
+						href: '/messages',
+						createdAtMs: getTimestampMillis(request.createdAt),
+						photoURL: profile?.photoURL ?? null
+					};
+				})
+			).then((previews) => {
+				if (previewVersion !== friendRequestPreviewVersion) return;
+				mergeNotificationPreviews('friend_request', previews);
+			});
 
-		for (const request of pendingRequests) {
-			if (friendRequestsInitialized && !currentRequestIds.has(request.id)) {
-				getUserProfile(request.fromUserId).then((profile) => {
-					const senderName = profile?.displayName || i18n.t('someone');
-					toastState.add(
-						i18n.t('friend_request_title'),
-						i18n.t('friend_request_body', { name: senderName }),
-						'invite',
-						`${userId}:friend-request:${request.id}`
-					);
-				});
+			for (const request of pendingRequests) {
+				if (friendRequestsInitialized && !currentRequestIds.has(request.id)) {
+					getUserProfile(request.fromUserId).then((profile) => {
+						const senderName = profile?.displayName || i18n.t('someone');
+						void showToastOnceForAccount(
+							userId,
+							`friend-request-${request.id}`,
+							i18n.t('friend_request_title'),
+							i18n.t('friend_request_body', { name: senderName }),
+							'invite'
+						);
+					});
+				}
 			}
-		}
 
-		currentRequestIds.clear();
-		for (const request of pendingRequests) {
-			currentRequestIds.add(request.id);
-		}
+			currentRequestIds.clear();
+			for (const request of pendingRequests) {
+				currentRequestIds.add(request.id);
+			}
 
-		friendRequestsInitialized = true;
-		updateTotal();
-		notificationState.ready = true;
-	});
+			friendRequestsInitialized = true;
+			updateTotal();
+			notificationState.ready = true;
+		}
+	);
 
 	// ─── Friendships (Listen to friend list) ────────────────────────────────────
 	let friendIds = new Set<string>();
@@ -305,7 +357,10 @@ export function startNotifications(userId: string) {
 	let eventsInitialized = false;
 	const unsubscribeEvents = onSnapshot(collection(db, 'events'), (snapshot) => {
 		if (!eventsInitialized) {
-			eventsInitialized = true;
+			// A new browser may first receive an empty cache snapshot and then
+			// the full server snapshot as "added". Treat the first server
+			// snapshot as the baseline so historical events never become toasts.
+			if (!snapshot.metadata.fromCache) eventsInitialized = true;
 			return;
 		}
 
@@ -318,11 +373,12 @@ export function startNotifications(userId: string) {
 					const eventTitle = eventData.title || i18n.t('new_event');
 					getUserProfile(creatorId).then((profile) => {
 						const creatorName = profile?.displayName || i18n.t('someone');
-						toastState.add(
+						void showToastOnceForAccount(
+							userId,
+							`friend-event-${change.doc.id}`,
 							i18n.t('friend_activity'),
 							i18n.t('friend_created_event', { name: creatorName, title: eventTitle }),
-							'event',
-							`${userId}:friend-event:${change.doc.id}`
+							'event'
 						);
 					});
 				}
