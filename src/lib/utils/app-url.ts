@@ -1,4 +1,4 @@
-import { env } from '$env/dynamic/public';
+import { PUBLIC_RALLY_APP_URL } from '$env/static/public';
 
 const PUBLIC_APP_URL = 'https://synqo-rally.web.app';
 
@@ -7,7 +7,7 @@ function normalizeBaseUrl(url: string) {
 }
 
 export function getPublicAppBaseUrl() {
-	const configuredUrl = env.PUBLIC_RALLY_APP_URL?.trim();
+	const configuredUrl = PUBLIC_RALLY_APP_URL?.trim();
 
 	if (configuredUrl) {
 		return normalizeBaseUrl(configuredUrl);
