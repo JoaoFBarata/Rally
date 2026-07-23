@@ -151,11 +151,11 @@
 	<title>{pageTitle}</title>
 </svelte:head>
 
-{#if !authState.loading}
-	<AppShell>
-		{@render children()}
-	</AppShell>
-{:else}
+<AppShell>
+	{@render children()}
+</AppShell>
+
+{#if authState.loading}
 	<div
 		class="fixed inset-0 z-[9999] flex min-h-dvh items-center justify-center bg-white dark:bg-[#161616]"
 	>

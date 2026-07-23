@@ -13,6 +13,15 @@ class AuthState {
     private revision = 0;
 
     constructor() {
+        if (typeof window !== 'undefined') {
+            window.setTimeout(() => {
+                if (this.loading) {
+                    console.warn('Auth state loading fallback timeout reached.');
+                    this.loading = false;
+                }
+            }, 1500);
+        }
+
         onAuthStateChanged(auth, async (u) => {
             const revision = ++this.revision;
             this.user = u;
