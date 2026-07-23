@@ -3,7 +3,6 @@
 	import { authState } from '$lib/auth.svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
 	import './layout.css';
 	import '../app.css';
 	import 'mapbox-gl/dist/mapbox-gl.css';
@@ -15,15 +14,7 @@
 	import { onMount } from 'svelte';
 
 	let { children } = $props();
-	let shouldBypassLanding = $state(Capacitor.getPlatform() !== 'web');
-	let nativeStartupPending = $state(Capacitor.getPlatform() !== 'web');
-	let isNativeRoot = $derived(Capacitor.getPlatform() !== 'web' && page.url.pathname === '/');
-	let showStartupLoader = $derived(
-		authState.loading ||
-			isNativeRoot ||
-			(shouldBypassLanding && page.url.pathname === '/' && !authState.user) ||
-			(Capacitor.getPlatform() !== 'web' && nativeStartupPending)
-	);
+
 	let pageTitle = $derived.by(() => {
 		const pathname = page.url.pathname;
 
@@ -48,8 +39,6 @@
 
 	onMount(() => {
 		initTheme();
-		shouldBypassLanding =
-			Capacitor.getPlatform() !== 'web' || window.matchMedia('(max-width: 767px)').matches;
 
 		let backButtonListener: Promise<{ remove: () => Promise<void> }> | null = null;
 		if (Capacitor.getPlatform() === 'android') {
@@ -78,19 +67,14 @@
 		void CapacitorApp.getLaunchUrl().then((launch) => {
 			if (launch?.url) void openAppUrl(launch.url);
 		});
-		const handleDashboardReady = () => (nativeStartupPending = false);
-		window.addEventListener('rally:dashboard-ready', handleDashboardReady);
-		const startupSafetyTimeout = window.setTimeout(() => (nativeStartupPending = false), 15_000);
 
 		return () => {
-			window.removeEventListener('rally:dashboard-ready', handleDashboardReady);
-			window.clearTimeout(startupSafetyTimeout);
 			if (backButtonListener) void backButtonListener.then((listener) => listener.remove());
 			void appUrlListener.then((listener) => listener.remove());
 		};
 	});
 
-	// Proteção de rota simples no cliente
+	// Client-side route protection and initial root navigation
 	$effect(() => {
 		if (!authState.loading) {
 			const isPasswordAccount = Boolean(
@@ -108,19 +92,13 @@
 				page.url.pathname === '/verify-email' ||
 				page.url.pathname.startsWith('/register');
 
-			if (!authState.user || page.url.pathname !== '/') {
-				nativeStartupPending = false;
-			}
-
 			if (Capacitor.getPlatform() !== 'web' && page.url.pathname === '/') {
-				nativeStartupPending = false;
-				void goto(resolve(authState.user ? '/dashboard' : '/login'), { replaceState: true });
+				void goto(authState.user ? '/dashboard' : '/login', { replaceState: true });
 				return;
 			}
 
-			if (shouldBypassLanding && page.url.pathname === '/' && !authState.user) {
-				nativeStartupPending = false;
-				void goto(resolve('/login'), { replaceState: true });
+			if (page.url.pathname === '/' && !authState.user) {
+				void goto('/login', { replaceState: true });
 				return;
 			}
 
@@ -131,17 +109,17 @@
 				page.url.pathname.startsWith('/profile');
 
 			if (protectedRoutes && !authState.user) {
-				goto(resolve('/login'));
+				void goto('/login');
 				return;
 			}
 
 			if (page.url.pathname === '/verify-email' && !authState.user) {
-				goto(resolve('/login'));
+				void goto('/login');
 				return;
 			}
 
 			if (requiresEmailVerification && !emailVerificationAllowedRoute) {
-				goto(resolve('/verify-email'));
+				void goto('/verify-email');
 				return;
 			}
 
@@ -150,7 +128,7 @@
 				authState.user &&
 				(!isPasswordAccount || authState.user.emailVerified)
 			) {
-				goto(resolve('/dashboard'));
+				void goto('/dashboard');
 			}
 		}
 	});
@@ -173,13 +151,11 @@
 	<title>{pageTitle}</title>
 </svelte:head>
 
-{#if !authState.loading && !isNativeRoot && !(shouldBypassLanding && page.url.pathname === '/' && !authState.user)}
+{#if !authState.loading}
 	<AppShell>
 		{@render children()}
 	</AppShell>
-{/if}
-
-{#if showStartupLoader}
+{:else}
 	<div
 		class="fixed inset-0 z-[9999] flex min-h-dvh items-center justify-center bg-white dark:bg-[#161616]"
 	>
