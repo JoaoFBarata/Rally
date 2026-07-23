@@ -1,0 +1,4 @@
+module GoogleSignIn {
+umbrella header "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/SourcePackages/checkouts/GoogleSignIn-iOS/GoogleSignIn/Sources/Public/GoogleSignIn/GoogleSignIn.h"
+export *
+}

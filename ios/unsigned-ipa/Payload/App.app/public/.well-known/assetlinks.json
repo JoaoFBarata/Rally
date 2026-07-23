@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "adc.fct.rally",
+      "sha256_cert_fingerprints": [
+        "03:6D:CD:41:D6:60:E5:CF:8C:E0:01:61:7A:24:19:DA:A9:EA:F3:14:FB:D8:51:06:20:93:A1:7C:46:8F:90:C0"
+      ]
+    }
+  }
+]

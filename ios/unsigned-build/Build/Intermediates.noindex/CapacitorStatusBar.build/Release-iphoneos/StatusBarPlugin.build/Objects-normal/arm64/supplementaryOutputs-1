@@ -1,0 +1,12 @@
+{
+  "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/node_modules/.pnpm/@capacitor+status-bar@8.0.3_@capacitor+core@8.4.1/node_modules/@capacitor/status-bar/ios/Sources/StatusBarPlugin/StatusBar.swift" : {
+    "abi-baseline-json" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/StatusBarPlugin.abi.json",
+    "const-values" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/StatusBarPlugin-primary.swiftconstvalues",
+    "dependencies" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/StatusBarPlugin-primary.d",
+    "diagnostics" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/StatusBarPlugin-primary.dia",
+    "objc-header" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/StatusBarPlugin-Swift.h",
+    "swiftdoc" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/StatusBarPlugin.swiftdoc",
+    "swiftmodule" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/StatusBarPlugin.swiftmodule",
+    "swiftsourceinfo" : "/Users/guilhermemartinsesilva/FCT/3ºano/2ºsemestre/ADC/ADCproject/Rally/ios/unsigned-build/Build/Intermediates.noindex/CapacitorStatusBar.build/Release-iphoneos/StatusBarPlugin.build/Objects-normal/arm64/StatusBarPlugin.swiftsourceinfo"
+  }
+}
