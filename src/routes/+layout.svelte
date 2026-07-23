@@ -157,7 +157,9 @@
 		const statusBarColor = useDarkStatusBar ? '#161616' : '#FFFFFF';
 		document.documentElement.style.backgroundColor = statusBarColor;
 		document.body.style.backgroundColor = statusBarColor;
-		void StatusBar.setBackgroundColor({ color: statusBarColor });
+		if (Capacitor.getPlatform() === 'android') {
+			void StatusBar.setBackgroundColor({ color: statusBarColor });
+		}
 		void StatusBar.setStyle({ style: useDarkStatusBar ? Style.Dark : Style.Light });
 	});
 </script>

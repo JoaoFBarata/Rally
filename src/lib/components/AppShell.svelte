@@ -224,15 +224,17 @@
 			}
 
 			// Create default notification channel for Android background notifications
-			await PushNotifications.createChannel({
-				id: 'rally_default_channel',
-				name: 'Default',
-				description: 'Default notification channel',
-				importance: 5, // IMPORTANCE_HIGH (value 5)
-				visibility: 1, // VISIBILITY_PUBLIC (value 1)
-				lights: true,
-				vibration: true
-			});
+			if (Capacitor.getPlatform() === 'android') {
+				await PushNotifications.createChannel({
+					id: 'rally_default_channel',
+					name: 'Default',
+					description: 'Default notification channel',
+					importance: 5, // IMPORTANCE_HIGH (value 5)
+					visibility: 1, // VISIBILITY_PUBLIC (value 1)
+					lights: true,
+					vibration: true
+				});
+			}
 
 			await PushNotifications.removeAllListeners();
 

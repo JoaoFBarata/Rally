@@ -47,5 +47,38 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Rally needs your location to display nearby sports events and venues on the map.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Rally needs your location to display nearby sports events and venues on the map.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Rally needs access to your microphone for audio features.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.googleusercontent.apps.906417673342-m5sqdvar26pvo85ld97sk84bdg0l7ei0</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.906417673342-m5sqdvar26pvo85ld97sk84bdg0l7ei0</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>adc.fct.rally</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>rally</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
